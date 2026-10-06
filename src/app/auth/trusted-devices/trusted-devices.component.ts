@@ -1,4 +1,4 @@
-import { Component, OnInit, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy, inject, signal } from '@angular/core';
 import { TwoFactorService, TrustedDevice } from '../../services/two-factor.service';
 import { AuthService } from '../../services/auth.service';
 import { formatNy } from '../../shared/ny-time.util';
@@ -8,26 +8,26 @@ import { formatNy } from '../../shared/ny-time.util';
   standalone: true,
   imports: [],
   templateUrl: './trusted-devices.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./trusted-devices.component.scss']
 })
 export class TrustedDevicesComponent implements OnInit {
   private twoFactor = inject(TwoFactorService);
   private auth = inject(AuthService);
 
-  devices: TrustedDevice[] = [];
-  loading = false;
-  error = '';
-  notice = '';
+  readonly devices = signal<TrustedDevice[]>([]);
+  readonly loading = signal(false);
+  readonly error = signal('');
+  readonly notice = signal('');
 
   // Confirm-row state: inline "Are you sure?" instead of a modal.
-  pendingRevokeId: number | null = null;
-  revoking = false;
+  readonly pendingRevokeId = signal<number | null>(null);
+  readonly revoking = signal(false);
 
   // "Sign out all other devices" — also reaches devices that were never trusted, which is why
   // it exists beside the per-device Remove.
-  confirmingSignOutOthers = false;
-  signingOutOthers = false;
+  readonly confirmingSignOutOthers = signal(false);
+  readonly signingOutOthers = signal(false);
 
   // Only render the section for staff roles — customers don't have 2FA so the list is
   // always empty for them anyway, but we hide it to avoid confusion.
@@ -40,33 +40,33 @@ export class TrustedDevicesComponent implements OnInit {
   }
 
   load(): void {
-    this.loading = true;
+    this.loading.set(true);
     this.twoFactor.listTrustedDevices().subscribe({
-      next: (rows) => { this.devices = rows; this.loading = false; },
+      next: (rows) => { this.devices.set(rows); this.loading.set(false); },
       error: (err) => {
-        this.error = err.error?.message || 'Failed to load trusted devices';
-        this.loading = false;
+        this.error.set(err.error?.message || 'Failed to load trusted devices');
+        this.loading.set(false);
       }
     });
   }
 
   askRevoke(id: number): void {
-    this.pendingRevokeId = id;
+    this.pendingRevokeId.set(id);
   }
 
   cancelRevoke(): void {
-    this.pendingRevokeId = null;
+    this.pendingRevokeId.set(null);
   }
 
   confirmRevoke(): void {
-    if (this.pendingRevokeId == null || this.revoking) return;
-    const id = this.pendingRevokeId;
-    const wasCurrent = !!this.devices.find(d => d.id === id)?.isCurrentDevice;
-    this.revoking = true;
+    const id = this.pendingRevokeId();
+    if (id == null || this.revoking()) return;
+    const wasCurrent = !!this.devices().find(d => d.id === id)?.isCurrentDevice;
+    this.revoking.set(true);
     this.auth.trackSessionReissue(this.twoFactor.revokeTrustedDevice(id)).subscribe({
       next: (res) => {
-        this.revoking = false;
-        this.pendingRevokeId = null;
+        this.revoking.set(false);
+        this.pendingRevokeId.set(null);
         if (wasCurrent) {
           // Revoking the current device means the next login from here requires 2FA again.
           // The server-side revocation is authoritative; the now-inert local token is left
@@ -80,34 +80,34 @@ export class TrustedDevicesComponent implements OnInit {
         this.load();
       },
       error: (err) => {
-        this.revoking = false;
-        this.error = err.error?.message || 'Failed to revoke device';
+        this.revoking.set(false);
+        this.error.set(err.error?.message || 'Failed to revoke device');
       }
     });
   }
 
   askSignOutOthers(): void {
-    this.confirmingSignOutOthers = true;
+    this.confirmingSignOutOthers.set(true);
   }
 
   cancelSignOutOthers(): void {
-    this.confirmingSignOutOthers = false;
+    this.confirmingSignOutOthers.set(false);
   }
 
   confirmSignOutOthers(): void {
-    if (this.signingOutOthers) return;
-    this.signingOutOthers = true;
-    this.error = '';
+    if (this.signingOutOthers()) return;
+    this.signingOutOthers.set(true);
+    this.error.set('');
     this.auth.trackSessionReissue(this.twoFactor.signOutOtherSessions()).subscribe({
       next: () => {
-        this.signingOutOthers = false;
-        this.confirmingSignOutOthers = false;
+        this.signingOutOthers.set(false);
+        this.confirmingSignOutOthers.set(false);
         this.flashNotice('Signed out of every other device.');
         this.load();
       },
       error: (err) => {
-        this.signingOutOthers = false;
-        this.error = err.error?.message || 'Failed to sign out other devices';
+        this.signingOutOthers.set(false);
+        this.error.set(err.error?.message || 'Failed to sign out other devices');
       }
     });
   }
@@ -118,7 +118,7 @@ export class TrustedDevicesComponent implements OnInit {
   }
 
   private flashNotice(msg: string): void {
-    this.notice = msg;
-    setTimeout(() => this.notice = '', 4000);
+    this.notice.set(msg);
+    setTimeout(() => this.notice.set(''), 4000);
   }
 }

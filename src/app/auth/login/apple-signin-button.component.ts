@@ -1,4 +1,4 @@
-import { Component, PLATFORM_ID, OnInit, Output, EventEmitter, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, PLATFORM_ID, OnInit, ChangeDetectionStrategy, inject, output, signal } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { environment } from '../../../environments/environment';
 
@@ -13,7 +13,7 @@ declare const AppleID: any;
     <button 
             class="apple-signin-btn" 
             (click)="signInWithApple()"
-            [disabled]="isLoading">
+            [disabled]="isLoading()">
       <svg class="apple-icon" viewBox="0 0 24 24" fill="currentColor">
         <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
       </svg>
@@ -21,7 +21,7 @@ declare const AppleID: any;
     </button>
     }
   `,
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styles: [`
     :host {
       display: block;
@@ -84,10 +84,10 @@ export class AppleSigninButtonComponent implements OnInit {
   private platformId = inject<Object>(PLATFORM_ID);
 
   isBrowser = false;
-  isLoading = false;
+  readonly isLoading = signal(false);
   
-  @Output() appleSignIn = new EventEmitter<any>();
-  @Output() appleError = new EventEmitter<any>();
+  readonly appleSignIn = output<any>();
+  readonly appleError = output<any>();
 
   constructor() {
     this.isBrowser = isPlatformBrowser(this.platformId);
@@ -114,7 +114,7 @@ export class AppleSigninButtonComponent implements OnInit {
   }
 
   async signInWithApple() {
-    this.isLoading = true;
+    this.isLoading.set(true);
     try {
       await this.loadAppleScript();
       
@@ -144,13 +144,13 @@ export class AppleSigninButtonComponent implements OnInit {
         // Don't set isLoading to false here as page will redirect
       }
     } catch (error: any) {
-      this.isLoading = false;
+      this.isLoading.set(false);
       // Don't emit error for popup closed by user
       if (error?.error !== 'popup_closed_by_user' && error?.error !== 'user_cancelled') {
         console.error('Apple Sign-In error:', error);
         this.appleError.emit(error);
       } else {
-        this.isLoading = false;
+        this.isLoading.set(false);
       }
     }
   }

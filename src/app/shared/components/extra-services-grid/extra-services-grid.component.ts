@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, Output, ChangeDetectionStrategy } from '@angular/core';
+import { Component, ChangeDetectionStrategy, output, input, signal } from '@angular/core';
 import { ExtraService } from '../../../services/booking.service';
 import { ShimmerDirective } from '../../directives/shimmer.directive';
 import { QuantityControlComponent } from '../quantity-control/quantity-control.component';
@@ -33,23 +33,23 @@ export interface ExtraServiceSelection {
   standalone: true,
   imports: [ShimmerDirective, QuantityControlComponent, IconComponent],
   templateUrl: './extra-services-grid.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./extra-services-grid.component.scss']
 })
 export class ExtraServicesGridComponent {
   protected readonly icons = { faChevronDown };
 
-  @Input() extras: ExtraService[] = [];
-  @Input() selections: ExtraServiceSelection[] = [];
-  @Input() tooltips: MobileTooltipManager | null = null;
+  readonly extras = input<ExtraService[]>([]);
+  readonly selections = input<ExtraServiceSelection[]>([]);
+  readonly tooltips = input<MobileTooltipManager | null>(null);
   /** Booking-only: same-day card is rendered disabled when false. */
-  @Input() sameDayServiceAvailable = true;
+  readonly sameDayServiceAvailable = input(true);
   /** Booking-only: tooltip text shown on the disabled same-day card. */
-  @Input() sameDayDisabledReason = '';
+  readonly sameDayDisabledReason = input('');
   /** Booking-only: shows the shimmer placeholder row. */
-  @Input() loading = false;
+  readonly loading = input(false);
   /** Booking-only: responsive max-width computed by the page. */
-  @Input() containerMaxWidth: number | null = null;
+  readonly containerMaxWidth = input<number | null>(null);
   /**
    * Renders each card's catalogue price. Opt-in and OFF by default: the booking page turns
    * it on for Admin/SuperAdmin only (never a customer, never a Moderator), so an admin
@@ -58,43 +58,50 @@ export class ExtraServicesGridComponent {
    * quantity and hours are applied by the calculator, so the summary card stays the figure
    * that matters.
    */
-  @Input() showPrices = false;
+  readonly showPrices = input(false);
 
-  @Output() cardClick = new EventEmitter<ExtraService>();
-  @Output() quantityChange = new EventEmitter<{ extra: ExtraService; quantity: number }>();
-  @Output() hoursChange = new EventEmitter<{ extra: ExtraService; hours: number }>();
+  readonly cardClick = output<ExtraService>();
+  readonly quantityChange = output<{
+    extra: ExtraService;
+    quantity: number;
+}>();
+  readonly hoursChange = output<{
+    extra: ExtraService;
+    hours: number;
+}>();
 
-  showAll = false;
+  readonly showAll = signal(false);
   readonly shimmerCards = [1, 2, 3, 4, 5];
 
   get hasMore(): boolean {
-    return this.extras.length > 4;
+    return this.extras().length > 4;
   }
 
   toggleShowAll(): void {
-    this.showAll = !this.showAll;
+    this.showAll.set(!this.showAll());
   }
 
   isSelected(extra: ExtraService): boolean {
-    return this.selections.some(s => s.extraService.id === extra.id);
+    return this.selections().some(s => s.extraService.id === extra.id);
   }
 
   getQuantity(extra: ExtraService): number {
-    const selected = this.selections.find(s => s.extraService.id === extra.id);
+    const selected = this.selections().find(s => s.extraService.id === extra.id);
     return selected ? selected.quantity : 1;
   }
 
   getHours(extra: ExtraService): number {
-    const selected = this.selections.find(s => s.extraService.id === extra.id);
+    const selected = this.selections().find(s => s.extraService.id === extra.id);
     return selected ? selected.hours : 0.5;
   }
 
   isDisabled(extra: ExtraService): boolean {
-    return !!extra.isSameDayService && !this.sameDayServiceAvailable;
+    return !!extra.isSameDayService && !this.sameDayServiceAvailable();
   }
 
   isTooltipVisible(extraServiceId: number): boolean {
-    return this.tooltips ? this.tooltips.isVisible(extraServiceId) : false;
+    const tooltips = this.tooltips();
+    return tooltips ? tooltips.isVisible(extraServiceId) : false;
   }
 
   imageFor(extra: ExtraService): string {
@@ -114,8 +121,9 @@ export class ExtraServicesGridComponent {
   }
 
   tooltipFor(extra: ExtraService): string {
-    if (this.isDisabled(extra) && this.sameDayDisabledReason) {
-      return this.sameDayDisabledReason;
+    const sameDayDisabledReason = this.sameDayDisabledReason();
+    if (this.isDisabled(extra) && sameDayDisabledReason) {
+      return sameDayDisabledReason;
     }
     return getExtraServiceTooltip(extra);
   }

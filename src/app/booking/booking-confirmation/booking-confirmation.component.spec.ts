@@ -49,7 +49,7 @@ describe('BookingConfirmationComponent', () => {
 
     expect(() => fixture.detectChanges()).not.toThrow();
 
-    expect(component.bookingData).toBeNull();
+    expect(component.bookingData()).toBeNull();
     // Withheld entirely rather than rendered half-built.
     expect(fixture.nativeElement.querySelector('.confirmation-content')).toBeNull();
   });
@@ -65,8 +65,8 @@ describe('BookingConfirmationComponent', () => {
 
     fixture.detectChanges();
 
-    expect(component.paymentCompleted).toBe(false);
-    expect(component.bookingData).toBeTruthy();
+    expect(component.paymentCompleted()).toBe(false);
+    expect(component.bookingData()).toBeTruthy();
 
     const content: HTMLElement | null =
       fixture.nativeElement.querySelector('.confirmation-content');
@@ -92,8 +92,8 @@ describe('BookingConfirmationComponent', () => {
       stripeService = TestBed.inject(StripeService);
 
       // Enough for processPayment to run; the figures are irrelevant here.
-      component.bookingData = { serviceTypeId: 1, total: 386.16 };
-      component.orderTotal = 386.16;
+      component.bookingData.set({ serviceTypeId: 1, total: 386.16 });
+      component.orderTotal.set(386.16);
 
       vi.spyOn(stripeService, 'confirmCardPayment').mockImplementation(((): Promise<never> =>
         Promise.reject(new Error('the card must never be charged on either of these paths'))) as any);
@@ -119,8 +119,8 @@ describe('BookingConfirmationComponent', () => {
 
       await component.processPayment();
 
-      expect(component.orderId).toBe(369);
-      expect(component.paymentCompleted).toBe(true);
+      expect(component.orderId()).toBe(369);
+      expect(component.paymentCompleted()).toBe(true);
       expect(stripeService.confirmCardPayment).not.toHaveBeenCalled();
       // The order exists — there is nothing left to confirm either.
       expect(confirm).not.toHaveBeenCalled();
@@ -145,7 +145,7 @@ describe('BookingConfirmationComponent', () => {
       // The REAL intent id, never the empty string: an empty one takes the server's
       // gift-card branch, which would build an order nobody paid for.
       expect(confirm).toHaveBeenCalledWith(0, 'pi_first', 'prepare_payment_1_638');
-      expect(component.orderId).toBe(370);
+      expect(component.orderId()).toBe(370);
     });
   });
 
@@ -161,8 +161,8 @@ describe('BookingConfirmationComponent', () => {
     beforeEach(() => {
       bookingService = TestBed.inject(BookingService);
       stripeService = TestBed.inject(StripeService);
-      component.bookingData = { serviceTypeId: 1, total: 120 };
-      component.orderTotal = 120;
+      component.bookingData.set({ serviceTypeId: 1, total: 120 });
+      component.orderTotal.set(120);
       vi.spyOn(TestBed.inject(Router), 'navigate').mockReturnValue(Promise.resolve(true));
       vi.spyOn(TestBed.inject(OrderSoundService), 'playBookingConfirmed').mockImplementation(() => {});
       vi.spyOn(bookingService, 'preparePayment').mockReturnValue(of({
@@ -188,18 +188,18 @@ describe('BookingConfirmationComponent', () => {
         await component.processPayment();
         await Promise.resolve();
 
-        expect(component.finalizingPayment).toBe(true);
-        expect(component.errorMessage).toBe('');
-        expect(component.isProcessing).toBe(true);       // Pay stays down
+        expect(component.finalizingPayment()).toBe(true);
+        expect(component.errorMessage()).toBe('');
+        expect(component.isProcessing()).toBe(true);       // Pay stays down
         expect(markIdle).not.toHaveBeenCalled();         // the in-flight guard stays up
 
         vi.advanceTimersByTime(2100);
 
         expect(confirm).toHaveBeenCalledTimes(2);
         expect(vi.mocked(confirm).mock.calls[1]).toEqual([0, 'pi_charged', 'prepare_payment_1_1']);
-        expect(component.orderId).toBe(501);
-        expect(component.paymentCompleted).toBe(true);
-        expect(component.finalizingPayment).toBe(false);
+        expect(component.orderId()).toBe(501);
+        expect(component.paymentCompleted()).toBe(true);
+        expect(component.finalizingPayment()).toBe(false);
         expect(stripeService.confirmCardPayment).toHaveBeenCalledTimes(1); // never charged twice
       } finally {
         vi.useRealTimers();
@@ -212,8 +212,8 @@ describe('BookingConfirmationComponent', () => {
       await component.processPayment();
       await Promise.resolve();
 
-      expect(component.finalizingPayment).toBe(false);
-      expect(component.errorMessage).toContain('Payment not completed');
+      expect(component.finalizingPayment()).toBe(false);
+      expect(component.errorMessage()).toContain('Payment not completed');
     });
   });
   // ── "Save your card?", asked BEFORE the charge (2026-09) ────────────────────────────────
@@ -229,11 +229,11 @@ describe('BookingConfirmationComponent', () => {
     beforeEach(() => {
       bookingService = TestBed.inject(BookingService);
       stripeService = TestBed.inject(StripeService);
-      component.bookingData = { serviceTypeId: 1, total: 141.54 };
-      component.orderTotal = 141.54;
+      component.bookingData.set({ serviceTypeId: 1, total: 141.54 });
+      component.orderTotal.set(141.54);
       component.savedCardsFeature = true;
-      component.savedCards = [];
-      component.selectedCardId = null;
+      component.savedCards.set([]);
+      component.selectedCardId.set(null);
       vi.spyOn(TestBed.inject(AuthService), 'isLoggedIn').mockReturnValue(true);
 
       prepare = vi.spyOn(bookingService, 'preparePayment').mockReturnValue(of({
@@ -250,7 +250,7 @@ describe('BookingConfirmationComponent', () => {
     it('asks before anything is prepared or charged', () => {
       component.onPayClicked();
 
-      expect(component.showSaveCardModal).toBe(true);
+      expect(component.showSaveCardModal()).toBe(true);
       expect(prepare).not.toHaveBeenCalled();
       expect(stripeService.confirmCardPayment).not.toHaveBeenCalled();
     });
@@ -259,10 +259,10 @@ describe('BookingConfirmationComponent', () => {
       component.onPayClicked();
       component.onSaveCardDismissed();
 
-      expect(component.showSaveCardModal).toBe(false);
+      expect(component.showSaveCardModal()).toBe(false);
       expect(prepare).not.toHaveBeenCalled();
       expect(stripeService.confirmCardPayment).not.toHaveBeenCalled();
-      expect(component.isProcessing).toBe(false);
+      expect(component.isProcessing()).toBe(false);
     });
 
     it('"Save Card & Pay" pays ONCE, with the save applied to that same intent', async () => {
@@ -273,7 +273,7 @@ describe('BookingConfirmationComponent', () => {
       expect(prepare).toHaveBeenCalledTimes(1);
       expect(stripeService.confirmCardPayment).toHaveBeenCalledTimes(1);
       expect(vi.mocked((stripeService.confirmCardPayment as Mock)).mock.lastCall![2]).toBe(true);
-      expect(component.paymentCompleted).toBe(true);
+      expect(component.paymentCompleted()).toBe(true);
     });
 
     it('"Pay Without Saving" pays ONCE and saves nothing', async () => {
@@ -283,7 +283,7 @@ describe('BookingConfirmationComponent', () => {
 
       expect(prepare).toHaveBeenCalledTimes(1);
       expect(vi.mocked((stripeService.confirmCardPayment as Mock)).mock.lastCall![2]).toBe(false);
-      expect(component.paymentCompleted).toBe(true);
+      expect(component.paymentCompleted()).toBe(true);
     });
 
     it('never saves when the server says this intent cannot carry the choice', async () => {
@@ -298,38 +298,38 @@ describe('BookingConfirmationComponent', () => {
       await fixture.whenStable();
 
       expect(vi.mocked((stripeService.confirmCardPayment as Mock)).mock.lastCall![2]).toBe(false);
-      expect(component.paymentCompleted).toBe(true);   // the payment is unaffected
+      expect(component.paymentCompleted()).toBe(true);   // the payment is unaffected
     });
 
     it('does not ask again once answered, and never asks for a SAVED card', () => {
       component.onPayClicked();
       component.onSaveCardChoice(false);
-      component.showSaveCardModal = false;
+      component.showSaveCardModal.set(false);
 
       component.onPayClicked();
-      expect(component.showSaveCardModal).toBe(false);   // same attempt, same answer
+      expect(component.showSaveCardModal()).toBe(false);   // same attempt, same answer
 
-      component.savedCards = [{ id: 7, paymentMethodId: 'pm_saved', isPrimary: true } as any];
+      component.savedCards.set([{ id: 7, paymentMethodId: 'pm_saved', isPrimary: true } as any]);
       component.selectPaymentMethod(7);
       component.onPayClicked();
-      expect(component.showSaveCardModal).toBe(false);   // a saved card is already saved
+      expect(component.showSaveCardModal()).toBe(false);   // a saved card is already saved
     });
 
     it('asks again when the customer switches from a saved card to a new one', async () => {
-      component.savedCards = [{ id: 7, paymentMethodId: 'pm_saved', isPrimary: true } as any];
+      component.savedCards.set([{ id: 7, paymentMethodId: 'pm_saved', isPrimary: true } as any]);
       component.selectPaymentMethod(7);
       component.onPayClicked();
-      expect(component.showSaveCardModal).toBe(false);   // a saved card is never asked about
+      expect(component.showSaveCardModal()).toBe(false);   // a saved card is never asked about
 
       // Let that attempt settle before the next click — the Pay button is held down while a
       // payment is in flight, which is a separate guarantee from this one.
       await fixture.whenStable();
-      component.isProcessing = false;
-      component.paymentCompleted = false;
+      component.isProcessing.set(false);
+      component.paymentCompleted.set(false);
 
       component.selectPaymentMethod(null);
       component.onPayClicked();
-      expect(component.showSaveCardModal).toBe(true);
+      expect(component.showSaveCardModal()).toBe(true);
     });
   });
 });

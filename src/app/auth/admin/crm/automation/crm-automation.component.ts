@@ -1,4 +1,4 @@
-import { Component, OnInit, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -9,26 +9,26 @@ import { CrmAutomationService, AutomationRule, AutomationAlert } from '../../../
   standalone: true,
   imports: [CommonModule, FormsModule, RouterLink],
   templateUrl: './crm-automation.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./crm-automation.component.scss']
 })
 export class CrmAutomationComponent implements OnInit {
   private automationService = inject(CrmAutomationService);
 
-  rules: AutomationRule[] = [];
-  alerts: AutomationAlert[] = [];
-  loading = false;
-  alertsLoading = false;
-  errorMessage = '';
-  infoMessage = '';
+  readonly rules = signal<AutomationRule[]>([], { equal: () => false });
+  readonly alerts = signal<AutomationAlert[]>([], { equal: () => false });
+  readonly loading = signal(false);
+  readonly alertsLoading = signal(false);
+  readonly errorMessage = signal('');
+  readonly infoMessage = signal('');
 
-  alertStatusFilter: 'Open' | 'Snoozed' | 'Done' | 'Dismissed' | 'all' = 'Open';
-  savingRuleId: number | null = null;
-  runningRuleId: number | null = null;
+  readonly alertStatusFilter = signal<'Open' | 'Snoozed' | 'Done' | 'Dismissed' | 'all'>('Open');
+  readonly savingRuleId = signal<number | null>(null);
+  readonly runningRuleId = signal<number | null>(null);
 
   // Snooze ("remind later") inline picker state
-  snoozingAlertId: number | null = null;
-  snoozeDate = '';
+  readonly snoozingAlertId = signal<number | null>(null);
+  readonly snoozeDate = signal('');
   minSnoozeDate = '';
 
   ngOnInit(): void {
@@ -42,54 +42,54 @@ export class CrmAutomationComponent implements OnInit {
   }
 
   loadRules(): void {
-    this.loading = true;
+    this.loading.set(true);
     this.automationService.getRules().subscribe({
-      next: r => { this.rules = r; this.loading = false; },
-      error: () => { this.errorMessage = 'Failed to load rules.'; this.loading = false; }
+      next: r => { this.rules.set(r); this.loading.set(false); },
+      error: () => { this.errorMessage.set('Failed to load rules.'); this.loading.set(false); }
     });
   }
 
   loadAlerts(): void {
-    this.alertsLoading = true;
-    this.automationService.getAlerts(this.alertStatusFilter).subscribe({
-      next: a => { this.alerts = a; this.alertsLoading = false; },
-      error: () => { this.errorMessage = 'Failed to load alerts.'; this.alertsLoading = false; }
+    this.alertsLoading.set(true);
+    this.automationService.getAlerts(this.alertStatusFilter()).subscribe({
+      next: a => { this.alerts.set(a); this.alertsLoading.set(false); },
+      error: () => { this.errorMessage.set('Failed to load alerts.'); this.alertsLoading.set(false); }
     });
   }
 
   toggleRule(rule: AutomationRule): void {
-    this.savingRuleId = rule.id;
+    this.savingRuleId.set(rule.id);
     this.automationService.updateRule(rule.id, { isEnabled: !rule.isEnabled }).subscribe({
-      next: updated => { this.applyRule(updated); this.savingRuleId = null; },
-      error: () => { this.errorMessage = 'Failed to update rule.'; this.savingRuleId = null; }
+      next: updated => { this.applyRule(updated); this.savingRuleId.set(null); },
+      error: () => { this.errorMessage.set('Failed to update rule.'); this.savingRuleId.set(null); }
     });
   }
 
   saveThresholds(rule: AutomationRule): void {
-    this.savingRuleId = rule.id;
+    this.savingRuleId.set(rule.id);
     this.automationService.updateRule(rule.id, {
       thresholdDays: rule.thresholdDays,
       cooldownDays: rule.cooldownDays
     }).subscribe({
       next: updated => {
         this.applyRule(updated);
-        this.savingRuleId = null;
+        this.savingRuleId.set(null);
         this.flash('Settings saved.');
       },
-      error: () => { this.errorMessage = 'Failed to save settings.'; this.savingRuleId = null; }
+      error: () => { this.errorMessage.set('Failed to save settings.'); this.savingRuleId.set(null); }
     });
   }
 
   runNow(rule: AutomationRule): void {
-    this.runningRuleId = rule.id;
+    this.runningRuleId.set(rule.id);
     this.automationService.runRule(rule.id).subscribe({
       next: res => {
-        this.runningRuleId = null;
+        this.runningRuleId.set(null);
         this.flash(res.message);
         this.loadRules();
         this.loadAlerts();
       },
-      error: () => { this.errorMessage = 'Failed to run rule.'; this.runningRuleId = null; }
+      error: () => { this.errorMessage.set('Failed to run rule.'); this.runningRuleId.set(null); }
     });
   }
 
@@ -97,21 +97,21 @@ export class CrmAutomationComponent implements OnInit {
     this.automationService.updateAlert(alert.id, status).subscribe({
       next: () => {
         // Drop it from the current view if we're filtering on Open.
-        if (this.alertStatusFilter !== 'all' && this.alertStatusFilter !== status) {
-          this.alerts = this.alerts.filter(a => a.id !== alert.id);
+        if (this.alertStatusFilter() !== 'all' && this.alertStatusFilter() !== status) {
+          this.alerts.set(this.alerts().filter(a => a.id !== alert.id));
         } else {
           alert.status = status;
         }
         this.loadRules();
       },
-      error: () => this.errorMessage = 'Failed to update alert.'
+      error: () => this.errorMessage.set('Failed to update alert.')
     });
   }
 
   reopenAlert(alert: AutomationAlert): void {
     this.automationService.updateAlert(alert.id, 'Open').subscribe({
       next: () => { this.loadAlerts(); this.loadRules(); },
-      error: () => this.errorMessage = 'Failed to reopen alert.'
+      error: () => this.errorMessage.set('Failed to reopen alert.')
     });
   }
 
@@ -119,61 +119,63 @@ export class CrmAutomationComponent implements OnInit {
   noAnswer(alert: AutomationAlert): void {
     this.automationService.logNoAnswer(alert.id).subscribe({
       next: updated => {
-        const idx = this.alerts.findIndex(a => a.id === alert.id);
+        const idx = this.alerts().findIndex(a => a.id === alert.id);
         if (idx >= 0) {
           // If we were viewing a non-Open filter, it moves back to Open → drop it from this view.
-          if (this.alertStatusFilter !== 'all' && this.alertStatusFilter !== 'Open') {
-            this.alerts.splice(idx, 1);
+          if (this.alertStatusFilter() !== 'all' && this.alertStatusFilter() !== 'Open') {
+            this.alerts().splice(idx, 1);
+            this.alerts.set(this.alerts());
           } else {
-            this.alerts[idx] = updated;
+            this.alerts()[idx] = updated;
+            this.alerts.set(this.alerts());
           }
         }
         this.loadRules();
       },
-      error: () => this.errorMessage = 'Failed to log the attempt.'
+      error: () => this.errorMessage.set('Failed to log the attempt.')
     });
   }
 
   // ── Snooze ("remind later") ──
 
   startSnooze(alert: AutomationAlert): void {
-    this.snoozingAlertId = alert.id;
-    this.snoozeDate = '';
+    this.snoozingAlertId.set(alert.id);
+    this.snoozeDate.set('');
   }
 
   cancelSnooze(): void {
-    this.snoozingAlertId = null;
-    this.snoozeDate = '';
+    this.snoozingAlertId.set(null);
+    this.snoozeDate.set('');
   }
 
   confirmSnooze(alert: AutomationAlert): void {
-    if (!this.snoozeDate) return;
-    this.automationService.updateAlert(alert.id, 'Snoozed', this.snoozeDate).subscribe({
+    if (!this.snoozeDate()) return;
+    this.automationService.updateAlert(alert.id, 'Snoozed', this.snoozeDate()).subscribe({
       next: () => {
-        this.snoozingAlertId = null;
-        this.snoozeDate = '';
+        this.snoozingAlertId.set(null);
+        this.snoozeDate.set('');
         // Remove from the Open view (it's scheduled now); reload counts.
-        if (this.alertStatusFilter !== 'all' && this.alertStatusFilter !== 'Snoozed') {
-          this.alerts = this.alerts.filter(a => a.id !== alert.id);
+        if (this.alertStatusFilter() !== 'all' && this.alertStatusFilter() !== 'Snoozed') {
+          this.alerts.set(this.alerts().filter(a => a.id !== alert.id));
         } else {
           this.loadAlerts();
         }
         this.loadRules();
       },
-      error: err => this.errorMessage = err?.error?.message || 'Failed to schedule reminder.'
+      error: err => this.errorMessage.set(err?.error?.message || 'Failed to schedule reminder.')
     });
   }
 
   onStatusFilterChange(): void { this.loadAlerts(); }
 
   private applyRule(updated: AutomationRule): void {
-    const idx = this.rules.findIndex(r => r.id === updated.id);
-    if (idx >= 0) this.rules[idx] = updated;
+    const idx = this.rules().findIndex(r => r.id === updated.id);
+    if (idx >= 0) { this.rules()[idx] = updated; this.rules.set(this.rules()); }
   }
 
   private flash(msg: string): void {
-    this.infoMessage = msg;
-    setTimeout(() => this.infoMessage = '', 3500);
+    this.infoMessage.set(msg);
+    setTimeout(() => this.infoMessage.set(''), 3500);
   }
 
   daysSince(iso?: string): string {

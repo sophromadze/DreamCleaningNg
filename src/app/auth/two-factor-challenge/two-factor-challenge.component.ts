@@ -1,4 +1,4 @@
-import { Component, OnInit, PLATFORM_ID, HostListener, ChangeDetectionStrategy, NgZone, inject } from '@angular/core';
+import { Component, OnInit, PLATFORM_ID, HostListener, ChangeDetectionStrategy, NgZone, inject, signal } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
@@ -18,7 +18,7 @@ import { setIntervalOutsideZone } from '../../shared/zone-free-timers';
   standalone: true,
   imports: [FormsModule, RouterModule, IconComponent],
   templateUrl: './two-factor-challenge.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./two-factor-challenge.component.scss']
 })
 export class TwoFactorChallengeComponent implements OnInit {
@@ -34,20 +34,20 @@ export class TwoFactorChallengeComponent implements OnInit {
   challenge: TwoFactorChallenge | null = null;
 
   // Two-step state machine: 'email' (enter 6-digit code) → 'pin' (enter PIN).
-  step: 'email' | 'pin' = 'email';
+  readonly step = signal<'email' | 'pin'>('email');
 
-  code = '';
-  pin = '';
-  rememberDevice = true;
+  readonly code = signal('');
+  readonly pin = signal('');
+  readonly rememberDevice = signal(true);
 
   // UX state
-  isVerifying = false;
-  isResending = false;
-  resendCooldownSec = 0;
+  readonly isVerifying = signal(false);
+  readonly isResending = signal(false);
+  readonly resendCooldownSec = signal(0);
   private resendTimer: any = null;
 
-  error = '';
-  notice = '';
+  readonly error = signal('');
+  readonly notice = signal('');
 
   private isBrowser: boolean;
 
@@ -73,29 +73,29 @@ export class TwoFactorChallengeComponent implements OnInit {
   // ───── Step 1: email code ────────────────────────────────────────────────
 
   verifyCode(): void {
-    if (!this.challenge || this.isVerifying) return;
-    const trimmed = (this.code || '').trim();
+    if (!this.challenge || this.isVerifying()) return;
+    const trimmed = (this.code() || '').trim();
     if (trimmed.length < 4) {
-      this.error = 'Enter the code from your email.';
+      this.error.set('Enter the code from your email.');
       return;
     }
 
-    this.error = '';
-    this.isVerifying = true;
+    this.error.set('');
+    this.isVerifying.set(true);
 
     this.twoFactor.verifyEmailCode(this.challenge.challengeId, trimmed).subscribe({
       next: () => {
-        this.isVerifying = false;
-        this.notice = 'Email verified. Now enter your PIN.';
-        this.step = 'pin';
+        this.isVerifying.set(false);
+        this.notice.set('Email verified. Now enter your PIN.');
+        this.step.set('pin');
         // Clear the code so it doesn't linger in the DOM after step transition.
-        this.code = '';
+        this.code.set('');
       },
       error: (err) => {
-        this.isVerifying = false;
-        this.error = err.error?.message || 'Verification failed. Try again.';
+        this.isVerifying.set(false);
+        this.error.set(err.error?.message || 'Verification failed. Try again.');
         // If the backend killed the session (too many attempts), bounce out.
-        if (typeof this.error === 'string' && this.error.toLowerCase().includes('restart')) {
+        if (typeof this.error() === 'string' && this.error().toLowerCase().includes('restart')) {
           this.bounceToLogin();
         }
       }
@@ -103,22 +103,22 @@ export class TwoFactorChallengeComponent implements OnInit {
   }
 
   resendCode(): void {
-    if (!this.challenge || this.isResending || this.resendCooldownSec > 0) return;
+    if (!this.challenge || this.isResending() || this.resendCooldownSec() > 0) return;
 
-    this.error = '';
-    this.notice = '';
-    this.isResending = true;
+    this.error.set('');
+    this.notice.set('');
+    this.isResending.set(true);
 
     this.twoFactor.resendEmailCode(this.challenge.challengeId).subscribe({
       next: () => {
-        this.isResending = false;
-        this.notice = 'A new code is on the way.';
+        this.isResending.set(false);
+        this.notice.set('A new code is on the way.');
         this.startResendCooldown(60);
       },
       error: (err) => {
-        this.isResending = false;
-        this.error = err.error?.message || 'Could not resend code.';
-        if (typeof this.error === 'string' && this.error.toLowerCase().includes('restart')) {
+        this.isResending.set(false);
+        this.error.set(err.error?.message || 'Could not resend code.');
+        if (typeof this.error() === 'string' && this.error().toLowerCase().includes('restart')) {
           this.bounceToLogin();
         }
       }
@@ -126,11 +126,11 @@ export class TwoFactorChallengeComponent implements OnInit {
   }
 
   private startResendCooldown(seconds: number): void {
-    this.resendCooldownSec = seconds;
+    this.resendCooldownSec.set(seconds);
     if (this.resendTimer) clearInterval(this.resendTimer);
     this.resendTimer = setIntervalOutsideZone(this.zone, () => {
-      this.resendCooldownSec--;
-      if (this.resendCooldownSec <= 0) {
+      this.resendCooldownSec.update(v => v - 1);
+      if (this.resendCooldownSec() <= 0) {
         clearInterval(this.resendTimer);
         this.resendTimer = null;
       }
@@ -140,23 +140,23 @@ export class TwoFactorChallengeComponent implements OnInit {
   // ───── Step 2: PIN ───────────────────────────────────────────────────────
 
   verifyPin(): void {
-    if (!this.challenge || this.isVerifying) return;
-    const trimmed = (this.pin || '').trim();
+    if (!this.challenge || this.isVerifying()) return;
+    const trimmed = (this.pin() || '').trim();
     if (trimmed.length < 4 || trimmed.length > 12) {
-      this.error = 'PIN must be 4–12 digits.';
+      this.error.set('PIN must be 4–12 digits.');
       return;
     }
     if (!/^\d+$/.test(trimmed)) {
-      this.error = 'PIN must contain digits only.';
+      this.error.set('PIN must contain digits only.');
       return;
     }
 
-    this.error = '';
-    this.isVerifying = true;
+    this.error.set('');
+    this.isVerifying.set(true);
 
-    this.twoFactor.verifyPin(this.challenge.challengeId, trimmed, this.rememberDevice).subscribe({
+    this.twoFactor.verifyPin(this.challenge.challengeId, trimmed, this.rememberDevice()).subscribe({
       next: (response) => {
-        this.isVerifying = false;
+        this.isVerifying.set(false);
         // Hand the final auth payload to AuthService so storage + currentUser mirror a normal login.
         this.auth.applyTwoFactorSuccess({
           user: response.user,
@@ -167,8 +167,8 @@ export class TwoFactorChallengeComponent implements OnInit {
         this.router.navigateByUrl('/');
       },
       error: (err) => {
-        this.isVerifying = false;
-        this.error = err.error?.message || 'PIN verification failed.';
+        this.isVerifying.set(false);
+        this.error.set(err.error?.message || 'PIN verification failed.');
       }
     });
   }
@@ -189,12 +189,12 @@ export class TwoFactorChallengeComponent implements OnInit {
     if (cleaned !== input.value) {
       input.value = cleaned;
     }
-    this[field] = cleaned;
+    this[field].set(cleaned);
   }
 
   @HostListener('document:keydown.enter')
   onEnter(): void {
-    if (this.step === 'email') this.verifyCode();
+    if (this.step() === 'email') this.verifyCode();
     else this.verifyPin();
   }
 

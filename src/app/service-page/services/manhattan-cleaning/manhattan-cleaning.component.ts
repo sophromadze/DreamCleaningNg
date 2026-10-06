@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, inject, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, ChangeDetectionStrategy, signal } from '@angular/core';
 import { RouterModule } from '@angular/router';
 import {
   GooglePlacesService,
@@ -28,7 +28,7 @@ export class ManhattanCleaningComponent implements OnInit, OnDestroy {
   private googlePlacesService = inject(GooglePlacesService);
 
   /** Google review count/rating (shared /stats endpoint); null until loaded or in local dev. */
-  stats: ReviewStats | null = null;
+  readonly stats = signal<ReviewStats | null>(null);
   showGoogleReviews = environment.production;
   manhattanZips = Object.keys(MANHATTAN_ZIPS);
   manhattanMapCenter: [number, number] = [40.738, -73.9855];
@@ -41,7 +41,7 @@ export class ManhattanCleaningComponent implements OnInit, OnDestroy {
   ngOnInit() {
     if (this.showGoogleReviews) {
       this.googlePlacesService.getStats().subscribe(stats => {
-        this.stats = stats;
+        this.stats.set(stats);
         this.injectSchema();
       });
     } else {
@@ -50,11 +50,11 @@ export class ManhattanCleaningComponent implements OnInit, OnDestroy {
   }
 
   get ratingLabel(): string {
-    return this.stats ? formatRating(this.stats.rating) : '';
+    return this.stats() ? formatRating(this.stats()!.rating) : '';
   }
 
   get reviewCountLabel(): string {
-    return this.stats ? formatReviewCount(this.stats.total) : '';
+    return this.stats() ? formatReviewCount(this.stats()!.total) : '';
   }
 
   ngOnDestroy(): void {
@@ -76,7 +76,7 @@ export class ManhattanCleaningComponent implements OnInit, OnDestroy {
         'name': 'Manhattan',
         'containedInPlace': { '@type': 'City', 'name': 'New York' }
       },
-      'aggregateRating': aggregateRatingSchema(this.stats)
+      'aggregateRating': aggregateRatingSchema(this.stats())
     };
 
     this.structuredData.set('ld-manhattan-cleaning', schema);

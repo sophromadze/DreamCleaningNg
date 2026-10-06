@@ -86,7 +86,7 @@ describe('ContractSignComponent', () => {
     setUp();
     load();
 
-    expect(component.page?.contractNumber).toBe('DC-2026-0001');
+    expect(component.page()?.contractNumber).toBe('DC-2026-0001');
     expect(component.canSign).toBe(true);
   });
 
@@ -130,8 +130,8 @@ describe('ContractSignComponent', () => {
       message: 'Thank you. Your signature has been recorded.'
     });
 
-    expect(component.completed).toBe(true);
-    expect(component.fullyExecuted).toBe(false);
+    expect(component.completed()).toBe(true);
+    expect(component.fullyExecuted()).toBe(false);
   });
 
   it('tells the client when their signature completed the agreement', () => {
@@ -149,7 +149,7 @@ describe('ContractSignComponent', () => {
     });
     fixture.detectChanges();
 
-    expect(component.fullyExecuted).toBe(true);
+    expect(component.fullyExecuted()).toBe(true);
     expect((fixture.nativeElement as HTMLElement).textContent)
       .toContain('fully executed agreement');
   });
@@ -201,7 +201,7 @@ describe('ContractSignComponent', () => {
     setUp('');
     fixture.detectChanges();
 
-    expect(component.loadError).toContain('missing its reference');
+    expect(component.loadError()).toContain('missing its reference');
     http.expectNone(() => true);
   });
 });
@@ -221,7 +221,7 @@ describe('SignatureCaptureComponent', () => {
 
     fixture = TestBed.createComponent(SignatureCaptureComponent);
     component = fixture.componentInstance;
-    component.signerName = 'Natalie Finkels';
+    fixture.componentRef.setInput('signerName', 'Natalie Finkels');
     fixture.detectChanges();
   });
 
@@ -234,42 +234,42 @@ describe('SignatureCaptureComponent', () => {
     component.signed.subscribe(() => emitted = true);
 
     component.typedSignature = 'Natalie Finkels';
-    component.consentAccepted = false;
+    component.consentAccepted.set(false);
     component.submit();
 
     expect(emitted).toBe(false);
-    expect(component.validationError).toContain('consent');
+    expect(component.validationError()).toContain('consent');
   });
 
   it('refuses to emit with an empty typed signature', () => {
     let emitted = false;
     component.signed.subscribe(() => emitted = true);
 
-    component.consentAccepted = true;
+    component.consentAccepted.set(true);
     component.typedSignature = '   ';
     component.submit();
 
     expect(emitted).toBe(false);
-    expect(component.validationError).toContain('type your name');
+    expect(component.validationError()).toContain('type your name');
   });
 
   it('refuses to emit with an untouched drawing pad', () => {
     let emitted = false;
     component.signed.subscribe(() => emitted = true);
 
-    component.consentAccepted = true;
+    component.consentAccepted.set(true);
     component.setMethod(ContractSignatureMethod.Draw);
     component.submit();
 
     expect(emitted).toBe(false);
-    expect(component.validationError).toContain('draw your signature');
+    expect(component.validationError()).toContain('draw your signature');
   });
 
   it('emits the typed name and the method when consent is given', () => {
     let emitted: any = null;
     component.signed.subscribe(v => emitted = v);
 
-    component.consentAccepted = true;
+    component.consentAccepted.set(true);
     component.typedSignature = 'Natalie Finkels';
     component.submit();
 
@@ -279,7 +279,7 @@ describe('SignatureCaptureComponent', () => {
   });
 
   it('locks the name field for a contractor signer', () => {
-    component.nameLocked = true;
+    fixture.componentRef.setInput('nameLocked', true);
     fixture.detectChanges();
 
     const name = (fixture.nativeElement as HTMLElement)
@@ -307,16 +307,16 @@ describe('SignatureCaptureComponent', () => {
   // the mark actually on screen rather than one fixed wording.
   it('describes the mark that the current mode actually captures', () => {
     component.setMethod(ContractSignatureMethod.Draw);
-    expect(component.modeCaption).toContain('drawn above');
+    expect(component.modeCaption()).toContain('drawn above');
 
     component.setMethod(ContractSignatureMethod.Type);
-    expect(component.modeCaption).toContain('typed name above');
+    expect(component.modeCaption()).toContain('typed name above');
   });
 
   // Legal wording: it must match the server's token-page text word for word, so the evidence
   // reads the same whichever of the three channels captured it.
   it('defaults to the agreed consent wording', () => {
-    expect(component.consentText).toBe(
+    expect(component.consentText()).toBe(
       'I have reviewed this Agreement, agree to its terms, and adopt the signature above as my ' +
       'electronic signature with the intent to be legally bound.'
     );
@@ -331,7 +331,7 @@ describe('SignatureCaptureComponent', () => {
     component.setMethod(ContractSignatureMethod.Draw);
     fixture.detectChanges();
 
-    const canvas = component.padCanvas!.nativeElement;
+    const canvas = component.padCanvas()!.nativeElement;
     // jsdom-free: give the bitmap a real size, then draw through the component's own path.
     canvas.width = 40;
     canvas.height = 20;
@@ -366,7 +366,7 @@ describe('SignatureCaptureComponent', () => {
   });
 
   it('hides the email field where the host already knows the address', () => {
-    component.showEmailField = false;
+    fixture.componentRef.setInput('showEmailField', false);
     fixture.detectChanges();
 
     expect((fixture.nativeElement as HTMLElement).querySelector('#captureEmail')).toBeNull();

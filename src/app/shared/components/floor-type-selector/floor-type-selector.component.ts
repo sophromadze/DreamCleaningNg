@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import { Component, Input, OnInit, ChangeDetectionStrategy, output, signal, computed, input, linkedSignal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
 export interface FloorTypeOption {
@@ -16,12 +16,14 @@ export interface FloorTypeSelection {
   standalone: true,
   imports: [FormsModule],
   templateUrl: './floor-type-selector.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './floor-type-selector.component.scss'
 })
 export class FloorTypeSelectorComponent implements OnInit {
-  @Input() selectedTypes: string[] = [];
-  @Output() selectionChange = new EventEmitter<FloorTypeSelection>();
+  readonly selectedTypes = input<string[]>([]);
+  /** Working copy, re-cloned whenever the parent passes a new list, so a toggle never mutates the parent's array. */
+  private readonly selection = linkedSignal(() => [...this.selectedTypes()]);
+  readonly selectionChange = output<FloorTypeSelection>();
 
   /**
    * Mirrors the Order.FloorTypeOther column (varchar(100)). The value is also
@@ -33,8 +35,8 @@ export class FloorTypeSelectorComponent implements OnInit {
    */
   readonly maxOtherLength = 100;
 
-  private _otherText = '';
-  private otherTextWasClamped = false;
+  private readonly _otherText = signal('');
+  private readonly otherTextWasClamped = signal(false);
 
   /**
    * Clamped in the setter rather than the field so it holds for every write
@@ -46,12 +48,12 @@ export class FloorTypeSelectorComponent implements OnInit {
   set otherText(value: string) {
     const clamped = this.clampOtherText(value);
     if (clamped !== (value ?? '')) {
-      this.otherTextWasClamped = true;
+      this.otherTextWasClamped.set(true);
     }
-    this._otherText = clamped;
+    this._otherText.set(clamped);
   }
   get otherText(): string {
-    return this._otherText;
+    return this._otherText();
   }
 
   readonly floorTypeOptions: readonly FloorTypeOption[] = [
@@ -67,20 +69,16 @@ export class FloorTypeSelectorComponent implements OnInit {
   ];
 
   ngOnInit(): void {
-    // Clone inputs so we don't mutate parent data
-    this.selectedTypes = [...this.selectedTypes];
     // A restored draft or an existing order can arrive longer than the column
     // allows. The setter already trimmed what we display — push it back up so
     // the parent submits the same value. Deferred to avoid NG0100, since the
     // parent feeds this straight back down through [otherText].
-    if (this.otherTextWasClamped) {
+    if (this.otherTextWasClamped()) {
       queueMicrotask(() => this.emitChange());
     }
   }
 
-  get otherLength(): number {
-    return this._otherText.length;
-  }
+  readonly otherLength = computed<number>(() => this._otherText().length);
 
   private clampOtherText(value: string): string {
     if (!value) return '';
@@ -88,24 +86,24 @@ export class FloorTypeSelectorComponent implements OnInit {
   }
 
   toggleFloorType(type: string): void {
-    const index = this.selectedTypes.indexOf(type);
+    const index = this.selection().indexOf(type);
     if (index > -1) {
-      this.selectedTypes.splice(index, 1);
+      this.selection.update(list => list.filter((_, i) => i !== index));
       if (type === 'other') {
         this.otherText = '';
       }
     } else {
-      this.selectedTypes.push(type);
+      this.selection.update(list => [...list, type]);
     }
     this.emitChange();
   }
 
   isFloorTypeSelected(type: string): boolean {
-    return this.selectedTypes.includes(type);
+    return this.selection().includes(type);
   }
 
   showOtherInput(): boolean {
-    return this.selectedTypes.includes('other');
+    return this.selection().includes('other');
   }
 
   onOtherTextChange(): void {
@@ -115,7 +113,7 @@ export class FloorTypeSelectorComponent implements OnInit {
 
   private emitChange(): void {
     this.selectionChange.emit({
-      types: [...this.selectedTypes],
+      types: [...this.selection()],
       otherText: this.otherText
     });
   }

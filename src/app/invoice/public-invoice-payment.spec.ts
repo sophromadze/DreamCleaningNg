@@ -143,7 +143,7 @@ describe('PublicInvoiceComponent — payment', () => {
     };
     setUp(invoice);
 
-    expect(component.manualAchExpanded).toBe(false);
+    expect(component.manualAchExpanded()).toBe(false);
     expect(fixture.nativeElement.textContent).not.toContain('000000000');
 
     component.toggleManualAch();
@@ -252,8 +252,8 @@ describe('PublicInvoiceComponent — payment', () => {
     component.payFromBank();
     fixture.detectChanges();
 
-    expect(component.startingPayment).toBe(false);
-    expect(component.paymentError).toContain('temporarily unavailable');
+    expect(component.startingPayment()).toBe(false);
+    expect(component.paymentError()).toContain('temporarily unavailable');
 
     // The page re-reads, so the buttons reflect whatever the server now says.
     expect(service.getPublic).toHaveBeenCalledTimes(2);
@@ -268,7 +268,7 @@ describe('PublicInvoiceComponent — payment', () => {
     }));
     vi.spyOn(component as any, 'redirectToCheckout').mockReturnValue(undefined);
 
-    component.startingPayment = true;
+    component.startingPayment.set(true);
     component.payFromBank();
 
     expect(service.startCheckout).not.toHaveBeenCalled();
@@ -513,7 +513,7 @@ describe('PublicInvoiceComponent — payment', () => {
 
     component.payFromBank();
 
-    expect(component.confirmingBankPayment).toBe(false);
+    expect(component.confirmingBankPayment()).toBe(false);
     expect(service.startCheckout).toHaveBeenCalled();
   });
 
@@ -533,7 +533,7 @@ describe('PublicInvoiceComponent — payment', () => {
     component.payFromBank();
     fixture.detectChanges();
 
-    expect(component.confirmingBankPayment).toBe(true);
+    expect(component.confirmingBankPayment()).toBe(true);
     expect(service.startCheckout).not.toHaveBeenCalled();
 
     const text = fixture.nativeElement.textContent as string;
@@ -556,7 +556,7 @@ describe('PublicInvoiceComponent — payment', () => {
     component.cancelBankPayment();
     fixture.detectChanges();
 
-    expect(component.confirmingBankPayment).toBe(false);
+    expect(component.confirmingBankPayment()).toBe(false);
     expect(service.startCheckout).not.toHaveBeenCalled();
   });
 
@@ -595,7 +595,7 @@ describe('PublicInvoiceComponent — payment', () => {
 
     component.payFromBank();
     fixture.detectChanges();
-    expect(component.confirmingBankPayment).toBe(true);
+    expect(component.confirmingBankPayment()).toBe(true);
     expect(reveal).toHaveBeenCalledTimes(1);
   });
 

@@ -25,9 +25,9 @@
       <div
         id="floorTypeOtherCount"
         class="floor-type-other-count"
-        [class.at-limit]="otherLength >= maxOtherLength"
+        [class.at-limit]="otherLength() >= maxOtherLength"
         aria-live="polite">
-        {{ otherLength }}/{{ maxOtherLength }} characters
+        {{ otherLength() }}/{{ maxOtherLength }} characters
       </div>
     }
   </div>

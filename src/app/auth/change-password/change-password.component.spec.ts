@@ -33,9 +33,9 @@ describe('ChangePasswordComponent', () => {
 
   describe('the form gates on the password policy', () => {
     const fill = (current: string, next: string, confirm: string) => {
-      component.currentPassword = current;
-      component.newPassword = next;
-      component.confirmPassword = confirm;
+      component.currentPassword.set(current);
+      component.newPassword.set(next);
+      component.confirmPassword.set(confirm);
     };
 
     it('needs the current password', () => {
@@ -52,7 +52,7 @@ describe('ChangePasswordComponent', () => {
       fill('Old1234A', 'short', 'short');
       expect(component.isFormValid()).toBe(false);
       component.validateNewPassword();
-      expect(component.passwordErrors.length).toBeGreaterThan(0);
+      expect(component.passwordErrors().length).toBeGreaterThan(0);
     });
 
     it('accepts a policy-compliant pair', () => {
@@ -71,9 +71,9 @@ describe('ChangePasswordComponent', () => {
     vi.spyOn(auth, 'changePassword').mockReturnValue(of({ message: 'Password changed successfully' }));
     const nav = vi.spyOn(router, 'navigate').mockReturnValue(undefined as any);
 
-    component.currentPassword = 'Old1234A';
-    component.newPassword = 'Newpass1234A';
-    component.confirmPassword = 'Newpass1234A';
+    component.currentPassword.set('Old1234A');
+    component.newPassword.set('Newpass1234A');
+    component.confirmPassword.set('Newpass1234A');
     component.onSubmit();
     await vi.advanceTimersByTimeAsync(2000);
 
@@ -89,12 +89,12 @@ describe('ChangePasswordComponent', () => {
     vi.spyOn(auth, 'changePassword').mockReturnValue(of({ message: 'ok' }));
     vi.spyOn(router, 'navigate').mockReturnValue(undefined as any);
 
-    component.currentPassword = 'Old1234A';
-    component.newPassword = 'Newpass1234A';
-    component.confirmPassword = 'Newpass1234A';
+    component.currentPassword.set('Old1234A');
+    component.newPassword.set('Newpass1234A');
+    component.confirmPassword.set('Newpass1234A');
     component.onSubmit();
 
-    expect(component.successMessage).toContain('other devices have been signed out');
+    expect(component.successMessage()).toContain('other devices have been signed out');
     await vi.advanceTimersByTimeAsync(2000);
   });
 
@@ -104,13 +104,13 @@ describe('ChangePasswordComponent', () => {
     vi.spyOn(auth, 'changePassword').mockReturnValue(of({ message: 'ok' }));
     vi.spyOn(router, 'navigate').mockReturnValue(undefined as any);
 
-    component.currentPassword = 'Old1234A';
-    component.newPassword = 'Newpass1234A';
-    component.confirmPassword = 'Newpass1234A';
+    component.currentPassword.set('Old1234A');
+    component.newPassword.set('Newpass1234A');
+    component.confirmPassword.set('Newpass1234A');
     component.onSubmit();
 
-    expect(component.currentPassword).toBe('');
-    expect(component.newPassword).toBe('');
+    expect(component.currentPassword()).toBe('');
+    expect(component.newPassword()).toBe('');
     await vi.advanceTimersByTimeAsync(2000);
   });
 
@@ -120,14 +120,14 @@ describe('ChangePasswordComponent', () => {
     const auth = TestBed.inject(AuthService);
     vi.spyOn(auth, 'changePassword').mockReturnValue(throwError(() => ({ error: { message: 'Current password is incorrect' } })));
 
-    component.currentPassword = 'Wrong1234A';
-    component.newPassword = 'Newpass1234A';
-    component.confirmPassword = 'Newpass1234A';
+    component.currentPassword.set('Wrong1234A');
+    component.newPassword.set('Newpass1234A');
+    component.confirmPassword.set('Newpass1234A');
     component.onSubmit();
 
-    expect(component.errorMessage).toBe('Current password is incorrect');
+    expect(component.errorMessage()).toBe('Current password is incorrect');
     // `finalize`, not `complete`: RxJS never calls `complete` on an HTTP error.
-    expect(component.isSubmitting).toBe(false);
+    expect(component.isSubmitting()).toBe(false);
   });
 
   it('does not fire a second request while one is in flight', () => {
@@ -135,10 +135,10 @@ describe('ChangePasswordComponent', () => {
     const spy = vi.spyOn(auth, 'changePassword').mockReturnValue(of({ message: 'ok' }));
     vi.spyOn(router, 'navigate').mockReturnValue(undefined as any);
 
-    component.currentPassword = 'Old1234A';
-    component.newPassword = 'Newpass1234A';
-    component.confirmPassword = 'Newpass1234A';
-    component.isSubmitting = true;
+    component.currentPassword.set('Old1234A');
+    component.newPassword.set('Newpass1234A');
+    component.confirmPassword.set('Newpass1234A');
+    component.isSubmitting.set(true);
     component.onSubmit();
 
     expect(spy).not.toHaveBeenCalled();
@@ -147,9 +147,9 @@ describe('ChangePasswordComponent', () => {
   it('sends nothing when the form is invalid', () => {
     const auth = TestBed.inject(AuthService);
     const spy = vi.spyOn(auth, 'changePassword').mockReturnValue(undefined as any);
-    component.currentPassword = 'Old1234A';
-    component.newPassword = 'short';
-    component.confirmPassword = 'short';
+    component.currentPassword.set('Old1234A');
+    component.newPassword.set('short');
+    component.confirmPassword.set('short');
     component.onSubmit();
     expect(spy).not.toHaveBeenCalled();
   });

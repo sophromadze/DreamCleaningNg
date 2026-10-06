@@ -1,4 +1,4 @@
-import { Component, Input, OnChanges, OnInit, SimpleChanges, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, OnChanges, OnInit, SimpleChanges, ChangeDetectionStrategy, inject, signal, computed, model } from '@angular/core';
 import { readableLabelColor } from '../../../../shared/admin/readable-label-color';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -12,7 +12,7 @@ import {
   standalone: true,
   imports: [CommonModule, FormsModule, RouterLink],
   templateUrl: './crm-customers.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./crm-customers.component.scss']
 })
 export class CrmCustomersComponent implements OnInit, OnChanges {
@@ -21,82 +21,80 @@ export class CrmCustomersComponent implements OnInit, OnChanges {
   /** Colours here are chosen by admins/users and shown as stored; the text on them adapts (AA, 2026-10). */
   readonly labelColor = readableLabelColor;
   /** Set by the CRM shell when a segment card is clicked. Empty = all customers. */
-  @Input() segmentFilter = '';
+  readonly segmentFilter = model('');
 
-  customers: CrmCustomer[] = [];
-  total = 0;
-  page = 1;
+  readonly customers = signal<CrmCustomer[]>([], { equal: () => false });
+  readonly total = signal(0);
+  readonly page = signal(1);
   pageSize = 10;
-  loading = false;
-  errorMessage = '';
+  readonly loading = signal(false);
+  readonly errorMessage = signal('');
 
-  searchTerm = '';
-  sort: CustomerListFilters['sort'] = 'recent';
+  readonly searchTerm = signal('');
+  readonly sort = signal<CustomerListFilters['sort']>('recent');
   private searchDebounce: any;
 
   // Detail panel
-  selected: CrmCustomerDetail | null = null;
-  panelLoading = false;
+  readonly selected = signal<CrmCustomerDetail | null>(null, { equal: () => false });
+  readonly panelLoading = signal(false);
 
   // Tags
-  newTagLabel = '';
-  tagSuggestions: string[] = [];
-  addingTag = false;
+  readonly newTagLabel = signal('');
+  readonly tagSuggestions = signal<string[]>([]);
+  readonly addingTag = signal(false);
 
   ngOnInit(): void {
     this.load();
     this.customerService.getTagSuggestions().subscribe({
-      next: s => this.tagSuggestions = s,
+      next: s => this.tagSuggestions.set(s),
       error: () => { /* non-critical */ }
     });
   }
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['segmentFilter'] && !changes['segmentFilter'].firstChange) {
-      this.page = 1;
+      this.page.set(1);
       this.load();
     }
   }
 
-  get totalPages(): number {
-    return Math.max(1, Math.ceil(this.total / this.pageSize));
-  }
+  readonly totalPages = computed<number>(() => Math.max(1, Math.ceil(this.total() / this.pageSize)));
 
   load(): void {
-    this.loading = true;
-    this.errorMessage = '';
+    this.loading.set(true);
+    this.errorMessage.set('');
     this.customerService.getCustomers({
-      search: this.searchTerm.trim() || undefined,
-      segment: this.segmentFilter || undefined,
-      sort: this.sort,
-      page: this.page,
+      search: this.searchTerm().trim() || undefined,
+      segment: this.segmentFilter() || undefined,
+      sort: this.sort(),
+      page: this.page(),
       pageSize: this.pageSize
     }).subscribe({
       next: res => {
-        this.customers = res.items;
-        this.total = res.total;
-        this.loading = false;
+        this.customers.set(res.items);
+        this.total.set(res.total);
+        this.loading.set(false);
       },
-      error: () => { this.errorMessage = 'Failed to load customers.'; this.loading = false; }
+      error: () => { this.errorMessage.set('Failed to load customers.'); this.loading.set(false); }
     });
   }
 
   onSearchChange(): void {
     clearTimeout(this.searchDebounce);
-    this.searchDebounce = setTimeout(() => { this.page = 1; this.load(); }, 300);
+    this.searchDebounce = setTimeout(() => { this.page.set(1); this.load(); }, 300);
   }
 
-  onSortChange(): void { this.page = 1; this.load(); }
+  onSortChange(): void { this.page.set(1); this.load(); }
 
   clearSegmentFilter(): void {
-    this.segmentFilter = '';
-    this.page = 1;
+    this.segmentFilter.set('');
+    this.page.set(1);
     this.load();
   }
 
   goToPage(p: number): void {
-    if (p < 1 || p > this.totalPages || p === this.page) return;
-    this.page = p;
+    if (p < 1 || p > this.totalPages() || p === this.page()) return;
+    this.page.set(p);
     this.load();
   }
 
@@ -105,12 +103,12 @@ export class CrmCustomersComponent implements OnInit, OnChanges {
     const pages: number[] = [];
     const maxVisiblePages = 3;
 
-    if (this.totalPages <= 5) {
-      for (let i = 2; i < this.totalPages; i++) pages.push(i);
+    if (this.totalPages() <= 5) {
+      for (let i = 2; i < this.totalPages(); i++) pages.push(i);
     } else {
-      let start = Math.max(2, this.page - 1);
-      let end = Math.min(this.totalPages - 1, start + maxVisiblePages - 1);
-      if (end === this.totalPages - 1) start = Math.max(2, end - maxVisiblePages + 1);
+      let start = Math.max(2, this.page() - 1);
+      let end = Math.min(this.totalPages() - 1, start + maxVisiblePages - 1);
+      if (end === this.totalPages() - 1) start = Math.max(2, end - maxVisiblePages + 1);
       for (let i = start; i <= end; i++) pages.push(i);
     }
 
@@ -120,55 +118,55 @@ export class CrmCustomersComponent implements OnInit, OnChanges {
   // ── Detail panel ──
 
   openCustomer(c: CrmCustomer): void {
-    this.panelLoading = true;
-    this.selected = { ...(c as CrmCustomerDetail), recentOrders: [] };
-    this.newTagLabel = '';
+    this.panelLoading.set(true);
+    this.selected.set({ ...(c as CrmCustomerDetail), recentOrders: [] });
+    this.newTagLabel.set('');
     this.customerService.getCustomer(c.id).subscribe({
-      next: detail => { this.selected = detail; this.panelLoading = false; },
-      error: () => { this.errorMessage = 'Failed to load customer.'; this.panelLoading = false; }
+      next: detail => { this.selected.set(detail); this.panelLoading.set(false); },
+      error: () => { this.errorMessage.set('Failed to load customer.'); this.panelLoading.set(false); }
     });
   }
 
-  closePanel(): void { this.selected = null; }
+  closePanel(): void { this.selected.set(null); }
 
   // ── Tags ──
 
   addTag(): void {
-    if (!this.selected || !this.newTagLabel.trim()) return;
-    this.addingTag = true;
-    const id = this.selected.id;
-    this.customerService.addTag(id, this.newTagLabel.trim()).subscribe({
+    if (!this.selected() || !this.newTagLabel().trim()) return;
+    this.addingTag.set(true);
+    const id = this.selected()!.id;
+    this.customerService.addTag(id, this.newTagLabel().trim()).subscribe({
       next: tag => {
-        if (this.selected?.id === id) this.selected.tags = [...this.selected.tags, tag];
-        if (!this.tagSuggestions.includes(tag.label)) this.tagSuggestions = [...this.tagSuggestions, tag.label].sort();
-        this.newTagLabel = '';
-        this.addingTag = false;
+        if (this.selected()?.id === id) { this.selected()!.tags = [...this.selected()!.tags, tag]; this.selected.set(this.selected()); }
+        if (!this.tagSuggestions().includes(tag.label)) this.tagSuggestions.set([...this.tagSuggestions(), tag.label].sort());
+        this.newTagLabel.set('');
+        this.addingTag.set(false);
         this.syncTagsToList(id);
       },
       error: err => {
-        this.errorMessage = err?.error?.message || 'Failed to add tag.';
-        this.addingTag = false;
+        this.errorMessage.set(err?.error?.message || 'Failed to add tag.');
+        this.addingTag.set(false);
       }
     });
   }
 
   removeTag(tagId: number): void {
-    if (!this.selected) return;
-    const id = this.selected.id;
+    if (!this.selected()) return;
+    const id = this.selected()!.id;
     this.customerService.deleteTag(tagId).subscribe({
       next: () => {
-        if (this.selected?.id === id) this.selected.tags = this.selected.tags.filter(t => t.id !== tagId);
+        if (this.selected()?.id === id) { this.selected()!.tags = this.selected()!.tags.filter(t => t.id !== tagId); this.selected.set(this.selected()); }
         this.syncTagsToList(id);
       },
-      error: () => this.errorMessage = 'Failed to remove tag.'
+      error: () => this.errorMessage.set('Failed to remove tag.')
     });
   }
 
   /** Keep the row in the list in sync with tag edits made in the panel. */
   private syncTagsToList(customerId: number): void {
-    if (!this.selected) return;
-    const row = this.customers.find(c => c.id === customerId);
-    if (row) row.tags = [...this.selected.tags];
+    if (!this.selected()) return;
+    const row = this.customers().find(c => c.id === customerId);
+    if (row) { row.tags = [...this.selected()!.tags]; this.customers.set(this.customers()); }
   }
 
   // ── Display helpers ──

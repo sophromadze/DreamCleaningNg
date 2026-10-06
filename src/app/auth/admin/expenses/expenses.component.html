@@ -16,7 +16,7 @@
       <button class="btn btn-quote" type="button" (click)="openCategoryManager()">
         <i class="fas fa-tags"></i> Categories
       </button>
-      @if (!showForm) {
+      @if (!showForm()) {
       <button class="btn btn-primary" type="button" (click)="openAddForm()">
         <i class="fas fa-plus"></i> Add expense
       </button>
@@ -31,7 +31,7 @@
       <button class="icon-btn" type="button" (click)="prevMonth()" title="Previous month">
         <i class="fas fa-chevron-left"></i>
       </button>
-      <span class="month-label">{{ grouped?.monthLabel || '—' }}</span>
+      <span class="month-label">{{ grouped()?.monthLabel || '—' }}</span>
       <button class="icon-btn" type="button" (click)="nextMonth()" title="Next month">
         <i class="fas fa-chevron-right"></i>
       </button>
@@ -43,26 +43,26 @@
     </div>
     <div class="month-total">
       <span class="month-total-label">This month</span>
-      <span class="month-total-value">$ {{ (grouped?.monthTotal || 0) | number:'1.2-2' }}</span>
+      <span class="month-total-value">$ {{ (grouped()?.monthTotal || 0) | number:'1.2-2' }}</span>
     </div>
   </div>
 
-  @if (successMessage) {
+  @if (successMessage()) {
   <div class="message success">
-    <i class="fas fa-check-circle"></i> {{ successMessage }}
+    <i class="fas fa-check-circle"></i> {{ successMessage() }}
   </div>
   }
-  @if (error) {
+  @if (error()) {
   <div class="message error">
-    <i class="fas fa-exclamation-circle"></i> {{ error }}
+    <i class="fas fa-exclamation-circle"></i> {{ error() }}
   </div>
   }
 
   <!-- Add / edit form ─────────────────────────────────────────────────────── -->
-  @if (showForm) {
+  @if (showForm()) {
   <div class="expense-form-card">
     <div class="form-header">
-      <h2>{{ editingId == null ? 'Add new expense' : 'Edit expense #' + editingId }}</h2>
+      <h2>{{ editingId() == null ? 'Add new expense' : 'Edit expense #' + editingId() }}</h2>
       <button type="button" class="icon-btn" (click)="closeForm()" title="Close"><i class="fas fa-times"></i></button>
     </div>
 
@@ -70,8 +70,8 @@
       <!-- Category leads: it decides whether this row is named by hand or by picking a person. -->
       <label class="form-field">
         <span>Category</span>
-        <select [(ngModel)]="form.categoryId" (ngModelChange)="onCategoryChange()">
-          @for (c of categories; track c.id) {
+        <select [(ngModel)]="form().categoryId" (ngModelChange)="onCategoryChange()">
+          @for (c of categories(); track c.id) {
           <option [ngValue]="c.id">{{ c.name }}</option>
           }
         </select>
@@ -107,7 +107,7 @@
       @if (showsNameField) {
       <label class="form-field span-2">
         <span>Name</span>
-        <input type="text" [(ngModel)]="form.name"
+        <input type="text" [(ngModel)]="form().name"
                [placeholder]="isSalaryForm ? 'Who this salary is for' : 'e.g. Claude AI subscription'">
       </label>
       }
@@ -133,7 +133,7 @@
 
       <label class="form-field">
         <span>Amount ({{ symbolFor(formCurrency) }}) <small>negative = credit/refund</small></span>
-        <input type="number" step="0.01" [(ngModel)]="form.amount">
+        <input type="number" step="0.01" [(ngModel)]="form().amount">
       </label>
 
       <!-- Salaries only: the admins are paid in lari, everything else is billed in dollars. -->
@@ -164,25 +164,25 @@
 
       <label class="form-field">
         <span>Start date</span>
-        <input type="date" [(ngModel)]="form.startDate">
+        <input type="date" [(ngModel)]="form().startDate">
       </label>
 
       <div class="form-field">
         <span>Type</span>
         <div class="toggle-group">
           <button type="button" class="toggle"
-                  [class.active]="!form.isRecurring"
+                  [class.active]="!form().isRecurring"
                   (click)="onRecurringToggle(false)">One-time</button>
           <button type="button" class="toggle"
-                  [class.active]="form.isRecurring"
+                  [class.active]="form().isRecurring"
                   (click)="onRecurringToggle(true)">Recurring</button>
         </div>
       </div>
 
-      @if (form.isRecurring) {
+      @if (form().isRecurring) {
         <label class="form-field">
           <span>Frequency (months)</span>
-          <input type="number" min="1" step="1" [(ngModel)]="form.frequencyMonths">
+          <input type="number" min="1" step="1" [(ngModel)]="form().frequencyMonths">
         </label>
 
         <div class="form-field span-2">
@@ -191,7 +191,7 @@
             @for (p of frequencyPresets; track $index) {
             <button type="button"
                     class="preset-chip"
-                    [class.active]="form.frequencyMonths === p.months"
+                    [class.active]="form().frequencyMonths === p.months"
                     (click)="pickFrequency(p.months)">
               {{ p.label }}
             </button>
@@ -201,14 +201,14 @@
 
         <label class="form-field">
           <span>End date <small>(optional — leave empty for ongoing)</small></span>
-          <input type="date" [(ngModel)]="form.endDate">
+          <input type="date" [(ngModel)]="form().endDate">
         </label>
 
         <!-- Proration: only for monthly cadence (daily-billed services like ads). -->
         @if (canProrate) {
         <div class="form-field span-2 prorate-field">
           <label class="checkbox-line">
-            <input type="checkbox" [(ngModel)]="form.prorateByDay">
+            <input type="checkbox" [(ngModel)]="form().prorateByDay">
             <span>
               <strong>Prorate by day</strong>
               <small>Charge only the active days in the first &amp; last month (e.g. ads that bill daily).
@@ -221,24 +221,24 @@
 
       <label class="form-field span-2">
         <span>Notes <small>(optional)</small></span>
-        <textarea rows="2" [(ngModel)]="form.notes" placeholder="Anything you want to remember"></textarea>
+        <textarea rows="2" [(ngModel)]="form().notes" placeholder="Anything you want to remember"></textarea>
       </label>
     </div>
 
     <div class="form-actions">
-      <button class="btn btn-secondary btn-cancel" type="button" (click)="closeForm()" [disabled]="saving">
+      <button class="btn btn-secondary btn-cancel" type="button" (click)="closeForm()" [disabled]="saving()">
         Cancel
       </button>
-      <button class="btn btn-primary" type="button" (click)="save()" [disabled]="saving">
-        <i class="fas" [class.fa-spinner]="saving" [class.fa-spin]="saving" [class.fa-check]="!saving"></i>
-        {{ saving ? 'Saving…' : (editingId == null ? 'Add expense' : 'Save changes') }}
+      <button class="btn btn-primary" type="button" (click)="save()" [disabled]="saving()">
+        <i class="fas" [class.fa-spinner]="saving()" [class.fa-spin]="saving()" [class.fa-check]="!saving()"></i>
+        {{ saving() ? 'Saving…' : (editingId() == null ? 'Add expense' : 'Save changes') }}
       </button>
     </div>
   </div>
   }
 
   <!-- Category manager ───────────────────────────────────────────────────── -->
-  @if (showCategoryManager) {
+  @if (showCategoryManager()) {
   <div class="category-manager-card">
     <div class="form-header">
       <h2><i class="fas fa-tags"></i> Manage categories</h2>
@@ -248,15 +248,15 @@
     <div class="add-category-row">
       <input type="text" [(ngModel)]="newCategoryName" placeholder="New category name"
              (keyup.enter)="addCategory()">
-      <button class="btn btn-secondary btn-sm" type="button" (click)="addCategory()" [disabled]="categorySaving">
+      <button class="btn btn-secondary btn-sm" type="button" (click)="addCategory()" [disabled]="categorySaving()">
         <i class="fas fa-plus"></i> Add
       </button>
     </div>
 
     <ul class="category-list">
-      @for (cat of categories; track cat.id) {
+      @for (cat of categories(); track cat.id) {
       <li>
-        @if (editingCategoryId !== cat.id) {
+        @if (editingCategoryId() !== cat.id) {
           <span class="cat-name">{{ cat.name }}</span>
           <span class="cat-meta">
             @if (cat.isSystem) {
@@ -264,7 +264,7 @@
             }
             <span class="cat-count">{{ cat.expenseCount }} {{ cat.expenseCount === 1 ? 'expense' : 'expenses' }}</span>
           </span>
-          @if (pendingDeleteCategoryId !== cat.id) {
+          @if (pendingDeleteCategoryId() !== cat.id) {
           <span class="cat-actions">
             <button class="icon-btn" type="button" (click)="startEditCategory(cat)" title="Rename">
               <i class="fas fa-pen"></i>
@@ -277,20 +277,20 @@
             </button>
           </span>
           }
-          @if (pendingDeleteCategoryId === cat.id) {
+          @if (pendingDeleteCategoryId() === cat.id) {
           <span class="cat-actions confirm">
             <span class="confirm-text">Delete?</span>
-            <button class="btn btn-secondary btn-cancel btn-sm" type="button" (click)="cancelDeleteCategory()" [disabled]="categorySaving">No</button>
-            <button class="btn btn-danger btn-sm" type="button" (click)="confirmDeleteCategory()" [disabled]="categorySaving">Yes</button>
+            <button class="btn btn-secondary btn-cancel btn-sm" type="button" (click)="cancelDeleteCategory()" [disabled]="categorySaving()">No</button>
+            <button class="btn btn-danger btn-sm" type="button" (click)="confirmDeleteCategory()" [disabled]="categorySaving()">Yes</button>
           </span>
           }
         }
-        @if (editingCategoryId === cat.id) {
+        @if (editingCategoryId() === cat.id) {
 
           <input aria-label="Category name" class="cat-edit-input" type="text" [(ngModel)]="editingCategoryName" (keyup.enter)="saveCategoryName()">
           <span class="cat-actions">
-            <button class="btn btn-secondary btn-cancel btn-sm" type="button" (click)="cancelEditCategory()" [disabled]="categorySaving">Cancel</button>
-            <button class="btn btn-primary btn-sm" type="button" (click)="saveCategoryName()" [disabled]="categorySaving">Save</button>
+            <button class="btn btn-secondary btn-cancel btn-sm" type="button" (click)="cancelEditCategory()" [disabled]="categorySaving()">Cancel</button>
+            <button class="btn btn-primary btn-sm" type="button" (click)="saveCategoryName()" [disabled]="categorySaving()">Save</button>
           </span>
         }
       </li>
@@ -300,15 +300,15 @@
   }
 
   <!-- Grouped list ──────────────────────────────────────────────────────── -->
-  @if (!loading && grouped) {
+  @if (!loading() && grouped()) {
   <div class="grouped-list">
-    @if (grouped.monthTotal === 0 && grouped.categories.length === 0) {
+    @if (grouped()!.monthTotal === 0 && grouped()!.categories.length === 0) {
     <div class="empty-state">
       <i class="fas fa-receipt"></i>
       <p>No expenses recorded yet. Add your first one above.</p>
     </div>
     }
-    @for (cat of grouped.categories; track $index) {
+    @for (cat of grouped()!.categories; track $index) {
 
       <!-- A category only shows if it has names (any month/all-time activity). -->
       @if (cat.names.length > 0) {
@@ -391,7 +391,7 @@
                 </thead>
                 <tbody>
                   @for (row of n.entries; track row.id) {
-                    <tr [class.is-deleting]="pendingDeleteId === row.id">
+                    <tr [class.is-deleting]="pendingDeleteId() === row.id">
                       <!-- The entry shows exactly what was typed; conversion is a reporting
                            concern and belongs on the totals, not on the record of the amount. -->
                       <td class="amount">{{ symbolFor(row.currency) }} {{ row.amount | number:'1.2-2' }}</td>
@@ -427,7 +427,7 @@
                       <td colspan="5"><i class="fas fa-sticky-note"></i> {{ row.notes }}</td>
                     </tr>
                     }
-                    @if (adjustingId === row.id) {
+                    @if (adjustingId() === row.id) {
                     <tr class="adjust-row">
                       <td colspan="5">
                         <div class="adjust-bar">
@@ -451,25 +451,25 @@
                           before that date moves.
                         </p>
                         <div class="confirm-actions">
-                          <button class="btn btn-secondary btn-cancel btn-sm" type="button" (click)="cancelAdjustAmount()" [disabled]="adjusting">Cancel</button>
-                          <button class="btn btn-primary btn-sm" type="button" (click)="confirmAdjustAmount()" [disabled]="adjusting">
-                            <i class="fas" [class.fa-spinner]="adjusting" [class.fa-spin]="adjusting" [class.fa-check]="!adjusting"></i>
-                            {{ adjusting ? 'Saving…' : 'Save' }}
+                          <button class="btn btn-secondary btn-cancel btn-sm" type="button" (click)="cancelAdjustAmount()" [disabled]="adjusting()">Cancel</button>
+                          <button class="btn btn-primary btn-sm" type="button" (click)="confirmAdjustAmount()" [disabled]="adjusting()">
+                            <i class="fas" [class.fa-spinner]="adjusting()" [class.fa-spin]="adjusting()" [class.fa-check]="!adjusting()"></i>
+                            {{ adjusting() ? 'Saving…' : 'Save' }}
                           </button>
                         </div>
                       </td>
                     </tr>
                     }
-                    @if (pendingDeleteId === row.id) {
+                    @if (pendingDeleteId() === row.id) {
                     <tr class="confirm-row">
                       <td colspan="5">
                         <div class="confirm-bar">
                           <span><i class="fas fa-exclamation-triangle"></i> Delete this entry? This removes all of its past and future occurrences from statistics.</span>
                           <div class="confirm-actions">
-                            <button class="btn btn-secondary btn-cancel btn-sm" type="button" (click)="cancelDelete()" [disabled]="deleting">Cancel</button>
-                            <button class="btn btn-danger btn-sm" type="button" (click)="confirmDelete()" [disabled]="deleting">
-                              <i class="fas" [class.fa-spinner]="deleting" [class.fa-spin]="deleting" [class.fa-trash]="!deleting"></i>
-                              {{ deleting ? 'Deleting…' : 'Delete' }}
+                            <button class="btn btn-secondary btn-cancel btn-sm" type="button" (click)="cancelDelete()" [disabled]="deleting()">Cancel</button>
+                            <button class="btn btn-danger btn-sm" type="button" (click)="confirmDelete()" [disabled]="deleting()">
+                              <i class="fas" [class.fa-spinner]="deleting()" [class.fa-spin]="deleting()" [class.fa-trash]="!deleting()"></i>
+                              {{ deleting() ? 'Deleting…' : 'Delete' }}
                             </button>
                           </div>
                         </div>
@@ -491,7 +491,7 @@
   </div>
   }
 
-  @if (loading) {
+  @if (loading()) {
   <div class="loading-state">
     <i class="fas fa-spinner fa-spin"></i> Loading expenses…
   </div>

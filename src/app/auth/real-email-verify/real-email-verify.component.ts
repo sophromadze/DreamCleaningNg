@@ -1,4 +1,4 @@
-import { Component, PLATFORM_ID, OnInit, ChangeDetectionStrategy, NgZone, inject } from '@angular/core';
+import { Component, PLATFORM_ID, OnInit, ChangeDetectionStrategy, NgZone, inject, signal } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
@@ -13,7 +13,7 @@ type Step = 'email' | 'code' | 'account-found' | 'merge-email' | 'merge-success'
   standalone: true,
   imports: [ReactiveFormsModule],
   templateUrl: './real-email-verify.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./real-email-verify.component.scss']
 })
 export class RealEmailVerifyComponent implements OnInit {
@@ -23,24 +23,24 @@ export class RealEmailVerifyComponent implements OnInit {
   private route = inject(ActivatedRoute);
 
   private readonly zone = inject(NgZone);
-  step: Step = 'email';
+  readonly step = signal<Step>('email');
   emailForm: FormGroup;
   codeForm: FormGroup;
   mergeCodeForm: FormGroup;
-  submittedEmail = '';
-  isLoading = false;
-  errorMessage = '';
-  resendCooldown = 0;
-  mergeResendCooldown = 0;
+  readonly submittedEmail = signal('');
+  readonly isLoading = signal(false);
+  readonly errorMessage = signal('');
+  readonly resendCooldown = signal(0);
+  readonly mergeResendCooldown = signal(0);
   private cooldownInterval: ReturnType<typeof setInterval> | null = null;
   private mergeCooldownInterval: ReturnType<typeof setInterval> | null = null;
 
   /** Set when verify-email-code returns ACCOUNT_EXISTS */
-  existingAccountEmail = '';
-  existingAccountName = '';
+  readonly existingAccountEmail = signal('');
+  readonly existingAccountName = signal('');
 
   /** Set after successful merge */
-  mergeResult: MergeResultResponse | null = null;
+  readonly mergeResult = signal<MergeResultResponse | null>(null);
 
   isBrowser = false;
 
@@ -88,101 +88,101 @@ export class RealEmailVerifyComponent implements OnInit {
           user
         };
         this.authService.applyMergeResultResponse(result);
-        this.mergeResult = result;
-        this.step = 'merge-success';
+        this.mergeResult.set(result);
+        this.step.set('merge-success');
       } catch (e) {
-        this.errorMessage = 'Merge completed but there was an issue loading your session. Please sign in again.';
+        this.errorMessage.set('Merge completed but there was an issue loading your session. Please sign in again.');
       }
       this.router.navigate([], { queryParams: {}, replaceUrl: true });
     } else if (mergeError) {
-      this.step = 'account-found';
-      this.errorMessage = decodeURIComponent(mergeError).replace(/\+/g, ' ');
+      this.step.set('account-found');
+      this.errorMessage.set(decodeURIComponent(mergeError).replace(/\+/g, ' '));
       this.router.navigate([], { queryParams: {}, replaceUrl: true });
     }
   }
 
   sendCode() {
-    this.errorMessage = '';
+    this.errorMessage.set('');
     const email = (this.emailForm.get('email')?.value ?? '').trim().toLowerCase();
     if (!email) return;
     if (email.endsWith(RELAY_DOMAIN)) {
-      this.errorMessage = 'Please enter your real email, not an Apple relay address.';
+      this.errorMessage.set('Please enter your real email, not an Apple relay address.');
       return;
     }
     if (this.emailForm.invalid) return;
 
-    this.isLoading = true;
+    this.isLoading.set(true);
     this.authService.requestRealEmailVerification(email).subscribe({
       next: () => {
-        this.submittedEmail = email;
-        this.step = 'code';
+        this.submittedEmail.set(email);
+        this.step.set('code');
         this.codeForm.reset();
         this.startResendCooldown();
-        this.isLoading = false;
+        this.isLoading.set(false);
       },
       error: (err) => {
-        this.errorMessage = err.error?.message || 'Something went wrong. Please try again.';
-        this.isLoading = false;
+        this.errorMessage.set(err.error?.message || 'Something went wrong. Please try again.');
+        this.isLoading.set(false);
       }
     });
   }
 
   verifyCode() {
-    this.errorMessage = '';
+    this.errorMessage.set('');
     if (this.codeForm.invalid) return;
 
-    this.isLoading = true;
+    this.isLoading.set(true);
     const code = this.codeForm.get('code')?.value?.trim() ?? '';
-    this.authService.verifyRealEmailCode(this.submittedEmail, code).subscribe({
+    this.authService.verifyRealEmailCode(this.submittedEmail(), code).subscribe({
       next: (response) => {
         if ('status' in response && response.status === 'ACCOUNT_EXISTS') {
           const acc = response as AccountExistsResponse;
-          this.existingAccountEmail = acc.existingAccountEmail;
-          this.existingAccountName = acc.existingAccountName;
-          this.step = 'account-found';
-          this.isLoading = false;
+          this.existingAccountEmail.set(acc.existingAccountEmail);
+          this.existingAccountName.set(acc.existingAccountName);
+          this.step.set('account-found');
+          this.isLoading.set(false);
           return;
         }
         this.authService.applyRealEmailVerifiedResponse(response as any);
-        this.isLoading = false;
+        this.isLoading.set(false);
         this.router.navigate(['/']);
       },
       error: (err) => {
-        this.errorMessage = err.error?.message || 'Invalid or expired code. Please try again.';
-        this.isLoading = false;
+        this.errorMessage.set(err.error?.message || 'Invalid or expired code. Please try again.');
+        this.isLoading.set(false);
       }
     });
   }
 
   backToEmail() {
-    this.step = 'email';
-    this.errorMessage = '';
+    this.step.set('email');
+    this.errorMessage.set('');
     this.codeForm.reset();
-    this.existingAccountEmail = '';
-    this.existingAccountName = '';
+    this.existingAccountEmail.set('');
+    this.existingAccountName.set('');
   }
 
   goToMergeWithEmail() {
-    this.step = 'merge-email';
-    this.errorMessage = '';
+    this.step.set('merge-email');
+    this.errorMessage.set('');
     this.mergeCodeForm.reset();
   }
 
   verifyMergeCode() {
-    this.errorMessage = '';
+    this.errorMessage.set('');
     if (this.mergeCodeForm.invalid) return;
-    this.isLoading = true;
+    this.isLoading.set(true);
     const code = this.mergeCodeForm.get('code')?.value?.trim() ?? '';
     this.authService.confirmAccountMerge(code).subscribe({
       next: (result) => {
         this.authService.applyMergeResultResponse(result);
-        this.mergeResult = result;
-        this.step = 'merge-success';
-        this.isLoading = false;
+        this.mergeResult.set(result);
+        this.step.set('merge-success');
+        this.isLoading.set(false);
       },
       error: (err) => {
-        this.errorMessage = err.error?.message || 'Invalid code. Please try again.';
-        this.isLoading = false;
+        this.errorMessage.set(err.error?.message || 'Invalid code. Please try again.');
+        this.isLoading.set(false);
       }
     });
   }
@@ -192,57 +192,57 @@ export class RealEmailVerifyComponent implements OnInit {
   }
 
   resendCode() {
-    if (this.resendCooldown > 0) return;
-    this.errorMessage = '';
-    this.isLoading = true;
-    this.authService.requestRealEmailVerification(this.submittedEmail).subscribe({
+    if (this.resendCooldown() > 0) return;
+    this.errorMessage.set('');
+    this.isLoading.set(true);
+    this.authService.requestRealEmailVerification(this.submittedEmail()).subscribe({
       next: () => {
         this.startResendCooldown();
-        this.isLoading = false;
+        this.isLoading.set(false);
       },
       error: (err) => {
-        this.errorMessage = err.error?.message || 'Failed to resend code.';
-        this.isLoading = false;
+        this.errorMessage.set(err.error?.message || 'Failed to resend code.');
+        this.isLoading.set(false);
       }
     });
   }
 
   backFromMergeEmail() {
-    this.step = 'account-found';
-    this.errorMessage = '';
+    this.step.set('account-found');
+    this.errorMessage.set('');
     this.mergeCodeForm.reset();
   }
 
   resendMergeCode() {
-    if (this.mergeResendCooldown > 0) return;
-    this.errorMessage = '';
-    this.isLoading = true;
+    if (this.mergeResendCooldown() > 0) return;
+    this.errorMessage.set('');
+    this.isLoading.set(true);
     this.authService.resendMergeCode().subscribe({
       next: () => {
-        this.mergeResendCooldown = 60;
+        this.mergeResendCooldown.set(60);
         if (this.mergeCooldownInterval) clearInterval(this.mergeCooldownInterval);
         this.mergeCooldownInterval = setIntervalOutsideZone(this.zone, () => {
-          this.mergeResendCooldown--;
-          if (this.mergeResendCooldown <= 0 && this.mergeCooldownInterval) {
+          this.mergeResendCooldown.update(v => v - 1);
+          if (this.mergeResendCooldown() <= 0 && this.mergeCooldownInterval) {
             clearInterval(this.mergeCooldownInterval);
             this.mergeCooldownInterval = null;
           }
         }, 1000);
-        this.isLoading = false;
+        this.isLoading.set(false);
       },
       error: (err) => {
-        this.errorMessage = err.error?.message || 'Failed to resend code.';
-        this.isLoading = false;
+        this.errorMessage.set(err.error?.message || 'Failed to resend code.');
+        this.isLoading.set(false);
       }
     });
   }
 
   private startResendCooldown() {
-    this.resendCooldown = 60;
+    this.resendCooldown.set(60);
     if (this.cooldownInterval) clearInterval(this.cooldownInterval);
     this.cooldownInterval = setIntervalOutsideZone(this.zone, () => {
-      this.resendCooldown--;
-      if (this.resendCooldown <= 0 && this.cooldownInterval) {
+      this.resendCooldown.update(v => v - 1);
+      if (this.resendCooldown() <= 0 && this.cooldownInterval) {
         clearInterval(this.cooldownInterval);
         this.cooldownInterval = null;
       }

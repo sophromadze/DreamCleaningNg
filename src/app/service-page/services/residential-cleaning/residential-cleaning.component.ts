@@ -13,7 +13,7 @@ import { StructuredDataService } from '../../../services/structured-data.service
   standalone: true,
   imports: [RouterModule, IconComponent, CardImageDirective],
   templateUrl: './residential-cleaning.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './residential-cleaning.component.scss'
 })
 export class ResidentialCleaningComponent implements OnInit, OnDestroy {

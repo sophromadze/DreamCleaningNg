@@ -11,7 +11,7 @@ import { StructuredDataService } from '../../../services/structured-data.service
   standalone: true,
   imports: [RouterModule, CardImageDirective],
   templateUrl: './airbnb-cleaning.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './airbnb-cleaning.component.scss'
 })
 export class AirbnbCleaningComponent implements OnInit, OnDestroy {

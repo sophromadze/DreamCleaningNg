@@ -1,6 +1,9 @@
 import {
-  AfterViewChecked, Component, ElementRef, EventEmitter, Input, Output, ViewChild,
-  ChangeDetectionStrategy
+  AfterViewChecked, Component, ElementRef,
+  ChangeDetectionStrategy,
+  output,
+  viewChild,
+  input
 } from '@angular/core';
 import { IconComponent } from '../../icons/icon.component';
 import { faCircleNotch } from '../../icons/glyphs/faCircleNotch';
@@ -28,53 +31,55 @@ import { faLock } from '../../icons/glyphs/faLock';
   standalone: true,
   imports: [IconComponent],
   templateUrl: './save-card-modal.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./save-card-modal.component.scss']
 })
 export class SaveCardModalComponent implements AfterViewChecked {
   protected readonly icons = { faCircleNotch, faLock };
 
   /** The host opens it on the Pay click; it never opens itself. */
-  @Input() open = false;
+  readonly open = input(false);
 
   /** The host is paying (or preparing to). Both buttons lock — one click, one payment. */
-  @Input() busy = false;
+  readonly busy = input(false);
 
   /** What is about to be charged, for the button label. Optional. */
-  @Input() amountLabel: string | null = null;
+  readonly amountLabel = input<string | null>(null);
 
   /** true = "Save Card & Pay", false = "Pay Without Saving". Emitted at most once per opening. */
-  @Output() choose = new EventEmitter<boolean>();
+  readonly choose = output<boolean>();
 
   /** Closed without choosing. Nothing has been prepared, charged or saved. */
-  @Output() dismissed = new EventEmitter<void>();
+  readonly dismissed = output<void>();
 
-  @ViewChild('primaryBtn') private primaryBtn?: ElementRef<HTMLButtonElement>;
-  @ViewChild('dialog') private dialog?: ElementRef<HTMLElement>;
+  private readonly primaryBtn = viewChild<ElementRef<HTMLButtonElement>>('primaryBtn');
+  private readonly dialog = viewChild<ElementRef<HTMLElement>>('dialog');
 
   /** Guards the double-click: the host's own `busy` arrives one tick later. */
   private answered = false;
   private focused = false;
 
   ngAfterViewChecked(): void {
-    if (this.open && !this.focused && this.primaryBtn) {
-      this.primaryBtn.nativeElement.focus();
+    const primaryBtn = this.primaryBtn();
+    const open = this.open();
+    if (open && !this.focused && primaryBtn) {
+      primaryBtn.nativeElement.focus();
       this.focused = true;
     }
-    if (!this.open) {
+    if (!open) {
       this.focused = false;
       this.answered = false;
     }
   }
 
   decide(save: boolean): void {
-    if (this.answered || this.busy) return;
+    if (this.answered || this.busy()) return;
     this.answered = true;
     this.choose.emit(save);
   }
 
   dismiss(): void {
-    if (this.busy) return;   // a payment is already under way: closing must not abandon it
+    if (this.busy()) return;   // a payment is already under way: closing must not abandon it
     this.answered = false;
     this.dismissed.emit();
   }
@@ -86,10 +91,11 @@ export class SaveCardModalComponent implements AfterViewChecked {
       this.dismiss();
       return;
     }
-    if (event.key !== 'Tab' || !this.dialog) return;
+    const dialog = this.dialog();
+    if (event.key !== 'Tab' || !dialog) return;
 
     const focusable = Array.from(
-      this.dialog.nativeElement.querySelectorAll<HTMLElement>('button:not([disabled])')
+      dialog.nativeElement.querySelectorAll<HTMLElement>('button:not([disabled])')
     );
     if (focusable.length === 0) return;
 

@@ -6,51 +6,51 @@
     <a class="btn-primary" routerLink="/admin/commercial/invoices/create">+ Create Invoice</a>
   </div>
 
-  @if (error) {
-  <div class="alert alert-error">{{ error }}</div>
+  @if (error()) {
+  <div class="alert alert-error">{{ error() }}</div>
   }
-  @if (notice) {
-  <div class="alert alert-success">{{ notice }}</div>
+  @if (notice()) {
+  <div class="alert alert-success">{{ notice() }}</div>
   }
 
   <!-- Summary cards. Labels stay put while values shimmer — the project-wide convention. -->
   <div class="summary-cards">
     <div class="summary-card">
-      <span class="card-value" [class.shimmer-loading]="loading">
-        {{ loading ? '' : (summary.totalOutstanding | currency:'USD') }}
+      <span class="card-value" [class.shimmer-loading]="loading()">
+        {{ loading() ? '' : (summary().totalOutstanding | currency:'USD') }}
       </span>
       <span class="card-label">Outstanding</span>
-      @if (!loading) {
-      <span class="card-sub">{{ summary.outstandingCount }} invoice(s)</span>
+      @if (!loading()) {
+      <span class="card-sub">{{ summary().outstandingCount }} invoice(s)</span>
       }
     </div>
 
     <div class="summary-card">
-      <span class="card-value positive" [class.shimmer-loading]="loading">
-        {{ loading ? '' : (summary.paidThisMonth | currency:'USD') }}
+      <span class="card-value positive" [class.shimmer-loading]="loading()">
+        {{ loading() ? '' : (summary().paidThisMonth | currency:'USD') }}
       </span>
       <span class="card-label">Paid This Month</span>
-      @if (!loading) {
+      @if (!loading()) {
       <span class="card-sub">received this calendar month</span>
       }
     </div>
 
     <div class="summary-card">
-      <span class="card-value" [class.negative]="summary.overdue > 0" [class.shimmer-loading]="loading">
-        {{ loading ? '' : (summary.overdue | currency:'USD') }}
+      <span class="card-value" [class.negative]="summary().overdue > 0" [class.shimmer-loading]="loading()">
+        {{ loading() ? '' : (summary().overdue | currency:'USD') }}
       </span>
       <span class="card-label">Overdue</span>
-      @if (!loading) {
-      <span class="card-sub">{{ summary.overdueCount }} invoice(s)</span>
+      @if (!loading()) {
+      <span class="card-sub">{{ summary().overdueCount }} invoice(s)</span>
       }
     </div>
 
     <div class="summary-card">
-      <span class="card-value" [class.shimmer-loading]="loading">
-        {{ loading ? '' : summary.draftCount }}
+      <span class="card-value" [class.shimmer-loading]="loading()">
+        {{ loading() ? '' : summary().draftCount }}
       </span>
       <span class="card-label">Drafts</span>
-      @if (!loading) {
+      @if (!loading()) {
       <span class="card-sub">not yet sent</span>
       }
     </div>
@@ -77,7 +77,7 @@
 
     <select [(ngModel)]="clientFilter" (change)="onFilterChange()" aria-label="Filter by client">
       <option [ngValue]="null">All clients</option>
-      @for (c of clients; track c.id) {
+      @for (c of clients(); track c.id) {
       <option [ngValue]="c.id">{{ c.legalEntityName }}</option>
       }
     </select>
@@ -95,7 +95,7 @@
       }
     </select>
 
-    @if (dateRange === 'custom') {
+    @if (dateRange() === 'custom') {
       <input type="date" [(ngModel)]="customFrom" (change)="onFilterChange()" aria-label="From date">
       <input type="date" [(ngModel)]="customTo" (change)="onFilterChange()" aria-label="To date">
     }
@@ -119,13 +119,13 @@
       </thead>
 
       <tbody>
-        @if (loading) {
+        @if (loading()) {
         <tr>
           <td colspan="9" class="empty-cell">Loading invoices…</td>
         </tr>
         }
 
-        @if (!loading && invoices.length === 0) {
+        @if (!loading() && invoices().length === 0) {
         <tr>
           <td colspan="9" class="empty-cell">
             No invoices match these filters.
@@ -133,7 +133,7 @@
         </tr>
         }
 
-        @for (inv of invoices; track inv.id) {
+        @for (inv of invoices(); track inv.id) {
         <tr class="invoice-row"
             [class.row-overdue]="isOverdue(inv)" (click)="view(inv)">
           <td class="mono">{{ inv.invoiceNumber }}</td>
@@ -161,12 +161,12 @@
           <td class="hide-sm muted">{{ paymentMethodLabel(inv.paymentMethod) }}</td>
           <td class="align-right actions-cell">
             <button type="button" class="menu-button" (click)="toggleMenu(inv.id, $event)"
-                    [attr.aria-expanded]="openMenuId === inv.id" aria-label="Invoice actions">
+                    [attr.aria-expanded]="openMenuId() === inv.id" aria-label="Invoice actions">
               •••
             </button>
 
             <!-- Every entry is gated on what the SERVER says is possible for this invoice. -->
-            @if (openMenuId === inv.id) {
+            @if (openMenuId() === inv.id) {
             <div class="action-menu" (click)="$event.stopPropagation()">
               <button type="button" (click)="view(inv)">View</button>
 
@@ -211,11 +211,11 @@
   </div>
 
   <!-- Paging -->
-  @if (totalPages > 1) {
+  @if (totalPages() > 1) {
   <div class="pager">
-    <button type="button" (click)="goToPage(page - 1)" [disabled]="page <= 1">← Previous</button>
-    <span>Page {{ page }} of {{ totalPages }} · {{ totalCount }} invoice(s)</span>
-    <button type="button" (click)="goToPage(page + 1)" [disabled]="page >= totalPages">Next →</button>
+    <button type="button" (click)="goToPage(page() - 1)" [disabled]="page() <= 1">← Previous</button>
+    <span>Page {{ page() }} of {{ totalPages() }} · {{ totalCount() }} invoice(s)</span>
+    <button type="button" (click)="goToPage(page() + 1)" [disabled]="page() >= totalPages()">Next →</button>
   </div>
   }
 </div>

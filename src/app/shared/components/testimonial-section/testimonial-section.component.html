@@ -46,15 +46,15 @@
         </h2>
 
         <div class="testimonial-card__grid">
-          @if (reviews.length > 0) {
+          @if (reviews().length > 0) {
           <article class="testimonial-quote"
                    (mouseenter)="pauseReviewSlider()"
                    (mouseleave)="resumeReviewSlider()">
             <div class="testimonial-quote__viewport">
-              @for (r of renderedReviews; track $index) {
+              @for (r of renderedReviews(); track $index) {
               <div class="testimonial-quote__slide"
-                   [class.is-active]="r === activeReview"
-                   [attr.aria-hidden]="r !== activeReview">
+                   [class.is-active]="r === activeReview()"
+                   [attr.aria-hidden]="r !== activeReview()">
                 <div class="testimonial-quote__rating-row">
                   <svg class="google-g-icon" viewBox="0 0 24 24" aria-label="Google" role="img">
                     <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -96,7 +96,7 @@
               </div>
               }
             </div>
-            @if (reviews.length > 1) {
+            @if (reviews().length > 1) {
             <div class="testimonial-quote__nav" role="group" aria-label="Reviews navigation">
               <button type="button"
                       class="testimonial-quote__nav-btn testimonial-quote__nav-btn--prev"
@@ -106,7 +106,7 @@
                   <path d="m15 18-6-6 6-6"/>
                 </svg>
               </button>
-              <span class="testimonial-quote__nav-count" aria-live="polite">{{ currentReviewIndex + 1 }}</span>
+              <span class="testimonial-quote__nav-count" aria-live="polite">{{ currentReviewIndex() + 1 }}</span>
               <button type="button"
                       class="testimonial-quote__nav-btn testimonial-quote__nav-btn--next"
                       (click)="nextReview()"

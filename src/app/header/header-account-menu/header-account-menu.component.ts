@@ -17,6 +17,7 @@ import { faUser } from '../../shared/icons/glyphs/faUser';
   standalone: true,
   imports: [RouterLink, IconComponent],
   templateUrl: './header-account-menu.component.html',
+  // Renders HeaderComponent state; goes OnPush together with the header (phase 3).
   changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './header-account-menu.component.scss'
 })

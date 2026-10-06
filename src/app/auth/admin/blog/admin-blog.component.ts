@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, OnDestroy, OnInit, ChangeDetectionStrategy, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
@@ -36,7 +36,7 @@ interface SuggestionRow extends SuggestedTopic {
   standalone: true,
   imports: [CommonModule, FormsModule, RouterModule],
   templateUrl: './admin-blog.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './admin-blog.component.scss'
 })
 export class AdminBlogComponent implements OnInit, OnDestroy {
@@ -48,43 +48,43 @@ export class AdminBlogComponent implements OnInit, OnDestroy {
   readonly BlogTopicStatus = BlogTopicStatus;
   readonly categories = ['Guides', 'NYC Living', 'Checklists', 'Seasonal'];
 
-  activeTab: AdminBlogTab = 'posts';
+  readonly activeTab = signal<AdminBlogTab>('posts');
 
   // ── Posts ──
-  posts: BlogPostAdminListItem[] = [];
-  postsLoading = false;
-  statusFilter: number | null = null;
-  actionBusyId: number | null = null;
+  readonly posts = signal<BlogPostAdminListItem[]>([]);
+  readonly postsLoading = signal(false);
+  readonly statusFilter = signal<number | null>(null);
+  readonly actionBusyId = signal<number | null>(null);
 
   // ── Editor ──
-  editingPost: BlogPostAdmin | null = null; // null = list mode; id 0 = new post
-  editorForm: SaveBlogPost = this.emptyForm();
-  editorSlugLocked = false;
+  readonly editingPost = signal<BlogPostAdmin | null>(null); // null = list mode; id 0 = new post
+  readonly editorForm = signal<SaveBlogPost>(this.emptyForm(), { equal: () => false });
+  readonly editorSlugLocked = signal(false);
   editorSlugManuallyEdited = false;
-  editorBusy = false;
-  editorError = '';
-  previewHtml: SafeHtml | null = null;
-  uploadBusy = false;
+  readonly editorBusy = signal(false);
+  readonly editorError = signal('');
+  readonly previewHtml = signal<SafeHtml | null>(null);
+  readonly uploadBusy = signal(false);
   private previewInput$ = new Subject<string>();
 
   // ── Topics ──
-  topics: BlogTopic[] = [];
-  topicsLoading = false;
-  topicForm = { topicTitle: '', targetKeyword: '', notes: '' };
-  editingTopicId: number | null = null;
-  generateBusyTopicId: number | null = null;
-  suggestBusy = false;
-  suggestions: SuggestionRow[] = [];
-  suggestionsVisible = false;
-  addSuggestionsBusy = false;
+  readonly topics = signal<BlogTopic[]>([]);
+  readonly topicsLoading = signal(false);
+  readonly topicForm = signal({ topicTitle: '', targetKeyword: '', notes: '' });
+  readonly editingTopicId = signal<number | null>(null);
+  readonly generateBusyTopicId = signal<number | null>(null);
+  readonly suggestBusy = signal(false);
+  readonly suggestions = signal<SuggestionRow[]>([]);
+  readonly suggestionsVisible = signal(false);
+  readonly addSuggestionsBusy = signal(false);
 
   // ── Settings ──
-  settings: BlogSettings | null = null;
-  settingsLoading = false;
-  settingsSaving = false;
+  readonly settings = signal<BlogSettings | null>(null, { equal: () => false });
+  readonly settingsLoading = signal(false);
+  readonly settingsSaving = signal(false);
 
   // ── Guide ── (client-side only; Georgian default for Nodar)
-  guideLang: GuideLang = 'ka';
+  readonly guideLang = signal<GuideLang>('ka');
 
   private subscription = new Subscription();
 
@@ -114,7 +114,7 @@ export class AdminBlogComponent implements OnInit, OnDestroy {
 
   setTab(tab: AdminBlogTab): void {
     if (tab === 'settings' && !this.isSuperAdmin) return;
-    this.activeTab = tab;
+    this.activeTab.set(tab);
     if (tab === 'posts') this.loadPosts();
     if (tab === 'topics') this.loadTopics();
     if (tab === 'settings') this.loadSettings();
@@ -125,18 +125,18 @@ export class AdminBlogComponent implements OnInit, OnDestroy {
   // ─────────────────────────────────────────────
 
   loadPosts(): void {
-    this.postsLoading = true;
-    this.blogService.adminGetPosts(this.statusFilter ?? undefined).subscribe({
+    this.postsLoading.set(true);
+    this.blogService.adminGetPosts(this.statusFilter() ?? undefined).subscribe({
       next: (posts) => {
-        this.posts = posts;
-        this.postsLoading = false;
+        this.posts.set(posts);
+        this.postsLoading.set(false);
       },
-      error: () => { this.postsLoading = false; }
+      error: () => { this.postsLoading.set(false); }
     });
   }
 
   setStatusFilter(status: number | null): void {
-    this.statusFilter = status;
+    this.statusFilter.set(status);
     this.loadPosts();
   }
 
@@ -162,11 +162,11 @@ export class AdminBlogComponent implements OnInit, OnDestroy {
 
   publishFromList(post: BlogPostAdminListItem): void {
     if (!confirm(`Publish "${post.title}"? It will appear on the website immediately.`)) return;
-    this.actionBusyId = post.id;
+    this.actionBusyId.set(post.id);
     this.blogService.adminPublishPost(post.id).subscribe({
-      next: () => { this.actionBusyId = null; this.loadPosts(); },
+      next: () => { this.actionBusyId.set(null); this.loadPosts(); },
       error: (err) => {
-        this.actionBusyId = null;
+        this.actionBusyId.set(null);
         alert(err?.error?.message || 'Failed to publish.');
       }
     });
@@ -174,10 +174,10 @@ export class AdminBlogComponent implements OnInit, OnDestroy {
 
   unpublishFromList(post: BlogPostAdminListItem): void {
     if (!confirm(`Unpublish "${post.title}"? It will be removed from the website (Google may keep the old link for a while).`)) return;
-    this.actionBusyId = post.id;
+    this.actionBusyId.set(post.id);
     this.blogService.adminUnpublishPost(post.id).subscribe({
-      next: () => { this.actionBusyId = null; this.loadPosts(); },
-      error: () => { this.actionBusyId = null; alert('Failed to unpublish.'); }
+      next: () => { this.actionBusyId.set(null); this.loadPosts(); },
+      error: () => { this.actionBusyId.set(null); alert('Failed to unpublish.'); }
     });
   }
 
@@ -187,10 +187,10 @@ export class AdminBlogComponent implements OnInit, OnDestroy {
       : `Delete "${post.title}"? This cannot be undone.`;
     if (!confirm(warning)) return;
 
-    this.actionBusyId = post.id;
+    this.actionBusyId.set(post.id);
     this.blogService.adminDeletePost(post.id).subscribe({
-      next: () => { this.actionBusyId = null; this.loadPosts(); },
-      error: () => { this.actionBusyId = null; alert('Failed to delete.'); }
+      next: () => { this.actionBusyId.set(null); this.loadPosts(); },
+      error: () => { this.actionBusyId.set(null); alert('Failed to delete.'); }
     });
   }
 
@@ -199,26 +199,26 @@ export class AdminBlogComponent implements OnInit, OnDestroy {
   // ─────────────────────────────────────────────
 
   newPost(): void {
-    this.editingPost = {
+    this.editingPost.set({
       id: 0, title: '', slug: '', excerpt: '', contentMarkdown: '', contentHtml: '',
       status: BlogPostStatus.Draft, category: 'Guides', authorName: 'Dream Cleaning Team',
       isAiGenerated: false, createdAt: '', updatedAt: '', viewCount: 0
-    };
-    this.editorForm = this.emptyForm();
-    this.editorSlugLocked = false;
+    });
+    this.editorForm.set(this.emptyForm());
+    this.editorSlugLocked.set(false);
     this.editorSlugManuallyEdited = false;
-    this.editorError = '';
-    this.previewHtml = null;
-    this.activeTab = 'editor';
+    this.editorError.set('');
+    this.previewHtml.set(null);
+    this.activeTab.set('editor');
   }
 
   openEditor(id: number): void {
-    this.editorBusy = true;
-    this.activeTab = 'editor';
+    this.editorBusy.set(true);
+    this.activeTab.set('editor');
     this.blogService.adminGetPost(id).subscribe({
       next: (post) => {
-        this.editingPost = post;
-        this.editorForm = {
+        this.editingPost.set(post);
+        this.editorForm.set({
           title: post.title,
           slug: post.slug,
           excerpt: post.excerpt,
@@ -230,27 +230,27 @@ export class AdminBlogComponent implements OnInit, OnDestroy {
           category: post.category,
           tags: post.tags || '',
           authorName: post.authorName
-        };
-        this.editorSlugLocked = post.status === BlogPostStatus.Published;
+        });
+        this.editorSlugLocked.set(post.status === BlogPostStatus.Published);
         // Keep auto-syncing only while the slug still looks auto-generated;
         // a slug that diverges from the title was chosen deliberately.
         this.editorSlugManuallyEdited = !!post.slug && post.slug !== this.slugify(post.title);
-        this.editorError = '';
-        this.editorBusy = false;
+        this.editorError.set('');
+        this.editorBusy.set(false);
         this.renderPreview(post.contentMarkdown);
       },
       error: () => {
-        this.editorBusy = false;
-        this.activeTab = 'posts';
+        this.editorBusy.set(false);
+        this.activeTab.set('posts');
         alert('Failed to load the post.');
       }
     });
   }
 
   closeEditor(): void {
-    this.editingPost = null;
-    this.previewHtml = null;
-    this.activeTab = 'posts';
+    this.editingPost.set(null);
+    this.previewHtml.set(null);
+    this.activeTab.set('posts');
     this.loadPosts();
   }
 
@@ -259,15 +259,17 @@ export class AdminBlogComponent implements OnInit, OnDestroy {
   }
 
   onTitleChanged(value: string): void {
-    if (this.editorSlugLocked || this.editorSlugManuallyEdited) return;
-    this.editorForm.slug = this.slugify(value);
+    if (this.editorSlugLocked() || this.editorSlugManuallyEdited) return;
+    this.editorForm().slug = this.slugify(value);
+    this.editorForm.set(this.editorForm());
   }
 
   onSlugEdited(value: string): void {
     // Clearing the field hands control back to auto-generation.
     if (!value.trim()) {
       this.editorSlugManuallyEdited = false;
-      this.editorForm.slug = this.slugify(this.editorForm.title);
+      this.editorForm().slug = this.slugify(this.editorForm().title);
+      this.editorForm.set(this.editorForm());
     } else {
       this.editorSlugManuallyEdited = true;
     }
@@ -289,26 +291,27 @@ export class AdminBlogComponent implements OnInit, OnDestroy {
 
   private renderPreview(md: string): void {
     const html = marked.parse(md || '', { async: false }) as string;
-    this.previewHtml = this.sanitizer.bypassSecurityTrustHtml(html);
+    this.previewHtml.set(this.sanitizer.bypassSecurityTrustHtml(html));
   }
 
-  get metaTitleLength(): number { return (this.editorForm.metaTitle || '').length; }
-  get metaDescriptionLength(): number { return (this.editorForm.metaDescription || '').length; }
-  get excerptLength(): number { return (this.editorForm.excerpt || '').length; }
+  get metaTitleLength(): number { return (this.editorForm().metaTitle || '').length; }
+  get metaDescriptionLength(): number { return (this.editorForm().metaDescription || '').length; }
+  get excerptLength(): number { return (this.editorForm().excerpt || '').length; }
 
   uploadFeaturedImage(event: Event): void {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
     if (!file) return;
 
-    this.uploadBusy = true;
+    this.uploadBusy.set(true);
     this.blogService.adminUploadImage(file).subscribe({
       next: (res) => {
-        this.editorForm.featuredImagePath = res.url;
-        this.uploadBusy = false;
+        this.editorForm().featuredImagePath = res.url;
+        this.editorForm.set(this.editorForm());
+        this.uploadBusy.set(false);
       },
       error: (err) => {
-        this.uploadBusy = false;
+        this.uploadBusy.set(false);
         alert(err?.error?.message || 'Image upload failed.');
       }
     });
@@ -316,22 +319,23 @@ export class AdminBlogComponent implements OnInit, OnDestroy {
   }
 
   savePost(publishAfter: boolean): void {
-    if (!this.editingPost) return;
-    if (!this.editorForm.title.trim()) { this.editorError = 'Title is required.'; return; }
-    if (!this.editorForm.contentMarkdown.trim()) { this.editorError = 'Article content is required.'; return; }
+    if (!this.editingPost()) return;
+    if (!this.editorForm().title.trim()) { this.editorError.set('Title is required.'); return; }
+    if (!this.editorForm().contentMarkdown.trim()) { this.editorError.set('Article content is required.'); return; }
     if (publishAfter && !confirm('Publish this article? It will appear on the website immediately.')) return;
 
-    this.editorBusy = true;
-    this.editorError = '';
+    this.editorBusy.set(true);
+    this.editorError.set('');
 
-    const save$ = this.editingPost.id === 0
-      ? this.blogService.adminCreatePost(this.editorForm)
-      : this.blogService.adminUpdatePost(this.editingPost.id, this.editorForm);
+    const save$ = this.editingPost()!.id === 0
+      ? this.blogService.adminCreatePost(this.editorForm())
+      : this.blogService.adminUpdatePost(this.editingPost()!.id, this.editorForm());
 
     save$.subscribe({
       next: (saved) => {
-        this.editingPost = saved;
-        this.editorForm.slug = saved.slug;
+        this.editingPost.set(saved);
+        this.editorForm().slug = saved.slug;
+        this.editorForm.set(this.editorForm());
         // Server may have adjusted the slug (uniqueness suffix); re-derive
         // whether it still tracks the title so auto-sync doesn't clobber it.
         this.editorSlugManuallyEdited = !!saved.slug && saved.slug !== this.slugify(saved.title);
@@ -339,37 +343,37 @@ export class AdminBlogComponent implements OnInit, OnDestroy {
         if (publishAfter && saved.status !== BlogPostStatus.Published) {
           this.blogService.adminPublishPost(saved.id).subscribe({
             next: (published) => {
-              this.editingPost = published;
-              this.editorSlugLocked = true;
-              this.editorBusy = false;
+              this.editingPost.set(published);
+              this.editorSlugLocked.set(true);
+              this.editorBusy.set(false);
             },
             error: (err) => {
-              this.editorBusy = false;
-              this.editorError = err?.error?.message || 'Saved, but publishing failed.';
+              this.editorBusy.set(false);
+              this.editorError.set(err?.error?.message || 'Saved, but publishing failed.');
             }
           });
         } else {
-          this.editorBusy = false;
+          this.editorBusy.set(false);
         }
       },
       error: (err) => {
-        this.editorBusy = false;
-        this.editorError = err?.error?.message || 'Failed to save the post.';
+        this.editorBusy.set(false);
+        this.editorError.set(err?.error?.message || 'Failed to save the post.');
       }
     });
   }
 
   unpublishFromEditor(): void {
-    if (!this.editingPost || this.editingPost.id === 0) return;
+    if (!this.editingPost() || this.editingPost()!.id === 0) return;
     if (!confirm('Unpublish this article? It will be removed from the website.')) return;
-    this.editorBusy = true;
-    this.blogService.adminUnpublishPost(this.editingPost.id).subscribe({
+    this.editorBusy.set(true);
+    this.blogService.adminUnpublishPost(this.editingPost()!.id).subscribe({
       next: (post) => {
-        this.editingPost = post;
-        this.editorSlugLocked = false;
-        this.editorBusy = false;
+        this.editingPost.set(post);
+        this.editorSlugLocked.set(false);
+        this.editorBusy.set(false);
       },
-      error: () => { this.editorBusy = false; alert('Failed to unpublish.'); }
+      error: () => { this.editorBusy.set(false); alert('Failed to unpublish.'); }
     });
   }
 
@@ -378,39 +382,39 @@ export class AdminBlogComponent implements OnInit, OnDestroy {
   // ─────────────────────────────────────────────
 
   loadTopics(): void {
-    this.topicsLoading = true;
+    this.topicsLoading.set(true);
     this.blogService.adminGetTopics().subscribe({
-      next: (topics) => { this.topics = topics; this.topicsLoading = false; },
-      error: () => { this.topicsLoading = false; }
+      next: (topics) => { this.topics.set(topics); this.topicsLoading.set(false); },
+      error: () => { this.topicsLoading.set(false); }
     });
   }
 
   get queuedTopics(): BlogTopic[] {
-    return this.topics.filter(t => t.status === BlogTopicStatus.Queued);
+    return this.topics().filter(t => t.status === BlogTopicStatus.Queued);
   }
 
   get generatedTopics(): BlogTopic[] {
-    return this.topics.filter(t => t.status !== BlogTopicStatus.Queued);
+    return this.topics().filter(t => t.status !== BlogTopicStatus.Queued);
   }
 
   saveTopic(): void {
-    const title = this.topicForm.topicTitle.trim();
+    const title = this.topicForm().topicTitle.trim();
     if (!title) return;
 
     const dto = {
       topicTitle: title,
-      targetKeyword: this.topicForm.targetKeyword.trim() || undefined,
-      notes: this.topicForm.notes.trim() || undefined
+      targetKeyword: this.topicForm().targetKeyword.trim() || undefined,
+      notes: this.topicForm().notes.trim() || undefined
     };
 
-    const save$ = this.editingTopicId
-      ? this.blogService.adminUpdateTopic(this.editingTopicId, dto)
+    const save$ = this.editingTopicId()
+      ? this.blogService.adminUpdateTopic(this.editingTopicId()!, dto)
       : this.blogService.adminCreateTopic(dto);
 
     save$.subscribe({
       next: () => {
-        this.topicForm = { topicTitle: '', targetKeyword: '', notes: '' };
-        this.editingTopicId = null;
+        this.topicForm.set({ topicTitle: '', targetKeyword: '', notes: '' });
+        this.editingTopicId.set(null);
         this.loadTopics();
       },
       error: () => alert('Failed to save the topic.')
@@ -418,17 +422,17 @@ export class AdminBlogComponent implements OnInit, OnDestroy {
   }
 
   editTopic(topic: BlogTopic): void {
-    this.editingTopicId = topic.id;
-    this.topicForm = {
+    this.editingTopicId.set(topic.id);
+    this.topicForm.set({
       topicTitle: topic.topicTitle,
       targetKeyword: topic.targetKeyword || '',
       notes: topic.notes || ''
-    };
+    });
   }
 
   cancelTopicEdit(): void {
-    this.editingTopicId = null;
-    this.topicForm = { topicTitle: '', targetKeyword: '', notes: '' };
+    this.editingTopicId.set(null);
+    this.topicForm.set({ topicTitle: '', targetKeyword: '', notes: '' });
   }
 
   deleteTopic(topic: BlogTopic): void {
@@ -456,57 +460,57 @@ export class AdminBlogComponent implements OnInit, OnDestroy {
 
   generateNow(topic: BlogTopic): void {
     if (!confirm(`Generate an article draft for "${topic.topicTitle}" now?\n\nThis takes up to a minute.`)) return;
-    this.generateBusyTopicId = topic.id;
+    this.generateBusyTopicId.set(topic.id);
     this.blogService.adminGenerate({ topicId: topic.id }).subscribe({
       next: (post) => {
-        this.generateBusyTopicId = null;
+        this.generateBusyTopicId.set(null);
         this.loadTopics();
         this.openEditor(post.id);
       },
       error: (err) => {
-        this.generateBusyTopicId = null;
+        this.generateBusyTopicId.set(null);
         alert(err?.error?.message || 'Generation failed. Try again.');
       }
     });
   }
 
   suggestTopics(): void {
-    this.suggestBusy = true;
-    this.suggestionsVisible = true;
-    this.suggestions = [];
+    this.suggestBusy.set(true);
+    this.suggestionsVisible.set(true);
+    this.suggestions.set([]);
     this.blogService.adminSuggestTopics().subscribe({
       next: (list) => {
-        this.suggestions = list.map(s => ({ ...s, selected: false }));
-        this.suggestBusy = false;
+        this.suggestions.set(list.map(s => ({ ...s, selected: false })));
+        this.suggestBusy.set(false);
       },
       error: (err) => {
-        this.suggestBusy = false;
-        this.suggestionsVisible = false;
+        this.suggestBusy.set(false);
+        this.suggestionsVisible.set(false);
         alert(err?.error?.message || 'Failed to get suggestions. Try again.');
       }
     });
   }
 
   get selectedSuggestionsCount(): number {
-    return this.suggestions.filter(s => s.selected).length;
+    return this.suggestions().filter(s => s.selected).length;
   }
 
   addSelectedSuggestions(): void {
-    const selected = this.suggestions.filter(s => s.selected);
+    const selected = this.suggestions().filter(s => s.selected);
     if (selected.length === 0) return;
 
-    this.addSuggestionsBusy = true;
+    this.addSuggestionsBusy.set(true);
     this.blogService.adminAddTopics(
       selected.map(s => ({ topicTitle: s.topicTitle, targetKeyword: s.targetKeyword }))
     ).subscribe({
       next: () => {
-        this.addSuggestionsBusy = false;
-        this.suggestionsVisible = false;
-        this.suggestions = [];
+        this.addSuggestionsBusy.set(false);
+        this.suggestionsVisible.set(false);
+        this.suggestions.set([]);
         this.loadTopics();
       },
       error: () => {
-        this.addSuggestionsBusy = false;
+        this.addSuggestionsBusy.set(false);
         alert('Failed to add topics.');
       }
     });
@@ -517,21 +521,21 @@ export class AdminBlogComponent implements OnInit, OnDestroy {
   // ─────────────────────────────────────────────
 
   loadSettings(): void {
-    this.settingsLoading = true;
+    this.settingsLoading.set(true);
     this.blogService.adminGetSettings().subscribe({
-      next: (settings) => { this.settings = settings; this.settingsLoading = false; },
-      error: () => { this.settingsLoading = false; }
+      next: (settings) => { this.settings.set(settings); this.settingsLoading.set(false); },
+      error: () => { this.settingsLoading.set(false); }
     });
   }
 
   toggleAutoGenerate(): void {
-    if (!this.settings) return;
-    this.persistSettings({ autoGenerateEnabled: !this.settings.autoGenerateEnabled });
+    if (!this.settings()) return;
+    this.persistSettings({ autoGenerateEnabled: !this.settings()!.autoGenerateEnabled });
   }
 
   togglePublicVisible(): void {
-    if (!this.settings) return;
-    const turningOn = !this.settings.publicVisible;
+    if (!this.settings()) return;
+    const turningOn = !this.settings()!.publicVisible;
     const message = turningOn
       ? 'Make the blog VISIBLE to everyone? The /blog page, header link, and sitemap go live immediately.'
       : 'Hide the blog from the public? Visitors will see a "coming soon" page. Publishing in the admin keeps working.';
@@ -540,29 +544,31 @@ export class AdminBlogComponent implements OnInit, OnDestroy {
   }
 
   onModelChange(modelId: string): void {
-    if (!this.settings) return;
+    if (!this.settings()) return;
     this.persistSettings({ generationModel: modelId });
   }
 
   /** Sends the full settings payload with one field changed; reverts UI on failure. */
   private persistSettings(change: Partial<{ autoGenerateEnabled: boolean; publicVisible: boolean; generationModel: string }>): void {
-    if (!this.settings) return;
-    const previous = { ...this.settings };
+    if (!this.settings()) return;
+    const previous = { ...this.settings() };
     const payload = {
-      autoGenerateEnabled: change.autoGenerateEnabled ?? this.settings.autoGenerateEnabled,
-      publicVisible: change.publicVisible ?? this.settings.publicVisible,
-      generationModel: change.generationModel ?? this.settings.generationModel
+      autoGenerateEnabled: change.autoGenerateEnabled ?? this.settings()!.autoGenerateEnabled,
+      publicVisible: change.publicVisible ?? this.settings()!.publicVisible,
+      generationModel: change.generationModel ?? this.settings()!.generationModel
     };
 
     // Optimistic UI; revert on failure.
-    Object.assign(this.settings, payload);
-    this.settingsSaving = true;
+    Object.assign(this.settings()!, payload);
+    this.settings.set(this.settings());
+    this.settingsSaving.set(true);
 
     this.blogService.adminUpdateSettings(payload).subscribe({
-      next: () => { this.settingsSaving = false; },
+      next: () => { this.settingsSaving.set(false); },
       error: (err) => {
-        Object.assign(this.settings!, previous);
-        this.settingsSaving = false;
+        Object.assign(this.settings()!, previous);
+        this.settings.set(this.settings());
+        this.settingsSaving.set(false);
         alert(err?.error?.message || 'Failed to update the setting.');
       }
     });

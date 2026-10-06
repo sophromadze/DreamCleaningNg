@@ -1,7 +1,7 @@
 <div class="subscriptions-section">
   <div class="section-header">
     <h2>Subscriptions Management</h2>
-    @if (userPermissions.permissions.canCreate) {
+    @if (userPermissions().permissions.canCreate) {
     <button 
             class="action-btn add" 
             (click)="startAddingSubscription()">
@@ -11,38 +11,38 @@
   </div>
 
   <!-- Add Subscription Form -->
-  @if (isAddingSubscription) {
+  @if (isAddingSubscription()) {
   <div class="add-form">
     <h3>Add New Subscription</h3>
     <form (ngSubmit)="addSubscription()">
       <div class="form-group">
         <label for="name">Name</label>
-        <input type="text" id="name" [(ngModel)]="newSubscription.name" name="name" required>
+        <input type="text" id="name" [(ngModel)]="newSubscription().name" name="name" required>
       </div>
 
       <div class="form-group">
         <label for="description">Description</label>
-        <textarea id="description" [(ngModel)]="newSubscription.description" name="description"></textarea>
+        <textarea id="description" [(ngModel)]="newSubscription().description" name="description"></textarea>
       </div>
 
       <div class="form-group">
         <label for="discountPercentage">Discount Percentage</label>
-        <input type="number" id="discountPercentage" [(ngModel)]="newSubscription.discountPercentage" name="discountPercentage" required min="0" max="100">
+        <input type="number" id="discountPercentage" [(ngModel)]="newSubscription().discountPercentage" name="discountPercentage" required min="0" max="100">
       </div>
 
       <div class="form-group">
         <label for="subscriptionDays">Duration (Days)</label>
-        <input type="number" id="subscriptionDays" [(ngModel)]="newSubscription.subscriptionDays" name="subscriptionDays" required min="0">
+        <input type="number" id="subscriptionDays" [(ngModel)]="newSubscription().subscriptionDays" name="subscriptionDays" required min="0">
       </div>
 
       <div class="form-group">
         <label for="displayOrder">Display Order</label>
-        <input type="number" id="displayOrder" [(ngModel)]="newSubscription.displayOrder" name="displayOrder" required min="0">
+        <input type="number" id="displayOrder" [(ngModel)]="newSubscription().displayOrder" name="displayOrder" required min="0">
       </div>
 
       <div class="form-group">
         <label>
-          <input type="checkbox" [(ngModel)]="newSubscription.isMostPopular" name="isMostPopular">
+          <input type="checkbox" [(ngModel)]="newSubscription().isMostPopular" name="isMostPopular">
           "Most popular" badge on the booking page (moves it off any other plan)
         </label>
       </div>
@@ -67,17 +67,17 @@
             <th>Duration</th>
             <th>Order</th>
             <th>Status</th>
-            @if (userRole !== 'Moderator') {
+            @if (userRole() !== 'Moderator') {
             <th>Actions</th>
             }
           </tr>
         </thead>
         <tbody>
-        @for (subscription of subscriptions; track subscription.id) {
+        @for (subscription of subscriptions(); track subscription.id) {
         <tr
-            [class.editing]="editingSubscriptionId === subscription.id">
+            [class.editing]="editingSubscriptionId() === subscription.id">
           <td>
-            @if (editingSubscriptionId !== subscription.id) {
+            @if (editingSubscriptionId() !== subscription.id) {
             <div>
               {{subscription.name}}
               @if (subscription.isMostPopular) {
@@ -85,33 +85,33 @@
               }
             </div>
             }
-            @if (editingSubscriptionId === subscription.id) {
+            @if (editingSubscriptionId() === subscription.id) {
             <input aria-label="Name" 
                    type="text" 
                    [(ngModel)]="subscription.name"
                    class="edit-input">
             }
-            @if (editingSubscriptionId === subscription.id) {
+            @if (editingSubscriptionId() === subscription.id) {
             <label>
               <input type="checkbox" [(ngModel)]="subscription.isMostPopular"> Most popular
             </label>
             }
           </td>
           <td>
-            @if (editingSubscriptionId !== subscription.id) {
+            @if (editingSubscriptionId() !== subscription.id) {
             <div>{{subscription.description}}</div>
             }
-            @if (editingSubscriptionId === subscription.id) {
+            @if (editingSubscriptionId() === subscription.id) {
             <textarea aria-label="Description" 
                       [(ngModel)]="subscription.description"
                       class="edit-textarea"></textarea>
             }
           </td>
           <td>
-            @if (editingSubscriptionId !== subscription.id) {
+            @if (editingSubscriptionId() !== subscription.id) {
             <div>{{subscription.discountPercentage}}%</div>
             }
-            @if (editingSubscriptionId === subscription.id) {
+            @if (editingSubscriptionId() === subscription.id) {
             <input aria-label="Discount (%)" 
                    type="number" 
                    [(ngModel)]="subscription.discountPercentage" 
@@ -121,7 +121,7 @@
             }
           </td>
           <td>
-            @if (editingSubscriptionId !== subscription.id) {
+            @if (editingSubscriptionId() !== subscription.id) {
             <div>
               @if (subscription.subscriptionDays === 0) {
               <span>One Time</span>
@@ -131,7 +131,7 @@
               }
             </div>
             }
-            @if (editingSubscriptionId === subscription.id) {
+            @if (editingSubscriptionId() === subscription.id) {
             <input aria-label="Duration (days)" 
                    type="number" 
                    [(ngModel)]="subscription.subscriptionDays" 
@@ -140,12 +140,12 @@
             }
           </td>
           <td>
-            @if (editingSubscriptionId !== subscription.id) {
+            @if (editingSubscriptionId() !== subscription.id) {
             <div>
               {{ subscription.displayOrder || 0 }}
             </div>
             }
-            @if (editingSubscriptionId === subscription.id) {
+            @if (editingSubscriptionId() === subscription.id) {
             <input aria-label="Order" 
                    type="number" 
                    [(ngModel)]="subscription.displayOrder" 
@@ -158,31 +158,31 @@
               {{subscription.isActive ? 'Active' : 'Inactive'}}
             </span>
           </td>
-          @if (userRole !== 'Moderator') {
+          @if (userRole() !== 'Moderator') {
           <td class="actions">
-            @if (editingSubscriptionId !== subscription.id) {
-              @if (userPermissions.permissions.canUpdate) {
+            @if (editingSubscriptionId() !== subscription.id) {
+              @if (userPermissions().permissions.canUpdate) {
               <button 
                       class="action-btn edit" 
                       (click)="editSubscription(subscription)">
                 Edit
               </button>
               }
-              @if (userPermissions.permissions.canActivate && !subscription.isActive) {
+              @if (userPermissions().permissions.canActivate && !subscription.isActive) {
               <button 
                       class="action-btn activate" 
                       (click)="activateSubscription(subscription)">
                 Enable
               </button>
               }
-              @if (userPermissions.permissions.canDeactivate && subscription.isActive) {
+              @if (userPermissions().permissions.canDeactivate && subscription.isActive) {
               <button 
                       class="action-btn deactivate" 
                       (click)="deactivateSubscription(subscription)">
                 Disable
               </button>
               }
-              @if (userPermissions.permissions.canDelete) {
+              @if (userPermissions().permissions.canDelete) {
               <button 
                       class="action-btn delete" 
                       (click)="deleteSubscription(subscription)">
@@ -190,7 +190,7 @@
               </button>
               }
             }
-            @if (editingSubscriptionId === subscription.id) {
+            @if (editingSubscriptionId() === subscription.id) {
               <button class="action-btn save" (click)="saveSubscription(subscription)">Save</button>
               <button class="action-btn cancel" (click)="cancelEditSubscription()">Cancel</button>
             }
@@ -204,14 +204,14 @@
   </div>
 
   <!-- Messages -->
-  @if (errorMessage) {
+  @if (errorMessage()) {
   <div class="error-message">
-    {{errorMessage}}
+    {{errorMessage()}}
   </div>
   }
-  @if (successMessage) {
+  @if (successMessage()) {
   <div class="success-message">
-    {{successMessage}}
+    {{successMessage()}}
   </div>
   }
 </div>

@@ -68,7 +68,7 @@ describe('AdminUsersComponent', () => {
 
   it('opens on Customers', () => {
     fixture.detectChanges();
-    expect(component.activeTab).toBe('customers');
+    expect(component.activeTab()).toBe('customers');
   });
 
   it('renders the four labels in the strip', () => {
@@ -92,7 +92,7 @@ describe('AdminUsersComponent', () => {
     sessionStorage.setItem('adminUsersTab', 'not-a-tab');
     fixture.detectChanges();
 
-    expect(component.activeTab).toBe('customers');
+    expect(component.activeTab()).toBe('customers');
   });
 
   it('honours the legacy Cleaners deep link', () => {
@@ -101,7 +101,7 @@ describe('AdminUsersComponent', () => {
     fixture.componentRef.setInput('initialTab', 'cleaners');
     fixture.detectChanges();
 
-    expect(component.activeTab).toBe('cleaners');
+    expect(component.activeTab()).toBe('cleaners');
   });
 
   /**
@@ -118,7 +118,7 @@ describe('AdminUsersComponent', () => {
     fixture.componentRef.setInput('initialTab', 'customers');
     fixture.detectChanges();
 
-    expect(component.activeTab).toBe('customers');
+    expect(component.activeTab()).toBe('customers');
     expect(fixture.nativeElement.querySelector('app-user-management')).not.toBeNull();
   });
 
@@ -130,7 +130,7 @@ describe('AdminUsersComponent', () => {
     fixture.componentRef.setInput('initialTab', null);
     fixture.detectChanges();
 
-    expect(component.activeTab).toBe('cleaners');
+    expect(component.activeTab()).toBe('cleaners');
   });
 
   it('mounts ONE child at a time', () => {

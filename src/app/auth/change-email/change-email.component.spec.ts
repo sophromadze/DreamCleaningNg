@@ -35,46 +35,46 @@ describe('ChangeEmailComponent', () => {
     it('says nothing at all about an empty box', () => {
       // "Required" is carried by the disabled submit button, not by an error under a field
       // nobody has typed in yet.
-      component.newEmail = '';
+      component.newEmail.set('');
       expect(component.emailProblem).toBeNull();
       expect(component.canSubmit).toBe(false);
     });
 
     it('names a missing @ rather than calling it invalid', () => {
-      component.newEmail = 'nope';
+      component.newEmail.set('nope');
       expect(component.emailProblem).toContain('missing the "@" symbol');
     });
 
     it('names a domain with no ending', () => {
-      component.newEmail = 'a@b';
+      component.newEmail.set('a@b');
       expect(component.emailProblem).toContain('missing its ending');
     });
 
     it('names a space', () => {
-      component.newEmail = 'a b@example.com';
+      component.newEmail.set('a b@example.com');
       expect(component.emailProblem).toContain('cannot contain spaces');
     });
 
     it('passes a usable address', () => {
-      component.newEmail = 'new@example.com';
+      component.newEmail.set('new@example.com');
       expect(component.emailProblem).toBeNull();
     });
 
     it('will not submit while the address is malformed', () => {
-      component.newEmail = 'nope';
-      component.currentPassword = 'Correct1horse';
+      component.newEmail.set('nope');
+      component.currentPassword.set('Correct1horse');
       expect(component.canSubmit).toBe(false);
     });
 
     it('will not submit without the current password', () => {
-      component.newEmail = 'new@example.com';
-      component.currentPassword = '';
+      component.newEmail.set('new@example.com');
+      component.currentPassword.set('');
       expect(component.canSubmit).toBe(false);
     });
 
     it('submits once both are filled in', () => {
-      component.newEmail = 'new@example.com';
-      component.currentPassword = 'Correct1horse';
+      component.newEmail.set('new@example.com');
+      component.currentPassword.set('Correct1horse');
       expect(component.canSubmit).toBe(true);
     });
   });
@@ -85,8 +85,8 @@ describe('ChangeEmailComponent', () => {
     it('trims the address on the way out', () => {
       const auth = TestBed.inject(AuthService);
       const spy = vi.spyOn(auth, 'initiateEmailChange').mockReturnValue(of({ message: 'Sent.' }));
-      component.newEmail = '  new@example.com  ';
-      component.currentPassword = 'Correct1horse';
+      component.newEmail.set('  new@example.com  ');
+      component.currentPassword.set('Correct1horse');
       component.onSubmit();
       expect(spy).toHaveBeenCalledWith('new@example.com', 'Correct1horse');
     });
@@ -96,12 +96,12 @@ describe('ChangeEmailComponent', () => {
       // takes away the only way to check they typed it correctly.
       const auth = TestBed.inject(AuthService);
       vi.spyOn(auth, 'initiateEmailChange').mockReturnValue(of({ message: 'Sent.' }));
-      component.newEmail = 'new@example.com';
-      component.currentPassword = 'Correct1horse';
+      component.newEmail.set('new@example.com');
+      component.currentPassword.set('Correct1horse');
       component.onSubmit();
-      expect(component.successMessage).toBe('Sent.');
-      expect(component.newEmail).toBe('new@example.com');
-      expect(component.currentPassword).toBe('');
+      expect(component.successMessage()).toBe('Sent.');
+      expect(component.newEmail()).toBe('new@example.com');
+      expect(component.currentPassword()).toBe('');
     });
 
     it('releases the button when the request fails', () => {
@@ -109,11 +109,11 @@ describe('ChangeEmailComponent', () => {
       // which is how a form ends up stuck on "Sending...".
       const auth = TestBed.inject(AuthService);
       vi.spyOn(auth, 'initiateEmailChange').mockReturnValue(throwError(() => ({ error: { message: 'Current password is incorrect' } })));
-      component.newEmail = 'new@example.com';
-      component.currentPassword = 'wrong';
+      component.newEmail.set('new@example.com');
+      component.currentPassword.set('wrong');
       component.onSubmit();
-      expect(component.isSubmitting).toBe(false);
-      expect(component.errorMessage).toBe('Current password is incorrect');
+      expect(component.isSubmitting()).toBe(false);
+      expect(component.errorMessage()).toBe('Current password is incorrect');
     });
 
     it('reads a ValidationProblemDetails body instead of showing transport noise', () => {
@@ -123,18 +123,18 @@ describe('ChangeEmailComponent', () => {
         message: 'Http failure response for /api/auth/initiate-email-change: 400 Bad Request',
         error: { title: 'One or more validation errors occurred.', errors: { NewEmail: ['The NewEmail field is not a valid e-mail address.'] } }
       })));
-      component.newEmail = 'new@example.com';
-      component.currentPassword = 'Correct1horse';
+      component.newEmail.set('new@example.com');
+      component.currentPassword.set('Correct1horse');
       component.onSubmit();
-      expect(component.errorMessage).not.toContain('Http failure response');
-      expect(component.errorMessage).toContain('valid e-mail address');
+      expect(component.errorMessage()).not.toContain('Http failure response');
+      expect(component.errorMessage()).toContain('valid e-mail address');
     });
 
     it('does nothing at all when the form is not submittable', () => {
       const auth = TestBed.inject(AuthService);
       const spy = vi.spyOn(auth, 'initiateEmailChange').mockReturnValue(undefined as any);
-      component.newEmail = 'nope';
-      component.currentPassword = 'Correct1horse';
+      component.newEmail.set('nope');
+      component.currentPassword.set('Correct1horse');
       component.onSubmit();
       expect(spy).not.toHaveBeenCalled();
     });
@@ -168,9 +168,9 @@ describe('ChangeEmailComponent', () => {
       const auth = TestBed.inject(AuthService);
       vi.spyOn(auth, 'confirmEmailChange').mockReturnValue(throwError(() => ({ error: { message: 'Invalid or expired email change token' } })));
       component.confirmEmailChange('stale-token');
-      expect(component.isError).toBe(true);
-      expect(component.isSuccess).toBe(false);
-      expect(component.verificationErrorMessage).toBe('Invalid or expired email change token');
+      expect(component.isError()).toBe(true);
+      expect(component.isSuccess()).toBe(false);
+      expect(component.verificationErrorMessage()).toBe('Invalid or expired email change token');
     });
 
     it('ends the session on success, because the sign-in address has changed', () => {
@@ -178,7 +178,7 @@ describe('ChangeEmailComponent', () => {
       vi.spyOn(auth, 'confirmEmailChange').mockReturnValue(of({ message: 'Email changed' }));
       const logout = vi.spyOn(auth, 'logout').mockReturnValue(undefined);
       component.confirmEmailChange('good-token');
-      expect(component.isSuccess).toBe(true);
+      expect(component.isSuccess()).toBe(true);
       expect(logout).toHaveBeenCalled();
     });
   });

@@ -1,4 +1,4 @@
-import { Component, OnInit, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { forkJoin } from 'rxjs';
@@ -20,7 +20,7 @@ import { allowsCurrencyChoice, currencySymbol, isSalaryCategory } from '../../..
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './expenses.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./expenses.component.scss']
 })
 export class ExpensesComponent implements OnInit {
@@ -28,35 +28,35 @@ export class ExpensesComponent implements OnInit {
   private authService = inject(AuthService);
 
   // Grouped Category → Name → entries view, scoped to the selected month.
-  grouped: GroupedExpenses | null = null;
-  categories: ExpenseCategory[] = [];
+  readonly grouped = signal<GroupedExpenses | null>(null);
+  readonly categories = signal<ExpenseCategory[]>([]);
   // People a salary can be recorded against. Loaded with the page so the picker is never empty
   // on first open — the Salaries category is the one an owner reaches for most.
-  staffMembers: ExpenseStaffMember[] = [];
+  readonly staffMembers = signal<ExpenseStaffMember[]>([]);
 
-  loading = false;
-  error = '';
-  successMessage = '';
+  readonly loading = signal(false);
+  readonly error = signal('');
+  readonly successMessage = signal('');
 
   // Selected month (1-12) + year for the grouped view.
-  selYear = new Date().getFullYear();
-  selMonth = new Date().getMonth() + 1;
+  readonly selYear = signal(new Date().getFullYear());
+  readonly selMonth = signal(new Date().getMonth() + 1);
 
   // Expand/collapse state. Categories keyed by id, names keyed by "categoryId::name".
-  expandedCategories = new Set<number>();
-  expandedNames = new Set<string>();
+  readonly expandedCategories = signal(new Set<number>(), { equal: () => false });
+  readonly expandedNames = signal(new Set<string>(), { equal: () => false });
 
   // Form state — create (editingId == null) and edit (editingId == row.id).
-  showForm = false;
-  editingId: number | null = null;
-  saving = false;
-  form: CreateExpense = this.blankForm();
+  readonly showForm = signal(false);
+  readonly editingId = signal<number | null>(null);
+  readonly saving = signal(false);
+  readonly form = signal<CreateExpense>(this.blankForm(), { equal: () => false });
 
   // Who a salary is for. A staff member's id, 'custom' for somebody with no account (which is
   // also how every salary row predating the picker edits), or '' for "not answered yet" — the
   // three are genuinely different and collapsing the last two would let an unanswered form save
   // itself under a blank name.
-  staffChoice: number | 'custom' | '' = '';
+  readonly staffChoice = signal<number | 'custom' | ''>('');
 
   // Common cadence presets the user can pick without typing a number.
   frequencyPresets: { label: string; months: number }[] = [
@@ -70,24 +70,24 @@ export class ExpensesComponent implements OnInit {
   ];
 
   // Inline confirm-delete for an expense entry.
-  pendingDeleteId: number | null = null;
-  deleting = false;
+  readonly pendingDeleteId = signal<number | null>(null);
+  readonly deleting = signal(false);
 
   // Inline "adjust amount from a date" for a recurring entry — raises or reduces it without
   // hand-authoring an EndDate + a duplicate new row.
-  adjustingId: number | null = null;
-  adjustAmountValue: number | null = null;
-  adjustEffectiveDate = '';
-  adjustNotes: string | null = null;
-  adjusting = false;
+  readonly adjustingId = signal<number | null>(null);
+  readonly adjustAmountValue = signal<number | null>(null);
+  readonly adjustEffectiveDate = signal('');
+  readonly adjustNotes = signal<string | null>(null);
+  readonly adjusting = signal(false);
 
   // Category manager state.
-  showCategoryManager = false;
-  newCategoryName = '';
-  editingCategoryId: number | null = null;
-  editingCategoryName = '';
-  categorySaving = false;
-  pendingDeleteCategoryId: number | null = null;
+  readonly showCategoryManager = signal(false);
+  readonly newCategoryName = signal('');
+  readonly editingCategoryId = signal<number | null>(null);
+  readonly editingCategoryName = signal('');
+  readonly categorySaving = signal(false);
+  readonly pendingDeleteCategoryId = signal<number | null>(null);
 
   /** SuperAdmins can edit; Admins granted view-only access see the page read-only. */
   canEdit = false;
@@ -101,21 +101,21 @@ export class ExpensesComponent implements OnInit {
   }
 
   load(): void {
-    this.loading = true;
+    this.loading.set(true);
     forkJoin({
-      grouped: this.expenseService.getGrouped(this.selYear, this.selMonth),
+      grouped: this.expenseService.getGrouped(this.selYear(), this.selMonth()),
       categories: this.expenseService.getCategories(),
       staff: this.expenseService.getStaffMembers()
     }).subscribe({
       next: ({ grouped, categories, staff }) => {
-        this.grouped = grouped;
-        this.categories = categories;
-        this.staffMembers = staff;
-        this.loading = false;
+        this.grouped.set(grouped);
+        this.categories.set(categories);
+        this.staffMembers.set(staff);
+        this.loading.set(false);
       },
       error: (err) => {
-        this.error = err.error?.message || 'Failed to load expenses';
-        this.loading = false;
+        this.error.set(err.error?.message || 'Failed to load expenses');
+        this.loading.set(false);
       }
     });
   }
@@ -123,38 +123,38 @@ export class ExpensesComponent implements OnInit {
   // ─── month navigation ──────────────────────────────────────────────────────
 
   prevMonth(): void {
-    if (this.selMonth === 1) { this.selMonth = 12; this.selYear--; }
-    else { this.selMonth--; }
+    if (this.selMonth() === 1) { this.selMonth.set(12); this.selYear.update(v => v - 1); }
+    else { this.selMonth.update(v => v - 1); }
     this.load();
   }
 
   nextMonth(): void {
-    if (this.selMonth === 12) { this.selMonth = 1; this.selYear++; }
-    else { this.selMonth++; }
+    if (this.selMonth() === 12) { this.selMonth.set(1); this.selYear.update(v => v + 1); }
+    else { this.selMonth.update(v => v + 1); }
     this.load();
   }
 
   goToCurrentMonth(): void {
     const now = new Date();
-    this.selYear = now.getFullYear();
-    this.selMonth = now.getMonth() + 1;
+    this.selYear.set(now.getFullYear());
+    this.selMonth.set(now.getMonth() + 1);
     this.load();
   }
 
   get isCurrentMonth(): boolean {
     const now = new Date();
-    return this.selYear === now.getFullYear() && this.selMonth === now.getMonth() + 1;
+    return this.selYear() === now.getFullYear() && this.selMonth() === now.getMonth() + 1;
   }
 
   // ─── expand/collapse ─────────────────────────────────────────────────────────
 
   toggleCategory(categoryId: number): void {
-    if (this.expandedCategories.has(categoryId)) this.expandedCategories.delete(categoryId);
-    else this.expandedCategories.add(categoryId);
+    if (this.expandedCategories().has(categoryId)) { this.expandedCategories().delete(categoryId); this.expandedCategories.set(this.expandedCategories()); }
+    else { this.expandedCategories().add(categoryId); this.expandedCategories.set(this.expandedCategories()); }
   }
 
   isCategoryOpen(categoryId: number): boolean {
-    return this.expandedCategories.has(categoryId);
+    return this.expandedCategories().has(categoryId);
   }
 
   private nameKey(categoryId: number, name: string): string {
@@ -163,27 +163,27 @@ export class ExpensesComponent implements OnInit {
 
   toggleName(categoryId: number, name: string): void {
     const key = this.nameKey(categoryId, name);
-    if (this.expandedNames.has(key)) this.expandedNames.delete(key);
-    else this.expandedNames.add(key);
+    if (this.expandedNames().has(key)) { this.expandedNames().delete(key); this.expandedNames.set(this.expandedNames()); }
+    else { this.expandedNames().add(key); this.expandedNames.set(this.expandedNames()); }
   }
 
   isNameOpen(categoryId: number, name: string): boolean {
-    return this.expandedNames.has(this.nameKey(categoryId, name));
+    return this.expandedNames().has(this.nameKey(categoryId, name));
   }
 
   // ─── form open/close ─────────────────────────────────────────────────────────
 
   openAddForm(categoryId?: number): void {
-    this.editingId = null;
-    this.form = this.blankForm();
-    if (categoryId != null) this.form.categoryId = categoryId;
-    this.staffChoice = '';
-    this.showForm = true;
+    this.editingId.set(null);
+    this.form.set(this.blankForm());
+    if (categoryId != null) { this.form().categoryId = categoryId; this.form.set(this.form()); }
+    this.staffChoice.set('');
+    this.showForm.set(true);
   }
 
   openEditForm(row: Expense): void {
-    this.editingId = row.id;
-    this.form = {
+    this.editingId.set(row.id);
+    this.form.set({
       name: row.name,
       amount: row.amount,
       currency: row.currency ?? 'USD',
@@ -195,55 +195,58 @@ export class ExpensesComponent implements OnInit {
       endDate: row.endDate ? this.toYmd(row.endDate) : null,
       prorateByDay: row.prorateByDay,
       notes: row.notes ?? null
-    };
+    });
     // A salary row with no link is one typed by hand — including every row written before the
     // picker existed. It edits as 'custom' so re-saving it can't silently blank its name.
-    this.staffChoice = isSalaryCategory(row.categoryId)
+    this.staffChoice.set(isSalaryCategory(row.categoryId)
       ? (row.staffUserId ?? 'custom')
-      : '';
-    this.showForm = true;
+      : '');
+    this.showForm.set(true);
   }
 
   closeForm(): void {
-    this.showForm = false;
-    this.editingId = null;
-    this.form = this.blankForm();
-    this.staffChoice = '';
+    this.showForm.set(false);
+    this.editingId.set(null);
+    this.form.set(this.blankForm());
+    this.staffChoice.set('');
   }
 
   // ─── salary staff picker ─────────────────────────────────────────────────────
 
   get isSalaryForm(): boolean {
-    return isSalaryCategory(this.form.categoryId);
+    return isSalaryCategory(this.form().categoryId);
   }
 
   onCategoryChange(): void {
     if (!this.isSalaryForm) {
       // Leaving Salaries drops the link AND the currency, matching the server, which refuses to
       // store either on any other category. Whatever name is on screen is what the row keeps.
-      this.staffChoice = '';
-      this.form.staffUserId = null;
-      this.form.currency = 'USD';
+      this.staffChoice.set('');
+      this.form().staffUserId = null;
+      this.form.set(this.form());
+      this.form().currency = 'USD';
+      this.form.set(this.form());
       return;
     }
     // Arriving at Salaries on an existing row that already has a typed name keeps that name
     // rather than throwing it away — the owner can still switch to a staff member.
-    if (this.staffChoice === '' && this.form.name?.trim()) this.staffChoice = 'custom';
+    if (this.staffChoice() === '' && this.form().name?.trim()) this.staffChoice.set('custom');
   }
 
   // ─── currency ────────────────────────────────────────────────────────────────
 
   /** Only a salary offers a currency choice; everything else is USD. */
   get canChooseCurrency(): boolean {
-    return allowsCurrencyChoice(this.form.categoryId);
+    return allowsCurrencyChoice(this.form().categoryId);
   }
 
   get formCurrency(): ExpenseCurrencyCode {
-    return this.form.currency ?? 'USD';
+    return this.form().currency ?? 'USD';
   }
 
   setCurrency(currency: ExpenseCurrencyCode): void {
-    this.form.currency = currency;
+    this.form().currency = currency;
+    this.form.set(this.form());
   }
 
   /** Display only — nothing is converted on this side. */
@@ -252,21 +255,21 @@ export class ExpensesComponent implements OnInit {
   }
 
   get selectedStaff(): ExpenseStaffMember | null {
-    if (typeof this.staffChoice !== 'number') return null;
-    return this.staffMembers.find(s => s.id === this.staffChoice) ?? null;
+    if (typeof this.staffChoice() !== 'number') return null;
+    return this.staffMembers().find(s => s.id === this.staffChoice()) ?? null;
   }
 
   /** The name field is only shown when there is a name to type — a picked staff member names the row. */
   get showsNameField(): boolean {
-    return !this.isSalaryForm || this.staffChoice === 'custom';
+    return !this.isSalaryForm || this.staffChoice() === 'custom';
   }
 
   get currentStaff(): ExpenseStaffMember[] {
-    return this.staffMembers.filter(s => !s.isFormer);
+    return this.staffMembers().filter(s => !s.isFormer);
   }
 
   get formerStaff(): ExpenseStaffMember[] {
-    return this.staffMembers.filter(s => s.isFormer);
+    return this.staffMembers().filter(s => s.isFormer);
   }
 
   staffOptionLabel(s: ExpenseStaffMember): string {
@@ -278,86 +281,92 @@ export class ExpensesComponent implements OnInit {
   }
 
   onRecurringToggle(isRecurring: boolean): void {
-    this.form.isRecurring = isRecurring;
+    this.form().isRecurring = isRecurring;
+    this.form.set(this.form());
     if (!isRecurring) {
-      this.form.frequencyMonths = null;
-      this.form.endDate = null;
-      this.form.prorateByDay = false;
-    } else if (!this.form.frequencyMonths) {
-      this.form.frequencyMonths = 1;
+      this.form().frequencyMonths = null;
+      this.form.set(this.form());
+      this.form().endDate = null;
+      this.form.set(this.form());
+      this.form().prorateByDay = false;
+      this.form.set(this.form());
+    } else if (!this.form().frequencyMonths) {
+      this.form().frequencyMonths = 1;
+      this.form.set(this.form());
     }
   }
 
   pickFrequency(months: number): void {
-    this.form.frequencyMonths = months;
+    this.form().frequencyMonths = months;
+    this.form.set(this.form());
     // Proration only makes sense for monthly cadence.
-    if (months !== 1) this.form.prorateByDay = false;
+    if (months !== 1) { this.form().prorateByDay = false; this.form.set(this.form()); }
   }
 
   get canProrate(): boolean {
-    return this.form.isRecurring && Number(this.form.frequencyMonths) === 1;
+    return this.form().isRecurring && Number(this.form().frequencyMonths) === 1;
   }
 
   // ─── save / delete expense ─────────────────────────────────────────────────
 
   save(): void {
-    if (this.saving) return;
-    if (this.form.categoryId == null) { this.flashError('Pick a category'); return; }
+    if (this.saving()) return;
+    if (this.form().categoryId == null) { this.flashError('Pick a category'); return; }
 
     const staff = this.selectedStaff;
-    if (this.isSalaryForm && this.staffChoice === '') {
+    if (this.isSalaryForm && this.staffChoice() === '') {
       this.flashError('Pick who this salary is for'); return;
     }
-    if (this.isSalaryForm && typeof this.staffChoice === 'number' && !staff) {
+    if (this.isSalaryForm && typeof this.staffChoice() === 'number' && !staff) {
       this.flashError('That staff member is no longer on the list. Reload the page and pick again.'); return;
     }
     // A picked staff member names the row, so only a typed name has to be there.
-    if (!staff && !this.form.name?.trim()) { this.flashError('Name is required'); return; }
-    if (this.form.amount == null) { this.flashError('Amount is required'); return; }
-    if (!this.form.startDate) { this.flashError('Start date is required'); return; }
-    if (this.form.isRecurring && (!this.form.frequencyMonths || this.form.frequencyMonths <= 0)) {
+    if (!staff && !this.form().name?.trim()) { this.flashError('Name is required'); return; }
+    if (this.form().amount == null) { this.flashError('Amount is required'); return; }
+    if (!this.form().startDate) { this.flashError('Start date is required'); return; }
+    if (this.form().isRecurring && (!this.form().frequencyMonths || this.form().frequencyMonths! <= 0)) {
       this.flashError('Recurring expenses need a frequency in months > 0'); return;
     }
 
     const dto: CreateExpense = {
       // The server overwrites this from the account when a staff member is picked; sending their
       // name keeps the request self-describing rather than blank.
-      name: (staff ? staff.fullName : this.form.name).trim(),
-      amount: Number(this.form.amount),
+      name: (staff ? staff.fullName : this.form().name).trim(),
+      amount: Number(this.form().amount),
       // The server forces USD on every non-salary category anyway; sending what is on screen
       // keeps the request honest rather than relying on that.
       currency: this.canChooseCurrency ? this.formCurrency : 'USD',
-      categoryId: Number(this.form.categoryId),
+      categoryId: Number(this.form().categoryId),
       staffUserId: staff ? staff.id : null,
-      startDate: this.form.startDate,
-      isRecurring: this.form.isRecurring,
-      frequencyMonths: this.form.isRecurring ? Number(this.form.frequencyMonths) : null,
-      endDate: this.form.isRecurring && this.form.endDate ? this.form.endDate : null,
-      prorateByDay: this.canProrate && this.form.prorateByDay,
-      notes: this.form.notes?.trim() || null
+      startDate: this.form().startDate,
+      isRecurring: this.form().isRecurring,
+      frequencyMonths: this.form().isRecurring ? Number(this.form().frequencyMonths) : null,
+      endDate: this.form().isRecurring && this.form().endDate ? this.form().endDate : null,
+      prorateByDay: this.canProrate && this.form().prorateByDay,
+      notes: this.form().notes?.trim() || null
     };
 
-    this.saving = true;
-    const obs = this.editingId == null
+    this.saving.set(true);
+    const obs = this.editingId() == null
       ? this.expenseService.create(dto)
-      : this.expenseService.update(this.editingId, dto);
+      : this.expenseService.update(this.editingId()!, dto);
 
     obs.subscribe({
       next: () => {
-        this.saving = false;
-        this.flashSuccess(this.editingId == null ? 'Expense added' : 'Expense updated');
+        this.saving.set(false);
+        this.flashSuccess(this.editingId() == null ? 'Expense added' : 'Expense updated');
         this.closeForm();
         this.load();
       },
       error: (err) => {
-        this.saving = false;
+        this.saving.set(false);
         this.flashError(err.error?.message || 'Failed to save expense');
       }
     });
   }
 
-  askDelete(id: number): void { this.pendingDeleteId = id; this.adjustingId = null; }
-  cancelDelete(): void { this.pendingDeleteId = null; }
+  askDelete(id: number): void { this.pendingDeleteId.set(id); this.adjustingId.set(null); }
+  cancelDelete(): void { this.pendingDeleteId.set(null); }
 
   // ─── adjust amount from a date (raise/reduce a recurring entry) ────────────
 
@@ -370,38 +379,38 @@ export class ExpensesComponent implements OnInit {
   }
 
   openAdjustAmount(row: Expense): void {
-    this.adjustingId = row.id;
-    this.adjustAmountValue = null;
-    this.adjustEffectiveDate = this.toYmd(this.defaultEffectiveDate());
-    this.adjustNotes = null;
-    this.pendingDeleteId = null;
+    this.adjustingId.set(row.id);
+    this.adjustAmountValue.set(null);
+    this.adjustEffectiveDate.set(this.toYmd(this.defaultEffectiveDate()));
+    this.adjustNotes.set(null);
+    this.pendingDeleteId.set(null);
   }
 
   cancelAdjustAmount(): void {
-    this.adjustingId = null;
+    this.adjustingId.set(null);
   }
 
   confirmAdjustAmount(): void {
-    if (this.adjustingId == null || this.adjusting) return;
-    if (this.adjustAmountValue == null) { this.flashError('New amount is required'); return; }
-    if (!this.adjustEffectiveDate) { this.flashError('Effective date is required'); return; }
+    if (this.adjustingId() == null || this.adjusting()) return;
+    if (this.adjustAmountValue() == null) { this.flashError('New amount is required'); return; }
+    if (!this.adjustEffectiveDate()) { this.flashError('Effective date is required'); return; }
 
     const dto: AdjustExpenseAmount = {
-      newAmount: Number(this.adjustAmountValue),
-      effectiveDate: this.adjustEffectiveDate,
-      notes: this.adjustNotes?.trim() || null
+      newAmount: Number(this.adjustAmountValue()),
+      effectiveDate: this.adjustEffectiveDate(),
+      notes: this.adjustNotes()?.trim() || null
     };
 
-    this.adjusting = true;
-    this.expenseService.adjustAmount(this.adjustingId, dto).subscribe({
+    this.adjusting.set(true);
+    this.expenseService.adjustAmount(this.adjustingId()!, dto).subscribe({
       next: () => {
-        this.adjusting = false;
-        this.adjustingId = null;
+        this.adjusting.set(false);
+        this.adjustingId.set(null);
         this.flashSuccess('Amount adjusted — a new entry starts on the effective date');
         this.load();
       },
       error: (err) => {
-        this.adjusting = false;
+        this.adjusting.set(false);
         this.flashError(err.error?.message || 'Failed to adjust amount');
       }
     });
@@ -414,18 +423,18 @@ export class ExpensesComponent implements OnInit {
   }
 
   confirmDelete(): void {
-    if (this.pendingDeleteId == null || this.deleting) return;
-    const id = this.pendingDeleteId;
-    this.deleting = true;
+    const id = this.pendingDeleteId();
+    if (id == null || this.deleting()) return;
+    this.deleting.set(true);
     this.expenseService.delete(id).subscribe({
       next: () => {
-        this.deleting = false;
-        this.pendingDeleteId = null;
+        this.deleting.set(false);
+        this.pendingDeleteId.set(null);
         this.flashSuccess('Expense deleted');
         this.load();
       },
       error: (err) => {
-        this.deleting = false;
+        this.deleting.set(false);
         this.flashError(err.error?.message || 'Failed to delete expense');
       }
     });
@@ -434,82 +443,82 @@ export class ExpensesComponent implements OnInit {
   // ─── category manager ────────────────────────────────────────────────────────
 
   openCategoryManager(): void {
-    this.showCategoryManager = true;
-    this.newCategoryName = '';
-    this.editingCategoryId = null;
-    this.pendingDeleteCategoryId = null;
+    this.showCategoryManager.set(true);
+    this.newCategoryName.set('');
+    this.editingCategoryId.set(null);
+    this.pendingDeleteCategoryId.set(null);
   }
 
   closeCategoryManager(): void {
-    this.showCategoryManager = false;
+    this.showCategoryManager.set(false);
   }
 
   addCategory(): void {
-    const name = this.newCategoryName.trim();
-    if (!name || this.categorySaving) { if (!name) this.flashError('Category name is required'); return; }
-    this.categorySaving = true;
+    const name = this.newCategoryName().trim();
+    if (!name || this.categorySaving()) { if (!name) this.flashError('Category name is required'); return; }
+    this.categorySaving.set(true);
     this.expenseService.createCategory(name).subscribe({
       next: () => {
-        this.categorySaving = false;
-        this.newCategoryName = '';
+        this.categorySaving.set(false);
+        this.newCategoryName.set('');
         this.flashSuccess('Category added');
         this.reloadCategories();
       },
       error: (err) => {
-        this.categorySaving = false;
+        this.categorySaving.set(false);
         this.flashError(err.error?.message || 'Failed to add category');
       }
     });
   }
 
   startEditCategory(cat: ExpenseCategory): void {
-    this.editingCategoryId = cat.id;
-    this.editingCategoryName = cat.name;
+    this.editingCategoryId.set(cat.id);
+    this.editingCategoryName.set(cat.name);
   }
 
   cancelEditCategory(): void {
-    this.editingCategoryId = null;
-    this.editingCategoryName = '';
+    this.editingCategoryId.set(null);
+    this.editingCategoryName.set('');
   }
 
   saveCategoryName(): void {
-    if (this.editingCategoryId == null || this.categorySaving) return;
-    const name = this.editingCategoryName.trim();
+    const id = this.editingCategoryId();
+    if (id == null || this.categorySaving()) return;
+    const name = this.editingCategoryName().trim();
     if (!name) { this.flashError('Category name is required'); return; }
-    const id = this.editingCategoryId;
-    this.categorySaving = true;
+    this.categorySaving.set(true);
     this.expenseService.updateCategory(id, name).subscribe({
       next: () => {
-        this.categorySaving = false;
-        this.editingCategoryId = null;
+        this.categorySaving.set(false);
+        this.editingCategoryId.set(null);
         this.flashSuccess('Category renamed');
         this.reloadCategories();
         this.load();
       },
       error: (err) => {
-        this.categorySaving = false;
+        this.categorySaving.set(false);
         this.flashError(err.error?.message || 'Failed to rename category');
       }
     });
   }
 
-  askDeleteCategory(id: number): void { this.pendingDeleteCategoryId = id; }
-  cancelDeleteCategory(): void { this.pendingDeleteCategoryId = null; }
+  askDeleteCategory(id: number): void { this.pendingDeleteCategoryId.set(id); }
+  cancelDeleteCategory(): void { this.pendingDeleteCategoryId.set(null); }
 
   confirmDeleteCategory(): void {
-    if (this.pendingDeleteCategoryId == null || this.categorySaving) return;
-    const id = this.pendingDeleteCategoryId;
-    this.categorySaving = true;
+    const id = this.pendingDeleteCategoryId();
+    if (id == null || this.categorySaving()) return;
+    this.categorySaving.set(true);
     this.expenseService.deleteCategory(id).subscribe({
       next: () => {
-        this.categorySaving = false;
-        this.pendingDeleteCategoryId = null;
+        this.categorySaving.set(false);
+        this.pendingDeleteCategoryId.set(null);
         this.flashSuccess('Category deleted');
         this.reloadCategories();
         this.load();
       },
       error: (err) => {
-        this.categorySaving = false;
+        this.categorySaving.set(false);
         this.flashError(err.error?.message || 'Failed to delete category');
       }
     });
@@ -517,7 +526,7 @@ export class ExpensesComponent implements OnInit {
 
   private reloadCategories(): void {
     this.expenseService.getCategories().subscribe({
-      next: (rows) => this.categories = rows
+      next: (rows) => this.categories.set(rows)
     });
   }
 
@@ -558,7 +567,7 @@ export class ExpensesComponent implements OnInit {
       name: '',
       amount: 0,
       currency: 'USD',
-      categoryId: this.categories[0]?.id ?? 0,
+      categoryId: this.categories()[0]?.id ?? 0,
       staffUserId: null,
       startDate: this.toYmd(new Date().toISOString()),
       isRecurring: false,
@@ -578,12 +587,12 @@ export class ExpensesComponent implements OnInit {
   }
 
   private flashSuccess(msg: string) {
-    this.successMessage = msg;
-    setTimeout(() => this.successMessage = '', 3000);
+    this.successMessage.set(msg);
+    setTimeout(() => this.successMessage.set(''), 3000);
   }
 
   private flashError(msg: string) {
-    this.error = msg;
-    setTimeout(() => this.error = '', 5000);
+    this.error.set(msg);
+    setTimeout(() => this.error.set(''), 5000);
   }
 }

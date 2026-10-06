@@ -1,18 +1,18 @@
-@if (showModal) {
+@if (showModal()) {
 <div class="modal-overlay" (click)="onBackdropClick($event)">
   <div class="modal-content" (click)="$event.stopPropagation()">
     <button class="close-btn" (click)="closeModal()" aria-label="Close modal">&times;</button>
 
     <div class="auth-card">
       <div class="auth-header">
-        <h2>{{ isLoginMode ? 'Welcome Back!' : 'Create Account' }}</h2>
-        <p>{{ isLoginMode ? 'Please sign in to continue' : 'Please fill in your details' }}</p>
+        <h2>{{ isLoginMode() ? 'Welcome Back!' : 'Create Account' }}</h2>
+        <p>{{ isLoginMode() ? 'Please sign in to continue' : 'Please fill in your details' }}</p>
       </div>
 
-      @if (errorMessage) {
+      @if (errorMessage()) {
       <div class="error-banner">
-        {{ errorMessage }}
-        @if (showResendOption) {
+        {{ errorMessage() }}
+        @if (showResendOption()) {
         <div class="resend-section">
           <button type="button" (click)="resendVerification()" class="resend-link">
             Resend verification email
@@ -22,17 +22,17 @@
       </div>
       }
 
-      @if (successMessage) {
+      @if (successMessage()) {
       <div class="success-banner">
-        {{ successMessage }}
+        {{ successMessage() }}
       </div>
       }
 
       <!-- LOGIN FLOW -->
-      @if (isLoginMode) {
+      @if (isLoginMode()) {
 
         <!-- STEP 1: Email -->
-        @if (loginStep === 'email') {
+        @if (loginStep() === 'email') {
         <form [formGroup]="emailForm" (ngSubmit)="onEmailSubmit()" class="auth-form">
           <div class="form-group">
             <label for="modalLoginEmail">Email</label>
@@ -50,17 +50,17 @@
             }
           </div>
 
-          <button type="submit" class="submit-btn" [disabled]="emailForm.invalid || isLoading">
-            {{ isLoading ? 'Checking...' : 'Continue' }}
+          <button type="submit" class="submit-btn" [disabled]="emailForm.invalid || isLoading()">
+            {{ isLoading() ? 'Checking...' : 'Continue' }}
           </button>
         </form>
         }
 
         <!-- STEP 2a: Password -->
-        @if (loginStep === 'password') {
+        @if (loginStep() === 'password') {
         <form [formGroup]="passwordForm" (ngSubmit)="onPasswordSubmit()" class="auth-form">
           <div class="step-info">
-            <span class="step-email">{{ checkedEmail }}</span>
+            <span class="step-email">{{ checkedEmail() }}</span>
             <button type="button" class="change-email-btn" (click)="goBackToEmail()">Change</button>
           </div>
 
@@ -68,17 +68,17 @@
             <label for="modalLoginPassword">Password</label>
             <div class="password-input-wrap">
               <input
-                [type]="showPassword ? 'text' : 'password'"
+                [type]="showPassword() ? 'text' : 'password'"
                 id="modalLoginPassword"
                 formControlName="password"
                 [class.error]="passwordForm.get('password')?.invalid && passwordForm.get('password')?.touched"
                 placeholder="Enter your password"
                 autocomplete="current-password">
-              <button type="button" class="password-toggle" (click)="showPassword = !showPassword" [attr.aria-label]="showPassword ? 'Hide password' : 'Show password'">
-                @if (!showPassword) {
+              <button type="button" class="password-toggle" (click)="showPassword.set(!showPassword())" [attr.aria-label]="showPassword() ? 'Hide password' : 'Show password'">
+                @if (!showPassword()) {
                 <svg class="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                 }
-                @if (showPassword) {
+                @if (showPassword()) {
                 <svg class="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
                 }
               </button>
@@ -90,8 +90,8 @@
             }
           </div>
 
-          <button type="submit" class="submit-btn" [disabled]="passwordForm.invalid || isLoading">
-            {{ isLoading ? 'Signing In...' : 'Sign In' }}
+          <button type="submit" class="submit-btn" [disabled]="passwordForm.invalid || isLoading()">
+            {{ isLoading() ? 'Signing In...' : 'Sign In' }}
           </button>
 
           <p class="forgot-password">
@@ -101,10 +101,10 @@
         }
 
         <!-- STEP 2b: OTP -->
-        @if (loginStep === 'otp') {
+        @if (loginStep() === 'otp') {
         <form [formGroup]="otpForm" (ngSubmit)="onOtpSubmit()" class="auth-form">
           <div class="step-info">
-            <span class="step-email">{{ checkedEmail }}</span>
+            <span class="step-email">{{ checkedEmail() }}</span>
             <button type="button" class="change-email-btn" (click)="goBackToEmail()">Change</button>
           </div>
 
@@ -131,24 +131,24 @@
             }
           </div>
 
-          <button type="submit" class="submit-btn" [disabled]="otpForm.invalid || isLoading">
-            {{ isLoading ? 'Verifying...' : 'Verify Code' }}
+          <button type="submit" class="submit-btn" [disabled]="otpForm.invalid || isLoading()">
+            {{ isLoading() ? 'Verifying...' : 'Verify Code' }}
           </button>
 
           <p class="resend-otp">
             Didn't receive the code?
-            <button type="button" class="text-link" (click)="resendOtp()" [disabled]="isLoading">Resend</button>
+            <button type="button" class="text-link" (click)="resendOtp()" [disabled]="isLoading()">Resend</button>
           </p>
         </form>
         }
 
         <!-- Social login (only on email step) -->
-        @if (loginStep === 'email') {
+        @if (loginStep() === 'email') {
           <div class="social-login-section">
             <div class="divider"><span>OR</span></div>
 
-            <div class="google-button-wrapper" [class.loading]="isLoading">
-              <app-google-signin-wrapper (googleSignInError)="errorMessage = $event || null"></app-google-signin-wrapper>
+            <div class="google-button-wrapper" [class.loading]="isLoading()">
+              <app-google-signin-wrapper (googleSignInError)="errorMessage.set($event || null)"></app-google-signin-wrapper>
             </div>
 
             <div class="apple-button-wrapper">
@@ -171,7 +171,7 @@
         }
 
         <!-- Footer for password/otp steps -->
-        @if (loginStep !== 'email') {
+        @if (loginStep() !== 'email') {
         <div class="auth-footer">
           <p>
             Don't have an account?
@@ -183,7 +183,7 @@
       }
 
       <!-- REGISTRATION FLOW -->
-      @if (!isLoginMode) {
+      @if (!isLoginMode()) {
       <form [formGroup]="registerForm" (ngSubmit)="onSubmit()" class="auth-form">
         <div class="form-group">
           <label for="modalFirstName">First Name</label>
@@ -247,16 +247,16 @@
           <label for="modalPassword">Password</label>
           <div class="password-input-wrap">
             <input
-              [type]="showPassword ? 'text' : 'password'"
+              [type]="showPassword() ? 'text' : 'password'"
               id="modalPassword"
               formControlName="password"
               placeholder="Enter password"
               [class.error]="registerForm.get('password')?.invalid && registerForm.get('password')?.touched">
-            <button type="button" class="password-toggle" (click)="showPassword = !showPassword" [attr.aria-label]="showPassword ? 'Hide password' : 'Show password'">
-              @if (!showPassword) {
+            <button type="button" class="password-toggle" (click)="showPassword.set(!showPassword())" [attr.aria-label]="showPassword() ? 'Hide password' : 'Show password'">
+              @if (!showPassword()) {
               <svg class="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
               }
-              @if (showPassword) {
+              @if (showPassword()) {
               <svg class="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
               }
             </button>
@@ -275,16 +275,16 @@
           <label for="modalConfirmPassword">Confirm Password</label>
           <div class="password-input-wrap">
             <input
-              [type]="showConfirmPassword ? 'text' : 'password'"
+              [type]="showConfirmPassword() ? 'text' : 'password'"
               id="modalConfirmPassword"
               formControlName="confirmPassword"
               [class.error]="registerForm.get('confirmPassword')?.invalid && registerForm.get('confirmPassword')?.touched"
               placeholder="Confirm your password">
-            <button type="button" class="password-toggle" (click)="showConfirmPassword = !showConfirmPassword" [attr.aria-label]="showConfirmPassword ? 'Hide password' : 'Show password'">
-              @if (!showConfirmPassword) {
+            <button type="button" class="password-toggle" (click)="showConfirmPassword.set(!showConfirmPassword())" [attr.aria-label]="showConfirmPassword() ? 'Hide password' : 'Show password'">
+              @if (!showConfirmPassword()) {
               <svg class="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
               }
-              @if (showConfirmPassword) {
+              @if (showConfirmPassword()) {
               <svg class="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
               }
             </button>
@@ -312,15 +312,15 @@
             maxlength="11">
         </div>
 
-        <button type="submit" class="submit-btn" [disabled]="registerForm.invalid || isLoading">
-          {{ isLoading ? 'Creating Account...' : 'Create Account' }}
+        <button type="submit" class="submit-btn" [disabled]="registerForm.invalid || isLoading()">
+          {{ isLoading() ? 'Creating Account...' : 'Create Account' }}
         </button>
 
         <div class="social-login-section">
           <div class="divider"><span>OR</span></div>
 
-          <div class="google-button-wrapper" [class.loading]="isLoading">
-            <app-google-signin-wrapper (googleSignInError)="errorMessage = $event || null"></app-google-signin-wrapper>
+          <div class="google-button-wrapper" [class.loading]="isLoading()">
+            <app-google-signin-wrapper (googleSignInError)="errorMessage.set($event || null)"></app-google-signin-wrapper>
           </div>
 
           <div class="apple-button-wrapper">

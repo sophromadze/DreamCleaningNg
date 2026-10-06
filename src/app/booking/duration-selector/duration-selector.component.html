@@ -6,19 +6,19 @@
       <div class="number-selector">
         <div class="selector-container" (click)="toggleHoursDropdown($event)">
           <div class="selector-display">
-            {{ formatHours(selectedHours) }}
+            {{ formatHours(selectedHours()) }}
           </div>
-          <div class="selector-arrow" [class.rotated]="isHoursDropdownOpen">
+          <div class="selector-arrow" [class.rotated]="isHoursDropdownOpen()">
             <svg width="12" height="8" viewBox="0 0 12 8" fill="none">
               <path d="M1 1L6 6L11 1" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
           </div>
-          @if (isHoursDropdownOpen) {
+          @if (isHoursDropdownOpen()) {
           <div class="selector-options">
             @for (hour of hours; track hour) {
             <div 
               class="selector-option"
-              [class.selected]="hour === selectedHours"
+              [class.selected]="hour === selectedHours()"
               (click)="selectHours(hour, $event)">
               {{ formatHours(hour) }}
             </div>
@@ -35,19 +35,19 @@
       <div class="number-selector">
         <div class="selector-container" (click)="toggleMinutesDropdown($event)">
           <div class="selector-display">
-            {{ formatMinutes(selectedMinutes) }}
+            {{ formatMinutes(selectedMinutes()) }}
           </div>
-          <div class="selector-arrow" [class.rotated]="isMinutesDropdownOpen">
+          <div class="selector-arrow" [class.rotated]="isMinutesDropdownOpen()">
             <svg width="12" height="8" viewBox="0 0 12 8" fill="none">
               <path d="M1 1L6 6L11 1" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
           </div>
-          @if (isMinutesDropdownOpen) {
+          @if (isMinutesDropdownOpen()) {
           <div class="selector-options">
             @for (minute of minutes; track minute) {
             <div 
               class="selector-option"
-              [class.selected]="minute === selectedMinutes"
+              [class.selected]="minute === selectedMinutes()"
               (click)="selectMinutes(minute, $event)">
               {{ formatMinutes(minute) }}
             </div>

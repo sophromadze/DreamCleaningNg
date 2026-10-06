@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, inject, ChangeDetectionStrategy, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { ContractService, MyContractListItem } from '../../services/contract.service';
@@ -18,7 +18,7 @@ import { extractApiErrorMessage } from '../../utils/http-error.utils';
   templateUrl: './my-contracts.component.html',
   // The review page's stylesheet is the single source for the client-facing chrome; this
   // component's own sheet adds only the list.
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: [
     '../contract-review/contract-review.component.scss',
     './my-contracts.component.scss'
@@ -28,16 +28,16 @@ export class MyContractsComponent implements OnInit {
   private contracts = inject(ContractService);
   private router = inject(Router);
 
-  rows: MyContractListItem[] = [];
-  loading = true;
-  errorMessage = '';
+  readonly rows = signal<MyContractListItem[]>([]);
+  readonly loading = signal(true);
+  readonly errorMessage = signal('');
 
   ngOnInit(): void {
     this.contracts.getMyContracts().subscribe({
-      next: rows => { this.rows = rows; this.loading = false; },
+      next: rows => { this.rows.set(rows); this.loading.set(false); },
       error: err => {
-        this.errorMessage = extractApiErrorMessage(err, 'We could not load your contracts.');
-        this.loading = false;
+        this.errorMessage.set(extractApiErrorMessage(err, 'We could not load your contracts.'));
+        this.loading.set(false);
       }
     });
   }
@@ -48,6 +48,6 @@ export class MyContractsComponent implements OnInit {
 
   /** How many are waiting on this customer, for the heading nudge. */
   get awaitingCount(): number {
-    return this.rows.filter(r => r.awaitingYourSignature).length;
+    return this.rows().filter(r => r.awaitingYourSignature).length;
   }
 }

@@ -21,8 +21,8 @@ describe('PaymentComponent', () => {
     // `amount` and `clientSecret` are required @Inputs (declared with `!`), always
     // supplied by the parent in real use. The template calls `amount.toFixed(2)`,
     // so they have to be set before the first detectChanges().
-    component.amount = 0;
-    component.clientSecret = 'pi_test_secret';
+    fixture.componentRef.setInput('amount', 0);
+    fixture.componentRef.setInput('clientSecret', 'pi_test_secret');
 
     fixture.detectChanges();
   });

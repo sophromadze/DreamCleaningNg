@@ -5,19 +5,19 @@
       <div class="number-selector">
         <div class="selector-container" (click)="toggleHoursDropdown($event)">
           <div class="selector-display">
-            {{ formatHour(selectedHour) }}
+            {{ formatHour(selectedHour()) }}
           </div>
-          <div class="selector-arrow" [class.rotated]="isHoursDropdownOpen">
+          <div class="selector-arrow" [class.rotated]="isHoursDropdownOpen()">
             <svg width="12" height="8" viewBox="0 0 12 8" fill="none">
               <path d="M1 1L6 6L11 1" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
           </div>
-          @if (isHoursDropdownOpen) {
+          @if (isHoursDropdownOpen()) {
           <div class="selector-options">
-            @for (hour of hours; track hour) {
+            @for (hour of hours(); track hour) {
             <div
               class="selector-option"
-              [class.selected]="hour === selectedHour"
+              [class.selected]="hour === selectedHour()"
               [class.blocked]="isHourBlocked(hour)"
               (click)="selectHourIfNotBlocked(hour, $event)">
               {{ formatHour(hour) }}
@@ -37,19 +37,19 @@
       <div class="number-selector">
         <div class="selector-container" (click)="toggleMinutesDropdown($event)">
           <div class="selector-display">
-            {{ formatMinute(selectedMinute) }}
+            {{ formatMinute(selectedMinute()) }}
           </div>
-          <div class="selector-arrow" [class.rotated]="isMinutesDropdownOpen">
+          <div class="selector-arrow" [class.rotated]="isMinutesDropdownOpen()">
             <svg width="12" height="8" viewBox="0 0 12 8" fill="none">
               <path d="M1 1L6 6L11 1" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
           </div>
-          @if (isMinutesDropdownOpen) {
+          @if (isMinutesDropdownOpen()) {
           <div class="selector-options">
             @for (minute of getAvailableMinutes(); track minute) {
             <div
               class="selector-option"
-              [class.selected]="minute === selectedMinute"
+              [class.selected]="minute === selectedMinute()"
               [class.blocked]="isMinuteBlocked(minute)"
               (click)="selectMinuteIfNotBlocked(minute, $event)">
               {{ formatMinute(minute) }}

@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, PLATFORM_ID, computed, inject, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, OnDestroy, PLATFORM_ID, computed, inject, ChangeDetectionStrategy, signal } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { Subscription } from 'rxjs';
@@ -32,7 +32,7 @@ interface RecurringPlan {
   standalone: true,
   imports: [RouterModule, IconComponent],
   templateUrl: './pricing-and-discounts.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './pricing-and-discounts.component.scss'
 })
 export class PricingAndDiscountsComponent implements OnInit, OnDestroy {
@@ -55,14 +55,14 @@ export class PricingAndDiscountsComponent implements OnInit, OnDestroy {
   });
 
   /** First-time discount label, e.g. "10%" or "$20". Loaded from the DB — never hardcoded. */
-  firstTimeLabel = '';
+  readonly firstTimeLabel = signal('');
   /** Active recurring/subscription plans with their discounts, loaded from the DB. */
-  recurringPlans: RecurringPlan[] = [];
+  readonly recurringPlans = signal<RecurringPlan[]>([]);
   /** Any currently-active seasonal / holiday / custom specials, loaded from the DB. */
-  seasonalOffers: PublicSpecialOffer[] = [];
+  readonly seasonalOffers = signal<PublicSpecialOffer[]>([]);
 
   /** Whether the visitor is signed in — drives the "log in for more benefits" callout. */
-  isLoggedIn = false;
+  readonly isLoggedIn = signal(false);
 
   private isBrowser: boolean;
   private readonly structuredData = inject(StructuredDataService);
@@ -108,7 +108,7 @@ export class PricingAndDiscountsComponent implements OnInit, OnDestroy {
     this.loadOffers();
     this.loadRecurringPlans();
     this.authSub = this.authService.currentUser.subscribe(user => {
-      this.isLoggedIn = !!user;
+      this.isLoggedIn.set(!!user);
     });
   }
 
@@ -132,11 +132,11 @@ export class PricingAndDiscountsComponent implements OnInit, OnDestroy {
       next: (offers) => {
         const list = offers || [];
         const firstTime = findAdvertisedFirstTimeOffer(list);
-        this.firstTimeLabel = firstTime ? this.offerLabel(firstTime) : '';
+        this.firstTimeLabel.set(firstTime ? this.offerLabel(firstTime) : '');
         // Everything that isn't the first-time offer is a seasonal/holiday/event special.
-        this.seasonalOffers = list.filter(o =>
+        this.seasonalOffers.set(list.filter(o =>
           o !== firstTime && !o.requiresFirstTimeCustomer && o.type !== 'FirstTime'
-        );
+        ));
       },
       error: () => { /* leave copy in its number-agnostic fallback state */ }
     });
@@ -146,7 +146,7 @@ export class PricingAndDiscountsComponent implements OnInit, OnDestroy {
   private loadRecurringPlans(): void {
     this.bookingService.getSubscriptions().subscribe({
       next: (subs) => {
-        this.recurringPlans = (subs || [])
+        this.recurringPlans.set((subs || [])
           // The endpoint only returns active plans; keep the ones that actually discount.
           .filter(s => s.discountPercentage > 0)
           .sort((a, b) => a.subscriptionDays - b.subscriptionDays)
@@ -154,7 +154,7 @@ export class PricingAndDiscountsComponent implements OnInit, OnDestroy {
             name: s.name,
             label: `${s.discountPercentage}%`,
             days: s.subscriptionDays
-          }));
+          })));
       },
       error: () => { /* fallback copy describes the plans without exact figures */ }
     });

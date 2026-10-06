@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, inject, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, ChangeDetectionStrategy, signal } from '@angular/core';
 import { RouterModule } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { MarketingPricingService } from '../../../shared/pricing/marketing-pricing.service';
@@ -21,7 +21,7 @@ import { findAdvertisedFirstTimeOffer } from '../../../shared/booking/special-of
   standalone: true,
   imports: [RouterModule, TestimonialSectionComponent, IconComponent, CardImageDirective],
   templateUrl: './deep-cleaning.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './deep-cleaning.component.scss'
 })
 export class DeepCleaningComponent implements OnInit, OnDestroy {
@@ -36,7 +36,7 @@ export class DeepCleaningComponent implements OnInit, OnDestroy {
 
   /** First-time customer offer from public special offers. The percentage is
    *  admin-configurable (never hardcoded) — the hero line only renders once it loads. */
-  specialOffers: PublicSpecialOffer[] = [];
+  readonly specialOffers = signal<PublicSpecialOffer[]>([]);
   private subscription = new Subscription();
 
   ngOnInit(): void {
@@ -52,7 +52,7 @@ export class DeepCleaningComponent implements OnInit, OnDestroy {
   private loadFirstTimeOffer(): void {
     this.subscription.add(
       this.specialOfferService.getPublicSpecialOffers().subscribe({
-        next: (offers) => { this.specialOffers = offers; },
+        next: (offers) => { this.specialOffers.set(offers); },
         error: (error) => { console.error('Error loading special offers:', error); }
       })
     );
@@ -60,7 +60,7 @@ export class DeepCleaningComponent implements OnInit, OnDestroy {
 
   /** Mirrors MainComponent.firstTimeOffer — finds the first-time customer offer. */
   get firstTimeOffer(): PublicSpecialOffer | undefined {
-    return findAdvertisedFirstTimeOffer(this.specialOffers);
+    return findAdvertisedFirstTimeOffer(this.specialOffers());
   }
 
   /** Display label for the first-time discount, e.g. "10%" or "$20". Empty when no offer is loaded. */

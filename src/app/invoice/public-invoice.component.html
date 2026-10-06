@@ -1,21 +1,21 @@
 <div class="public-invoice-page">
 
-  @if (loading) {
+  @if (loading()) {
   <div class="loading-note">Loading your invoice…</div>
   }
 
-  @if (!loading && error && !invoice) {
+  @if (!loading() && error() && !invoice()) {
   <div class="error-panel">
     <h1>Invoice unavailable</h1>
-    <p>{{ error }}</p>
+    <p>{{ error() }}</p>
   </div>
   }
 
-  @if (invoice; as inv) {
+  @if (invoice(); as inv) {
   <div class="invoice-sheet">
 
-    @if (error) {
-    <div class="alert alert-error">{{ error }}</div>
+    @if (error()) {
+    <div class="alert alert-error">{{ error() }}</div>
     }
 
     <!-- ── Masthead ─────────────────────────────────────────────────────────────────── -->
@@ -23,9 +23,9 @@
       <div class="company">
         <!-- (error) rather than an inline onerror handler: a missing asset must degrade to the
              company name in text, not to a broken-image icon on a client's invoice. -->
-        @if (!logoFailed) {
+        @if (!logoFailed()) {
         <img src="/images/logo-full.png" alt="Dream Cleaning NYC"
-             class="logo" (error)="logoFailed = true">
+             class="logo" (error)="logoFailed.set(true)">
         }
         <!-- THE TRADING NAME LEADS. It used to read "Nodar Alania Inc." with "DBA Dream Cleaning
              NYC" in small grey underneath, which is the wrong way round for a customer: the name
@@ -213,8 +213,8 @@
     <section class="payment-section">
 
       <!-- Something went wrong starting the payment. Manual ACH remains available below. -->
-      @if (paymentError) {
-      <div class="pay-alert error">{{ paymentError }}</div>
+      @if (paymentError()) {
+      <div class="pay-alert error">{{ paymentError() }}</div>
       }
 
       @if (checkoutCancelled && !isProcessing) {
@@ -270,7 +270,7 @@
       @if (!isProcessing) {
 
         <!-- The customer's last attempt failed. Fixed wording; no Stripe error detail. -->
-        @if (options?.lastAttemptFailed && !paymentError) {
+        @if (options?.lastAttemptFailed && !paymentError()) {
         <div class="pay-alert error">
           {{ options!.lastFailureMessage }}
         </div>
@@ -288,8 +288,8 @@
         -->
         @if (options?.stripeAchAvailable) {
         <div class="pay-primary">
-          <button type="button" class="btn-pay" (click)="payFromBank()" [disabled]="startingPayment">
-            {{ startingPayment ? 'Opening secure payment…' : 'Pay from Bank' }}
+          <button type="button" class="btn-pay" (click)="payFromBank()" [disabled]="startingPayment()">
+            {{ startingPayment() ? 'Opening secure payment…' : 'Pay from Bank' }}
           </button>
           <span class="pay-caption">Secure ACH bank payment powered by Stripe.</span>
 
@@ -320,7 +320,7 @@
           heading when the panel OPENS, so on a short viewport the customer sees it appear instead
           of nothing seeming to happen, and a keyboard/screen-reader user lands inside it.
         -->
-        @if (confirmingBankPayment) {
+        @if (confirmingBankPayment()) {
         <div class="pay-confirm"
              #payConfirm tabindex="-1" role="group" aria-labelledby="payConfirmHeading">
           <h3 id="payConfirmHeading">Confirm bank payment</h3>
@@ -344,10 +344,10 @@
             <!-- Neutral secondary, never the green/positive treatment: cancelling is not a
                  success action, and it must not compete with Continue to Stripe. -->
             <button type="button" class="btn-pay-cancel" (click)="cancelBankPayment()"
-                    [disabled]="startingPayment">Cancel</button>
+                    [disabled]="startingPayment()">Cancel</button>
             <button type="button" class="btn-pay" (click)="confirmBankPayment()"
-                    [disabled]="startingPayment">
-              {{ startingPayment ? 'Opening secure payment…' : 'Continue to Stripe' }}
+                    [disabled]="startingPayment()">
+              {{ startingPayment() ? 'Opening secure payment…' : 'Continue to Stripe' }}
             </button>
           </div>
         </div>
@@ -356,7 +356,7 @@
         <!-- Secondary: card, only when the owner has enabled it -->
         @if (options?.stripeCardAvailable) {
         <div class="pay-secondary">
-          <button type="button" class="btn-pay-alt" (click)="payByCard()" [disabled]="startingPayment">
+          <button type="button" class="btn-pay-alt" (click)="payByCard()" [disabled]="startingPayment()">
             Pay by Card
           </button>
         </div>
@@ -382,7 +382,7 @@
       @if (options?.manualAchAvailable) {
       <div class="manual-ach">
         <button type="button" class="manual-toggle" (click)="toggleManualAch()"
-                [attr.aria-expanded]="manualAchExpanded">
+                [attr.aria-expanded]="manualAchExpanded()">
           <span class="manual-icon" aria-hidden="true">
             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor"
                  stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -405,10 +405,10 @@
             }
           </span>
 
-          <span class="manual-chevron" aria-hidden="true">{{ manualAchExpanded ? '▴' : '▾' }}</span>
+          <span class="manual-chevron" aria-hidden="true">{{ manualAchExpanded() ? '▴' : '▾' }}</span>
         </button>
 
-        @if (manualAchExpanded && inv.paymentInstructions; as pay) {
+        @if (manualAchExpanded() && inv.paymentInstructions; as pay) {
         <div class="manual-body">
           <p class="manual-intro">
             Send an ACH transfer from your own bank using the details below.
@@ -468,7 +468,7 @@
           }
 
           <button type="button" class="btn-secondary" (click)="copyPaymentDetails()">
-            {{ copied ? 'Copied ✓' : 'Copy Payment Details' }}
+            {{ copied() ? 'Copied ✓' : 'Copy Payment Details' }}
           </button>
         </div>
         }
@@ -511,8 +511,8 @@
 
     <!-- The download stays available whatever the payment state. -->
     <div class="invoice-actions">
-      <button type="button" class="btn-primary" (click)="downloadPdf()" [disabled]="downloading">
-        {{ downloading ? 'Preparing…' : 'Download invoice' }}
+      <button type="button" class="btn-primary" (click)="downloadPdf()" [disabled]="downloading()">
+        {{ downloading() ? 'Preparing…' : 'Download invoice' }}
       </button>
     </div>
 

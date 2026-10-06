@@ -14,9 +14,11 @@ describe('Recurring and commercial refinement', () => {
   beforeEach(() => TestBed.configureTestingModule({ providers: [...testProviders] }));
 
   /** The panel injects RecurringOrderService; build it in an injection context around the given double. */
-  function panel(service: RecurringOrderService): RecurringSeriesPanelComponent {
+  function panel(service: RecurringOrderService, orderId?: number): RecurringSeriesPanelComponent {
     TestBed.overrideProvider(RecurringOrderService, { useValue: service });
-    return TestBed.runInInjectionContext(() => new RecurringSeriesPanelComponent());
+    const fixture = TestBed.createComponent(RecurringSeriesPanelComponent);
+    if (orderId !== undefined) fixture.componentRef.setInput('orderId', orderId);
+    return fixture.componentInstance;
   }
 
   function invoice(): InvoiceDetail {
@@ -69,21 +71,21 @@ describe('Recurring and commercial refinement', () => {
 
   it('defaults payment requests on for new series and keeps explicit false on edit', () => {
     const c = panel({} as RecurringOrderService);
-    c.startSetup(); expect(c.autoRequestPayment).toBe(true);
-    c.series = { autoRequestPayment: false, anchorDate: '', serviceTime: '', intervalValue: 2,
-      intervalUnit: RecurrenceIntervalUnit.Weeks } as RecurringSeries;
-    c.cancelEdit(); expect(c.autoRequestPayment).toBe(false);
+    c.startSetup(); expect(c.autoRequestPayment()).toBe(true);
+    c.series.set({ autoRequestPayment: false, anchorDate: '', serviceTime: '', intervalValue: 2,
+      intervalUnit: RecurrenceIntervalUnit.Weeks } as RecurringSeries);
+    c.cancelEdit(); expect(c.autoRequestPayment()).toBe(false);
   });
 
   it('requires Keep or Regenerate when editing a populated future schedule', () => {
     const service = { update: vi.fn().mockName('recurring.update') } as any;
-    const c = panel(service); c.orderId = 1;
-    c.series = { id: 1, intervalValue: 1, intervalUnit: RecurrenceIntervalUnit.Weeks,
+    const c = panel(service, 1);
+    c.series.set({ id: 1, intervalValue: 1, intervalUnit: RecurrenceIntervalUnit.Weeks,
       anchorDate: '2026-10-01', serviceTime: '09:00:00', endDate: null,
-      occurrences: [{ orderId: 2, wasGenerated: true, serviceDate: '2999-10-01', status: 'Pending' }] } as RecurringSeries;
-    c.cancelEdit(); c.intervalValue = 2; c.save();
-    expect(service.update).not.toHaveBeenCalled(); expect(c.errorMessage).toContain('keep or regenerate');
-    service.update.mockReturnValue(of(c.series)); c.futureOrdersAction = 'Keep'; c.save();
+      occurrences: [{ orderId: 2, wasGenerated: true, serviceDate: '2999-10-01', status: 'Pending' }] } as RecurringSeries);
+    c.cancelEdit(); c.intervalValue.set(2); c.save();
+    expect(service.update).not.toHaveBeenCalled(); expect(c.errorMessage()).toContain('keep or regenerate');
+    service.update.mockReturnValue(of(c.series())); c.futureOrdersAction.set('Keep'); c.save();
     expect(vi.mocked(service.update).mock.lastCall![1].futureOrdersAction).toBe('Keep');
   });
 
@@ -152,7 +154,7 @@ describe('Recurring and commercial refinement', () => {
     const list = Object.create(ProfileComponent.prototype);
     const order = { recurringSeriesId: 1, status: 'Active', isPaid: true, serviceDate: '2999-10-01' };
     expect(list.canEditOrder(order)).toBe(false); expect(list.canCancelOrder(order)).toBe(false);
-    const detail = Object.create(OrderDetailsComponent.prototype); detail.order = order;
+    const detail = TestBed.createComponent(OrderDetailsComponent).componentInstance; detail.order.set(order as any);
     expect(detail.canEditOrder()).toBe(false); expect(detail.canCancelOrder()).toBe(false);
     order.recurringSeriesId = 0;
     expect(list.canEditOrder(order)).toBe(true); expect(list.canCancelOrder(order)).toBe(true);

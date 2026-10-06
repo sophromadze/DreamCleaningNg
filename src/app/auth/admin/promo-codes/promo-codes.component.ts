@@ -1,4 +1,4 @@
-import { Component, OnInit, AfterViewInit, OnDestroy, ViewChild, ElementRef, HostListener, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, OnInit, AfterViewInit, OnDestroy, ElementRef, HostListener, ChangeDetectionStrategy, inject, viewChild, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AdminService, PromoCode, CreatePromoCode, UpdatePromoCode, UserPermissions } from '../../../services/admin.service';
@@ -8,19 +8,19 @@ import { AdminService, PromoCode, CreatePromoCode, UpdatePromoCode, UserPermissi
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './promo-codes.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./promo-codes.component.scss']
 })
 export class PromoCodesComponent implements OnInit, AfterViewInit, OnDestroy {
   private adminService = inject(AdminService);
 
-  @ViewChild('tableWrapper', { static: false }) tableWrapper!: ElementRef<HTMLDivElement>;
-  @ViewChild('tableHeader', { static: false }) tableHeader!: ElementRef<HTMLTableSectionElement>;
+  readonly tableWrapper = viewChild<ElementRef<HTMLDivElement>>('tableWrapper');
+  readonly tableHeader = viewChild<ElementRef<HTMLTableSectionElement>>('tableHeader');
   
-  promoCodes: PromoCode[] = [];
-  isAddingPromoCode = false;
-  editingPromoCodeId: number | null = null;
-  newPromoCode: CreatePromoCode = {
+  readonly promoCodes = signal<PromoCode[]>([], { equal: () => false });
+  readonly isAddingPromoCode = signal(false);
+  readonly editingPromoCodeId = signal<number | null>(null);
+  readonly newPromoCode = signal<CreatePromoCode>({
     code: '',
     description: '',
     isPercentage: false,
@@ -30,7 +30,7 @@ export class PromoCodesComponent implements OnInit, AfterViewInit, OnDestroy {
     validFrom: undefined,
     validTo: undefined,
     minimumOrderAmount: undefined
-  };
+  });
 
   // Sticky header management
   private scrollListener?: () => void;
@@ -47,8 +47,8 @@ export class PromoCodesComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   // Permissions
-  userRole: string = '';
-  userPermissions: UserPermissions = {
+  readonly userRole = signal<string>('');
+  readonly userPermissions = signal<UserPermissions>({
     role: '',
     permissions: {
       canView: false,
@@ -58,11 +58,11 @@ export class PromoCodesComponent implements OnInit, AfterViewInit, OnDestroy {
       canActivate: false,
       canDeactivate: false
     }
-  };
+  });
 
   // UI State
-  errorMessage = '';
-  successMessage = '';
+  readonly errorMessage = signal('');
+  readonly successMessage = signal('');
 
   ngOnInit() {
     this.loadUserPermissions();
@@ -74,7 +74,9 @@ export class PromoCodesComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private initializeStickyHeader() {
-    if (!this.tableWrapper || !this.tableHeader) {
+    const tableWrapper = this.tableWrapper();
+    const tableHeader = this.tableHeader();
+    if (!tableWrapper || !tableHeader) {
       if (this.initializationRetries < this.maxRetries) {
         this.initializationRetries++;
         setTimeout(() => {
@@ -84,7 +86,7 @@ export class PromoCodesComponent implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
     
-    if (!this.tableWrapper.nativeElement || !this.tableHeader.nativeElement) {
+    if (!tableWrapper.nativeElement || !tableHeader.nativeElement) {
       if (this.initializationRetries < this.maxRetries) {
         this.initializationRetries++;
         setTimeout(() => {
@@ -102,8 +104,9 @@ export class PromoCodesComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this.scrollListener) {
       window.removeEventListener('scroll', this.scrollListener, true);
     }
-    if (this.horizontalScrollListener && this.tableWrapper) {
-      const wrapperEl = this.tableWrapper.nativeElement;
+    const tableWrapper = this.tableWrapper();
+    if (this.horizontalScrollListener && tableWrapper) {
+      const wrapperEl = tableWrapper.nativeElement;
       wrapperEl.removeEventListener('scroll', this.horizontalScrollListener);
       wrapperEl.removeEventListener('touchmove', this.horizontalScrollListener);
       wrapperEl.removeEventListener('wheel', this.horizontalScrollListener);
@@ -120,7 +123,8 @@ export class PromoCodesComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private setupStickyHeader() {
-    if (!this.tableWrapper || !this.tableHeader) {
+    const tableWrapper = this.tableWrapper();
+    if (!tableWrapper || !this.tableHeader()) {
       return;
     }
 
@@ -137,19 +141,21 @@ export class PromoCodesComponent implements OnInit, AfterViewInit, OnDestroy {
     this.horizontalScrollListener = () => {
       this.syncHorizontalScroll();
     };
-    this.tableWrapper.nativeElement.addEventListener('scroll', this.horizontalScrollListener);
+    tableWrapper.nativeElement.addEventListener('scroll', this.horizontalScrollListener);
 
     this.stickyHeaderInitialized = true;
     this.updateStickyHeader();
   }
 
   private updateStickyHeader() {
-    if (!this.tableWrapper || !this.tableHeader) {
+    const tableWrapper = this.tableWrapper();
+    const tableHeader = this.tableHeader();
+    if (!tableWrapper || !tableHeader) {
       return;
     }
 
-    const wrapper = this.tableWrapper.nativeElement;
-    const header = this.tableHeader.nativeElement;
+    const wrapper = tableWrapper.nativeElement;
+    const header = tableHeader.nativeElement;
     const rect = wrapper.getBoundingClientRect();
     const offset = this.headerStickyOffset;
     
@@ -291,12 +297,14 @@ export class PromoCodesComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private syncHorizontalScroll() {
-    if (!this.tableWrapper || !this.tableHeader) {
+    const tableWrapper = this.tableWrapper();
+    const tableHeader = this.tableHeader();
+    if (!tableWrapper || !tableHeader) {
       return;
     }
 
-    const wrapper = this.tableWrapper.nativeElement;
-    const header = this.tableHeader.nativeElement;
+    const wrapper = tableWrapper.nativeElement;
+    const header = tableHeader.nativeElement;
     
     if (header.style.position === 'fixed') {
       header.style.transform = `translateX(-${wrapper.scrollLeft}px)`;
@@ -306,12 +314,12 @@ export class PromoCodesComponent implements OnInit, AfterViewInit, OnDestroy {
   loadUserPermissions() {
     this.adminService.getUserPermissions().subscribe({
       next: (response) => {
-        this.userRole = response.role;
-        this.userPermissions = response;
+        this.userRole.set(response.role);
+        this.userPermissions.set(response);
       },
       error: (error) => {
         console.error('Error loading permissions:', error);
-        this.errorMessage = 'Failed to load permissions. Please try again.';
+        this.errorMessage.set('Failed to load permissions. Please try again.');
       }
     });
   }
@@ -319,7 +327,7 @@ export class PromoCodesComponent implements OnInit, AfterViewInit, OnDestroy {
   loadPromoCodes() {
     this.adminService.getPromoCodes().subscribe({
       next: (codes) => {
-        this.promoCodes = codes;
+        this.promoCodes.set(codes);
         setTimeout(() => {
           if (!this.stickyHeaderInitialized) {
             this.initializeStickyHeader();
@@ -330,15 +338,15 @@ export class PromoCodesComponent implements OnInit, AfterViewInit, OnDestroy {
       },
       error: (error) => {
         console.error('Error loading promo codes:', error);
-        this.errorMessage = 'Failed to load promo codes. Please try again.';
+        this.errorMessage.set('Failed to load promo codes. Please try again.');
       }
     });
   }
 
   startAddingPromoCode() {
-    this.isAddingPromoCode = true;
-    this.editingPromoCodeId = null;
-    this.newPromoCode = {
+    this.isAddingPromoCode.set(true);
+    this.editingPromoCodeId.set(null);
+    this.newPromoCode.set({
       code: '',
       description: '',
       isPercentage: false,
@@ -348,12 +356,12 @@ export class PromoCodesComponent implements OnInit, AfterViewInit, OnDestroy {
       validFrom: undefined,
       validTo: undefined,
       minimumOrderAmount: undefined
-    };
+    });
   }
 
   cancelAddPromoCode() {
-    this.isAddingPromoCode = false;
-    this.newPromoCode = {
+    this.isAddingPromoCode.set(false);
+    this.newPromoCode.set({
       code: '',
       description: '',
       isPercentage: false,
@@ -363,15 +371,16 @@ export class PromoCodesComponent implements OnInit, AfterViewInit, OnDestroy {
       validFrom: undefined,
       validTo: undefined,
       minimumOrderAmount: undefined
-    };
+    });
   }
 
   addPromoCode() {
-    this.adminService.createPromoCode(this.newPromoCode).subscribe({
+    this.adminService.createPromoCode(this.newPromoCode()).subscribe({
       next: (response) => {
-        this.promoCodes.push(response);
-        this.isAddingPromoCode = false;
-        this.newPromoCode = {
+        this.promoCodes().push(response);
+        this.promoCodes.set(this.promoCodes());
+        this.isAddingPromoCode.set(false);
+        this.newPromoCode.set({
           code: '',
           description: '',
           isPercentage: false,
@@ -381,22 +390,22 @@ export class PromoCodesComponent implements OnInit, AfterViewInit, OnDestroy {
           validFrom: undefined,
           validTo: undefined,
           minimumOrderAmount: undefined
-        };
-        this.successMessage = 'Promo code added successfully.';
+        });
+        this.successMessage.set('Promo code added successfully.');
       },
       error: (error) => {
         console.error('Error creating promo code:', error);
-        this.errorMessage = 'Failed to create promo code. Please try again.';
+        this.errorMessage.set('Failed to create promo code. Please try again.');
       }
     });
   }
 
   editPromoCode(code: PromoCode) {
-    this.editingPromoCodeId = code.id;
+    this.editingPromoCodeId.set(code.id);
   }
 
   cancelEditPromoCode() {
-    this.editingPromoCodeId = null;
+    this.editingPromoCodeId.set(null);
   }
 
   savePromoCode(code: PromoCode) {
@@ -414,16 +423,17 @@ export class PromoCodesComponent implements OnInit, AfterViewInit, OnDestroy {
 
     this.adminService.updatePromoCode(code.id, updateData).subscribe({
       next: (response) => {
-        const index = this.promoCodes.findIndex(c => c.id === response.id);
+        const index = this.promoCodes().findIndex(c => c.id === response.id);
         if (index !== -1) {
-          this.promoCodes[index] = response;
+          this.promoCodes()[index] = response;
+          this.promoCodes.set(this.promoCodes());
         }
-        this.editingPromoCodeId = null;
-        this.successMessage = 'Promo code updated successfully.';
+        this.editingPromoCodeId.set(null);
+        this.successMessage.set('Promo code updated successfully.');
       },
       error: (error) => {
         console.error('Error updating promo code:', error);
-        this.errorMessage = 'Failed to update promo code. Please try again.';
+        this.errorMessage.set('Failed to update promo code. Please try again.');
       }
     });
   }
@@ -432,12 +442,12 @@ export class PromoCodesComponent implements OnInit, AfterViewInit, OnDestroy {
     if (confirm('Are you sure you want to delete this promo code?')) {
       this.adminService.deletePromoCode(code.id).subscribe({
         next: () => {
-          this.promoCodes = this.promoCodes.filter(c => c.id !== code.id);
-          this.successMessage = 'Promo code deleted successfully.';
+          this.promoCodes.set(this.promoCodes().filter(c => c.id !== code.id));
+          this.successMessage.set('Promo code deleted successfully.');
         },
         error: (error) => {
           console.error('Error deleting promo code:', error);
-          this.errorMessage = 'Failed to delete promo code. Please try again.';
+          this.errorMessage.set('Failed to delete promo code. Please try again.');
         }
       });
     }
@@ -446,15 +456,16 @@ export class PromoCodesComponent implements OnInit, AfterViewInit, OnDestroy {
   deactivatePromoCode(code: PromoCode) {
     this.adminService.deactivatePromoCode(code.id).subscribe({
       next: (response) => {
-        const index = this.promoCodes.findIndex(c => c.id === code.id);
+        const index = this.promoCodes().findIndex(c => c.id === code.id);
         if (index !== -1) {
-          this.promoCodes[index] = { ...this.promoCodes[index], isActive: false };
+          this.promoCodes()[index] = { ...this.promoCodes()[index], isActive: false };
+          this.promoCodes.set(this.promoCodes());
         }
-        this.successMessage = 'Promo code deactivated successfully.';
+        this.successMessage.set('Promo code deactivated successfully.');
       },
       error: (error) => {
         console.error('Error deactivating promo code:', error);
-        this.errorMessage = 'Failed to deactivate promo code. Please try again.';
+        this.errorMessage.set('Failed to deactivate promo code. Please try again.');
       }
     });
   }
@@ -462,15 +473,16 @@ export class PromoCodesComponent implements OnInit, AfterViewInit, OnDestroy {
   activatePromoCode(code: PromoCode) {
     this.adminService.activatePromoCode(code.id).subscribe({
       next: (response) => {
-        const index = this.promoCodes.findIndex(c => c.id === code.id);
+        const index = this.promoCodes().findIndex(c => c.id === code.id);
         if (index !== -1) {
-          this.promoCodes[index] = { ...this.promoCodes[index], isActive: true };
+          this.promoCodes()[index] = { ...this.promoCodes()[index], isActive: true };
+          this.promoCodes.set(this.promoCodes());
         }
-        this.successMessage = 'Promo code activated successfully.';
+        this.successMessage.set('Promo code activated successfully.');
       },
       error: (error) => {
         console.error('Error activating promo code:', error);
-        this.errorMessage = 'Failed to activate promo code. Please try again.';
+        this.errorMessage.set('Failed to activate promo code. Please try again.');
       }
     });
   }

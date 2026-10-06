@@ -77,7 +77,7 @@ interface RemovedHeadElement {
       </div>
     </section>
   `,
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styles: [`
     .not-found-page {
       background: var(--page-bg);

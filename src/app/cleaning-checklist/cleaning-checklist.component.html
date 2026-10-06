@@ -12,8 +12,8 @@
           type="button"
           role="tab"
           class="room-tab"
-          [class.room-tab--active]="section.key === activeRoom"
-          [attr.aria-selected]="section.key === activeRoom"
+          [class.room-tab--active]="section.key === activeRoom()"
+          [attr.aria-selected]="section.key === activeRoom()"
           (click)="selectRoom(section.key)">
           <i [appIcon]="section.icon" aria-hidden="true"></i>
           {{ section.label }}
@@ -39,7 +39,7 @@
           @for (section of comparisonSections; track trackComparisonSection($index, section)) {
           <div
             class="comparison-card__table-wrap"
-            [class.comparison-card__table-wrap--hidden]="section.key !== activeRoom">
+            [class.comparison-card__table-wrap--hidden]="section.key !== activeRoom()">
           <table class="comparison-table">
             <thead>
               <tr>

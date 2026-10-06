@@ -1,4 +1,4 @@
-import { Component, OnInit, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy, inject, signal } from '@angular/core';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
@@ -9,7 +9,7 @@ import { passwordValidator } from '../../utils/password-validator';
   standalone: true,
   imports: [ReactiveFormsModule, RouterLink],
   templateUrl: './reset-password.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./reset-password.component.scss']
 })
 export class ResetPasswordComponent implements OnInit {
@@ -19,20 +19,20 @@ export class ResetPasswordComponent implements OnInit {
   private router = inject(Router);
 
   resetForm: FormGroup;
-  isLoading = false;
-  isSuccess = false;
-  errorMessage = '';
+  readonly isLoading = signal(false);
+  readonly isSuccess = signal(false);
+  readonly errorMessage = signal('');
   token: string = '';
   /** Email for this reset/set-password link (loaded from API when token present). Shown read-only. */
-  resetEmail: string | null = null;
+  readonly resetEmail = signal<string | null>(null);
   /** True when link is for setting initial password (e.g. admin-created user). */
-  isSetPassword = false;
+  readonly isSetPassword = signal(false);
   /** True while fetching email for token. */
-  loadingEmail = false;
+  readonly loadingEmail = signal(false);
   /** True if token was checked and invalid/expired. */
-  tokenInvalid = false;
-  showPassword = false;
-  showConfirmPassword = false;
+  readonly tokenInvalid = signal(false);
+  readonly showPassword = signal(false);
+  readonly showConfirmPassword = signal(false);
 
   constructor() {
     this.resetForm = this.fb.group({
@@ -44,22 +44,22 @@ export class ResetPasswordComponent implements OnInit {
   ngOnInit() {
     this.token = this.route.snapshot.queryParams['token'] || '';
     if (!this.token) {
-      this.errorMessage = 'Invalid reset link';
-      this.tokenInvalid = true;
+      this.errorMessage.set('Invalid reset link');
+      this.tokenInvalid.set(true);
       return;
     }
-    this.loadingEmail = true;
+    this.loadingEmail.set(true);
     this.authService.getResetPasswordInfo(this.token).subscribe({
       next: (res) => {
-        this.resetEmail = res.email ?? null;
-        this.isSetPassword = res.isSetPassword === true;
-        this.loadingEmail = false;
-        if (!this.resetEmail) this.tokenInvalid = true;
+        this.resetEmail.set(res.email ?? null);
+        this.isSetPassword.set(res.isSetPassword === true);
+        this.loadingEmail.set(false);
+        if (!this.resetEmail()) this.tokenInvalid.set(true);
       },
       error: () => {
-        this.loadingEmail = false;
-        this.tokenInvalid = true;
-        this.errorMessage = 'This link is invalid or has expired.';
+        this.loadingEmail.set(false);
+        this.tokenInvalid.set(true);
+        this.errorMessage.set('This link is invalid or has expired.');
       }
     });
   }
@@ -113,20 +113,20 @@ export class ResetPasswordComponent implements OnInit {
 
   onSubmit() {
     if (this.resetForm.valid && this.token) {
-      this.isLoading = true;
-      this.errorMessage = '';
+      this.isLoading.set(true);
+      this.errorMessage.set('');
       
       this.authService.resetPassword(this.token, this.resetForm.value.password).subscribe({
         next: () => {
-          this.isSuccess = true;
-          this.isLoading = false;
+          this.isSuccess.set(true);
+          this.isLoading.set(false);
           setTimeout(() => {
             this.router.navigate(['/login']);
           }, 3000);
         },
         error: (error) => {
-          this.errorMessage = error.error?.message || 'Failed to reset password. The link may be expired.';
-          this.isLoading = false;
+          this.errorMessage.set(error.error?.message || 'Failed to reset password. The link may be expired.');
+          this.isLoading.set(false);
         }
       });
     }

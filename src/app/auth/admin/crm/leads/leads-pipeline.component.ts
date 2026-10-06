@@ -1,4 +1,4 @@
-import { Component, Input, OnInit, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy, inject, signal, input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
@@ -12,7 +12,7 @@ import { AuthService } from '../../../../services/auth.service';
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './leads-pipeline.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./leads-pipeline.component.scss']
 })
 export class LeadsPipelineComponent implements OnInit {
@@ -20,63 +20,63 @@ export class LeadsPipelineComponent implements OnInit {
   private authService = inject(AuthService);
 
   /** When set (e.g. from the Calls tab deep-link), auto-open this lead's detail panel on load. */
-  @Input() openLeadId?: number;
+  readonly openLeadId = input<number>();
 
   readonly stages = LEAD_STAGES;
   readonly sources = LEAD_SOURCES;
   readonly types = LEAD_TYPES;
 
-  columns: LeadPipelineColumn[] = [];
-  stats: LeadStats | null = null;
-  loading = false;
-  errorMessage = '';
+  readonly columns = signal<LeadPipelineColumn[]>([]);
+  readonly stats = signal<LeadStats | null>(null);
+  readonly loading = signal(false);
+  readonly errorMessage = signal('');
 
   // Filters
-  searchTerm = '';
-  sourceFilter = '';
-  typeFilter = '';
-  periodFilter = '';            // '' | today | week | month | year
-  dateFieldFilter = 'created';  // 'created' | 'activity'
+  readonly searchTerm = signal('');
+  readonly sourceFilter = signal('');
+  readonly typeFilter = signal('');
+  readonly periodFilter = signal('');            // '' | today | week | month | year
+  readonly dateFieldFilter = signal('created');  // 'created' | 'activity'
   private searchDebounce: any;
 
   // Board/stage filter: '' shows every column; a stage shows only that column;
   // 'Archived' hides the board and opens the archive drawer instead. Purely
   // client-side — the pipeline data is already loaded per stage.
-  stageFilter: '' | LeadStage | 'Archived' = '';
-  visibleStages: LeadStage[] = [...LEAD_STAGES];
+  readonly stageFilter = signal<'' | LeadStage | 'Archived'>('');
+  readonly visibleStages = signal<LeadStage[]>([...LEAD_STAGES]);
 
   // Whether the current user may hard-delete leads (SuperAdmin only). Admins archive instead.
   isSuperAdmin = false;
 
   // Archive drawer (below the board)
-  archivedLeads: Lead[] = [];
-  loadingArchived = false;
-  showArchived = false;
-  archivingLead = false;
+  readonly archivedLeads = signal<Lead[]>([]);
+  readonly loadingArchived = signal(false);
+  readonly showArchived = signal(false);
+  readonly archivingLead = signal(false);
 
   // Detail slide-in panel
-  selectedLead: LeadDetail | null = null;
-  panelLoading = false;
-  savingLead = false;
-  newNote = '';
-  addingNote = false;
+  readonly selectedLead = signal<LeadDetail | null>(null, { equal: () => false });
+  readonly panelLoading = signal(false);
+  readonly savingLead = signal(false);
+  readonly newNote = signal('');
+  readonly addingNote = signal(false);
   // Inline edit buffer for the panel
-  editBuffer: Partial<Lead> = {};
+  readonly editBuffer = signal<Partial<Lead>>({});
 
   // Stage-change with lost reason
-  pendingLostLeadId: number | null = null;
-  lostReason = '';
+  readonly pendingLostLeadId = signal<number | null>(null);
+  readonly lostReason = signal('');
 
   // Add-lead modal
-  showAddModal = false;
-  newLead: CreateLead = { source: 'Manual', type: 'Residential' };
-  creatingLead = false;
+  readonly showAddModal = signal(false);
+  readonly newLead = signal<CreateLead>({ source: 'Manual', type: 'Residential' }, { equal: () => false });
+  readonly creatingLead = signal(false);
   // Optional "fill from order" input: entering an order id fetches that order
   // and prefills every form field (contact, address, cleaning type, value, notes).
-  prefillOrderId: number | null = null;
-  prefillLoading = false;
-  prefillError = '';
-  prefillLoadedOrderId: number | null = null;
+  readonly prefillOrderId = signal<number | null>(null);
+  readonly prefillLoading = signal(false);
+  readonly prefillError = signal('');
+  readonly prefillLoadedOrderId = signal<number | null>(null);
   private prefillDebounce: any;
 
   ngOnInit(): void {
@@ -84,19 +84,20 @@ export class LeadsPipelineComponent implements OnInit {
     this.loadPipeline();
     this.loadStats();
     this.loadArchived();
-    if (this.openLeadId != null) this.openLeadById(this.openLeadId);
+    const openLeadId = this.openLeadId();
+    if (openLeadId != null) this.openLeadById(openLeadId);
   }
 
   /** Open a lead's detail panel directly by id (used by the Calls-tab deep-link). */
   openLeadById(id: number): void {
-    this.panelLoading = true;
+    this.panelLoading.set(true);
     this.leadService.getLead(id).subscribe({
       next: detail => {
-        this.selectedLead = detail;
-        this.editBuffer = { ...detail };
-        this.panelLoading = false;
+        this.selectedLead.set(detail);
+        this.editBuffer.set({ ...detail });
+        this.panelLoading.set(false);
       },
-      error: () => { this.panelLoading = false; }
+      error: () => { this.panelLoading.set(false); }
     });
   }
 
@@ -105,34 +106,34 @@ export class LeadsPipelineComponent implements OnInit {
   /** Shared filter payload for pipeline + archive queries. */
   private currentFilters() {
     return {
-      search: this.searchTerm.trim() || undefined,
-      source: this.sourceFilter || undefined,
-      type: this.typeFilter || undefined,
-      period: this.periodFilter || undefined,
-      dateField: this.dateFieldFilter || undefined
+      search: this.searchTerm().trim() || undefined,
+      source: this.sourceFilter() || undefined,
+      type: this.typeFilter() || undefined,
+      period: this.periodFilter() || undefined,
+      dateField: this.dateFieldFilter() || undefined
     };
   }
 
   loadPipeline(): void {
-    this.loading = true;
-    this.errorMessage = '';
+    this.loading.set(true);
+    this.errorMessage.set('');
     this.leadService.getPipeline(this.currentFilters()).subscribe({
-      next: cols => { this.columns = cols; this.loading = false; },
-      error: () => { this.errorMessage = 'Failed to load the pipeline.'; this.loading = false; }
+      next: cols => { this.columns.set(cols); this.loading.set(false); },
+      error: () => { this.errorMessage.set('Failed to load the pipeline.'); this.loading.set(false); }
     });
   }
 
   loadArchived(): void {
-    this.loadingArchived = true;
+    this.loadingArchived.set(true);
     this.leadService.getArchived(this.currentFilters()).subscribe({
-      next: leads => { this.archivedLeads = leads; this.loadingArchived = false; },
-      error: () => { this.loadingArchived = false; }
+      next: leads => { this.archivedLeads.set(leads); this.loadingArchived.set(false); },
+      error: () => { this.loadingArchived.set(false); }
     });
   }
 
   loadStats(): void {
     this.leadService.getStats().subscribe({
-      next: s => this.stats = s,
+      next: s => this.stats.set(s),
       error: () => { /* stats are non-critical */ }
     });
   }
@@ -143,11 +144,12 @@ export class LeadsPipelineComponent implements OnInit {
   }
 
   onStageFilterChange(): void {
-    this.visibleStages = this.stageFilter && this.stageFilter !== 'Archived'
-      ? [this.stageFilter]
-      : [...this.stages];
+    const filter = this.stageFilter();
+    this.visibleStages.set(filter && filter !== 'Archived'
+      ? [filter]
+      : [...this.stages]);
     // Choosing "Archived" should reveal the drawer right away, not leave it collapsed.
-    if (this.stageFilter === 'Archived') this.showArchived = true;
+    if (this.stageFilter() === 'Archived') this.showArchived.set(true);
   }
 
   onSourceFilterChange(): void {
@@ -167,7 +169,7 @@ export class LeadsPipelineComponent implements OnInit {
 
   onDateFieldChange(): void {
     // Only re-filter when a period is active (date field is meaningless otherwise).
-    if (this.periodFilter) { this.loadPipeline(); this.loadArchived(); }
+    if (this.periodFilter()) { this.loadPipeline(); this.loadArchived(); }
   }
 
   refresh(): void {
@@ -177,13 +179,13 @@ export class LeadsPipelineComponent implements OnInit {
   }
 
   toggleArchived(): void {
-    this.showArchived = !this.showArchived;
+    this.showArchived.set(!this.showArchived());
   }
 
   // ── Column helpers ──
 
   columnFor(stage: LeadStage): LeadPipelineColumn {
-    return this.columns.find(c => c.stage === stage)
+    return this.columns().find(c => c.stage === stage)
       ?? { stage, count: 0, totalEstimatedValue: 0, leads: [] };
   }
 
@@ -204,61 +206,61 @@ export class LeadsPipelineComponent implements OnInit {
     if (stage === lead.stage) return;
     if (stage === 'Lost') {
       // Ask for a reason inline before committing.
-      this.pendingLostLeadId = lead.id;
-      this.lostReason = '';
+      this.pendingLostLeadId.set(lead.id);
+      this.lostReason.set('');
       return;
     }
     this.applyStage(lead.id, stage);
   }
 
   confirmLost(): void {
-    if (this.pendingLostLeadId == null) return;
-    this.applyStage(this.pendingLostLeadId, 'Lost', this.lostReason.trim() || undefined);
-    this.pendingLostLeadId = null;
-    this.lostReason = '';
+    if (this.pendingLostLeadId() == null) return;
+    this.applyStage(this.pendingLostLeadId()!, 'Lost', this.lostReason().trim() || undefined);
+    this.pendingLostLeadId.set(null);
+    this.lostReason.set('');
   }
 
   cancelLost(): void {
-    this.pendingLostLeadId = null;
-    this.lostReason = '';
+    this.pendingLostLeadId.set(null);
+    this.lostReason.set('');
   }
 
   private applyStage(id: number, stage: LeadStage, lostReason?: string): void {
     this.leadService.updateStage(id, { stage, lostReason }).subscribe({
       next: updated => {
         this.refresh();
-        if (this.selectedLead?.id === id) this.selectedLead = updated;
+        if (this.selectedLead()?.id === id) this.selectedLead.set(updated);
       },
-      error: () => this.errorMessage = 'Failed to update stage.'
+      error: () => this.errorMessage.set('Failed to update stage.')
     });
   }
 
   // ── Detail panel ──
 
   openLead(lead: Lead): void {
-    this.panelLoading = true;
-    this.selectedLead = { ...(lead as LeadDetail), activities: [] };
+    this.panelLoading.set(true);
+    this.selectedLead.set({ ...(lead as LeadDetail), activities: [] });
     this.leadService.getLead(lead.id).subscribe({
       next: detail => {
-        this.selectedLead = detail;
-        this.editBuffer = { ...detail };
-        this.panelLoading = false;
+        this.selectedLead.set(detail);
+        this.editBuffer.set({ ...detail });
+        this.panelLoading.set(false);
       },
-      error: () => { this.errorMessage = 'Failed to load lead.'; this.panelLoading = false; }
+      error: () => { this.errorMessage.set('Failed to load lead.'); this.panelLoading.set(false); }
     });
   }
 
   closePanel(): void {
-    this.selectedLead = null;
-    this.editBuffer = {};
-    this.newNote = '';
+    this.selectedLead.set(null);
+    this.editBuffer.set({});
+    this.newNote.set('');
   }
 
   saveLeadEdits(): void {
-    if (!this.selectedLead) return;
-    this.savingLead = true;
-    const b = this.editBuffer;
-    this.leadService.updateLead(this.selectedLead.id, {
+    if (!this.selectedLead()) return;
+    this.savingLead.set(true);
+    const b = this.editBuffer();
+    this.leadService.updateLead(this.selectedLead()!.id, {
       firstName: b.firstName ?? '',
       lastName: b.lastName ?? '',
       email: b.email ?? '',
@@ -272,104 +274,107 @@ export class LeadsPipelineComponent implements OnInit {
       clearNextFollowUpDate: !b.nextFollowUpDate
     }).subscribe({
       next: updated => {
-        this.selectedLead = updated;
-        this.editBuffer = { ...updated };
-        this.savingLead = false;
+        this.selectedLead.set(updated);
+        this.editBuffer.set({ ...updated });
+        this.savingLead.set(false);
         this.refresh();
       },
-      error: () => { this.errorMessage = 'Failed to save lead.'; this.savingLead = false; }
+      error: () => { this.errorMessage.set('Failed to save lead.'); this.savingLead.set(false); }
     });
   }
 
   addNote(): void {
-    if (!this.selectedLead || !this.newNote.trim()) return;
-    this.addingNote = true;
-    const leadId = this.selectedLead.id;
-    this.leadService.addActivity(leadId, { type: 'Note', content: this.newNote.trim() }).subscribe({
+    if (!this.selectedLead() || !this.newNote().trim()) return;
+    this.addingNote.set(true);
+    const leadId = this.selectedLead()!.id;
+    this.leadService.addActivity(leadId, { type: 'Note', content: this.newNote().trim() }).subscribe({
       next: activity => {
-        if (this.selectedLead?.id === leadId) {
-          this.selectedLead.activities = [activity, ...this.selectedLead.activities];
+        if (this.selectedLead()?.id === leadId) {
+          this.selectedLead()!.activities = [activity, ...this.selectedLead()!.activities];
+          this.selectedLead.set(this.selectedLead());
         }
-        this.newNote = '';
-        this.addingNote = false;
+        this.newNote.set('');
+        this.addingNote.set(false);
         this.loadStats();
       },
-      error: () => { this.errorMessage = 'Failed to add note.'; this.addingNote = false; }
+      error: () => { this.errorMessage.set('Failed to add note.'); this.addingNote.set(false); }
     });
   }
 
   /** Archive the open lead — moves it off the board into the archive drawer (Admins' delete alternative). */
   archiveLead(): void {
-    if (!this.selectedLead || this.archivingLead) return;
-    this.archivingLead = true;
-    const id = this.selectedLead.id;
+    if (!this.selectedLead() || this.archivingLead()) return;
+    this.archivingLead.set(true);
+    const id = this.selectedLead()!.id;
     this.leadService.archiveLead(id).subscribe({
       next: updated => {
-        this.archivingLead = false;
-        if (this.selectedLead?.id === id) this.selectedLead = updated;
+        this.archivingLead.set(false);
+        if (this.selectedLead()?.id === id) this.selectedLead.set(updated);
         this.refresh();
       },
-      error: () => { this.errorMessage = 'Failed to archive lead.'; this.archivingLead = false; }
+      error: () => { this.errorMessage.set('Failed to archive lead.'); this.archivingLead.set(false); }
     });
   }
 
   /** Restore a lead from the archive back onto the active board. */
   unarchiveLead(lead?: Lead): void {
-    const id = lead?.id ?? this.selectedLead?.id;
-    if (id == null || this.archivingLead) return;
-    this.archivingLead = true;
+    const id = lead?.id ?? this.selectedLead()?.id;
+    if (id == null || this.archivingLead()) return;
+    this.archivingLead.set(true);
     this.leadService.unarchiveLead(id).subscribe({
       next: updated => {
-        this.archivingLead = false;
-        if (this.selectedLead?.id === id) this.selectedLead = updated;
+        this.archivingLead.set(false);
+        if (this.selectedLead()?.id === id) this.selectedLead.set(updated);
         this.refresh();
       },
-      error: () => { this.errorMessage = 'Failed to restore lead.'; this.archivingLead = false; }
+      error: () => { this.errorMessage.set('Failed to restore lead.'); this.archivingLead.set(false); }
     });
   }
 
   /** Hard delete — SuperAdmin only. `lead` lets the archive drawer delete without opening the panel. */
   deleteLead(lead?: Lead): void {
     if (!this.isSuperAdmin) return;
-    const id = lead?.id ?? this.selectedLead?.id;
+    const id = lead?.id ?? this.selectedLead()?.id;
     if (id == null) return;
     if (!confirm('Delete this lead permanently? This cannot be undone.')) return;
     this.leadService.deleteLead(id).subscribe({
       next: () => {
-        if (this.selectedLead?.id === id) this.closePanel();
+        if (this.selectedLead()?.id === id) this.closePanel();
         this.refresh();
       },
-      error: () => this.errorMessage = 'Failed to delete lead.'
+      error: () => this.errorMessage.set('Failed to delete lead.')
     });
   }
 
   // ── Add-lead modal ──
 
   openAddModal(): void {
-    this.newLead = { source: 'Manual', type: 'Residential' };
-    this.prefillOrderId = null;
-    this.prefillLoading = false;
-    this.prefillError = '';
-    this.prefillLoadedOrderId = null;
-    this.showAddModal = true;
+    this.newLead.set({ source: 'Manual', type: 'Residential' });
+    this.prefillOrderId.set(null);
+    this.prefillLoading.set(false);
+    this.prefillError.set('');
+    this.prefillLoadedOrderId.set(null);
+    this.showAddModal.set(true);
   }
 
   closeAddModal(): void {
-    this.showAddModal = false;
+    this.showAddModal.set(false);
     clearTimeout(this.prefillDebounce);
   }
 
   /** Debounced handler for the optional Order ID field — fills the form from the order. */
   onPrefillOrderIdChange(): void {
     clearTimeout(this.prefillDebounce);
-    this.prefillError = '';
+    this.prefillError.set('');
 
-    const id = this.prefillOrderId != null ? Number(this.prefillOrderId) : null;
+    const id = this.prefillOrderId() != null ? Number(this.prefillOrderId()) : null;
     if (id == null || !Number.isFinite(id) || id <= 0) {
       // Cleared or invalid: drop the order link but keep whatever the admin typed.
-      this.prefillLoadedOrderId = null;
-      this.newLead.sourceOrderId = undefined;
-      this.newLead.clientId = undefined;
+      this.prefillLoadedOrderId.set(null);
+      this.newLead().sourceOrderId = undefined;
+      this.newLead.set(this.newLead());
+      this.newLead().clientId = undefined;
+      this.newLead.set(this.newLead());
       return;
     }
 
@@ -377,13 +382,13 @@ export class LeadsPipelineComponent implements OnInit {
   }
 
   private loadOrderPrefill(orderId: number): void {
-    this.prefillLoading = true;
+    this.prefillLoading.set(true);
     this.leadService.getOrderPrefill(orderId).subscribe({
       next: p => {
         // Stale response guard — the admin may have changed the id while loading.
-        if (Number(this.prefillOrderId) !== p.orderId) { this.prefillLoading = false; return; }
-        this.newLead = {
-          ...this.newLead,
+        if (Number(this.prefillOrderId()) !== p.orderId) { this.prefillLoading.set(false); return; }
+        this.newLead.set({
+          ...this.newLead(),
           firstName: p.firstName ?? '',
           lastName: p.lastName ?? '',
           email: p.email ?? '',
@@ -396,40 +401,42 @@ export class LeadsPipelineComponent implements OnInit {
           source: 'Booking',
           clientId: p.clientId,
           sourceOrderId: p.orderId
-        };
-        this.prefillLoadedOrderId = p.orderId;
-        this.prefillLoading = false;
+        });
+        this.prefillLoadedOrderId.set(p.orderId);
+        this.prefillLoading.set(false);
       },
       error: err => {
-        this.prefillLoading = false;
-        this.prefillLoadedOrderId = null;
-        this.newLead.sourceOrderId = undefined;
-        this.newLead.clientId = undefined;
-        this.prefillError = err?.status === 404
+        this.prefillLoading.set(false);
+        this.prefillLoadedOrderId.set(null);
+        this.newLead().sourceOrderId = undefined;
+        this.newLead.set(this.newLead());
+        this.newLead().clientId = undefined;
+        this.newLead.set(this.newLead());
+        this.prefillError.set(err?.status === 404
           ? `Order #${orderId} not found.`
-          : 'Failed to load the order.';
+          : 'Failed to load the order.');
       }
     });
   }
 
   createLead(): void {
-    const l = this.newLead;
+    const l = this.newLead();
     if (!l.firstName?.trim() && !l.lastName?.trim() && !l.phone?.trim() && !l.email?.trim()) {
-      this.errorMessage = 'Enter at least a name, phone, or email.';
+      this.errorMessage.set('Enter at least a name, phone, or email.');
       return;
     }
-    this.creatingLead = true;
+    this.creatingLead.set(true);
     this.leadService.createLead({
       ...l,
       estimatedValue: l.estimatedValue != null && (l.estimatedValue as any) !== '' ? Number(l.estimatedValue) : undefined
     }).subscribe({
       next: created => {
-        this.creatingLead = false;
-        this.showAddModal = false;
+        this.creatingLead.set(false);
+        this.showAddModal.set(false);
         this.refresh();
         this.openLead(created);
       },
-      error: () => { this.errorMessage = 'Failed to create lead.'; this.creatingLead = false; }
+      error: () => { this.errorMessage.set('Failed to create lead.'); this.creatingLead.set(false); }
     });
   }
 

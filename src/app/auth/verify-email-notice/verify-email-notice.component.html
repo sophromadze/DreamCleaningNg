@@ -31,27 +31,27 @@
         }
       </div>
 
-      <button type="submit" class="btn-primary" style="margin-top: 1.5rem;" [disabled]="otpForm.invalid || isVerifying">
-        {{ isVerifying ? 'Verifying...' : 'Verify Email' }}
+      <button type="submit" class="btn-primary" style="margin-top: 1.5rem;" [disabled]="otpForm.invalid || isVerifying()">
+        {{ isVerifying() ? 'Verifying...' : 'Verify Email' }}
       </button>
     </form>
 
     <div class="resend-section">
       <p>Didn't receive the code? Check your spam folder or</p>
-      <button type="button" (click)="resendCode()" [disabled]="isResending" class="btn-link">
-        {{ isResending ? 'Sending...' : 'resend the code' }}
+      <button type="button" (click)="resendCode()" [disabled]="isResending()" class="btn-link">
+        {{ isResending() ? 'Sending...' : 'resend the code' }}
       </button>
     </div>
 
-    @if (successMessage) {
+    @if (successMessage()) {
     <div class="success-message">
-      {{ successMessage }}
+      {{ successMessage() }}
     </div>
     }
 
-    @if (errorMessage) {
+    @if (errorMessage()) {
     <div class="error-message">
-      {{ errorMessage }}
+      {{ errorMessage() }}
     </div>
     }
 

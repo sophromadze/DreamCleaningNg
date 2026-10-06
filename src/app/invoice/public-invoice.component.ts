@@ -1,4 +1,4 @@
-import { Component, ElementRef, OnInit, PLATFORM_ID, ViewChild, inject, ChangeDetectionStrategy } from '@angular/core';
+import { Component, ElementRef, OnInit, PLATFORM_ID, ViewChild, inject, ChangeDetectionStrategy, signal } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
 import { finalize } from 'rxjs/operators';
@@ -31,7 +31,7 @@ import { extractApiErrorMessage } from '../utils/http-error.utils';
   standalone: true,
   imports: [CommonModule],
   templateUrl: './public-invoice.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./public-invoice.component.scss']
 })
 export class PublicInvoiceComponent implements OnInit {
@@ -44,21 +44,21 @@ export class PublicInvoiceComponent implements OnInit {
   readonly InvoiceStatus = InvoiceStatus;
   readonly InvoiceTaxType = InvoiceTaxType;
 
-  invoice?: PublicInvoice;
+  readonly invoice = signal<PublicInvoice | undefined>(undefined);
   token = '';
-  loading = true;
-  error = '';
-  copied = false;
-  downloading = false;
+  readonly loading = signal(true);
+  readonly error = signal('');
+  readonly copied = signal(false);
+  readonly downloading = signal(false);
 
   /** Set by the logo's (error) handler so a missing asset degrades to the company name in text. */
-  logoFailed = false;
+  readonly logoFailed = signal(false);
 
   /** True between clicking a pay button and the browser leaving for Stripe. */
-  startingPayment = false;
+  readonly startingPayment = signal(false);
 
   /** Shown when online payment could not be started; manual ACH stays available beneath it. */
-  paymentError = '';
+  readonly paymentError = signal('');
 
   /** True when the customer has just come back from Stripe having authorized a debit. */
   justReturnedFromCheckout = false;
@@ -67,14 +67,14 @@ export class PublicInvoiceComponent implements OnInit {
   checkoutCancelled = false;
 
   /** The manual bank block starts COLLAPSED — see the template for why. */
-  manualAchExpanded = false;
+  readonly manualAchExpanded = signal(false);
 
   ngOnInit(): void {
     this.token = this.route.snapshot.paramMap.get('token') ?? '';
 
     if (!this.token) {
-      this.loading = false;
-      this.error = 'This invoice link is not valid.';
+      this.loading.set(false);
+      this.error.set('This invoice link is not valid.');
       return;
     }
 
@@ -90,20 +90,19 @@ export class PublicInvoiceComponent implements OnInit {
 
   private load(): void {
     this.invoiceService.getPublic(this.token)
-      .pipe(finalize(() => this.loading = false))
+      .pipe(finalize(() => this.loading.set(false)))
       .subscribe({
-        next: inv => this.invoice = inv,
+        next: inv => this.invoice.set(inv),
         // Deliberately the same message whatever went wrong: a more specific answer would let
         // someone probe which invoices exist.
-        error: () => this.error =
-          'This invoice link is not valid, or the invoice is no longer available. '
-          + 'Please contact us and we will send you a new link.'
+        error: () => this.error.set('This invoice link is not valid, or the invoice is no longer available. '
+          + 'Please contact us and we will send you a new link.')
       });
   }
 
   // ── Paying ──
 
-  get options() { return this.invoice?.paymentOptions; }
+  get options() { return this.invoice()?.paymentOptions; }
 
   /**
    * True when the page should lead with "payment processing" rather than a pay button.
@@ -134,7 +133,7 @@ export class PublicInvoiceComponent implements OnInit {
    * must not do is discover it on a bank statement. With no fee configured there is nothing extra
    * to confirm, so it goes straight through.
    */
-  confirmingBankPayment = false;
+  readonly confirmingBankPayment = signal(false);
 
   /**
    * The confirmation panel, queried only while it is rendered.
@@ -153,8 +152,8 @@ export class PublicInvoiceComponent implements OnInit {
     if (this.achFee > 0) {
       // Already open: leave the viewport alone. Re-scrolling on a second click would yank the
       // page under someone who is reading the figures.
-      if (this.confirmingBankPayment) return;
-      this.confirmingBankPayment = true;
+      if (this.confirmingBankPayment()) return;
+      this.confirmingBankPayment.set(true);
       return;
     }
     this.startCheckout(InvoicePaymentRecordMethod.AchBankTransfer);
@@ -191,7 +190,7 @@ export class PublicInvoiceComponent implements OnInit {
   }
 
   cancelBankPayment(): void {
-    this.confirmingBankPayment = false;
+    this.confirmingBankPayment.set(false);
   }
 
   payByCard(): void {
@@ -205,24 +204,24 @@ export class PublicInvoiceComponent implements OnInit {
    * re-enabling the button first would let a double-click open two Checkout Sessions.
    */
   private startCheckout(method: InvoicePaymentRecordMethod): void {
-    if (this.startingPayment || !this.invoice) return;
+    if (this.startingPayment() || !this.invoice()) return;
 
-    this.startingPayment = true;
-    this.paymentError = '';
+    this.startingPayment.set(true);
+    this.paymentError.set('');
 
     this.invoiceService.startCheckout(this.token, method).subscribe({
       next: res => this.redirectToCheckout(res.checkoutUrl),
       error: err => {
-        this.startingPayment = false;
-        this.confirmingBankPayment = false;
+        this.startingPayment.set(false);
+        this.confirmingBankPayment.set(false);
 
         // The server sends customer-safe wording for a 503 (payment route unavailable) and for a
         // 400 (already processing). Anything else falls back to a neutral sentence rather than
         // surfacing a raw transport error.
-        this.paymentError = extractApiErrorMessage(
+        this.paymentError.set(extractApiErrorMessage(
           err,
           'Online payment could not be started. Please try again, or use the bank transfer '
-          + 'details below.');
+          + 'details below.'));
 
         // A refusal usually means the backend knows something the page does not — most often that
         // a payment is already in flight — so re-read rather than leaving stale buttons up.
@@ -246,28 +245,28 @@ export class PublicInvoiceComponent implements OnInit {
   }
 
   toggleManualAch(): void {
-    this.manualAchExpanded = !this.manualAchExpanded;
+    this.manualAchExpanded.set(!this.manualAchExpanded());
   }
 
   /** ACH is the commercial default, and the only method the invoice actually instructs on. */
   get isAchPreferred(): boolean {
-    return this.invoice?.paymentMethod === InvoicePaymentMethod.AchBankTransfer;
+    return this.invoice()?.paymentMethod === InvoicePaymentMethod.AchBankTransfer;
   }
 
-  get isPaid(): boolean { return this.invoice?.status === InvoiceStatus.Paid; }
-  get isVoid(): boolean { return this.invoice?.status === InvoiceStatus.Void; }
-  get isOverdue(): boolean { return this.invoice?.status === InvoiceStatus.Overdue; }
+  get isPaid(): boolean { return this.invoice()?.status === InvoiceStatus.Paid; }
+  get isVoid(): boolean { return this.invoice()?.status === InvoiceStatus.Void; }
+  get isOverdue(): boolean { return this.invoice()?.status === InvoiceStatus.Overdue; }
 
   /** "September 1–30, 2026", matching how the PDF prints it. */
   get servicePeriod(): string | null {
     // Resolved on the SERVER so this page, the PDF and the email describe the same invoice
     // identically. The local formatting below is only a fallback for an older cached response.
-    if (this.invoice?.serviceDateText) return this.invoice.serviceDateText;
+    if (this.invoice()?.serviceDateText) return this.invoice()!.serviceDateText!;
 
-    if (!this.invoice?.serviceStartDate && !this.invoice?.serviceEndDate) return null;
+    if (!this.invoice()?.serviceStartDate && !this.invoice()?.serviceEndDate) return null;
 
-    const start = new Date(this.invoice.serviceStartDate ?? this.invoice.serviceEndDate!);
-    const end = new Date(this.invoice.serviceEndDate ?? this.invoice.serviceStartDate!);
+    const start = new Date(this.invoice()!.serviceStartDate ?? this.invoice()!.serviceEndDate!);
+    const end = new Date(this.invoice()!.serviceEndDate ?? this.invoice()!.serviceStartDate!);
 
     const fmt = (d: Date) => d.toLocaleDateString('en-US',
       { month: 'long', day: 'numeric', year: 'numeric' });
@@ -289,7 +288,7 @@ export class PublicInvoiceComponent implements OnInit {
    * the single thing that makes a transfer impossible to match on our side.
    */
   copyPaymentDetails(): void {
-    const pay = this.invoice?.paymentInstructions;
+    const pay = this.invoice()?.paymentInstructions;
     if (!pay) return;
 
     const lines = [
@@ -299,15 +298,15 @@ export class PublicInvoiceComponent implements OnInit {
       pay.accountNumber ? `Account Number: ${pay.accountNumber}` : null,
       pay.accountType ? `Account Type: ${pay.accountType}` : null,
       `Payment Reference: ${pay.paymentReference}`,
-      `Amount Due: ${this.formatMoney(this.invoice!.balanceDue)}`
+      `Amount Due: ${this.formatMoney(this.invoice()!.balanceDue)}`
     ].filter(Boolean).join('\n');
 
     navigator.clipboard?.writeText(lines).then(
       () => {
-        this.copied = true;
-        setTimeout(() => this.copied = false, 3000);
+        this.copied.set(true);
+        setTimeout(() => this.copied.set(false), 3000);
       },
-      () => this.error = 'Could not copy to the clipboard. Please copy the details by hand.'
+      () => this.error.set('Could not copy to the clipboard. Please copy the details by hand.')
     );
   }
 
@@ -316,21 +315,21 @@ export class PublicInvoiceComponent implements OnInit {
    * instead of navigating the client away to a broken page.
    */
   downloadPdf(): void {
-    if (!this.invoice) return;
+    if (!this.invoice()) return;
 
-    this.downloading = true;
+    this.downloading.set(true);
     this.invoiceService.downloadPublicPdf(this.token)
-      .pipe(finalize(() => this.downloading = false))
+      .pipe(finalize(() => this.downloading.set(false)))
       .subscribe({
         next: blob => {
           const url = URL.createObjectURL(blob);
           const anchor = document.createElement('a');
           anchor.href = url;
-          anchor.download = `Dream-Cleaning-Invoice-${this.invoice!.invoiceNumber}.pdf`;
+          anchor.download = `Dream-Cleaning-Invoice-${this.invoice()!.invoiceNumber}.pdf`;
           anchor.click();
           URL.revokeObjectURL(url);
         },
-        error: () => this.error = 'The invoice PDF could not be downloaded. Please try again.'
+        error: () => this.error.set('The invoice PDF could not be downloaded. Please try again.')
       });
   }
 

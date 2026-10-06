@@ -1,6 +1,8 @@
 import {
-  Component, EventEmitter, Input, OnChanges, OnInit, Output, SimpleChanges, inject,
-  ChangeDetectionStrategy
+  Component, OnChanges, OnInit, SimpleChanges, inject,
+  ChangeDetectionStrategy,
+  output, signal,
+  input, model
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -28,55 +30,56 @@ import { extractApiErrorMessage } from '../../../../utils/http-error.utils';
   standalone: true,
   imports: [CommonModule, FormsModule, ContractDocumentComponent, SignatureCaptureComponent],
   templateUrl: './contract-detail.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./contract-detail.component.scss']
 })
 export class ContractDetailComponent implements OnInit, OnChanges {
-  @Input() contractId!: number;
+  readonly contractId = model.required<number>();
   /** Set when arriving straight from Generate Preview, to skip a redundant fetch. */
-  @Input() preloaded: ContractDetail | null = null;
+  readonly preloaded = input<ContractDetail | null>(null);
 
   /**
    * What this account may do, from the server's matrix. Passed in by the shell so the list and
    * detail views agree and the permissions are fetched once rather than per contract.
    */
-  @Input() permissions: ContractPermissions | null = null;
+  readonly permissions = input<ContractPermissions | null>(null);
 
-  @Output() back = new EventEmitter<void>();
-  @Output() edit = new EventEmitter<number>();
+  readonly back = output<void>();
+  readonly edit = output<number>();
 
   /**
    * This contract was PERMANENTLY deleted. Carries the success message, because the panel has
    * nothing left to render and the shell has to both go back to the list and say what happened.
    */
-  @Output() deleted = new EventEmitter<string>();
+  readonly deleted = output<string>();
 
   /** A draft invoice was generated from this contract — the shell opens it for review. */
-  @Output() invoiceCreated = new EventEmitter<number>();
+  readonly invoiceCreated = output<number>();
 
   private contracts = inject(ContractService);
   private invoices = inject(InvoiceService);
 
-  detail: ContractDetail | null = null;
-  signatureBlock: ContractSignatureBlock | null = null;
+  readonly detail = signal<ContractDetail | null>(null);
+  readonly signatureBlock = signal<ContractSignatureBlock | null>(null);
 
-  loading = true;
-  busy = false;
-  errorMessage = '';
-  successMessage = '';
+  readonly loading = signal(true);
+  readonly busy = signal(false);
+  readonly errorMessage = signal('');
+  readonly successMessage = signal('');
 
   /** Which historical version is being viewed; null shows the current one. */
-  viewingVersionId: number | null = null;
-  viewingHtml = '';
+  readonly viewingVersionId = signal<number | null>(null);
+  readonly viewingHtml = signal('');
 
   readonly ContractStatus = ContractStatus;
   readonly ContractSignerStatus = ContractSignerStatus;
   readonly ContractFileType = ContractFileType;
 
   ngOnInit(): void {
-    if (this.preloaded) {
-      this.apply(this.preloaded);
-      this.loading = false;
+    const preloaded = this.preloaded();
+    if (preloaded) {
+      this.apply(preloaded);
+      this.loading.set(false);
     } else {
       this.load();
     }
@@ -91,75 +94,76 @@ export class ContractDetailComponent implements OnInit, OnChanges {
     const changedId = changes['contractId'];
     if (!changedId || changedId.firstChange) return;
 
-    if (this.preloaded && this.preloaded.id === this.contractId) {
-      this.apply(this.preloaded);
-      this.loading = false;
+    const preloaded = this.preloaded();
+    if (preloaded && preloaded.id === this.contractId()) {
+      this.apply(preloaded);
+      this.loading.set(false);
       return;
     }
     this.load();
   }
 
   private load(): void {
-    this.loading = true;
-    this.contracts.getContract(this.contractId).subscribe({
-      next: detail => { this.apply(detail); this.loading = false; },
+    this.loading.set(true);
+    this.contracts.getContract(this.contractId()).subscribe({
+      next: detail => { this.apply(detail); this.loading.set(false); },
       error: err => {
-        this.errorMessage = extractApiErrorMessage(err, 'Could not load this contract.');
-        this.loading = false;
+        this.errorMessage.set(extractApiErrorMessage(err, 'Could not load this contract.'));
+        this.loading.set(false);
       }
     });
   }
 
   private apply(detail: ContractDetail): void {
-    this.detail = detail;
-    this.contractId = detail.id;
-    this.viewingVersionId = null;
-    this.viewingHtml = detail.documentHtml;
+    this.detail.set(detail);
+    this.contractId.set(detail.id);
+    this.viewingVersionId.set(null);
+    this.viewingHtml.set(detail.documentHtml);
     // Composed server-side and carrying the real marks once signed, so the admin preview shows
     // the same executed block the client and the PDF do rather than a locally rebuilt one.
-    this.signatureBlock = detail.signatureBlock ?? null;
+    this.signatureBlock.set(detail.signatureBlock ?? null);
   }
 
   // ── version viewing ────────────────────────────────────────────────────────
 
   viewVersion(versionId: number): void {
-    if (!this.detail) return;
-    if (versionId === this.detail.currentVersionId) {
-      this.viewingVersionId = null;
-      this.viewingHtml = this.detail.documentHtml;
-      this.signatureBlock = this.detail.signatureBlock ?? null;
+    if (!this.detail()) return;
+    if (versionId === this.detail()!.currentVersionId) {
+      this.viewingVersionId.set(null);
+      this.viewingHtml.set(this.detail()!.documentHtml);
+      this.signatureBlock.set(this.detail()!.signatureBlock ?? null);
       return;
     }
 
-    this.contracts.getVersionDocument(this.detail.id, versionId).subscribe({
+    this.contracts.getVersionDocument(this.detail()!.id, versionId).subscribe({
       next: result => {
-        this.viewingVersionId = versionId;
-        this.viewingHtml = result.documentHtml;
-        this.signatureBlock = result.signatureBlock;
+        this.viewingVersionId.set(versionId);
+        this.viewingHtml.set(result.documentHtml);
+        this.signatureBlock.set(result.signatureBlock);
       },
-      error: err => this.errorMessage = extractApiErrorMessage(err, 'Could not load that version.')
+      error: err => this.errorMessage.set(extractApiErrorMessage(err, 'Could not load that version.'))
     });
   }
 
   // ── actions ────────────────────────────────────────────────────────────────
 
   private run(action: () => void): void {
-    this.errorMessage = '';
-    this.successMessage = '';
-    this.busy = true;
+    this.errorMessage.set('');
+    this.successMessage.set('');
+    this.busy.set(true);
     action();
   }
 
   private handle(message: string) {
     return {
       next: (detail: ContractDetail) => {
-        this.busy = false;
+        this.busy.set(false);
         this.apply(detail);
-        this.successMessage = message;
+        this.successMessage.set(message);
       },
       error: (err: any) => {
-        this.busy = false;
-        this.errorMessage = extractApiErrorMessage(err, 'That action could not be completed.');
+        this.busy.set(false);
+        this.errorMessage.set(extractApiErrorMessage(err, 'That action could not be completed.'));
       }
     };
   }
@@ -183,22 +187,22 @@ export class ContractDetailComponent implements OnInit, OnChanges {
     // (ContractInvoiceEligibility), so this view and the Contracts list cannot disagree about
     // whether a contract may be billed. The old local test ("not hidden and past Draft") let an
     // unsigned or voided agreement through.
-    return this.detail?.canCreateNextInvoice === true;
+    return this.detail()?.canCreateNextInvoice === true;
   }
 
   /** Why not, for the tooltip. Null when the button is offered. */
   get cannotCreateNextInvoiceReason(): string | null {
-    return this.detail?.cannotCreateNextInvoiceReason ?? null;
+    return this.detail()?.cannotCreateNextInvoiceReason ?? null;
   }
 
   createNextInvoice(allowDuplicatePeriod = false, acknowledgeUndatedDraft = false): void {
-    this.errorMessage = '';
-    this.successMessage = '';
-    this.busy = true;
+    this.errorMessage.set('');
+    this.successMessage.set('');
+    this.busy.set(true);
 
-    this.invoices.createNextFromContract(this.contractId, allowDuplicatePeriod, acknowledgeUndatedDraft).subscribe({
+    this.invoices.createNextFromContract(this.contractId(), allowDuplicatePeriod, acknowledgeUndatedDraft).subscribe({
       next: result => {
-        this.busy = false;
+        this.busy.set(false);
 
         const parts = [
           result.clonedFromInvoiceNumber
@@ -209,11 +213,11 @@ export class ContractDetailComponent implements OnInit, OnChanges {
 
         // Warnings are shown WITH the success, not instead of it. The draft exists either way, and
         // the admin needs to know both that it was created and what to look at first.
-        this.successMessage = parts.join(' ');
+        this.successMessage.set(parts.join(' '));
         this.invoiceCreated.emit(result.invoice.id);
       },
       error: err => {
-        this.busy = false;
+        this.busy.set(false);
 
         const message = extractApiErrorMessage(
           err, 'The next invoice could not be created.');
@@ -244,25 +248,25 @@ export class ContractDetailComponent implements OnInit, OnChanges {
           return;
         }
 
-        this.errorMessage = message;
+        this.errorMessage.set(message);
       }
     });
   }
 
   sendForReview(): void {
-    this.run(() => this.contracts.sendForReview(this.contractId)
+    this.run(() => this.contracts.sendForReview(this.contractId())
       .subscribe(this.handle('The review link has been emailed to the client.')));
   }
 
   sendForSignature(): void {
     if (!confirm('Send signing links to both parties? The contract locks once you do.')) return;
-    this.run(() => this.contracts.sendForSignature(this.contractId)
+    this.run(() => this.contracts.sendForSignature(this.contractId())
       .subscribe(this.handle('Signing links have been emailed to both parties.')));
   }
 
   revise(): void {
     if (!confirm('Reopen this contract for editing? Any outstanding signing links will stop working.')) return;
-    this.run(() => this.contracts.revise(this.contractId)
+    this.run(() => this.contracts.revise(this.contractId())
       .subscribe(this.handle('Reopened for revision. Outstanding signing links have been voided.')));
   }
 
@@ -276,14 +280,14 @@ export class ContractDetailComponent implements OnInit, OnChanges {
    * way at all to clear a test contract out. The dialog names both and makes the destructive one
    * cost something to reach.
    */
-  deleteDialogOpen = false;
+  readonly deleteDialogOpen = signal(false);
 
   /** What the admin has to type to unlock Full delete: `DELETE DCC-2026-48392175`. */
   get hardDeleteConfirmationPhrase(): string {
-    return `DELETE ${this.detail?.contractNumber ?? ''}`;
+    return `DELETE ${this.detail()?.contractNumber ?? ''}`;
   }
 
-  hardDeleteConfirmation = '';
+  readonly hardDeleteConfirmation = signal('');
 
   /**
    * Whether the typed confirmation matches. Trimmed and case-insensitive, matching the server —
@@ -291,33 +295,33 @@ export class ContractDetailComponent implements OnInit, OnChanges {
    * capitalisation.
    */
   get hardDeleteConfirmed(): boolean {
-    return this.hardDeleteConfirmation.trim().toLowerCase()
+    return this.hardDeleteConfirmation().trim().toLowerCase()
       === this.hardDeleteConfirmationPhrase.toLowerCase();
   }
 
   /** Server-decided. Absent on an older backend, which then simply does not offer the option. */
   get canHardDelete(): boolean {
-    return this.detail?.canHardDelete === true;
+    return this.detail()?.canHardDelete === true;
   }
 
   get hardDeleteBlockedReason(): string | null {
-    return this.detail?.cannotHardDeleteReason ?? null;
+    return this.detail()?.cannotHardDeleteReason ?? null;
   }
 
   openDeleteDialog(): void {
-    this.hardDeleteConfirmation = '';
-    this.deleteDialogOpen = true;
+    this.hardDeleteConfirmation.set('');
+    this.deleteDialogOpen.set(true);
   }
 
   closeDeleteDialog(): void {
-    this.deleteDialogOpen = false;
-    this.hardDeleteConfirmation = '';
+    this.deleteDialogOpen.set(false);
+    this.hardDeleteConfirmation.set('');
   }
 
   /** Option A — archive. The long-standing soft delete, under the name it always deserved. */
   archiveContract(): void {
     this.closeDeleteDialog();
-    this.run(() => this.contracts.deleteContract(this.contractId)
+    this.run(() => this.contracts.deleteContract(this.contractId())
       .subscribe(this.handle('Contract archived. Find it again with “Show archived contracts”.')));
   }
 
@@ -329,27 +333,27 @@ export class ContractDetailComponent implements OnInit, OnChanges {
   permanentlyDeleteContract(): void {
     if (!this.canHardDelete || !this.hardDeleteConfirmed) return;
 
-    const confirmation = this.hardDeleteConfirmation.trim();
+    const confirmation = this.hardDeleteConfirmation().trim();
     this.closeDeleteDialog();
-    this.busy = true;
-    this.errorMessage = '';
+    this.busy.set(true);
+    this.errorMessage.set('');
 
-    this.contracts.permanentlyDeleteContract(this.contractId, confirmation).subscribe({
+    this.contracts.permanentlyDeleteContract(this.contractId(), confirmation).subscribe({
       next: result => {
-        this.busy = false;
+        this.busy.set(false);
         // Nothing left to reload — the contract this panel is showing no longer exists, so the
         // list is the only correct destination.
         this.deleted.emit(result.message);
       },
       error: err => {
-        this.busy = false;
-        this.errorMessage = extractApiErrorMessage(err, 'The contract could not be deleted.');
+        this.busy.set(false);
+        this.errorMessage.set(extractApiErrorMessage(err, 'The contract could not be deleted.'));
       }
     });
   }
 
   restoreContract(): void {
-    this.run(() => this.contracts.restoreContract(this.contractId)
+    this.run(() => this.contracts.restoreContract(this.contractId())
       .subscribe(this.handle('Contract restored.')));
   }
 
@@ -365,52 +369,52 @@ export class ContractDetailComponent implements OnInit, OnChanges {
    * though the button had done nothing at all — which is what ngOnChanges above now also covers.
    */
   duplicate(asAmendment: boolean): void {
-    this.run(() => this.contracts.duplicate(this.contractId, asAmendment).subscribe({
+    this.run(() => this.contracts.duplicate(this.contractId(), asAmendment).subscribe({
       next: created => {
-        this.busy = false;
+        this.busy.set(false);
         this.edit.emit(created.id);
       },
       error: err => {
-        this.busy = false;
-        this.errorMessage = extractApiErrorMessage(err, 'Could not create the copy.');
+        this.busy.set(false);
+        this.errorMessage.set(extractApiErrorMessage(err, 'Could not create the copy.'));
       }
     }));
   }
 
   regenerateExecuted(): void {
-    this.run(() => this.contracts.regenerateExecuted(this.contractId)
+    this.run(() => this.contracts.regenerateExecuted(this.contractId())
       .subscribe(this.handle('The executed PDF has been regenerated. Nothing was emailed.')));
   }
 
   resendExecuted(): void {
     if (!confirm('Email the executed agreement to both parties again?')) return;
-    this.run(() => this.contracts.resendExecuted(this.contractId)
+    this.run(() => this.contracts.resendExecuted(this.contractId())
       .subscribe(this.handle('The executed copy has been emailed to both parties.')));
   }
 
   // ── in-app contractor signing ──────────────────────────────────────────────
 
-  signingOpen = false;
-  signingBusy = false;
-  signingError = '';
+  readonly signingOpen = signal(false);
+  readonly signingBusy = signal(false);
+  readonly signingError = signal('');
 
   openSigning(): void {
-    this.signingOpen = true;
-    this.signingError = '';
-    this.successMessage = '';
+    this.signingOpen.set(true);
+    this.signingError.set('');
+    this.successMessage.set('');
   }
 
   cancelSigning(): void {
-    this.signingOpen = false;
-    this.signingError = '';
+    this.signingOpen.set(false);
+    this.signingError.set('');
   }
 
   onSignedAsContractor(captured: CapturedSignature): void {
-    if (this.signingBusy) return;
-    this.signingBusy = true;
-    this.signingError = '';
+    if (this.signingBusy()) return;
+    this.signingBusy.set(true);
+    this.signingError.set('');
 
-    this.contracts.signAsContractor(this.contractId, {
+    this.contracts.signAsContractor(this.contractId(), {
       signerName: captured.signerName,
       signerTitle: captured.signerTitle,
       signerEmail: captured.signerEmail,
@@ -419,28 +423,28 @@ export class ContractDetailComponent implements OnInit, OnChanges {
       consentAccepted: true
     }).subscribe({
       next: result => {
-        this.signingBusy = false;
-        this.signingOpen = false;
-        this.successMessage = result.message;
+        this.signingBusy.set(false);
+        this.signingOpen.set(false);
+        this.successMessage.set(result.message);
         this.load();
       },
       error: err => {
-        this.signingBusy = false;
-        this.signingError = extractApiErrorMessage(err, 'Your signature could not be recorded.');
+        this.signingBusy.set(false);
+        this.signingError.set(extractApiErrorMessage(err, 'Your signature could not be recorded.'));
       }
     });
   }
 
   /** The contractor signer row, for pre-filling the locked name/title on the capture form. */
   get contractorSigner() {
-    return this.detail?.signers.find(s => s.role === 0);
+    return this.detail()?.signers.find(s => s.role === 0);
   }
 
   resendInvite(signerId: number): void {
-    this.errorMessage = '';
-    this.contracts.resendSignerInvite(this.contractId, signerId).subscribe({
-      next: res => { this.successMessage = res.message; this.load(); },
-      error: err => this.errorMessage = extractApiErrorMessage(err, 'Could not re-send that link.')
+    this.errorMessage.set('');
+    this.contracts.resendSignerInvite(this.contractId(), signerId).subscribe({
+      next: res => { this.successMessage.set(res.message); this.load(); },
+      error: err => this.errorMessage.set(extractApiErrorMessage(err, 'Could not re-send that link.'))
     });
   }
 
@@ -454,22 +458,22 @@ export class ContractDetailComponent implements OnInit, OnChanges {
         link.click();
         URL.revokeObjectURL(url);
       },
-      error: err => this.errorMessage = extractApiErrorMessage(err, 'Could not download that file.')
+      error: err => this.errorMessage.set(extractApiErrorMessage(err, 'Could not download that file.'))
     });
   }
 
   copyReviewLink(): void {
-    if (!this.detail?.clientReviewUrl) return;
-    navigator.clipboard?.writeText(this.detail.clientReviewUrl)
-      .then(() => this.successMessage = 'Review link copied.')
-      .catch(() => this.errorMessage = 'Could not copy the link.');
+    if (!this.detail()?.clientReviewUrl) return;
+    navigator.clipboard?.writeText(this.detail()!.clientReviewUrl!)
+      .then(() => this.successMessage.set('Review link copied.'))
+      .catch(() => this.errorMessage.set('Could not copy the link.'));
   }
 
   copySigningLink(url?: string): void {
     if (!url) return;
     navigator.clipboard?.writeText(url)
-      .then(() => this.successMessage = 'Signing link copied.')
-      .catch(() => this.errorMessage = 'Could not copy the link.');
+      .then(() => this.successMessage.set('Signing link copied.'))
+      .catch(() => this.errorMessage.set('Could not copy the link.'));
   }
 
   fileLabel(type: ContractFileType): string {
@@ -493,11 +497,11 @@ export class ContractDetailComponent implements OnInit, OnChanges {
    */
   private allowed(action: keyof ContractPermissions): boolean {
     // No permissions loaded yet: show nothing rather than flashing buttons that may vanish.
-    return this.permissions?.[action] === true;
+    return this.permissions()?.[action] === true;
   }
 
   get showEdit(): boolean {
-    return !!this.detail?.canEdit && this.allowed('backToEdit');
+    return !!this.detail()?.canEdit && this.allowed('backToEdit');
   }
 
   /**
@@ -506,17 +510,17 @@ export class ContractDetailComponent implements OnInit, OnChanges {
    * and the server refuses to send while one remains.
    */
   get missingFields(): string[] {
-    const detail = this.detail;
+    const detail = this.detail();
     if (!detail) return [];
     return detail.missingFields ?? detail.unresolvedTokens ?? [];
   }
 
   get showSendForReview(): boolean {
-    return !!this.detail?.canSendForReview && this.allowed('sendForReview');
+    return !!this.detail()?.canSendForReview && this.allowed('sendForReview');
   }
 
   get showSendForSignature(): boolean {
-    return !!this.detail?.canSendForSignature && this.allowed('sendForSignature');
+    return !!this.detail()?.canSendForSignature && this.allowed('sendForSignature');
   }
 
   /**
@@ -525,7 +529,7 @@ export class ContractDetailComponent implements OnInit, OnChanges {
    * document is never touched.
    */
   get canRevise(): boolean {
-    const status = this.detail?.status;
+    const status = this.detail()?.status;
     const stateAllows = status === ContractStatus.ReadyForSignature
       || status === ContractStatus.AwaitingSignatures
       || status === ContractStatus.PartiallySigned;
@@ -533,8 +537,8 @@ export class ContractDetailComponent implements OnInit, OnChanges {
   }
 
   private get isExecutedState(): boolean {
-    return this.detail?.status === ContractStatus.FullySigned
-      || this.detail?.status === ContractStatus.Completed;
+    return this.detail()?.status === ContractStatus.FullySigned
+      || this.detail()?.status === ContractStatus.Completed;
   }
 
   get canRegenerateExecuted(): boolean {
@@ -547,11 +551,11 @@ export class ContractDetailComponent implements OnInit, OnChanges {
   }
 
   get canDuplicate(): boolean {
-    return !!this.detail && this.allowed('duplicate');
+    return !!this.detail() && this.allowed('duplicate');
   }
 
   get canAmend(): boolean {
-    return !!this.detail && this.allowed('createAmendment');
+    return !!this.detail() && this.allowed('createAmendment');
   }
 
   // ── Why an action is missing ───────────────────────────────────────────────
@@ -574,7 +578,7 @@ export class ContractDetailComponent implements OnInit, OnChanges {
    * Driven by the SERVER-reported authority, never re-derived from a role here.
    */
   get authorityLimitsActions(): boolean {
-    return this.permissions?.authority === 'manager';
+    return this.permissions()?.authority === 'manager';
   }
 
   /** Named so the note lists what is actually missing rather than a generic apology. */
@@ -584,20 +588,20 @@ export class ContractDetailComponent implements OnInit, OnChanges {
     const missing: string[] = [];
     // Each is listed only when the contract's own state would otherwise have offered it, so the
     // note never mentions an action that was never available anyway.
-    if (this.detail?.canEdit) missing.push('Back to edit');
+    if (this.detail()?.canEdit) missing.push('Back to edit');
     missing.push('Create revision', 'Create amendment');
-    if (this.detail?.canDelete) missing.push('Delete');
+    if (this.detail()?.canDelete) missing.push('Delete');
     return missing;
   }
 
 
   /** Opens the delete-or-archive dialog. CTO-only. Archived contracts offer Unarchive instead. */
   get showDelete(): boolean {
-    return !!this.detail?.canDelete && this.allowed('deleteContract');
+    return !!this.detail()?.canDelete && this.allowed('deleteContract');
   }
 
   get showRestore(): boolean {
-    return !!this.detail?.canRestore && this.allowed('restoreContract');
+    return !!this.detail()?.canRestore && this.allowed('restoreContract');
   }
 
   /**
@@ -605,6 +609,6 @@ export class ContractDetailComponent implements OnInit, OnChanges {
    * identity (this account IS the designated signer, still pending) and authority (CEO/CTO).
    */
   get canSignAsContractor(): boolean {
-    return !!this.detail?.isPendingContractorSigner && this.allowed('signAsContractor');
+    return !!this.detail()?.isPendingContractorSigner && this.allowed('signAsContractor');
   }
 }

@@ -7,37 +7,37 @@
   </div>
 
   <div class="crm-tabs">
-    <button class="crm-tab" [class.active]="activeTab === 'leads'" (click)="setTab('leads')">
+    <button class="crm-tab" [class.active]="activeTab() === 'leads'" (click)="setTab('leads')">
       Leads &amp; Pipeline
     </button>
-    <button class="crm-tab" [class.active]="activeTab === 'calls'" (click)="setTab('calls')">
+    <button class="crm-tab" [class.active]="activeTab() === 'calls'" (click)="setTab('calls')">
       Calls
     </button>
-    <button class="crm-tab" [class.active]="activeTab === 'customers'" (click)="setTab('customers')">
+    <button class="crm-tab" [class.active]="activeTab() === 'customers'" (click)="setTab('customers')">
       Customers
     </button>
-    <button class="crm-tab" [class.active]="activeTab === 'segments'" (click)="setTab('segments')">
+    <button class="crm-tab" [class.active]="activeTab() === 'segments'" (click)="setTab('segments')">
       Segments
     </button>
-    <button class="crm-tab" [class.active]="activeTab === 'automation'" (click)="setTab('automation')">
+    <button class="crm-tab" [class.active]="activeTab() === 'automation'" (click)="setTab('automation')">
       Automation
     </button>
   </div>
 
   <div class="crm-content">
-    @if (activeTab === 'leads') {
-    <app-leads-pipeline [openLeadId]="leadToOpen"></app-leads-pipeline>
+    @if (activeTab() === 'leads') {
+    <app-leads-pipeline [openLeadId]="leadToOpen()"></app-leads-pipeline>
     }
-    @if (activeTab === 'calls') {
+    @if (activeTab() === 'calls') {
     <app-crm-calls (openLead)="onCallLeadSelected($event)"></app-crm-calls>
     }
-    @if (activeTab === 'customers') {
-    <app-crm-customers [segmentFilter]="customerSegmentFilter"></app-crm-customers>
+    @if (activeTab() === 'customers') {
+    <app-crm-customers [segmentFilter]="customerSegmentFilter()"></app-crm-customers>
     }
-    @if (activeTab === 'segments') {
+    @if (activeTab() === 'segments') {
     <app-crm-segments (selectSegment)="onSegmentSelected($event)"></app-crm-segments>
     }
-    @if (activeTab === 'automation') {
+    @if (activeTab() === 'automation') {
     <app-crm-automation></app-crm-automation>
     }
   </div>
@@ -67,7 +67,7 @@
         </div>
 
         <!-- LEADS ტაბი -->
-        @if (activeTab === 'leads') {
+        @if (activeTab() === 'leads') {
         <div class="help-block">
           <h2>Leads &amp; Pipeline — ლიდები და გაყიდვების ძაბრი</h2>
           <p><strong>ლიდი</strong> = პოტენციური კლიენტი, რომელმაც დაგვიკავშირდა, მაგრამ ჯერ არ დაუჯავშნია სერვისი.</p>
@@ -91,7 +91,7 @@
         }
 
         <!-- CUSTOMERS ტაბი -->
-        @if (activeTab === 'customers') {
+        @if (activeTab() === 'customers') {
         <div class="help-block">
           <h2>Customers — კლიენტების 360° ხედი</h2>
           <p>ყველა რეგისტრირებული მომხმარებლის სრული სურათი ერთ ადგილას.</p>
@@ -110,7 +110,7 @@
         }
 
         <!-- SEGMENTS ტაბი -->
-        @if (activeTab === 'segments') {
+        @if (activeTab() === 'segments') {
         <div class="help-block">
           <h2>Segments — სეგმენტები (ავტომატური ჯგუფები)</h2>
           <p>
@@ -131,7 +131,7 @@
         }
 
         <!-- AUTOMATION ტაბი -->
-        @if (activeTab === 'automation') {
+        @if (activeTab() === 'automation') {
         <div class="help-block">
           <h2>Automation — ავტომატიზაცია</h2>
           <p class="help-warn">

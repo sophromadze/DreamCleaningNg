@@ -1,16 +1,16 @@
 <div class="cip-page">
-  @if (loading) {
+  @if (loading()) {
   <div class="cip-state">Loading your invoice…</div>
   }
 
-  @if (notFound) {
+  @if (notFound()) {
   <div class="cip-state">
     <h1>Invoice not found</h1>
     <p>This link is not valid. Please check it, or contact us and we'll send you a new one.</p>
   </div>
   }
 
-  @if (invoice; as inv) {
+  @if (invoice(); as inv) {
   <article class="cip-invoice">
     <header class="cip-head">
       @if (inv.company; as c) {
@@ -59,7 +59,7 @@
       you don't need to pay again. This page will show the invoice as paid once it does.
     </div>
     }
-    @if (checkingPayment && !inv.achProcessing && inv.status !== 'Paid') {
+    @if (checkingPayment() && !inv.achProcessing && inv.status !== 'Paid') {
     <div class="cip-banner cip-banner--processing">
       <i [appIcon]="icons.faSpinner" class="fa-spin" aria-hidden="true"></i> Confirming your bank payment with Stripe…
     </div>
@@ -155,11 +155,11 @@
           @if (paymentHint === 'cancelled') {
           <p class="cip-muted">Bank payment was cancelled — nothing was charged.</p>
           }
-          <button type="button" class="cip-btn cip-btn--ach" (click)="startAch()" [disabled]="startingAch">
-            {{ startingAch ? 'Opening secure bank payment…' : 'Pay $' + (inv.amountDue | number:'1.2-2') + ' from bank' }}
+          <button type="button" class="cip-btn cip-btn--ach" (click)="startAch()" [disabled]="startingAch()">
+            {{ startingAch() ? 'Opening secure bank payment…' : 'Pay $' + (inv.amountDue | number:'1.2-2') + ' from bank' }}
           </button>
-          @if (achError) {
-          <p class="cip-error">{{ achError }}</p>
+          @if (achError()) {
+          <p class="cip-error">{{ achError() }}</p>
           }
         </div>
         }
@@ -181,13 +181,13 @@
             @if (bank.routingNumber) {
             <div>
               <dt>Routing number</dt>
-              <dd>{{ bank.routingNumber }} <button type="button" class="cip-copy" (click)="copy(bank.routingNumber, 'routing')">{{ copied === 'routing' ? 'Copied' : 'Copy' }}</button></dd>
+              <dd>{{ bank.routingNumber }} <button type="button" class="cip-copy" (click)="copy(bank.routingNumber, 'routing')">{{ copied() === 'routing' ? 'Copied' : 'Copy' }}</button></dd>
             </div>
             }
             @if (bank.accountNumber) {
             <div>
               <dt>Account number</dt>
-              <dd>{{ bank.accountNumber }} <button type="button" class="cip-copy" (click)="copy(bank.accountNumber, 'account')">{{ copied === 'account' ? 'Copied' : 'Copy' }}</button></dd>
+              <dd>{{ bank.accountNumber }} <button type="button" class="cip-copy" (click)="copy(bank.accountNumber, 'account')">{{ copied() === 'account' ? 'Copied' : 'Copy' }}</button></dd>
             </div>
             }
             @if (bank.accountType) {
@@ -195,7 +195,7 @@
             }
             <div>
               <dt>Reference</dt>
-              <dd><strong>{{ bank.paymentReference }}</strong> <button type="button" class="cip-copy" (click)="copy(bank.paymentReference, 'ref')">{{ copied === 'ref' ? 'Copied' : 'Copy' }}</button></dd>
+              <dd><strong>{{ bank.paymentReference }}</strong> <button type="button" class="cip-copy" (click)="copy(bank.paymentReference, 'ref')">{{ copied() === 'ref' ? 'Copied' : 'Copy' }}</button></dd>
             </div>
           </dl>
           @if (bank.achInstructions) {
@@ -208,11 +208,11 @@
     }
 
     <footer class="cip-foot">
-      <button type="button" class="cip-link" (click)="downloadPdf()" [disabled]="downloading">
-        <i [appIcon]="icons.faFilePdf" aria-hidden="true"></i> {{ downloading ? 'Preparing PDF…' : 'Download invoice (PDF)' }}
+      <button type="button" class="cip-link" (click)="downloadPdf()" [disabled]="downloading()">
+        <i [appIcon]="icons.faFilePdf" aria-hidden="true"></i> {{ downloading() ? 'Preparing PDF…' : 'Download invoice (PDF)' }}
       </button>
-      @if (downloadError) {
-      <p class="cip-muted">{{ downloadError }}</p>
+      @if (downloadError()) {
+      <p class="cip-muted">{{ downloadError() }}</p>
       }
       @if (inv.company?.footerText) {
       <p class="cip-muted">{{ inv.company?.footerText }}</p>

@@ -38,7 +38,7 @@ describe('TrustedDevicesComponent — removing a device signs it out', () => {
 
   it('stores the re-issued tokens, or this browser is refused on its next request too', () => {
     const component = create();
-    component.devices = [{ id: 4, deviceName: 'Chrome on Windows', createdAt: '', lastUsedAt: '', isCurrentDevice: false }];
+    component.devices.set([{ id: 4, deviceName: 'Chrome on Windows', createdAt: '', lastUsedAt: '', isCurrentDevice: false }]);
     component.askRevoke(4);
     component.confirmRevoke();
 
@@ -51,20 +51,20 @@ describe('TrustedDevicesComponent — removing a device signs it out', () => {
 
     expect(localStorage.getItem('token')).toBe('new-access');
     expect(localStorage.getItem('refreshToken')).toBe('new-refresh');
-    expect(component.notice).toContain('signed out');
+    expect(component.notice()).toContain('signed out');
   });
 
   it('removing the device you are ON ends nobody else\'s session and replaces no tokens', () => {
     localStorage.setItem('token', 'mine');
     const component = create();
-    component.devices = [{ id: 4, deviceName: 'This one', createdAt: '', lastUsedAt: '', isCurrentDevice: true }];
+    component.devices.set([{ id: 4, deviceName: 'This one', createdAt: '', lastUsedAt: '', isCurrentDevice: true }]);
     component.askRevoke(4);
     component.confirmRevoke();
 
     http.expectOne(r => r.method === 'DELETE').flush({ sessionsEnded: false });
 
     expect(localStorage.getItem('token')).toBe('mine');
-    expect(component.notice).toContain('2FA');
+    expect(component.notice()).toContain('2FA');
   });
 
   it('"Sign out all other devices" reaches the server and keeps this session', () => {
@@ -79,8 +79,8 @@ describe('TrustedDevicesComponent — removing a device signs it out', () => {
     });
 
     expect(localStorage.getItem('token')).toBe('fresh');
-    expect(component.confirmingSignOutOthers).toBe(false);
-    expect(component.signingOutOthers).toBe(false);
+    expect(component.confirmingSignOutOthers()).toBe(false);
+    expect(component.signingOutOthers()).toBe(false);
   });
 
   it('the tab that asked — and its sibling tabs — skip the SessionsEnded probe while the request is in flight', () => {

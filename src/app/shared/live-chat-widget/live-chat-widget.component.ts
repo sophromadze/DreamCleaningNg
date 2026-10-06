@@ -1,5 +1,5 @@
 import {
-  Component, OnInit, OnDestroy, ViewChild, ElementRef, Inject, PLATFORM_ID, HostBinding, ChangeDetectionStrategy
+  Component, OnInit, OnDestroy, ViewChild, ElementRef, Inject, PLATFORM_ID, HostBinding, ChangeDetectionStrategy, signal
 } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -14,25 +14,25 @@ import { filter } from 'rxjs/operators';
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './live-chat-widget.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./live-chat-widget.component.scss']
 })
 export class LiveChatWidgetComponent implements OnInit, OnDestroy {
   @ViewChild('messagesContainer') messagesContainer!: ElementRef;
   @ViewChild('fileInput') fileInput!: ElementRef<HTMLInputElement>;
 
-  isOpen = false;
-  isChatStarted = false;
-  visitorName = '';
-  messageText = '';
-  messages: ChatMessage[] = [];
-  status: ChatStatus = 'disconnected';
-  errorMessage = '';
+  readonly isOpen = signal(false);
+  readonly isChatStarted = signal(false);
+  readonly visitorName = signal('');
+  readonly messageText = signal('');
+  readonly messages = signal<ChatMessage[]>([]);
+  readonly status = signal<ChatStatus>('disconnected');
+  readonly errorMessage = signal('');
   isBrowser: boolean;
-  unreadCount = 0;
-  isDraggingFile = false;
-  currentUser: any = null;
-  chatEnabled = true;
+  readonly unreadCount = signal(0);
+  readonly isDraggingFile = signal(false);
+  readonly currentUser = signal<any>(null);
+  readonly chatEnabled = signal(true);
 
   @HostBinding('class.on-booking-page') isOnBookingPage = false;
 
@@ -65,43 +65,43 @@ export class LiveChatWidgetComponent implements OnInit, OnDestroy {
 
     this.subscriptions.push(
       this.chatService.chatEnabled$.subscribe(enabled => {
-        this.chatEnabled = enabled;
+        this.chatEnabled.set(enabled);
         // Close the window if admin disables while visitor has it open
-        if (!enabled && this.isOpen) {
-          this.isOpen = false;
+        if (!enabled && this.isOpen()) {
+          this.isOpen.set(false);
           this.stopViewportSync();
         }
       }),
       this.authService.currentUser.subscribe(user => {
-        this.currentUser = user;
+        this.currentUser.set(user);
         if (user) {
-          this.visitorName = user.email;
+          this.visitorName.set(user.email);
         }
       }),
       this.chatService.messages$.subscribe(msgs => {
-        this.messages = msgs;
-        if (!this.isOpen && msgs.length > 0) {
+        this.messages.set(msgs);
+        if (!this.isOpen() && msgs.length > 0) {
           const lastMsg = msgs[msgs.length - 1];
           if (!lastMsg.isFromVisitor) {
-            this.unreadCount++;
+            this.unreadCount.update(v => v + 1);
           }
         }
         setTimeout(() => this.scrollToBottom(), 100);
       }),
       this.chatService.status$.subscribe(status => {
-        this.status = status;
+        this.status.set(status);
       }),
       this.chatService.error$.subscribe(error => {
-        this.errorMessage = error;
-        setTimeout(() => this.errorMessage = '', 5000);
+        this.errorMessage.set(error);
+        setTimeout(() => this.errorMessage.set(''), 5000);
       })
     );
 
     // Reconnect if there's a stored session (localStorage shared across tabs + survives refresh)
     const existingSession = localStorage.getItem('livechat_session');
     if (existingSession) {
-      this.isChatStarted = true;
-      const name = this.currentUser?.email || 'Returning Visitor';
+      this.isChatStarted.set(true);
+      const name = this.currentUser()?.email || 'Returning Visitor';
       this.chatService.startChat(name);
     }
   }
@@ -112,9 +112,9 @@ export class LiveChatWidgetComponent implements OnInit, OnDestroy {
   }
 
   toggleChat(): void {
-    this.isOpen = !this.isOpen;
-    if (this.isOpen) {
-      this.unreadCount = 0;
+    this.isOpen.set(!this.isOpen());
+    if (this.isOpen()) {
+      this.unreadCount.set(0);
       this.startViewportSync();
       setTimeout(() => this.scrollToBottom(), 150);
     } else {
@@ -123,17 +123,17 @@ export class LiveChatWidgetComponent implements OnInit, OnDestroy {
   }
 
   startChat(): void {
-    if (!this.visitorName.trim()) {
-      this.visitorName = 'Visitor';
+    if (!this.visitorName().trim()) {
+      this.visitorName.set('Visitor');
     }
-    this.isChatStarted = true;
-    this.chatService.startChat(this.visitorName.trim());
+    this.isChatStarted.set(true);
+    this.chatService.startChat(this.visitorName().trim());
   }
 
   async sendMessage(): Promise<void> {
-    if (!this.messageText.trim()) return;
-    const text = this.messageText;
-    this.messageText = '';
+    if (!this.messageText().trim()) return;
+    const text = this.messageText();
+    this.messageText.set('');
     await this.chatService.sendMessage(text);
   }
 
@@ -159,19 +159,19 @@ export class LiveChatWidgetComponent implements OnInit, OnDestroy {
   onDragOver(event: DragEvent): void {
     event.preventDefault();
     event.stopPropagation();
-    this.isDraggingFile = true;
+    this.isDraggingFile.set(true);
   }
 
   onDragLeave(event: DragEvent): void {
     event.preventDefault();
     event.stopPropagation();
-    this.isDraggingFile = false;
+    this.isDraggingFile.set(false);
   }
 
   async onDrop(event: DragEvent): Promise<void> {
     event.preventDefault();
     event.stopPropagation();
-    this.isDraggingFile = false;
+    this.isDraggingFile.set(false);
 
     const files = event.dataTransfer?.files;
     if (files && files.length > 0) {
@@ -179,18 +179,18 @@ export class LiveChatWidgetComponent implements OnInit, OnDestroy {
       if (file.type.startsWith('image/')) {
         await this.chatService.sendImage(file);
       } else {
-        this.errorMessage = 'Only image files are supported.';
-        setTimeout(() => this.errorMessage = '', 3000);
+        this.errorMessage.set('Only image files are supported.');
+        setTimeout(() => this.errorMessage.set(''), 3000);
       }
     }
   }
 
   endChat(): void {
     this.chatService.disconnect();
-    this.isChatStarted = false;
+    this.isChatStarted.set(false);
     this.chatAutoStarted = false;
-    this.messages = [];
-    this.isOpen = false;
+    this.messages.set([]);
+    this.isOpen.set(false);
     this.stopViewportSync();
   }
 

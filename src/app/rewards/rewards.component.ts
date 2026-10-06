@@ -1,4 +1,4 @@
-import { Component, OnInit, PLATFORM_ID, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, OnInit, PLATFORM_ID, ChangeDetectionStrategy, inject, signal } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { ShimmerDirective } from '../shared/directives/shimmer.directive';
@@ -17,23 +17,23 @@ import {
   standalone: true,
   imports: [CommonModule, RouterModule, ShimmerDirective, NyDatePipe, ReferAFriendComponent],
   templateUrl: './rewards.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './rewards.component.scss'
 })
 export class RewardsComponent implements OnInit {
   private svc = inject(BubbleRewardsService);
   private router = inject(Router);
 
-  summary: RewardsSummary | null = null;
-  summaryLoading = true;
+  readonly summary = signal<RewardsSummary | null>(null);
+  readonly summaryLoading = signal(true);
 
-  history: PointsHistory[] = [];
-  historyPage = 1;
-  historyTotalPages = 1;
-  historyLoading = false;
+  readonly history = signal<PointsHistory[]>([]);
+  readonly historyPage = signal(1);
+  readonly historyTotalPages = signal(1);
+  readonly historyLoading = signal(false);
 
-  referrals: Referral[] = [];
-  referralsLoading = false;
+  readonly referrals = signal<Referral[]>([]);
+  readonly referralsLoading = signal(false);
 
   isBrowser: boolean;
 
@@ -51,31 +51,31 @@ export class RewardsComponent implements OnInit {
   }
 
   loadSummary(): void {
-    this.summaryLoading = true;
+    this.summaryLoading.set(true);
     this.svc.getSummary().subscribe({
-      next: s => { this.summary = s; this.summaryLoading = false; },
-      error: () => { this.summaryLoading = false; }
+      next: s => { this.summary.set(s); this.summaryLoading.set(false); },
+      error: () => { this.summaryLoading.set(false); }
     });
   }
 
   loadHistory(page = 1): void {
-    this.historyLoading = true;
+    this.historyLoading.set(true);
     this.svc.getHistory(page, 15).subscribe({
       next: (r: PagedResult<PointsHistory>) => {
-        this.history = r.items;
-        this.historyPage = r.page;
-        this.historyTotalPages = r.totalPages;
-        this.historyLoading = false;
+        this.history.set(r.items);
+        this.historyPage.set(r.page);
+        this.historyTotalPages.set(r.totalPages);
+        this.historyLoading.set(false);
       },
-      error: () => { this.historyLoading = false; }
+      error: () => { this.historyLoading.set(false); }
     });
   }
 
   loadReferrals(): void {
-    this.referralsLoading = true;
+    this.referralsLoading.set(true);
     this.svc.getMyReferrals().subscribe({
-      next: r => { this.referrals = r; this.referralsLoading = false; },
-      error: () => { this.referralsLoading = false; }
+      next: r => { this.referrals.set(r); this.referralsLoading.set(false); },
+      error: () => { this.referralsLoading.set(false); }
     });
   }
 
@@ -135,10 +135,10 @@ export class RewardsComponent implements OnInit {
   }
 
   prevHistoryPage(): void {
-    if (this.historyPage > 1) this.loadHistory(this.historyPage - 1);
+    if (this.historyPage() > 1) this.loadHistory(this.historyPage() - 1);
   }
 
   nextHistoryPage(): void {
-    if (this.historyPage < this.historyTotalPages) this.loadHistory(this.historyPage + 1);
+    if (this.historyPage() < this.historyTotalPages()) this.loadHistory(this.historyPage() + 1);
   }
 }

@@ -1,6 +1,6 @@
 // src/app/auth/admin/special-offers/special-offers.component.ts
 
-import { Component, OnInit, AfterViewInit, OnDestroy, ViewChild, ElementRef, HostListener, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, OnInit, AfterViewInit, OnDestroy, ElementRef, HostListener, ChangeDetectionStrategy, inject, viewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { SpecialOfferService, SpecialOffer, CreateSpecialOffer, UpdateSpecialOffer, OfferType } from '../../../services/special-offer.service';
@@ -21,8 +21,8 @@ export class SpecialOffersComponent implements OnInit, AfterViewInit, OnDestroy 
   private authService = inject(AuthService);
   private fb = inject(FormBuilder);
 
-  @ViewChild('tableWrapper', { static: false }) tableWrapper!: ElementRef<HTMLDivElement>;
-  @ViewChild('tableHeader', { static: false }) tableHeader!: ElementRef<HTMLTableSectionElement>;
+  readonly tableWrapper = viewChild<ElementRef<HTMLDivElement>>('tableWrapper');
+  readonly tableHeader = viewChild<ElementRef<HTMLTableSectionElement>>('tableHeader');
   
   specialOffers: SpecialOffer[] = [];
   isLoading = false;
@@ -76,7 +76,9 @@ export class SpecialOffersComponent implements OnInit, AfterViewInit, OnDestroy 
   }
 
   private initializeStickyHeader() {
-    if (!this.tableWrapper || !this.tableHeader) {
+    const tableWrapper = this.tableWrapper();
+    const tableHeader = this.tableHeader();
+    if (!tableWrapper || !tableHeader) {
       if (this.initializationRetries < this.maxRetries) {
         this.initializationRetries++;
         setTimeout(() => {
@@ -86,7 +88,7 @@ export class SpecialOffersComponent implements OnInit, AfterViewInit, OnDestroy 
       return;
     }
     
-    if (!this.tableWrapper.nativeElement || !this.tableHeader.nativeElement) {
+    if (!tableWrapper.nativeElement || !tableHeader.nativeElement) {
       if (this.initializationRetries < this.maxRetries) {
         this.initializationRetries++;
         setTimeout(() => {
@@ -104,8 +106,9 @@ export class SpecialOffersComponent implements OnInit, AfterViewInit, OnDestroy 
     if (this.scrollListener) {
       window.removeEventListener('scroll', this.scrollListener, true);
     }
-    if (this.horizontalScrollListener && this.tableWrapper) {
-      const wrapperEl = this.tableWrapper.nativeElement;
+    const tableWrapper = this.tableWrapper();
+    if (this.horizontalScrollListener && tableWrapper) {
+      const wrapperEl = tableWrapper.nativeElement;
       wrapperEl.removeEventListener('scroll', this.horizontalScrollListener);
       wrapperEl.removeEventListener('touchmove', this.horizontalScrollListener);
       wrapperEl.removeEventListener('wheel', this.horizontalScrollListener);
@@ -122,7 +125,8 @@ export class SpecialOffersComponent implements OnInit, AfterViewInit, OnDestroy 
   }
 
   private setupStickyHeader() {
-    if (!this.tableWrapper || !this.tableHeader) {
+    const tableWrapper = this.tableWrapper();
+    if (!tableWrapper || !this.tableHeader()) {
       return;
     }
 
@@ -140,7 +144,7 @@ export class SpecialOffersComponent implements OnInit, AfterViewInit, OnDestroy 
     this.horizontalScrollListener = () => {
       this.syncHorizontalScroll();
     };
-    const wrapperEl = this.tableWrapper.nativeElement;
+    const wrapperEl = tableWrapper.nativeElement;
     wrapperEl.addEventListener('scroll', this.horizontalScrollListener, { passive: true });
     wrapperEl.addEventListener('touchmove', this.horizontalScrollListener, { passive: true });
     wrapperEl.addEventListener('wheel', this.horizontalScrollListener, { passive: true });
@@ -150,12 +154,14 @@ export class SpecialOffersComponent implements OnInit, AfterViewInit, OnDestroy 
   }
 
   private updateStickyHeader() {
-    if (!this.tableWrapper || !this.tableHeader) {
+    const tableWrapper = this.tableWrapper();
+    const tableHeader = this.tableHeader();
+    if (!tableWrapper || !tableHeader) {
       return;
     }
 
-    const wrapper = this.tableWrapper.nativeElement;
-    const header = this.tableHeader.nativeElement;
+    const wrapper = tableWrapper.nativeElement;
+    const header = tableHeader.nativeElement;
     const rect = wrapper.getBoundingClientRect();
     const offset = this.headerStickyOffset;
     
@@ -278,12 +284,14 @@ export class SpecialOffersComponent implements OnInit, AfterViewInit, OnDestroy 
   }
 
   private syncHorizontalScroll() {
-    if (!this.tableWrapper || !this.tableHeader) {
+    const tableWrapper = this.tableWrapper();
+    const tableHeader = this.tableHeader();
+    if (!tableWrapper || !tableHeader) {
       return;
     }
 
-    const wrapper = this.tableWrapper.nativeElement;
-    const header = this.tableHeader.nativeElement;
+    const wrapper = tableWrapper.nativeElement;
+    const header = tableHeader.nativeElement;
     
     // Sync horizontal scroll position by translating the header
     // Only sync if header is currently fixed/sticky

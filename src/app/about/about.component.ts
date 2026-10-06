@@ -20,7 +20,7 @@ const TEAM_PHOTO_SIZES =
   standalone: true,
   imports: [BubbleFieldComponent],
   templateUrl: './about.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './about.component.scss'
 })
 export class AboutComponent {

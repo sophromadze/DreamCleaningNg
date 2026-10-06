@@ -1,4 +1,4 @@
-import { Component, OnInit, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { AdminService } from '../../../services/admin.service';
 
@@ -24,24 +24,24 @@ const ALL_TIME_SLOTS = [
   standalone: true,
   imports: [FormsModule],
   templateUrl: './scheduling.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./scheduling.component.scss']
 })
 export class SchedulingComponent implements OnInit {
   private adminService = inject(AdminService);
 
-  blockedSlots: BlockedSlot[] = [];
-  isLoading = false;
-  errorMessage = '';
-  successMessage = '';
+  readonly blockedSlots = signal<BlockedSlot[]>([]);
+  readonly isLoading = signal(false);
+  readonly errorMessage = signal('');
+  readonly successMessage = signal('');
 
   // Form state
-  showForm = false;
-  editingSlot: BlockedSlot | null = null;
-  formDate = '';
-  formIsFullDay = true;
-  formSelectedHours: Set<string> = new Set();
-  formReason = '';
+  readonly showForm = signal(false);
+  readonly editingSlot = signal<BlockedSlot | null>(null);
+  readonly formDate = signal('');
+  readonly formIsFullDay = signal(true);
+  readonly formSelectedHours = signal<Set<string>>(new Set(), { equal: () => false });
+  readonly formReason = signal('');
 
   allTimeSlots = ALL_TIME_SLOTS;
 
@@ -50,97 +50,101 @@ export class SchedulingComponent implements OnInit {
   }
 
   loadBlockedSlots() {
-    this.isLoading = true;
+    this.isLoading.set(true);
     const from = new Date().toISOString().split('T')[0];
     const to = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
     this.adminService.getBlockedTimeSlots(from, to).subscribe({
       next: (slots) => {
-        this.blockedSlots = slots;
-        this.isLoading = false;
+        this.blockedSlots.set(slots);
+        this.isLoading.set(false);
       },
       error: () => {
-        this.errorMessage = 'Failed to load blocked time slots.';
-        this.isLoading = false;
+        this.errorMessage.set('Failed to load blocked time slots.');
+        this.isLoading.set(false);
       }
     });
   }
 
   openAddForm() {
-    this.editingSlot = null;
-    this.formDate = '';
-    this.formIsFullDay = true;
-    this.formSelectedHours = new Set();
-    this.formReason = '';
-    this.showForm = true;
+    this.editingSlot.set(null);
+    this.formDate.set('');
+    this.formIsFullDay.set(true);
+    this.formSelectedHours.set(new Set());
+    this.formReason.set('');
+    this.showForm.set(true);
   }
 
   openEditForm(slot: BlockedSlot) {
-    this.editingSlot = slot;
-    this.formDate = slot.date;
-    this.formIsFullDay = slot.isFullDay;
-    this.formSelectedHours = new Set(slot.blockedHours ? slot.blockedHours.split(',') : []);
-    this.formReason = slot.reason || '';
-    this.showForm = true;
+    this.editingSlot.set(slot);
+    this.formDate.set(slot.date);
+    this.formIsFullDay.set(slot.isFullDay);
+    this.formSelectedHours.set(new Set(slot.blockedHours ? slot.blockedHours.split(',') : []));
+    this.formReason.set(slot.reason || '');
+    this.showForm.set(true);
   }
 
   cancelForm() {
-    this.showForm = false;
-    this.editingSlot = null;
+    this.showForm.set(false);
+    this.editingSlot.set(null);
   }
 
   toggleHour(hour: string) {
-    if (this.formSelectedHours.has(hour)) {
-      this.formSelectedHours.delete(hour);
+    if (this.formSelectedHours().has(hour)) {
+      this.formSelectedHours().delete(hour);
+      this.formSelectedHours.set(this.formSelectedHours());
     } else {
-      this.formSelectedHours.add(hour);
+      this.formSelectedHours().add(hour);
+      this.formSelectedHours.set(this.formSelectedHours());
     }
   }
 
   selectAllHours() {
-    ALL_TIME_SLOTS.forEach(h => this.formSelectedHours.add(h));
+    ALL_TIME_SLOTS.forEach(h => this.formSelectedHours().add(h));
+    this.formSelectedHours.set(this.formSelectedHours());
   }
 
   clearAllHours() {
-    this.formSelectedHours.clear();
+    this.formSelectedHours().clear();
+    this.formSelectedHours.set(this.formSelectedHours());
   }
 
   save() {
-    if (!this.formDate) {
-      this.errorMessage = 'Please select a date.';
+    if (!this.formDate()) {
+      this.errorMessage.set('Please select a date.');
       return;
     }
 
-    if (!this.formIsFullDay && this.formSelectedHours.size === 0) {
-      this.errorMessage = 'Please select at least one hour to block, or choose "Block Entire Day".';
+    if (!this.formIsFullDay() && this.formSelectedHours().size === 0) {
+      this.errorMessage.set('Please select at least one hour to block, or choose "Block Entire Day".');
       return;
     }
 
     // If all hours are selected, treat as full day
-    const effectiveFullDay = this.formIsFullDay || this.formSelectedHours.size === ALL_TIME_SLOTS.length;
+    const effectiveFullDay = this.formIsFullDay() || this.formSelectedHours().size === ALL_TIME_SLOTS.length;
 
     const dto = {
-      date: this.formDate,
+      date: this.formDate(),
       isFullDay: effectiveFullDay,
-      blockedHours: effectiveFullDay ? undefined : Array.from(this.formSelectedHours).sort().join(','),
-      reason: this.formReason || undefined
+      blockedHours: effectiveFullDay ? undefined : Array.from(this.formSelectedHours()).sort().join(','),
+      reason: this.formReason() || undefined
     };
 
-    const request$ = this.editingSlot
-      ? this.adminService.updateBlockedTimeSlot(this.editingSlot.id, dto)
+    const request$ = this.editingSlot()
+      ? this.adminService.updateBlockedTimeSlot(this.editingSlot()!.id, dto)
       : this.adminService.createBlockedTimeSlot(dto);
 
     request$.subscribe({
       next: () => {
-        this.successMessage = this.editingSlot ? 'Block updated successfully.' : 'Block created successfully.';
-        this.showForm = false;
-        this.editingSlot = null;
+        this.successMessage.set(this.editingSlot() ? 'Block updated successfully.' : 'Block created successfully.');
+        this.showForm.set(false);
+        this.editingSlot.set(null);
         this.loadBlockedSlots();
-        setTimeout(() => this.successMessage = '', 3000);
+        setTimeout(() => this.successMessage.set(''), 3000);
       },
       error: (err) => {
-        this.errorMessage = err?.error?.message || 'Failed to save blocked time slot.';
-        setTimeout(() => this.errorMessage = '', 5000);
+        this.errorMessage.set(err?.error?.message || 'Failed to save blocked time slot.');
+        setTimeout(() => this.errorMessage.set(''), 5000);
       }
     });
   }
@@ -150,13 +154,13 @@ export class SchedulingComponent implements OnInit {
 
     this.adminService.deleteBlockedTimeSlot(slot.id).subscribe({
       next: () => {
-        this.successMessage = 'Block removed successfully.';
+        this.successMessage.set('Block removed successfully.');
         this.loadBlockedSlots();
-        setTimeout(() => this.successMessage = '', 3000);
+        setTimeout(() => this.successMessage.set(''), 3000);
       },
       error: () => {
-        this.errorMessage = 'Failed to delete blocked time slot.';
-        setTimeout(() => this.errorMessage = '', 5000);
+        this.errorMessage.set('Failed to delete blocked time slot.');
+        setTimeout(() => this.errorMessage.set(''), 5000);
       }
     });
   }

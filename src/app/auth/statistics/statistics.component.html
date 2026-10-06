@@ -17,8 +17,8 @@
         <input type="date" aria-label="From" [(ngModel)]="customFrom" />
         <label>To</label>
         <input type="date" aria-label="To" [(ngModel)]="customTo" />
-        <button class="apply-btn" (click)="applyCustomRange()" [disabled]="!customFrom || !customTo">Apply</button>
-        @if (customFrom || customTo) {
+        <button class="apply-btn" (click)="applyCustomRange()" [disabled]="!customFrom() || !customTo()">Apply</button>
+        @if (customFrom() || customTo()) {
         <button class="clear-btn" (click)="clearCustomRange()">Clear</button>
         }
       </div>
@@ -26,7 +26,7 @@
   </div>
 
   <!-- Loading -->
-  @if (isLoading) {
+  @if (isLoading()) {
   <div class="loading-state">
     <div class="spinner"></div>
     <p>Loading statistics...</p>
@@ -34,31 +34,31 @@
   }
 
   <!-- Error -->
-  @if (error && !isLoading) {
+  @if (error() && !isLoading()) {
   <div class="error-state">
-    <p>{{ error }}</p>
+    <p>{{ error() }}</p>
   </div>
   }
 
   <!-- Stats Cards -->
-  @if (stats && !isLoading) {
+  @if (stats() && !isLoading()) {
   <div class="stats-grid">
     <div class="stat-card">
       <div class="stat-label">Total Orders</div>
-      <div class="stat-value orders">{{ stats.totalOrders | number }}</div>
+      <div class="stat-value orders">{{ stats()!.totalOrders | number }}</div>
     </div>
 
     <div class="stat-card">
       <div class="stat-label">Company Revenue</div>
-      <div class="stat-value amount">{{ stats.totalAmount | currency:'USD' }}</div>
-      @if (stats.totalTaxRetained <= 0) {
+      <div class="stat-value amount">{{ stats()!.totalAmount | currency:'USD' }}</div>
+      @if (stats()!.totalTaxRetained <= 0) {
       <div class="stat-sub">after discounts, before tax, without tips</div>
       }
       <!-- Tax on a cash/Zelle/check order is never remitted, so it sits inside this figure
            rather than in Total Taxes below. Named here so the card is not silently larger. -->
-      @if (stats.totalTaxRetained > 0) {
+      @if (stats()!.totalTaxRetained > 0) {
       <div class="stat-sub">
-        after discounts, without tips — includes {{ stats.totalTaxRetained | currency:'USD' }} kept tax
+        after discounts, without tips — includes {{ stats()!.totalTaxRetained | currency:'USD' }} kept tax
       </div>
       }
     </div>
@@ -67,11 +67,11 @@
          outside Stripe is not remitted, so it is reported as revenue above instead. -->
     <div class="stat-card">
       <div class="stat-label">Total Taxes</div>
-      <div class="stat-value taxes">{{ stats.totalTaxes | currency:'USD' }}</div>
-      @if (stats.totalTaxRetained <= 0) {
+      <div class="stat-value taxes">{{ stats()!.totalTaxes | currency:'USD' }}</div>
+      @if (stats()!.totalTaxRetained <= 0) {
       <div class="stat-sub">8.875% — collected for the state</div>
       }
-      @if (stats.totalTaxRetained > 0) {
+      @if (stats()!.totalTaxRetained > 0) {
       <div class="stat-sub">
         collected for the state — card payments only
       </div>
@@ -81,13 +81,13 @@
 
     <div class="stat-card">
       <div class="stat-label">Discounts Given</div>
-      <div class="stat-value discounts">− {{ stats.totalDiscounts | currency:'USD' }}</div>
+      <div class="stat-value discounts">− {{ stats()!.totalDiscounts | currency:'USD' }}</div>
       <div class="stat-sub">promo, first-time, subscription, loyalty</div>
     </div>
 
     <div class="stat-card">
       <div class="stat-label">Total Tips</div>
-      <div class="stat-value tips">{{ stats.totalTips | currency:'USD' }}</div>
+      <div class="stat-value tips">{{ stats()!.totalTips | currency:'USD' }}</div>
     </div>
 
     <!-- Cleaner salary has no card of its own: it is not a headline figure, it is the first
@@ -96,7 +96,7 @@
     <!-- Net Income = gross − expenses: what the company actually keeps once every cost is
          counted. Click to expand the full breakdown. -->
     <div class="stat-card highlight clickable"
-         [class.is-expanded]="revenueBreakdownExpanded"
+         [class.is-expanded]="revenueBreakdownExpanded()"
          (click)="toggleRevenueBreakdown()"
          role="button"
          tabindex="0"
@@ -105,10 +105,10 @@
         Net Income
         <i class="fas fa-chevron-down stat-card-caret"></i>
       </div>
-      <div class="stat-value revenue">{{ stats.totalCompanyRevenue | currency:'USD' }}</div>
-      @if (stats.totalExpenses > 0) {
+      <div class="stat-value revenue">{{ stats()!.totalCompanyRevenue | currency:'USD' }}</div>
+      @if (stats()!.totalExpenses > 0) {
       <div class="stat-sub">
-        after {{ stats.totalExpenses | currency:'USD' }} expenses
+        after {{ stats()!.totalExpenses | currency:'USD' }} expenses
       </div>
       }
     </div>
@@ -117,20 +117,20 @@
 
   <!-- Net Income breakdown — opens when the card is clicked. Walks through the formula
        with every number labelled, then itemises expenses by category. -->
-  @if (stats && revenueBreakdownExpanded) {
+  @if (stats() && revenueBreakdownExpanded()) {
   <div class="revenue-breakdown">
     <h3 class="breakdown-title">How Net Income is calculated</h3>
 
     <div class="breakdown-formula">
       <div class="breakdown-line">
-        <span class="breakdown-amount">{{ stats.totalAmount | currency:'USD' }}</span>
-        @if (stats.totalTaxRetained <= 0) {
+        <span class="breakdown-amount">{{ stats()!.totalAmount | currency:'USD' }}</span>
+        @if (stats()!.totalTaxRetained <= 0) {
         <span class="breakdown-label">(Company Revenue — order subtotals after discounts, before tax)</span>
         }
-        @if (stats.totalTaxRetained > 0) {
+        @if (stats()!.totalTaxRetained > 0) {
         <span class="breakdown-label">
           (Company Revenue — order subtotals after discounts, plus
-          {{ stats.totalTaxRetained | currency:'USD' }} tax kept on non-card payments)
+          {{ stats()!.totalTaxRetained | currency:'USD' }} tax kept on non-card payments)
         </span>
         }
       </div>
@@ -138,45 +138,45 @@
            inside the amount above — it is money collected for the state, shown separately. -->
       <div class="breakdown-line subtract">
         <span class="breakdown-op">−</span>
-        <span class="breakdown-amount">{{ stats.totalCleanersSalary | currency:'USD' }}</span>
+        <span class="breakdown-amount">{{ stats()!.totalCleanersSalary | currency:'USD' }}</span>
         <span class="breakdown-label">(Cleaners Salary)</span>
       </div>
       <div class="breakdown-line subtotal">
         <span class="breakdown-op">=</span>
-        <span class="breakdown-amount">{{ stats.totalCompanyRevenueGross | currency:'USD' }}</span>
+        <span class="breakdown-amount">{{ stats()!.totalCompanyRevenueGross | currency:'USD' }}</span>
         <span class="breakdown-label">(Net Income before expenses)</span>
       </div>
       <div class="breakdown-line subtract">
         <span class="breakdown-op">−</span>
-        <span class="breakdown-amount">{{ (stats.totalExpenses - stats.stripeFees - stats.adminBonusesUsd) | currency:'USD' }}</span>
+        <span class="breakdown-amount">{{ (stats()!.totalExpenses - stats()!.stripeFees - stats()!.adminBonusesUsd) | currency:'USD' }}</span>
         <span class="breakdown-label">(Company Expenses in window)</span>
       </div>
       <div class="breakdown-line subtract">
         <span class="breakdown-op">−</span>
-        <span class="breakdown-amount">{{ stats.stripeFees | currency:'USD' }}</span>
+        <span class="breakdown-amount">{{ stats()!.stripeFees | currency:'USD' }}</span>
         <span class="breakdown-label">(Stripe fees — 2.9% + $0.30 per Stripe order)</span>
       </div>
       <div class="breakdown-line subtract">
         <span class="breakdown-op">−</span>
-        <span class="breakdown-amount">{{ stats.adminBonusesUsd | currency:'USD' }}</span>
+        <span class="breakdown-amount">{{ stats()!.adminBonusesUsd | currency:'USD' }}</span>
         <span class="breakdown-label">
-          (Admin bonuses — converted from {{ stats.adminBonusesGel | number:'1.0-2' }} GEL)
+          (Admin bonuses — converted from {{ stats()!.adminBonusesGel | number:'1.0-2' }} GEL)
         </span>
       </div>
       <div class="breakdown-line total">
         <span class="breakdown-op">=</span>
-        <span class="breakdown-amount">{{ stats.totalCompanyRevenue | currency:'USD' }}</span>
+        <span class="breakdown-amount">{{ stats()!.totalCompanyRevenue | currency:'USD' }}</span>
         <span class="breakdown-label">(Net Income — after every cost)</span>
       </div>
     </div>
 
     <p class="breakdown-note">
-      Sales tax ({{ stats.totalTaxes | currency:'USD' }}) and tips ({{ stats.totalTips | currency:'USD' }})
+      Sales tax ({{ stats()!.totalTaxes | currency:'USD' }}) and tips ({{ stats()!.totalTips | currency:'USD' }})
       are deliberately outside this formula — customers pay them on top of the price and they pass
-      straight through to the state and the cleaners. Discounts ({{ stats.totalDiscounts | currency:'USD' }})
+      straight through to the state and the cleaners. Discounts ({{ stats()!.totalDiscounts | currency:'USD' }})
       are already deducted from the Company Revenue on the first line.
-      @if (stats.totalTaxRetained > 0) {
-        Tax charged on cash, Zelle and check payments ({{ stats.totalTaxRetained | currency:'USD' }})
+      @if (stats()!.totalTaxRetained > 0) {
+        Tax charged on cash, Zelle and check payments ({{ stats()!.totalTaxRetained | currency:'USD' }})
         is not remitted, so it is counted as company revenue on the first line instead of as a
         pass-through. Customers were still charged and shown the full tax on their orders.
       }
@@ -185,10 +185,10 @@
     <!-- Per-category expense itemisation, rolled up to ONE line per expense per month.
          Daily-billed integrations (Google Ads syncs a row a day) used to render ~30 near
          identical lines a month here and bury everything else. -->
-    @if (expenseCategories.length > 0) {
+    @if (expenseCategories().length > 0) {
     <div class="breakdown-expenses">
       <h4 class="breakdown-section-title">Expenses by category — monthly</h4>
-      @for (cat of expenseCategories; track $index) {
+      @for (cat of expenseCategories(); track $index) {
       <div class="expense-category">
         <div class="expense-category-header">
           <span class="expense-category-name">{{ cat.categoryName }}</span>
@@ -218,7 +218,7 @@
     </div>
     }
 
-    @if (expenseCategories.length === 0) {
+    @if (expenseCategories().length === 0) {
     <div class="breakdown-empty">
       No expenses recorded in this window.
     </div>
@@ -227,27 +227,27 @@
   }
 
   <!-- Exchange & bonus rates (per-month GEL→USD used for admin-bonus conversion) -->
-  @if (stats && !isLoading) {
+  @if (stats() && !isLoading()) {
   <div class="rates-panel">
     <div class="rates-header" (click)="toggleRatesPanel()" role="button" tabindex="0"
          (keydown.enter)="toggleRatesPanel()">
       <span class="rates-title">
         Exchange &amp; bonus rates (GEL → USD)
-        <i class="fas fa-chevron-down" [class.rotated]="ratesExpanded"></i>
+        <i class="fas fa-chevron-down" [class.rotated]="ratesExpanded()"></i>
       </span>
       <span class="rates-hint">Each month locks its own rate. Auto-fetched; override if needed.</span>
     </div>
 
-    @if (ratesExpanded) {
+    @if (ratesExpanded()) {
     <div class="rates-body">
-      @if (ratesLoading) {
+      @if (ratesLoading()) {
       <div class="rates-loading">Loading rates…</div>
       }
-      @if (ratesError) {
-      <div class="rates-error">{{ ratesError }}</div>
+      @if (ratesError()) {
+      <div class="rates-error">{{ ratesError() }}</div>
       }
 
-      @if (!ratesLoading && rates.length > 0) {
+      @if (!ratesLoading() && rates().length > 0) {
       <table class="rates-table">
         <thead>
           <tr>
@@ -261,7 +261,7 @@
           </tr>
         </thead>
         <tbody>
-          @for (r of rates; track $index) {
+          @for (r of rates(); track $index) {
           <tr>
             <td class="rate-month">{{ r.monthKey }}</td>
             <td>
@@ -289,7 +289,7 @@
       </table>
       }
 
-      @if (!ratesLoading && rates.length === 0 && !ratesError) {
+      @if (!ratesLoading() && rates().length === 0 && !ratesError()) {
       <div class="rates-empty">
         No months in the selected range.
       </div>
@@ -300,15 +300,15 @@
   }
 
   <!-- Orders Chart -->
-  @if (stats && !isLoading) {
+  @if (stats() && !isLoading()) {
   <div class="chart-section">
     <div class="chart-header">
       <div class="chart-header-left">
         <h2>Orders</h2>
         <div class="chart-group-toggles">
-          <button class="group-btn" [class.active]="chartGrouping === 'days'" (click)="setGrouping('days')">Days</button>
-          <button class="group-btn" [class.active]="chartGrouping === 'weeks'" (click)="setGrouping('weeks')">Weeks</button>
-          <button class="group-btn" [class.active]="chartGrouping === 'months'" (click)="setGrouping('months')">Months</button>
+          <button class="group-btn" [class.active]="chartGrouping() === 'days'" (click)="setGrouping('days')">Days</button>
+          <button class="group-btn" [class.active]="chartGrouping() === 'weeks'" (click)="setGrouping('weeks')">Weeks</button>
+          <button class="group-btn" [class.active]="chartGrouping() === 'months'" (click)="setGrouping('months')">Months</button>
         </div>
       </div>
     </div>
@@ -319,15 +319,15 @@
   }
 
   <!-- Revenue Chart -->
-  @if (stats && !isLoading) {
+  @if (stats() && !isLoading()) {
   <div class="chart-section">
     <div class="chart-header">
       <div class="chart-header-left">
         <h2>Net Income</h2>
         <div class="chart-group-toggles">
-          <button class="group-btn" [class.active]="chartGrouping === 'days'" (click)="setGrouping('days')">Days</button>
-          <button class="group-btn" [class.active]="chartGrouping === 'weeks'" (click)="setGrouping('weeks')">Weeks</button>
-          <button class="group-btn" [class.active]="chartGrouping === 'months'" (click)="setGrouping('months')">Months</button>
+          <button class="group-btn" [class.active]="chartGrouping() === 'days'" (click)="setGrouping('days')">Days</button>
+          <button class="group-btn" [class.active]="chartGrouping() === 'weeks'" (click)="setGrouping('weeks')">Weeks</button>
+          <button class="group-btn" [class.active]="chartGrouping() === 'months'" (click)="setGrouping('months')">Months</button>
         </div>
       </div>
     </div>

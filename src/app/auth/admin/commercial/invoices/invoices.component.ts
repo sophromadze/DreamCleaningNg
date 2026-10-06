@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, inject, ChangeDetectionStrategy, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -28,7 +28,7 @@ type DateRangeKey = 'all' | 'this-month' | 'last-month' | 'custom';
   standalone: true,
   imports: [CommonModule, FormsModule, RouterLink],
   templateUrl: './invoices.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./invoices.component.scss']
 })
 export class CommercialInvoicesComponent implements OnInit {
@@ -38,38 +38,38 @@ export class CommercialInvoicesComponent implements OnInit {
   readonly InvoiceStatus = InvoiceStatus;
   readonly statusClass = invoiceStatusClass;
 
-  invoices: InvoiceListItem[] = [];
-  summary: InvoiceSummary = {
+  readonly invoices = signal<InvoiceListItem[]>([]);
+  readonly summary = signal<InvoiceSummary>({
     totalOutstanding: 0, paidThisMonth: 0, overdue: 0,
     draftCount: 0, overdueCount: 0, outstandingCount: 0
-  };
-  clients: InvoiceClientOption[] = [];
+  });
+  readonly clients = signal<InvoiceClientOption[]>([]);
 
-  loading = true;
-  error = '';
+  readonly loading = signal(true);
+  readonly error = signal('');
 
   // Filters
-  search = '';
-  statusFilter: InvoiceStatus | null = null;
-  clientFilter: number | null = null;
-  paymentMethodFilter: InvoicePaymentMethod | null = null;
-  dateRange: DateRangeKey = 'all';
-  customFrom = '';
-  customTo = '';
+  readonly search = signal('');
+  readonly statusFilter = signal<InvoiceStatus | null>(null);
+  readonly clientFilter = signal<number | null>(null);
+  readonly paymentMethodFilter = signal<InvoicePaymentMethod | null>(null);
+  readonly dateRange = signal<DateRangeKey>('all');
+  readonly customFrom = signal('');
+  readonly customTo = signal('');
 
   /**
    * The Archived view. A separate axis from status, so this is a toggle rather than another
    * status option — an archived Paid invoice is still Paid, and putting "Archived" in the status
    * dropdown would have made the two look mutually exclusive.
    */
-  showArchived = false;
+  readonly showArchived = signal(false);
 
-  page = 1;
+  readonly page = signal(1);
   pageSize = 25;
-  totalCount = 0;
+  readonly totalCount = signal(0);
 
   /** Which row's "..." menu is open. Null when none is. */
-  openMenuId: number | null = null;
+  readonly openMenuId = signal<number | null>(null);
 
   private searchChanged = new Subject<string>();
 
@@ -101,63 +101,63 @@ export class CommercialInvoicesComponent implements OnInit {
   ngOnInit(): void {
     // Debounced so typing a client name does not fire a request per keystroke.
     this.searchChanged.pipe(debounceTime(350), distinctUntilChanged())
-      .subscribe(() => { this.page = 1; this.load(); });
+      .subscribe(() => { this.page.set(1); this.load(); });
 
     this.loadClients();
     this.load();
   }
 
   onSearchInput(): void {
-    this.searchChanged.next(this.search);
+    this.searchChanged.next(this.search());
   }
 
   onFilterChange(): void {
-    this.page = 1;
+    this.page.set(1);
     // A custom range with only one end filled in is still being typed - waiting avoids a
     // pointless round trip and a confusing empty table halfway through.
-    if (this.dateRange === 'custom' && !(this.customFrom && this.customTo)) return;
+    if (this.dateRange() === 'custom' && !(this.customFrom() && this.customTo())) return;
     this.load();
   }
 
   /** Switching between the active and archived views always restarts at page 1. */
   toggleArchived(): void {
-    this.page = 1;
+    this.page.set(1);
     this.load();
   }
 
   load(): void {
-    this.loading = true;
-    this.error = '';
+    this.loading.set(true);
+    this.error.set('');
 
     const { from, to } = this.resolveDateRange();
 
     this.invoiceService.list({
-      search: this.search.trim() || undefined,
-      status: this.statusFilter,
-      clientId: this.clientFilter,
-      paymentMethod: this.paymentMethodFilter,
+      search: this.search().trim() || undefined,
+      status: this.statusFilter(),
+      clientId: this.clientFilter(),
+      paymentMethod: this.paymentMethodFilter(),
       fromDate: from,
       toDate: to,
-      archived: this.showArchived,
-      page: this.page,
+      archived: this.showArchived(),
+      page: this.page(),
       pageSize: this.pageSize
     })
-      .pipe(finalize(() => this.loading = false))
+      .pipe(finalize(() => this.loading.set(false)))
       .subscribe({
         next: res => {
-          this.invoices = res.invoices;
-          this.summary = res.summary;
-          this.totalCount = res.totalCount;
+          this.invoices.set(res.invoices);
+          this.summary.set(res.summary);
+          this.totalCount.set(res.totalCount);
         },
-        error: err => this.error = extractApiErrorMessage(err, 'Could not load invoices.')
+        error: err => this.error.set(extractApiErrorMessage(err, 'Could not load invoices.'))
       });
   }
 
   private loadClients(): void {
     this.invoiceService.clients().subscribe({
-      next: list => this.clients = list,
+      next: list => this.clients.set(list),
       // A failed client list only costs the filter dropdown; the table is still usable.
-      error: () => this.clients = []
+      error: () => this.clients.set([])
     });
   }
 
@@ -166,7 +166,7 @@ export class CommercialInvoicesComponent implements OnInit {
     const iso = (d: Date) => d.toISOString().slice(0, 10);
     const now = new Date();
 
-    switch (this.dateRange) {
+    switch (this.dateRange()) {
       case 'this-month': {
         const start = new Date(now.getFullYear(), now.getMonth(), 1);
         const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
@@ -178,7 +178,7 @@ export class CommercialInvoicesComponent implements OnInit {
         return { from: iso(start), to: iso(end) };
       }
       case 'custom':
-        return { from: this.customFrom || null, to: this.customTo || null };
+        return { from: this.customFrom() || null, to: this.customTo() || null };
       default:
         return { from: null, to: null };
     }
@@ -188,11 +188,11 @@ export class CommercialInvoicesComponent implements OnInit {
 
   toggleMenu(invoiceId: number, event: Event): void {
     event.stopPropagation();
-    this.openMenuId = this.openMenuId === invoiceId ? null : invoiceId;
+    this.openMenuId.set(this.openMenuId() === invoiceId ? null : invoiceId);
   }
 
   closeMenu(): void {
-    this.openMenuId = null;
+    this.openMenuId.set(null);
   }
 
   view(invoice: InvoiceListItem): void {
@@ -212,7 +212,7 @@ export class CommercialInvoicesComponent implements OnInit {
     this.invoiceService.duplicate(invoice.id).subscribe({
       next: created => this.router.navigate(
         ['/admin/commercial/invoices', created.id, 'edit']),
-      error: err => this.error = extractApiErrorMessage(err, 'Could not duplicate the invoice.')
+      error: err => this.error.set(extractApiErrorMessage(err, 'Could not duplicate the invoice.'))
     });
   }
 
@@ -222,7 +222,7 @@ export class CommercialInvoicesComponent implements OnInit {
 
     this.invoiceService.downloadPdf(invoice.id).subscribe({
       next: blob => this.saveBlob(blob, `Dream-Cleaning-Invoice-${invoice.invoiceNumber}.pdf`),
-      error: err => this.error = extractApiErrorMessage(err, 'Could not download the invoice PDF.')
+      error: err => this.error.set(extractApiErrorMessage(err, 'Could not download the invoice PDF.'))
     });
   }
 
@@ -239,16 +239,16 @@ export class CommercialInvoicesComponent implements OnInit {
       next: detail => {
         navigator.clipboard?.writeText(detail.publicUrl).then(
           () => this.flash(`Invoice link for ${invoice.invoiceNumber} copied.`),
-          () => this.error = 'Could not copy the link to the clipboard.');
+          () => this.error.set('Could not copy the link to the clipboard.'));
       },
-      error: err => this.error = extractApiErrorMessage(err, 'Could not build the invoice link.')
+      error: err => this.error.set(extractApiErrorMessage(err, 'Could not build the invoice link.'))
     });
   }
 
-  notice = '';
+  readonly notice = signal('');
   private flash(message: string): void {
-    this.notice = message;
-    setTimeout(() => this.notice = '', 4000);
+    this.notice.set(message);
+    setTimeout(() => this.notice.set(''), 4000);
   }
 
   private saveBlob(blob: Blob, fileName: string): void {
@@ -262,13 +262,11 @@ export class CommercialInvoicesComponent implements OnInit {
 
   // ── Paging ──
 
-  get totalPages(): number {
-    return Math.max(1, Math.ceil(this.totalCount / this.pageSize));
-  }
+  readonly totalPages = computed<number>(() => Math.max(1, Math.ceil(this.totalCount() / this.pageSize)));
 
   goToPage(page: number): void {
-    if (page < 1 || page > this.totalPages) return;
-    this.page = page;
+    if (page < 1 || page > this.totalPages()) return;
+    this.page.set(page);
     this.load();
   }
 

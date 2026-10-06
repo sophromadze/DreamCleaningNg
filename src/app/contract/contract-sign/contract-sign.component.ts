@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, inject, ChangeDetectionStrategy, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
@@ -30,7 +30,7 @@ import { extractApiErrorMessage } from '../../utils/http-error.utils';
   templateUrl: './contract-sign.component.html',
   // The review page's stylesheet is the single source for the shared client-page chrome; this
   // component's own sheet adds only what is specific to signing.
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: [
     '../contract-review/contract-review.component.scss',
     './contract-sign.component.scss'
@@ -41,47 +41,47 @@ export class ContractSignComponent implements OnInit {
   private contracts = inject(ContractService);
 
   token = '';
-  page: ContractSigningPage | null = null;
+  readonly page = signal<ContractSigningPage | null>(null);
 
-  loading = true;
-  loadError = '';
-  submitting = false;
-  submitError = '';
-  completed = false;
-  completionMessage = '';
-  fullyExecuted = false;
+  readonly loading = signal(true);
+  readonly loadError = signal('');
+  readonly submitting = signal(false);
+  readonly submitError = signal('');
+  readonly completed = signal(false);
+  readonly completionMessage = signal('');
+  readonly fullyExecuted = signal(false);
 
   readonly ContractSignerRole = ContractSignerRole;
 
   ngOnInit(): void {
     this.token = this.route.snapshot.paramMap.get('token') ?? '';
     if (!this.token) {
-      this.loading = false;
-      this.loadError = 'This link is missing its reference. Please use the link from your email.';
+      this.loading.set(false);
+      this.loadError.set('This link is missing its reference. Please use the link from your email.');
       return;
     }
 
     this.contracts.getSigningPage(this.token).subscribe({
       next: page => {
-        this.page = page;
-        this.loading = false;
+        this.page.set(page);
+        this.loading.set(false);
       },
       error: err => {
-        this.loadError = extractApiErrorMessage(err, 'We could not open this signing link.');
-        this.loading = false;
+        this.loadError.set(extractApiErrorMessage(err, 'We could not open this signing link.'));
+        this.loading.set(false);
       }
     });
   }
 
   get canSign(): boolean {
-    return !!this.page && !this.page.alreadySigned && !this.page.expired
-      && !this.page.superseded && !this.completed;
+    return !!this.page() && !this.page()!.alreadySigned && !this.page()!.expired
+      && !this.page()!.superseded && !this.completed();
   }
 
   onSigned(captured: CapturedSignature): void {
-    if (this.submitting) return;
-    this.submitting = true;
-    this.submitError = '';
+    if (this.submitting()) return;
+    this.submitting.set(true);
+    this.submitError.set('');
 
     this.contracts.sign(this.token, {
       signerName: captured.signerName,
@@ -92,14 +92,14 @@ export class ContractSignComponent implements OnInit {
       consentAccepted: true
     }).subscribe({
       next: result => {
-        this.submitting = false;
-        this.completed = true;
-        this.completionMessage = result.message;
-        this.fullyExecuted = result.fullyExecuted;
+        this.submitting.set(false);
+        this.completed.set(true);
+        this.completionMessage.set(result.message);
+        this.fullyExecuted.set(result.fullyExecuted);
       },
       error: err => {
-        this.submitting = false;
-        this.submitError = extractApiErrorMessage(err, 'We could not record your signature.');
+        this.submitting.set(false);
+        this.submitError.set(extractApiErrorMessage(err, 'We could not record your signature.'));
       }
     });
   }

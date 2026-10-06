@@ -2,32 +2,32 @@
   <!-- ── Panel A: Global Settings ───────────────────────────────────────────────
        SuperAdmin only. Admin and Moderator get the audit feed below and nothing else;
        the endpoints are gated to match, so this *ngIf is convenience, not the control. -->
-  @if (canManageSettings) {
+  @if (canManageSettings()) {
   <section class="panel">
     <div class="panel-header">
       <h2>Loyalty Discount Settings</h2>
-      @if (!loadingSettings) {
+      @if (!loadingSettings()) {
       <button type="button" class="action-btn ghost" (click)="loadSettings()">Refresh</button>
       }
     </div>
 
-    @if (settingsError) {
-    <div class="error-message">{{ settingsError }}</div>
+    @if (settingsError()) {
+    <div class="error-message">{{ settingsError() }}</div>
     }
-    @if (settingsSuccess) {
-    <div class="success-message">{{ settingsSuccess }}</div>
+    @if (settingsSuccess()) {
+    <div class="success-message">{{ settingsSuccess() }}</div>
     }
 
-    @if (loadingSettings) {
+    @if (loadingSettings()) {
     <div class="muted">Loading…</div>
     }
 
-    @if (!loadingSettings) {
+    @if (!loadingSettings()) {
     <form class="settings-form" (ngSubmit)="saveSettings()">
       <!-- Master switch -->
       <div class="form-row form-row--toggle">
         <label class="switch">
-          <input type="checkbox" [(ngModel)]="settings.loyaltyDiscountEnabled" name="loyaltyDiscountEnabled">
+          <input type="checkbox" [(ngModel)]="settings().loyaltyDiscountEnabled" name="loyaltyDiscountEnabled">
           <span class="switch-track" aria-hidden="true"></span>
           <span class="switch-label">Loyalty discount system enabled</span>
         </label>
@@ -39,44 +39,44 @@
         <div class="form-row">
           <label for="day60Pct">Day 60 percentage (%)</label>
           <input id="day60Pct" type="number" min="0" max="100" step="0.5"
-                 [(ngModel)]="settings.loyaltyDay60Percentage" name="loyaltyDay60Percentage"
+                 [(ngModel)]="settings().loyaltyDay60Percentage" name="loyaltyDay60Percentage"
                 >
         </div>
         <div class="form-row">
           <label for="day90Pct">Day 90 percentage (%)</label>
           <input id="day90Pct" type="number" min="0" max="100" step="0.5"
-                 [(ngModel)]="settings.loyaltyDay90Percentage" name="loyaltyDay90Percentage"
+                 [(ngModel)]="settings().loyaltyDay90Percentage" name="loyaltyDay90Percentage"
                 >
         </div>
         <div class="form-row">
           <label for="day30">Days until first reminder</label>
           <input id="day30" type="number" min="1" step="1"
-                 [(ngModel)]="settings.daysUntilFirstReminder" name="daysUntilFirstReminder"
+                 [(ngModel)]="settings().daysUntilFirstReminder" name="daysUntilFirstReminder"
                 >
         </div>
         <div class="form-row">
           <label for="day60">Days until discount activation</label>
           <input id="day60" type="number" min="1" step="1"
-                 [(ngModel)]="settings.daysUntilDiscountActivation" name="daysUntilDiscountActivation"
+                 [(ngModel)]="settings().daysUntilDiscountActivation" name="daysUntilDiscountActivation"
                 >
         </div>
         <div class="form-row">
           <label for="day90">Days until discount upgrade</label>
           <input id="day90" type="number" min="1" step="1"
-                 [(ngModel)]="settings.daysUntilDiscountUpgrade" name="daysUntilDiscountUpgrade"
+                 [(ngModel)]="settings().daysUntilDiscountUpgrade" name="daysUntilDiscountUpgrade"
                 >
         </div>
         <div class="form-row">
           <label for="cooldown">Cooldown after use (days)</label>
           <input id="cooldown" type="number" min="0" step="1"
-                 [(ngModel)]="settings.minDaysFromLastUseBeforeReActivation" name="minDaysFromLastUseBeforeReActivation"
+                 [(ngModel)]="settings().minDaysFromLastUseBeforeReActivation" name="minDaysFromLastUseBeforeReActivation"
                 >
         </div>
       </div>
 
       <div class="form-actions">
-        <button type="submit" class="action-btn primary" [disabled]="savingSettings">
-          {{ savingSettings ? 'Saving…' : 'Save Settings' }}
+        <button type="submit" class="action-btn primary" [disabled]="savingSettings()">
+          {{ savingSettings() ? 'Saving…' : 'Save Settings' }}
         </button>
       </div>
     </form>
@@ -88,25 +88,25 @@
   <section class="panel">
     <div class="panel-header">
       <h2>Recent Activity (last 30 days)</h2>
-      @if (!loadingAudit) {
+      @if (!loadingAudit()) {
       <button type="button" class="action-btn ghost" (click)="loadAudit()">Refresh</button>
       }
     </div>
 
-    @if (auditError) {
-    <div class="error-message">{{ auditError }}</div>
+    @if (auditError()) {
+    <div class="error-message">{{ auditError() }}</div>
     }
-    @if (loadingAudit) {
+    @if (loadingAudit()) {
     <div class="muted">Loading…</div>
     }
 
-    @if (!loadingAudit && auditLogs.length === 0) {
+    @if (!loadingAudit() && auditLogs().length === 0) {
     <div class="muted center empty">
       No loyalty-discount activity in the last 30 days.
     </div>
     }
 
-    @if (!loadingAudit && auditLogs.length > 0) {
+    @if (!loadingAudit() && auditLogs().length > 0) {
     <div class="audit-table-wrap">
       <table class="audit-table">
         <thead>
@@ -137,9 +137,9 @@
 
       @if (totalPages > 1) {
       <div class="pagination">
-        <button class="page-btn" (click)="goToPage(currentPage - 1)" [disabled]="currentPage === 1">Prev</button>
-        <span class="page-label">Page {{ currentPage }} of {{ totalPages }}</span>
-        <button class="page-btn" (click)="goToPage(currentPage + 1)" [disabled]="currentPage === totalPages">Next</button>
+        <button class="page-btn" (click)="goToPage(currentPage() - 1)" [disabled]="currentPage() === 1">Prev</button>
+        <span class="page-label">Page {{ currentPage() }} of {{ totalPages }}</span>
+        <button class="page-btn" (click)="goToPage(currentPage() + 1)" [disabled]="currentPage() === totalPages">Next</button>
       </div>
       }
     </div>

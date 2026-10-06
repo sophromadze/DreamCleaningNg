@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, inject, ChangeDetectionStrategy, signal } from '@angular/core';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { RouterModule } from '@angular/router';
@@ -20,7 +20,7 @@ import { faPhone } from '../shared/icons/glyphs/faPhone';
   standalone: true,
   imports: [ReactiveFormsModule, RouterModule, BubbleFieldComponent, IconComponent],
   templateUrl: './contact.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './contact.component.scss'
 })
 export class ContactComponent implements OnInit {
@@ -31,11 +31,11 @@ export class ContactComponent implements OnInit {
   protected readonly icons = { faCircleCheck, faCircleXmark, faEnvelope, faFacebook, faInstagram, faPhone };
 
   contactForm: FormGroup;
-  isSubmitting = false;
-  showSuccess = false;
-  showError = false;
-  errorMessage = '';
-  currentUser: any;
+  readonly isSubmitting = signal(false);
+  readonly showSuccess = signal(false);
+  readonly showError = signal(false);
+  readonly errorMessage = signal('');
+  readonly currentUser = signal<any>(undefined);
   protected readonly phoneNumber = inject(PhoneNumberService);
   private readonly analytics = inject(AnalyticsService);
 
@@ -57,7 +57,7 @@ export class ContactComponent implements OnInit {
   ngOnInit() {
     // Check if user is logged in and pre-fill form
     this.authService.currentUser.subscribe(user => {
-      this.currentUser = user;
+      this.currentUser.set(user);
       if (user) {
         this.contactForm.patchValue({
           fullName: `${user.firstName} ${user.lastName}`.trim(),
@@ -96,13 +96,13 @@ export class ContactComponent implements OnInit {
 
     // Check if form is valid (disabled fields are automatically valid)
     if (this.contactForm.valid) {
-      this.isSubmitting = true;
-      this.showSuccess = false;
-      this.showError = false;
+      this.isSubmitting.set(true);
+      this.showSuccess.set(false);
+      this.showError.set(false);
 
       const formData = {
         fullName: this.contactForm.value.fullName,
-        email: this.currentUser ? this.currentUser.email : this.contactForm.getRawValue().email,
+        email: this.currentUser() ? this.currentUser().email : this.contactForm.getRawValue().email,
         phone: this.contactForm.value.phone,
         message: this.contactForm.value.message,
         smsConsent: this.contactForm.value.smsConsent
@@ -111,9 +111,9 @@ export class ContactComponent implements OnInit {
       this.http.post(`${environment.apiUrl}/contact`, formData)
         .subscribe({
           next: (response) => {
-            this.isSubmitting = false;
-            this.showSuccess = true;
-            this.showError = false;
+            this.isSubmitting.set(false);
+            this.showSuccess.set(true);
+            this.showError.set(false);
 
             // GA4 / Google Ads lead conversion, via the GTM dataLayer.
             this.analytics.pushEvent('contact_form_submit', {
@@ -124,11 +124,11 @@ export class ContactComponent implements OnInit {
             });
 
             // Reset form but keep user info if logged in
-            if (this.currentUser) {
+            if (this.currentUser()) {
               this.contactForm.patchValue({
-                fullName: `${this.currentUser.firstName} ${this.currentUser.lastName}`.trim(),
-                email: this.currentUser.email,
-                phone: this.currentUser.phone || '',
+                fullName: `${this.currentUser().firstName} ${this.currentUser().lastName}`.trim(),
+                email: this.currentUser().email,
+                phone: this.currentUser().phone || '',
                 message: '',
                 smsConsent: false
               });
@@ -145,18 +145,18 @@ export class ContactComponent implements OnInit {
 
             // Hide success message after 5 seconds
             setTimeout(() => {
-              this.showSuccess = false;
+              this.showSuccess.set(false);
             }, 5000);
           },
           error: (error) => {
-            this.isSubmitting = false;
-            this.showError = true;
-            this.showSuccess = false;
-            this.errorMessage = error.error?.message || 'Failed to send message. Please try again.';
+            this.isSubmitting.set(false);
+            this.showError.set(true);
+            this.showSuccess.set(false);
+            this.errorMessage.set(error.error?.message || 'Failed to send message. Please try again.');
             
             // Hide error message after 5 seconds
             setTimeout(() => {
-              this.showError = false;
+              this.showError.set(false);
             }, 5000);
           }
         });

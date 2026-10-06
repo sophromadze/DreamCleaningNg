@@ -7,7 +7,7 @@
         logging in. Commercial (business) invoices are in Commercial → Invoices.
       </p>
     </div>
-    @if (canCreate) {
+    @if (canCreate()) {
     <button type="button" class="ci-btn ci-btn--primary" (click)="openCreate()">
       <i class="fas fa-plus" aria-hidden="true"></i> Create Invoice
     </button>
@@ -27,24 +27,24 @@
     </select>
   </div>
 
-  @if (message) {
-  <div class="ci-message ci-message--ok">{{ message }}</div>
+  @if (message()) {
+  <div class="ci-message ci-message--ok">{{ message() }}</div>
   }
-  @if (error) {
-  <div class="ci-message ci-message--error">{{ error }}</div>
+  @if (error()) {
+  <div class="ci-message ci-message--error">{{ error() }}</div>
   }
 
-  @if (!loading && invoices.length === 0) {
+  @if (!loading() && invoices().length === 0) {
   <div class="ci-empty">
     No invoices yet. Use <strong>Create Invoice</strong>, or choose <strong>Invoice</strong> as the payment
     method when booking for a customer.
   </div>
   }
-  @if (loading && invoices.length === 0) {
+  @if (loading() && invoices().length === 0) {
   <div class="ci-empty">Loading invoices…</div>
   }
 
-  @if (invoices.length > 0) {
+  @if (invoices().length > 0) {
   <div class="ci-table-wrap">
     <table class="ci-table">
       <thead>
@@ -60,7 +60,7 @@
         </tr>
       </thead>
       <tbody>
-        @for (inv of invoices; track inv.id) {
+        @for (inv of invoices(); track inv.id) {
         <tr>
           <td>
             <strong>{{ inv.invoiceNumber }}</strong>
@@ -113,17 +113,17 @@
           <td class="actions">
             <a class="ci-link" [href]="inv.publicUrl" target="_blank" rel="noopener">Open</a>
             <button type="button" class="ci-link" (click)="copyLink(inv)">Copy link</button>
-            @if (canUpdate && inv.canSend) {
+            @if (canUpdate() && inv.canSend) {
             <button type="button" class="ci-link"
-                    [disabled]="busyInvoiceId === inv.id" (click)="send(inv)">
-              {{ busyInvoiceId === inv.id ? 'Sending…' : (inv.sendCount > 0 ? 'Resend' : 'Send') }}
+                    [disabled]="busyInvoiceId() === inv.id" (click)="send(inv)">
+              {{ busyInvoiceId() === inv.id ? 'Sending…' : (inv.sendCount > 0 ? 'Resend' : 'Send') }}
             </button>
             }
-            @if (canUpdate && inv.canRecordPayment) {
+            @if (canUpdate() && inv.canRecordPayment) {
             <button type="button" class="ci-link ci-link--strong"
                     (click)="openRecordPayment(inv)">Mark paid</button>
             }
-            @if (canUpdate && inv.canVoid) {
+            @if (canUpdate() && inv.canVoid) {
             <button type="button" class="ci-link ci-link--danger"
                     (click)="openVoid(inv)">Void</button>
             }
@@ -137,7 +137,7 @@
 </div>
 
 <!-- ═══ Create invoice ═══ -->
-@if (showCreate) {
+@if (showCreate()) {
 <div class="ci-overlay" (click)="closeCreate()">
   <div class="ci-modal" role="dialog" aria-modal="true" aria-labelledby="ci-create-title" (click)="$event.stopPropagation()">
     <div class="ci-modal__head">
@@ -148,26 +148,26 @@
     <div class="ci-modal__body">
       <label class="ci-label">Customer</label>
       <app-admin-user-search
-        [selectedUser]="createUser"
+        [selectedUser]="createUser()"
         (userSelected)="onCreateUserSelected($event)"
         (cleared)="onCreateUserCleared()">
       </app-admin-user-search>
 
-      @if (createUser) {
+      @if (createUser()) {
         <label class="ci-label">Order to invoice</label>
-        @if (loadingOrders) {
+        @if (loadingOrders()) {
         <div class="ci-sub">Loading orders…</div>
         }
-        @if (!loadingOrders && orderOptions.length === 0) {
+        @if (!loadingOrders() && orderOptions().length === 0) {
         <div class="ci-sub">
           This customer has no unpaid orders to invoice.
         </div>
         }
-        @if (orderOptions.length > 0) {
+        @if (orderOptions().length > 0) {
         <div class="ci-orders">
-          @for (o of orderOptions; track o.orderId) {
+          @for (o of orderOptions(); track o.orderId) {
           <label class="ci-order" [class.disabled]="!o.canInvoice"
-                 [class.selected]="selectedOrderId === o.orderId">
+                 [class.selected]="selectedOrderId() === o.orderId">
             <input type="radio" name="ciOrder" [value]="o.orderId" [(ngModel)]="selectedOrderId" [disabled]="!o.canInvoice">
             <span class="ci-order__main">
               <strong>#{{ o.orderId }}</strong> · {{ o.serviceTypeName }} · {{ o.serviceDate | date:'MMM d, y' }}
@@ -214,20 +214,20 @@
 
         @if (isSplit) {
         <div class="ci-split">
-          @for (a of splitAmounts; track trackByIndex(i); let i = $index) {
+          @for (a of splitAmounts(); track trackByIndex(i); let i = $index) {
           <div class="ci-split__row">
             <span class="ci-split__label">Invoice {{ i + 1 }}</span>
             <span class="ci-money"><span>$</span>
-              <input type="number" min="0.5" step="0.01" [(ngModel)]="splitAmounts[i]" [name]="'split' + i"
+              <input type="number" min="0.5" step="0.01" [(ngModel)]="splitAmounts()[i]" [name]="'split' + i"
                      [attr.aria-label]="'Amount of invoice ' + (i + 1)">
             </span>
             <button type="button" class="ci-link" (click)="fillRemainder(i)">Rest</button>
-            @if (splitAmounts.length > 1) {
+            @if (splitAmounts().length > 1) {
             <button type="button" class="ci-link ci-link--danger" (click)="removeSplitRow(i)">Remove</button>
             }
           </div>
           }
-          @if (splitAmounts.length < 12) {
+          @if (splitAmounts().length < 12) {
           <button type="button" class="ci-link" (click)="addSplitRow()">+ Add another invoice</button>
           }
           <div class="ci-split__sum" [class.ci-warn]="splitUnallocated < 0">
@@ -252,15 +252,15 @@
         </div>
       }
 
-      @if (createError) {
-      <div class="ci-message ci-message--error">{{ createError }}</div>
+      @if (createError()) {
+      <div class="ci-message ci-message--error">{{ createError() }}</div>
       }
     </div>
 
     <div class="ci-modal__foot">
-      <button type="button" class="ci-btn" (click)="closeCreate()" [disabled]="creating">Cancel</button>
+      <button type="button" class="ci-btn" (click)="closeCreate()" [disabled]="creating()">Cancel</button>
       <button type="button" class="ci-btn ci-btn--primary" (click)="submitCreate()" [disabled]="!canSubmitCreate">
-        {{ creating ? 'Creating…' : (createSendEmail || createSendSms ? 'Create & send' : 'Create') }}
+        {{ creating() ? 'Creating…' : (createSendEmail() || createSendSms() ? 'Create & send' : 'Create') }}
       </button>
     </div>
   </div>
@@ -268,7 +268,7 @@
 }
 
 <!-- ═══ Mark paid ═══ -->
-@if (payingInvoice; as inv) {
+@if (payingInvoice(); as inv) {
 <div class="ci-overlay" (click)="closeRecordPayment()">
   <div class="ci-modal ci-modal--small" role="dialog" aria-modal="true" aria-labelledby="ci-pay-title" (click)="$event.stopPropagation()">
     <div class="ci-modal__head">
@@ -290,17 +290,17 @@
       </select>
       <label class="ci-label" for="ciPayRef">Reference (optional)</label>
       <input id="ciPayRef" type="text" maxlength="255" [(ngModel)]="payReference"
-             [placeholder]="payMethod === 'BankTransfer' ? 'Bank transfer — ' + inv.invoiceNumber : 'e.g. Zelle confirmation'">
+             [placeholder]="payMethod() === 'BankTransfer' ? 'Bank transfer — ' + inv.invoiceNumber : 'e.g. Zelle confirmation'">
       <label class="ci-label" for="ciPayNotes">Notes (optional)</label>
       <textarea id="ciPayNotes" rows="2" maxlength="1000" [(ngModel)]="payNotes"></textarea>
-      @if (payError) {
-      <div class="ci-message ci-message--error">{{ payError }}</div>
+      @if (payError()) {
+      <div class="ci-message ci-message--error">{{ payError() }}</div>
       }
     </div>
     <div class="ci-modal__foot">
-      <button type="button" class="ci-btn" (click)="closeRecordPayment()" [disabled]="recordingPayment">Cancel</button>
-      <button type="button" class="ci-btn ci-btn--primary" (click)="submitRecordPayment()" [disabled]="recordingPayment">
-        {{ recordingPayment ? 'Saving…' : 'Mark as paid' }}
+      <button type="button" class="ci-btn" (click)="closeRecordPayment()" [disabled]="recordingPayment()">Cancel</button>
+      <button type="button" class="ci-btn ci-btn--primary" (click)="submitRecordPayment()" [disabled]="recordingPayment()">
+        {{ recordingPayment() ? 'Saving…' : 'Mark as paid' }}
       </button>
     </div>
   </div>
@@ -308,7 +308,7 @@
 }
 
 <!-- ═══ Void ═══ -->
-@if (voidingInvoice; as inv) {
+@if (voidingInvoice(); as inv) {
 <div class="ci-overlay" (click)="closeVoid()">
   <div class="ci-modal ci-modal--small" role="dialog" aria-modal="true" aria-labelledby="ci-void-title" (click)="$event.stopPropagation()">
     <div class="ci-modal__head">
@@ -321,9 +321,9 @@
       <input id="ciVoidReason" type="text" maxlength="500" [(ngModel)]="voidReason">
     </div>
     <div class="ci-modal__foot">
-      <button type="button" class="ci-btn" (click)="closeVoid()" [disabled]="voiding">Keep it</button>
-      <button type="button" class="ci-btn ci-btn--danger" (click)="confirmVoid()" [disabled]="voiding">
-        {{ voiding ? 'Voiding…' : 'Void invoice' }}
+      <button type="button" class="ci-btn" (click)="closeVoid()" [disabled]="voiding()">Keep it</button>
+      <button type="button" class="ci-btn ci-btn--danger" (click)="confirmVoid()" [disabled]="voiding()">
+        {{ voiding() ? 'Voiding…' : 'Void invoice' }}
       </button>
     </div>
   </div>

@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, inject, ChangeDetectionStrategy, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { finalize } from 'rxjs/operators';
@@ -26,7 +26,7 @@ import { extractApiErrorMessage } from '../../../../utils/http-error.utils';
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './billing-settings.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./billing-settings.component.scss']
 })
 export class BillingSettingsComponent implements OnInit {
@@ -35,60 +35,60 @@ export class BillingSettingsComponent implements OnInit {
   readonly InvoiceTaxType = InvoiceTaxType;
   readonly dueTermsOptions = DUE_TERMS_OPTIONS;
 
-  settings?: BillingSettings;
-  loading = true;
-  saving = false;
-  error = '';
-  notice = '';
+  readonly settings = signal<BillingSettings | undefined>(undefined);
+  readonly loading = signal(true);
+  readonly saving = signal(false);
+  readonly error = signal('');
+  readonly notice = signal('');
 
   /** Typed only when the admin is actually replacing the account number. */
-  newAccountNumber = '';
+  readonly newAccountNumber = signal('');
 
-  form: Partial<BillingSettings> = {};
+  readonly form = signal<Partial<BillingSettings>>({});
 
   ngOnInit(): void {
     this.load();
   }
 
   load(): void {
-    this.loading = true;
+    this.loading.set(true);
     this.invoiceService.getBillingSettings()
-      .pipe(finalize(() => this.loading = false))
+      .pipe(finalize(() => this.loading.set(false)))
       .subscribe({
         next: s => {
-          this.settings = s;
-          this.form = { ...s };
+          this.settings.set(s);
+          this.form.set({ ...s });
           // Deliberately not seeded from the response — see the class comment.
-          this.newAccountNumber = '';
+          this.newAccountNumber.set('');
         },
-        error: err => this.error = extractApiErrorMessage(err, 'Could not load billing settings.')
+        error: err => this.error.set(extractApiErrorMessage(err, 'Could not load billing settings.'))
       });
   }
 
-  get canEdit(): boolean { return !!this.settings?.canEdit; }
+  get canEdit(): boolean { return !!this.settings()?.canEdit; }
 
   save(): void {
-    if (!this.canEdit || !this.form.companyLegalName?.trim()) return;
+    if (!this.canEdit || !this.form().companyLegalName?.trim()) return;
 
-    this.saving = true;
-    this.error = '';
-    this.notice = '';
+    this.saving.set(true);
+    this.error.set('');
+    this.notice.set('');
 
     this.invoiceService.saveBillingSettings({
-      ...this.form,
+      ...this.form(),
       // null keeps the stored number; a typed value replaces it.
-      bankAccountNumber: this.newAccountNumber.trim() || null as any
+      bankAccountNumber: this.newAccountNumber().trim() || null as any
     })
-      .pipe(finalize(() => this.saving = false))
+      .pipe(finalize(() => this.saving.set(false)))
       .subscribe({
         next: saved => {
-          this.settings = saved;
-          this.form = { ...saved };
-          this.newAccountNumber = '';
-          this.notice = 'Billing settings saved. The change has been recorded in the audit log.';
-          setTimeout(() => this.notice = '', 5000);
+          this.settings.set(saved);
+          this.form.set({ ...saved });
+          this.newAccountNumber.set('');
+          this.notice.set('Billing settings saved. The change has been recorded in the audit log.');
+          setTimeout(() => this.notice.set(''), 5000);
         },
-        error: err => this.error = extractApiErrorMessage(err, 'Could not save billing settings.')
+        error: err => this.error.set(extractApiErrorMessage(err, 'Could not save billing settings.'))
       });
   }
 }

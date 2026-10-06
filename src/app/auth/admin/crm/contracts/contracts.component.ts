@@ -1,4 +1,4 @@
-import { Component, Input, OnInit, SimpleChanges, OnChanges, inject, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, SimpleChanges, OnChanges, inject, ChangeDetectionStrategy, signal, input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -30,37 +30,37 @@ type ContractsView = 'list' | 'form' | 'detail';
 })
 export class ContractsComponent implements OnInit, OnChanges {
   /** Deep link from an email ("Open the contract") — opens straight onto the detail page. */
-  @Input() openContractId?: number;
+  readonly openContractId = input<number>();
 
   private contracts = inject(ContractService);
   private invoices = inject(InvoiceService);
   private router = inject(Router);
 
-  view: ContractsView = 'list';
-  contractsList: ContractListItem[] = [];
+  readonly view = signal<ContractsView>('list');
+  readonly contractsList = signal<ContractListItem[]>([]);
 
-  loading = true;
-  errorMessage = '';
+  readonly loading = signal(true);
+  readonly errorMessage = signal('');
 
   /** Survives the navigation back to the list after a permanent delete. */
-  successMessage = '';
+  readonly successMessage = signal('');
 
-  search = '';
-  statusFilter: ContractStatus | null = null;
+  readonly search = signal('');
+  readonly statusFilter = signal<ContractStatus | null>(null);
 
   /**
    * "Show archived contracts" — archived rows, which are hidden from the default list and
    * restorable by the CTO. The query parameter keeps its original `includeHidden` spelling; only
    * the label changed, and renaming a deployed API parameter to match a label is not worth it.
    */
-  includeHidden = false;
+  readonly includeHidden = signal(false);
 
-  selectedContractId: number | null = null;
-  preloadedDetail: ContractDetail | null = null;
+  readonly selectedContractId = signal<number | null>(null);
+  readonly preloadedDetail = signal<ContractDetail | null>(null);
 
   /** The server's permission matrix for this account. Fetched once; the list and detail
    *  views both render from it so they cannot disagree about what is offered. */
-  permissions: ContractPermissions | null = null;
+  readonly permissions = signal<ContractPermissions | null>(null);
 
   private search$ = new Subject<void>();
 
@@ -81,25 +81,27 @@ export class ContractsComponent implements OnInit, OnChanges {
     this.search$.pipe(debounceTime(300)).subscribe(() => this.load());
     this.loadPermissions();
     this.load();
-    if (this.openContractId) this.openDetail(this.openContractId);
+    const openContractId = this.openContractId();
+    if (openContractId) this.openDetail(openContractId);
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes['openContractId'] && this.openContractId) {
-      this.openDetail(this.openContractId);
+    const openContractId = this.openContractId();
+    if (changes['openContractId'] && openContractId) {
+      this.openDetail(openContractId);
     }
   }
 
   load(): void {
-    this.loading = true;
-    this.errorMessage = '';
+    this.loading.set(true);
+    this.errorMessage.set('');
     this.contracts.getContracts(
-      this.search || undefined, this.statusFilter ?? undefined, this.includeHidden
+      this.search() || undefined, this.statusFilter() ?? undefined, this.includeHidden()
     ).subscribe({
-      next: rows => { this.contractsList = rows; this.loading = false; },
+      next: rows => { this.contractsList.set(rows); this.loading.set(false); },
       error: err => {
-        this.errorMessage = extractApiErrorMessage(err, 'Could not load contracts.');
-        this.loading = false;
+        this.errorMessage.set(extractApiErrorMessage(err, 'Could not load contracts.'));
+        this.loading.set(false);
       }
     });
   }
@@ -110,42 +112,42 @@ export class ContractsComponent implements OnInit, OnChanges {
    */
   private loadPermissions(): void {
     this.contracts.getMyPermissions().subscribe({
-      next: permissions => this.permissions = permissions,
-      error: () => this.permissions = null
+      next: permissions => this.permissions.set(permissions),
+      error: () => this.permissions.set(null)
     });
   }
 
   onSearchChanged(): void { this.search$.next(); }
 
   get canCreateContract(): boolean {
-    return this.permissions?.createContract === true;
+    return this.permissions()?.createContract === true;
   }
 
   /** Only whoever can archive has any reason to look at the archived ones. */
   get canDeleteContracts(): boolean {
-    return this.permissions?.deleteContract === true;
+    return this.permissions()?.deleteContract === true;
   }
 
   // ── navigation ─────────────────────────────────────────────────────────────
 
   startNew(): void {
-    this.successMessage = '';
-    this.selectedContractId = null;
-    this.preloadedDetail = null;
-    this.view = 'form';
+    this.successMessage.set('');
+    this.selectedContractId.set(null);
+    this.preloadedDetail.set(null);
+    this.view.set('form');
   }
 
   openDetail(id: number): void {
-    this.successMessage = '';
-    this.selectedContractId = id;
-    this.preloadedDetail = null;
-    this.view = 'detail';
+    this.successMessage.set('');
+    this.selectedContractId.set(id);
+    this.preloadedDetail.set(null);
+    this.view.set('detail');
   }
 
   editContract(id: number): void {
-    this.selectedContractId = id;
-    this.preloadedDetail = null;
-    this.view = 'form';
+    this.selectedContractId.set(id);
+    this.preloadedDetail.set(null);
+    this.view.set('form');
   }
 
   /**
@@ -161,9 +163,9 @@ export class ContractsComponent implements OnInit, OnChanges {
 
   /** Generate Preview lands straight on the preview, which is the whole point of the button. */
   onGenerated(detail: ContractDetail): void {
-    this.selectedContractId = detail.id;
-    this.preloadedDetail = detail;
-    this.view = 'detail';
+    this.selectedContractId.set(detail.id);
+    this.preloadedDetail.set(detail);
+    this.view.set('detail');
     this.load();
   }
 
@@ -174,13 +176,13 @@ export class ContractsComponent implements OnInit, OnChanges {
    */
   onContractDeleted(message: string): void {
     this.backToList();
-    this.successMessage = message;
+    this.successMessage.set(message);
   }
 
   backToList(): void {
-    this.view = 'list';
-    this.selectedContractId = null;
-    this.preloadedDetail = null;
+    this.view.set('list');
+    this.selectedContractId.set(null);
+    this.preloadedDetail.set(null);
     this.load();
   }
 
@@ -192,7 +194,7 @@ export class ContractsComponent implements OnInit, OnChanges {
   // reported not being able to find one. It is a per-row action here.
 
   /** The row whose draft is being created, so only that button says "Creating…". */
-  billingContractId: number | null = null;
+  readonly billingContractId = signal<number | null>(null);
 
   /**
    * Whether this contract can be billed — the SERVER'S answer, carried on the row.
@@ -217,18 +219,18 @@ export class ContractsComponent implements OnInit, OnChanges {
    * than a refusal and is asked once.
    */
   createNextInvoice(row: ContractListItem, allowDuplicatePeriod = false, acknowledgeUndatedDraft = false): void {
-    if (this.billingContractId !== null) return;
+    if (this.billingContractId() !== null) return;
 
-    this.errorMessage = '';
-    this.billingContractId = row.id;
+    this.errorMessage.set('');
+    this.billingContractId.set(row.id);
 
     this.invoices.createNextFromContract(row.id, allowDuplicatePeriod, acknowledgeUndatedDraft).subscribe({
       next: result => {
-        this.billingContractId = null;
+        this.billingContractId.set(null);
         this.openInvoice(result.invoice.id);
       },
       error: err => {
-        this.billingContractId = null;
+        this.billingContractId.set(null);
 
         const message = extractApiErrorMessage(err, 'The next invoice could not be created.');
 
@@ -253,7 +255,7 @@ export class ContractsComponent implements OnInit, OnChanges {
           return;
         }
 
-        this.errorMessage = message;
+        this.errorMessage.set(message);
       }
     });
   }

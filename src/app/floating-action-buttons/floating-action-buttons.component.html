@@ -1,6 +1,6 @@
-<div class="floating-action-buttons" [class.expanded]="isExpanded">
+<div class="floating-action-buttons" [class.expanded]="isExpanded()">
   <!-- Book Now (top) & Free Quote (bottom) - Left Side -->
-  @if (isExpanded) {
+  @if (isExpanded()) {
   <div class="book-now-container">
     <button class="action-button book-button" (click)="bookNow()" title="Book Now">
       <svg viewBox="0 0 24 24" fill="currentColor" class="action-icon">
@@ -18,7 +18,7 @@
   }
 
   <!-- Action Buttons Container (Right Side) - Call (top) & Email (bottom) -->
-  @if (isExpanded) {
+  @if (isExpanded()) {
   <div class="action-buttons-container">
     <button class="action-button call-button" (click)="callPhone()" title="Call us">
       <svg viewBox="0 0 24 24" fill="currentColor" class="action-icon call-icon">

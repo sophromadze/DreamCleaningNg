@@ -1,4 +1,4 @@
-import { Component, PLATFORM_ID, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, PLATFORM_ID, ChangeDetectionStrategy, inject, signal } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { StickyCtaService } from '../services/sticky-cta.service';
@@ -10,7 +10,7 @@ import { findAdvertisedFirstTimeOffer } from '../shared/booking/special-offer-ke
   standalone: true,
   imports: [RouterModule],
   templateUrl: './sticky-mobile-cta.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './sticky-mobile-cta.component.scss'
 })
 export class StickyMobileCtaComponent {
@@ -19,9 +19,9 @@ export class StickyMobileCtaComponent {
   private specialOfferService = inject(SpecialOfferService);
   private platformId = inject<Object>(PLATFORM_ID);
 
-  isVisible = false;
+  readonly isVisible = signal(false);
   /** Display label for the first-time discount, e.g. "10%" or "$20". Empty until loaded. */
-  firstTimeDiscountLabel = '';
+  readonly firstTimeDiscountLabel = signal('');
   private isBrowser: boolean;
 
   constructor() {
@@ -42,9 +42,9 @@ export class StickyMobileCtaComponent {
     this.specialOfferService.getPublicSpecialOffers().subscribe({
       next: (offers) => {
         const offer = findAdvertisedFirstTimeOffer(offers);
-        this.firstTimeDiscountLabel = this.buildDiscountLabel(offer);
+        this.firstTimeDiscountLabel.set(this.buildDiscountLabel(offer));
       },
-      error: () => { this.firstTimeDiscountLabel = ''; }
+      error: () => { this.firstTimeDiscountLabel.set(''); }
     });
   }
 
@@ -79,8 +79,8 @@ export class StickyMobileCtaComponent {
       path === route || path.startsWith(route + '/')
     );
 
-    this.isVisible = isMobile && !isOnExcludedRoute;
-    this.stickyCtaService.setVisible(this.isVisible);
+    this.isVisible.set(isMobile && !isOnExcludedRoute);
+    this.stickyCtaService.setVisible(this.isVisible());
   }
 
 }

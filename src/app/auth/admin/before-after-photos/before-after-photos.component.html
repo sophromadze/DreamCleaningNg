@@ -5,22 +5,22 @@
       <h2>Before &amp; After Gallery</h2>
       <p class="ba-admin__sub">These pairs render in the homepage "See the difference" section. Hidden when nothing is active.</p>
     </div>
-    @if (!showCreateForm) {
+    @if (!showCreateForm()) {
     <button type="button" class="btn-primary" (click)="openCreate()">
       + Add new pair
     </button>
     }
   </header>
 
-  @if (errorMessage) {
-  <div class="error-message">{{ errorMessage }}</div>
+  @if (errorMessage()) {
+  <div class="error-message">{{ errorMessage() }}</div>
   }
-  @if (successMessage) {
-  <div class="success-message">{{ successMessage }}</div>
+  @if (successMessage()) {
+  <div class="success-message">{{ successMessage() }}</div>
   }
 
   <!-- Create form -->
-  @if (showCreateForm) {
+  @if (showCreateForm()) {
   <section class="ba-admin__create">
     <h3>New before/after pair</h3>
 
@@ -28,7 +28,7 @@
       <label class="ba-admin__field">
         <span>Title <em>*</em></span>
         <input type="text" maxlength="120"
-               [(ngModel)]="createForm.title"
+               [(ngModel)]="createForm().title"
                name="title"
                placeholder="e.g. Kitchen Reset">
       </label>
@@ -36,7 +36,7 @@
       <label class="ba-admin__field">
         <span>Subtitle</span>
         <input type="text" maxlength="255"
-               [(ngModel)]="createForm.subtitle"
+               [(ngModel)]="createForm().subtitle"
                name="subtitle"
                placeholder="Before → After kitchen deep cleaning">
       </label>
@@ -44,7 +44,7 @@
       <label class="ba-admin__field">
         <span>"View more results" link</span>
         <input type="text" maxlength="500"
-               [(ngModel)]="createForm.linkUrl"
+               [(ngModel)]="createForm().linkUrl"
                name="linkUrl"
                placeholder="/services/residential-cleaning/kitchen">
       </label>
@@ -52,7 +52,7 @@
       <label class="ba-admin__field ba-admin__field--small">
         <span>Display order</span>
         <input type="number" min="0"
-               [(ngModel)]="createForm.displayOrder"
+               [(ngModel)]="createForm().displayOrder"
                name="displayOrder"
                placeholder="0">
       </label>
@@ -61,11 +61,11 @@
     <div class="ba-admin__create-files">
       <div class="ba-admin__file-slot">
         <label class="ba-admin__file-label">Before photo <em>*</em></label>
-        <div class="ba-admin__dropzone" [class.has-preview]="createForm.beforePreview">
-          @if (createForm.beforePreview) {
-          <img [src]="createForm.beforePreview" alt="Before preview">
+        <div class="ba-admin__dropzone" [class.has-preview]="createForm().beforePreview">
+          @if (createForm().beforePreview) {
+          <img [src]="createForm().beforePreview" alt="Before preview">
           }
-          @if (!createForm.beforePreview) {
+          @if (!createForm().beforePreview) {
           <span>Click to choose…</span>
           }
           <input aria-label="Before photo" type="file" accept="image/*" (change)="onBeforeFileChange($event)">
@@ -74,11 +74,11 @@
 
       <div class="ba-admin__file-slot">
         <label class="ba-admin__file-label">After photo <em>*</em></label>
-        <div class="ba-admin__dropzone" [class.has-preview]="createForm.afterPreview">
-          @if (createForm.afterPreview) {
-          <img [src]="createForm.afterPreview" alt="After preview">
+        <div class="ba-admin__dropzone" [class.has-preview]="createForm().afterPreview">
+          @if (createForm().afterPreview) {
+          <img [src]="createForm().afterPreview" alt="After preview">
           }
-          @if (!createForm.afterPreview) {
+          @if (!createForm().afterPreview) {
           <span>Click to choose…</span>
           }
           <input aria-label="After photo" type="file" accept="image/*" (change)="onAfterFileChange($event)">
@@ -87,10 +87,10 @@
     </div>
 
     <div class="ba-admin__actions">
-      <button type="button" class="btn-brand" (click)="submitCreate()" [disabled]="isSubmitting">
-        {{ isSubmitting ? 'Uploading…' : 'Save pair' }}
+      <button type="button" class="btn-brand" (click)="submitCreate()" [disabled]="isSubmitting()">
+        {{ isSubmitting() ? 'Uploading…' : 'Save pair' }}
       </button>
-      <button type="button" class="ba-admin__cancel" (click)="cancelCreate()" [disabled]="isSubmitting">
+      <button type="button" class="ba-admin__cancel" (click)="cancelCreate()" [disabled]="isSubmitting()">
         Cancel
       </button>
     </div>
@@ -99,17 +99,17 @@
 
   <!-- List -->
   <section class="ba-admin__list">
-    @if (isLoading) {
+    @if (isLoading()) {
     <p class="ba-admin__loading">Loading…</p>
     }
 
-    @if (!isLoading && photos.length === 0) {
+    @if (!isLoading() && photos().length === 0) {
     <p class="ba-admin__empty">
       No before/after pairs yet. Add the first one with the button above.
     </p>
     }
 
-    @for (p of photos; track trackById($index, p)) {
+    @for (p of photos(); track trackById($index, p)) {
     <article class="ba-admin__card"
              [class.is-inactive]="!p.isActive">
 
@@ -133,7 +133,7 @@
       </div>
 
       <!-- View mode -->
-      @if (editing?.id !== p.id) {
+      @if (editing()?.id !== p.id) {
       <div class="ba-admin__card-body">
         <div class="ba-admin__card-row">
           <h3>{{ p.title }}</h3>
@@ -160,27 +160,27 @@
       }
 
       <!-- Edit mode -->
-      @if (editing?.id === p.id) {
+      @if (editing()?.id === p.id) {
       <div class="ba-admin__card-body">
         <label class="ba-admin__field">
           <span>Title</span>
-          <input type="text" maxlength="120" [(ngModel)]="editing!.title" name="editTitle">
+          <input type="text" maxlength="120" [(ngModel)]="editing()!.title" name="editTitle">
         </label>
         <label class="ba-admin__field">
           <span>Subtitle</span>
-          <input type="text" maxlength="255" [(ngModel)]="editing!.subtitle" name="editSubtitle">
+          <input type="text" maxlength="255" [(ngModel)]="editing()!.subtitle" name="editSubtitle">
         </label>
         <label class="ba-admin__field">
           <span>Link</span>
-          <input type="text" maxlength="500" [(ngModel)]="editing!.linkUrl" name="editLinkUrl">
+          <input type="text" maxlength="500" [(ngModel)]="editing()!.linkUrl" name="editLinkUrl">
         </label>
         <div class="ba-admin__inline-row">
           <label class="ba-admin__field ba-admin__field--small">
             <span>Order</span>
-            <input type="number" min="0" [(ngModel)]="editing!.displayOrder" name="editDisplayOrder">
+            <input type="number" min="0" [(ngModel)]="editing()!.displayOrder" name="editDisplayOrder">
           </label>
           <label class="ba-admin__checkbox">
-            <input type="checkbox" [(ngModel)]="editing!.isActive" name="editIsActive">
+            <input type="checkbox" [(ngModel)]="editing()!.isActive" name="editIsActive">
             Active
           </label>
         </div>

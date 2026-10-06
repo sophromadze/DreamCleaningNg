@@ -11,7 +11,7 @@ import { StructuredDataService } from '../../../services/structured-data.service
   standalone: true,
   imports: [RouterModule, CardImageDirective],
   templateUrl: './condo-cleaning.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './condo-cleaning.component.scss'
 })
 export class CondoCleaningComponent implements OnInit, OnDestroy {

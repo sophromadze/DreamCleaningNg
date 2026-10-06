@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, OnDestroy, OnInit, ChangeDetectionStrategy, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Subject, debounceTime, distinctUntilChanged, takeUntil } from 'rxjs';
 import { finalize } from 'rxjs/operators';
@@ -47,22 +47,22 @@ import { getAdminAvatarColor, getAdminAvatarInitials } from '../../../shared/adm
 export class CleanerAccountsComponent implements OnInit, OnDestroy {
   private adminService = inject(AdminService);
 
-  accounts: CleanerAccount[] = [];
+  readonly accounts = signal<CleanerAccount[]>([], { equal: () => false });
 
-  loading = true;
-  errorMessage = '';
-  successMessage = '';
+  readonly loading = signal(true);
+  readonly errorMessage = signal('');
+  readonly successMessage = signal('');
 
-  canUpdate = false;
+  readonly canUpdate = signal(false);
 
   // ── Filters + paging (20 a page, matching the Users tab) ──
-  searchTerm = '';
-  statusFilter: 'all' | 'active' | 'inactive' = 'all';
-  linkFilter: 'all' | 'linked' | 'unlinked' = 'all';
+  readonly searchTerm = signal('');
+  readonly statusFilter = signal<'all' | 'active' | 'inactive'>('all');
+  readonly linkFilter = signal<'all' | 'linked' | 'unlinked'>('all');
 
-  currentPage = 1;
+  readonly currentPage = signal(1);
   readonly itemsPerPage = 20;
-  totalPages = 1;
+  readonly totalPages = signal(1);
   matchingCount = 0;
 
   /**
@@ -70,27 +70,27 @@ export class CleanerAccountsComponent implements OnInit, OnDestroy {
    * that assigns `totalPages` while the template is reading it is the NG0100 the admin orders
    * component is on record about.
    */
-  pagedAccounts: CleanerAccount[] = [];
+  readonly pagedAccounts = signal<CleanerAccount[]>([]);
 
   // ── Link editor (one account at a time) ──
-  linkingUserId: number | null = null;
-  linkCleanerChoice: number | null = null;
-  savingLinkUserId: number | null = null;
+  readonly linkingUserId = signal<number | null>(null);
+  readonly linkCleanerChoice = signal<number | null>(null);
+  readonly savingLinkUserId = signal<number | null>(null);
 
   /** The cleaner picker's own search - name, last name, email or phone, resolved server-side. */
-  cleanerSearch = '';
-  cleanerResults: LinkableCleaner[] = [];
-  cleanerSearching = false;
+  readonly cleanerSearch = signal('');
+  readonly cleanerResults = signal<LinkableCleaner[]>([]);
+  readonly cleanerSearching = signal(false);
 
   // ── Promote an existing customer ──
-  promoteSearch = '';
-  promoteResults: PromotableUser[] = [];
-  promoteSearching = false;
-  promotingUserId: number | null = null;
-  showPromotePanel = false;
+  readonly promoteSearch = signal('');
+  readonly promoteResults = signal<PromotableUser[]>([]);
+  readonly promoteSearching = signal(false);
+  readonly promotingUserId = signal<number | null>(null);
+  readonly showPromotePanel = signal(false);
 
   // ── Demote back to Customer ──
-  demotingUserId: number | null = null;
+  readonly demotingUserId = signal<number | null>(null);
 
   // ── The cleaner RECORD behind the account (2026-09) ──
   //
@@ -101,8 +101,8 @@ export class CleanerAccountsComponent implements OnInit, OnDestroy {
   //
   // Null when the drawer is closed. Only a LINKED account can open it: an unlinked one has no
   // record to show, which is the very thing the "Not linked" chip on its row is reporting.
-  recordCleanerId: number | null = null;
-  recordCleanerName = '';
+  readonly recordCleanerId = signal<number | null>(null);
+  readonly recordCleanerName = signal('');
 
   private readonly promoteSearch$ = new Subject<string>();
   private readonly cleanerSearch$ = new Subject<string>();
@@ -121,8 +121,8 @@ export class CleanerAccountsComponent implements OnInit, OnDestroy {
     // same map the backend's [RequirePermission] enforces. Admins hold Update and do everything
     // here; a Moderator holds View only and must see this tab read-only.
     this.adminService.getUserPermissions().subscribe({
-      next: p => { this.canUpdate = !!p?.permissions?.canUpdate; },
-      error: () => { this.canUpdate = false; }
+      next: p => { this.canUpdate.set(!!p?.permissions?.canUpdate); },
+      error: () => { this.canUpdate.set(false); }
     });
 
     this.load();
@@ -134,16 +134,16 @@ export class CleanerAccountsComponent implements OnInit, OnDestroy {
   }
 
   load(): void {
-    this.loading = true;
+    this.loading.set(true);
     this.adminService.getCleanerAccounts()
-      .pipe(finalize(() => this.loading = false))
+      .pipe(finalize(() => this.loading.set(false)))
       .subscribe({
         next: rows => {
-          this.accounts = rows || [];
+          this.accounts.set(rows || []);
           this.applyFilters();
         },
         error: err => {
-          this.errorMessage = extractApiErrorMessage(err, 'Could not load cleaner accounts.');
+          this.errorMessage.set(extractApiErrorMessage(err, 'Could not load cleaner accounts.'));
         }
       });
   }
@@ -152,14 +152,14 @@ export class CleanerAccountsComponent implements OnInit, OnDestroy {
 
   /** Called by every filter control and after every write. Recomputes the page in one pass. */
   applyFilters(resetPage = false): void {
-    if (resetPage) this.currentPage = 1;
+    if (resetPage) this.currentPage.set(1);
 
-    const term = this.searchTerm.trim().toLowerCase();
-    const matching = this.accounts.filter(a => {
-      if (this.statusFilter === 'active' && !a.isActive) return false;
-      if (this.statusFilter === 'inactive' && a.isActive) return false;
-      if (this.linkFilter === 'linked' && !a.cleanerId) return false;
-      if (this.linkFilter === 'unlinked' && a.cleanerId) return false;
+    const term = this.searchTerm().trim().toLowerCase();
+    const matching = this.accounts().filter(a => {
+      if (this.statusFilter() === 'active' && !a.isActive) return false;
+      if (this.statusFilter() === 'inactive' && a.isActive) return false;
+      if (this.linkFilter() === 'linked' && !a.cleanerId) return false;
+      if (this.linkFilter() === 'unlinked' && a.cleanerId) return false;
       if (!term) return true;
 
       return [
@@ -171,20 +171,20 @@ export class CleanerAccountsComponent implements OnInit, OnDestroy {
     });
 
     this.matchingCount = matching.length;
-    this.totalPages = Math.max(1, Math.ceil(matching.length / this.itemsPerPage));
+    this.totalPages.set(Math.max(1, Math.ceil(matching.length / this.itemsPerPage)));
     // A filter that shrinks the list can otherwise strand the viewer past the end of it.
-    if (this.currentPage > this.totalPages) this.currentPage = this.totalPages;
+    if (this.currentPage() > this.totalPages()) this.currentPage.set(this.totalPages());
 
-    const start = (this.currentPage - 1) * this.itemsPerPage;
-    this.pagedAccounts = matching.slice(start, start + this.itemsPerPage);
+    const start = (this.currentPage() - 1) * this.itemsPerPage;
+    this.pagedAccounts.set(matching.slice(start, start + this.itemsPerPage));
   }
 
   onFilterChanged(): void { this.applyFilters(true); }
 
-  previousPage(): void { if (this.currentPage > 1) { this.currentPage--; this.applyFilters(); } }
-  nextPage(): void { if (this.currentPage < this.totalPages) { this.currentPage++; this.applyFilters(); } }
+  previousPage(): void { if (this.currentPage() > 1) { this.currentPage.update(v => v - 1); this.applyFilters(); } }
+  nextPage(): void { if (this.currentPage() < this.totalPages()) { this.currentPage.update(v => v + 1); this.applyFilters(); } }
   goToPage(page: number): void {
-    if (page >= 1 && page <= this.totalPages) { this.currentPage = page; this.applyFilters(); }
+    if (page >= 1 && page <= this.totalPages()) { this.currentPage.set(page); this.applyFilters(); }
   }
 
   /** The middle page buttons, same shape as the Users tab's pager. */
@@ -192,12 +192,12 @@ export class CleanerAccountsComponent implements OnInit, OnDestroy {
     const pages: number[] = [];
     const maxVisiblePages = 3;
 
-    if (this.totalPages <= 5) {
-      for (let i = 2; i < this.totalPages; i++) pages.push(i);
+    if (this.totalPages() <= 5) {
+      for (let i = 2; i < this.totalPages(); i++) pages.push(i);
     } else {
-      let start = Math.max(2, this.currentPage - 1);
-      const end = Math.min(this.totalPages - 1, start + maxVisiblePages - 1);
-      if (end === this.totalPages - 1) start = Math.max(2, end - maxVisiblePages + 1);
+      let start = Math.max(2, this.currentPage() - 1);
+      const end = Math.min(this.totalPages() - 1, start + maxVisiblePages - 1);
+      if (end === this.totalPages() - 1) start = Math.max(2, end - maxVisiblePages + 1);
       for (let i = start; i <= end; i++) pages.push(i);
     }
 
@@ -207,23 +207,23 @@ export class CleanerAccountsComponent implements OnInit, OnDestroy {
   // ── Linking ────────────────────────────────────────────────────────────────────────
 
   startLinking(account: CleanerAccount): void {
-    if (!this.canUpdate) return;
-    this.linkingUserId = account.userId;
-    this.linkCleanerChoice = account.cleanerId ?? null;
-    this.cleanerSearch = '';
+    if (!this.canUpdate()) return;
+    this.linkingUserId.set(account.userId);
+    this.linkCleanerChoice.set(account.cleanerId ?? null);
+    this.cleanerSearch.set('');
     // Opens on the full roster; the search box below only ever narrows it.
     this.runCleanerSearch('');
   }
 
   cancelLinking(): void {
-    this.linkingUserId = null;
-    this.linkCleanerChoice = null;
-    this.cleanerSearch = '';
-    this.cleanerResults = [];
+    this.linkingUserId.set(null);
+    this.linkCleanerChoice.set(null);
+    this.cleanerSearch.set('');
+    this.cleanerResults.set([]);
   }
 
   onCleanerSearchChanged(term: string): void {
-    this.cleanerSearch = term;
+    this.cleanerSearch.set(term);
     this.cleanerSearch$.next(term);
   }
 
@@ -233,13 +233,13 @@ export class CleanerAccountsComponent implements OnInit, OnDestroy {
    * roster outgrew the first response.
    */
   private runCleanerSearch(term: string): void {
-    this.cleanerSearching = true;
+    this.cleanerSearching.set(true);
     this.adminService.getLinkableCleaners(term)
-      .pipe(finalize(() => this.cleanerSearching = false))
+      .pipe(finalize(() => this.cleanerSearching.set(false)))
       .subscribe({
-        next: rows => { this.cleanerResults = rows || []; },
+        next: rows => { this.cleanerResults.set(rows || []); },
         error: err => {
-          this.errorMessage = extractApiErrorMessage(err, 'Could not load the cleaner list.');
+          this.errorMessage.set(extractApiErrorMessage(err, 'Could not load the cleaner list.'));
         }
       });
   }
@@ -254,17 +254,17 @@ export class CleanerAccountsComponent implements OnInit, OnDestroy {
 
   chooseCleaner(cleaner: LinkableCleaner, forUserId: number): void {
     if (this.isCleanerTaken(cleaner, forUserId)) return;
-    this.linkCleanerChoice = cleaner.cleanerId;
+    this.linkCleanerChoice.set(cleaner.cleanerId);
   }
 
   saveLink(account: CleanerAccount): void {
-    if (!this.canUpdate || !this.linkCleanerChoice) return;
+    if (!this.canUpdate() || !this.linkCleanerChoice()) return;
 
-    this.savingLinkUserId = account.userId;
+    this.savingLinkUserId.set(account.userId);
     this.clearMessages();
 
-    this.adminService.linkCleanerAccount(account.userId, this.linkCleanerChoice)
-      .pipe(finalize(() => this.savingLinkUserId = null))
+    this.adminService.linkCleanerAccount(account.userId, this.linkCleanerChoice()!)
+      .pipe(finalize(() => this.savingLinkUserId.set(null)))
       .subscribe({
         next: updated => {
           this.applyUpdated(updated);
@@ -272,27 +272,27 @@ export class CleanerAccountsComponent implements OnInit, OnDestroy {
           this.flashSuccess(`${updated.firstName} is now linked to ${updated.cleanerName}. Their cleaner record's email was set to ${updated.email || 'the account address'}.`);
         },
         error: err => {
-          this.errorMessage = extractApiErrorMessage(err, 'Could not link that cleaner.');
+          this.errorMessage.set(extractApiErrorMessage(err, 'Could not link that cleaner.'));
         }
       });
   }
 
   unlink(account: CleanerAccount): void {
-    if (!this.canUpdate || !account.cleanerId) return;
+    if (!this.canUpdate() || !account.cleanerId) return;
     if (!confirm(`Unlink ${account.firstName} ${account.lastName} from ${account.cleanerName}? They will keep their Cleaner role but stop seeing any jobs until they are linked again.`)) return;
 
-    this.savingLinkUserId = account.userId;
+    this.savingLinkUserId.set(account.userId);
     this.clearMessages();
 
     this.adminService.unlinkCleanerAccount(account.userId)
-      .pipe(finalize(() => this.savingLinkUserId = null))
+      .pipe(finalize(() => this.savingLinkUserId.set(null)))
       .subscribe({
         next: updated => {
           this.applyUpdated(updated);
           this.flashSuccess('Account unlinked.');
         },
         error: err => {
-          this.errorMessage = extractApiErrorMessage(err, 'Could not unlink that account.');
+          this.errorMessage.set(extractApiErrorMessage(err, 'Could not unlink that account.'));
         }
       });
   }
@@ -310,13 +310,13 @@ export class CleanerAccountsComponent implements OnInit, OnDestroy {
   openCleanerRecord(account: CleanerAccount): void {
     if (!account.cleanerId) return;
 
-    this.recordCleanerName = account.cleanerName || `${account.firstName} ${account.lastName}`;
-    this.recordCleanerId = account.cleanerId;
+    this.recordCleanerName.set(account.cleanerName || `${account.firstName} ${account.lastName}`);
+    this.recordCleanerId.set(account.cleanerId);
   }
 
   closeCleanerRecord(): void {
-    this.recordCleanerId = null;
-    this.recordCleanerName = '';
+    this.recordCleanerId.set(null);
+    this.recordCleanerName.set('');
   }
 
   /**
@@ -329,82 +329,82 @@ export class CleanerAccountsComponent implements OnInit, OnDestroy {
   }
 
   private applyUpdated(updated: CleanerAccount): void {
-    const index = this.accounts.findIndex(a => a.userId === updated.userId);
-    if (index >= 0) this.accounts[index] = updated;
+    const index = this.accounts().findIndex(a => a.userId === updated.userId);
+    if (index >= 0) { this.accounts()[index] = updated; this.accounts.set(this.accounts()); }
     this.applyFilters();
   }
 
   // ── Promoting a customer into the Cleaner role ─────────────────────────────────────
 
   togglePromotePanel(): void {
-    this.showPromotePanel = !this.showPromotePanel;
-    if (!this.showPromotePanel) {
-      this.promoteSearch = '';
-      this.promoteResults = [];
+    this.showPromotePanel.set(!this.showPromotePanel());
+    if (!this.showPromotePanel()) {
+      this.promoteSearch.set('');
+      this.promoteResults.set([]);
     }
   }
 
   onPromoteSearchChanged(term: string): void {
-    this.promoteSearch = term;
+    this.promoteSearch.set(term);
     this.promoteSearch$.next(term);
   }
 
   private runPromoteSearch(term: string): void {
     if (!term || term.trim().length < 2) {
-      this.promoteResults = [];
+      this.promoteResults.set([]);
       return;
     }
-    this.promoteSearching = true;
+    this.promoteSearching.set(true);
     this.adminService.getPromotableUsers(term.trim())
-      .pipe(finalize(() => this.promoteSearching = false))
+      .pipe(finalize(() => this.promoteSearching.set(false)))
       .subscribe({
-        next: rows => { this.promoteResults = rows || []; },
+        next: rows => { this.promoteResults.set(rows || []); },
         error: err => {
-          this.errorMessage = extractApiErrorMessage(err, 'Could not search accounts.');
+          this.errorMessage.set(extractApiErrorMessage(err, 'Could not search accounts.'));
         }
       });
   }
 
   promote(user: PromotableUser): void {
-    if (!this.canUpdate) return;
+    if (!this.canUpdate()) return;
 
-    this.promotingUserId = user.userId;
+    this.promotingUserId.set(user.userId);
     this.clearMessages();
 
     // The SAME endpoint the Users tab's role control uses, so the audit row, the role-change
     // notification and the validation rules are identical however the change was made.
     this.adminService.updateUserRole(user.userId, 'Cleaner')
-      .pipe(finalize(() => this.promotingUserId = null))
+      .pipe(finalize(() => this.promotingUserId.set(null)))
       .subscribe({
         next: () => {
-          this.promoteResults = this.promoteResults.filter(r => r.userId !== user.userId);
-          this.promoteSearch = '';
+          this.promoteResults.set(this.promoteResults().filter(r => r.userId !== user.userId));
+          this.promoteSearch.set('');
           this.load();
           this.flashSuccess(`${user.firstName} ${user.lastName} is now a cleaner account. Link them to a cleaner record so they can see their jobs.`);
         },
         error: err => {
-          this.errorMessage = extractApiErrorMessage(err, 'Could not change that account\'s role.');
+          this.errorMessage.set(extractApiErrorMessage(err, 'Could not change that account\'s role.'));
         }
       });
   }
 
   demote(account: CleanerAccount): void {
-    if (!this.canUpdate) return;
+    if (!this.canUpdate()) return;
     if (!confirm(`Move ${account.firstName} ${account.lastName} back to a customer account? They will lose access to the cleaner portal, and any link to a cleaner record is released.`)) return;
 
-    this.demotingUserId = account.userId;
+    this.demotingUserId.set(account.userId);
     this.clearMessages();
 
     this.adminService.updateUserRole(account.userId, 'Customer')
-      .pipe(finalize(() => this.demotingUserId = null))
+      .pipe(finalize(() => this.demotingUserId.set(null)))
       .subscribe({
         next: () => {
-          this.accounts = this.accounts.filter(a => a.userId !== account.userId);
+          this.accounts.set(this.accounts().filter(a => a.userId !== account.userId));
           this.applyFilters();
           this.flashSuccess(`${account.firstName} is back in the Users tab as a customer.`);
         },
         error: err => {
-          this.errorMessage = extractApiErrorMessage(err, 'Could not change that account\'s role.');
+          this.errorMessage.set(extractApiErrorMessage(err, 'Could not change that account\'s role.'));
         }
       });
   }
@@ -449,13 +449,13 @@ export class CleanerAccountsComponent implements OnInit, OnDestroy {
   }
 
   private clearMessages(): void {
-    this.errorMessage = '';
-    this.successMessage = '';
+    this.errorMessage.set('');
+    this.successMessage.set('');
   }
 
   private flashSuccess(message: string): void {
-    this.successMessage = message;
-    setTimeout(() => this.successMessage = '', 6000);
+    this.successMessage.set(message);
+    setTimeout(() => this.successMessage.set(''), 6000);
   }
 
   trackByUserId(_i: number, row: { userId: number }): number {

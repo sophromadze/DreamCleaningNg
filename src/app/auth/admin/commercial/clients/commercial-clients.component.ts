@@ -1,4 +1,4 @@
-import { Component, Input, OnInit, inject, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, inject, ChangeDetectionStrategy, signal, input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -67,31 +67,31 @@ export class CommercialClientsComponent implements OnInit {
   private adminService = inject(AdminService);
   private router = inject(Router);
 
-  clients: InvoiceClientOption[] = [];
-  loading = true;
-  error = '';
-  notice = '';
-  search = '';
-  showInactive = false;
+  readonly clients = signal<InvoiceClientOption[]>([]);
+  readonly loading = signal(true);
+  readonly error = signal('');
+  readonly notice = signal('');
+  readonly search = signal('');
+  readonly showInactive = signal(false);
 
   /**
    * From the permission map (`GET api/admin/permissions`), never a local role test — it is the
    * same map `[RequirePermission]` enforces on each endpoint, so the buttons and the server agree
    * by construction. Moderators hold View only and get a read-only list.
    */
-  canCreate = false;
-  canUpdate = false;
-  canDeactivate = false;
+  readonly canCreate = signal(false);
+  readonly canUpdate = signal(false);
+  readonly canDeactivate = signal(false);
 
-  modalOpen = false;
-  editing: InvoiceClientOption | null = null;
+  readonly modalOpen = signal(false);
+  readonly editing = signal<InvoiceClientOption | null>(null);
 
   /** The client awaiting delete confirmation, or null. */
-  pendingDelete: InvoiceClientOption | null = null;
-  deleting = false;
+  readonly pendingDelete = signal<InvoiceClientOption | null>(null);
+  readonly deleting = signal(false);
 
   /** Which client's detail panel is open. Null when none. */
-  selectedClientId: number | null = null;
+  readonly selectedClientId = signal<number | null>(null);
 
   /**
    * Open this client's panel on arrival — the `?clientId=` deep link the orders panel's
@@ -100,7 +100,7 @@ export class CommercialClientsComponent implements OnInit {
    * Applied AFTER the list loads (the panel renders from the loaded row), and only once: a later
    * refresh or filter change must not drag the admin back to the client the link named.
    */
-  @Input() openClientId: number | null = null;
+  readonly openClientId = input<number | null>(null);
   private deepLinkApplied = false;
 
   /**
@@ -115,8 +115,8 @@ export class CommercialClientsComponent implements OnInit {
    * `users/{id}/details`, an `AdminService` helper pointing at an endpoint that was never
    * implemented, so opening any LINKED client 404'd and this half silently stayed blank.
    */
-  linkedAccount: UserProfile | null = null;
-  loadingLinkedAccount = false;
+  readonly linkedAccount = signal<UserProfile | null>(null);
+  readonly loadingLinkedAccount = signal(false);
   private linkedAccountUserId: number | null = null;
 
   /**
@@ -132,7 +132,7 @@ export class CommercialClientsComponent implements OnInit {
    * wants the notes, the cleaning history and the flags, and a second view of those would be a
    * second view to keep in step.
    */
-  panelTab: 'business' | 'customer' = 'business';
+  readonly panelTab = signal<'business' | 'customer'>('business');
 
   /** The account behind the open client, or null when the client is standalone. */
   get linkedUserId(): number | null {
@@ -146,24 +146,26 @@ export class CommercialClientsComponent implements OnInit {
    * recreate-order modal and then clip them out of existence.
    */
   get showsCustomerPanel(): boolean {
-    return this.selectedClientId !== null
-      && this.panelTab === 'customer'
+    return this.selectedClientId() !== null
+      && this.panelTab() === 'customer'
       && this.linkedUserId !== null;
   }
 
   setPanelTab(tab: 'business' | 'customer'): void {
-    this.panelTab = tab;
+    this.panelTab.set(tab);
   }
 
   ngOnInit(): void {
     this.adminService.getUserPermissions().subscribe({
       next: p => {
-        this.canCreate = !!p?.permissions?.canCreate;
-        this.canUpdate = !!p?.permissions?.canUpdate;
-        this.canDeactivate = !!p?.permissions?.canDeactivate;
+        this.canCreate.set(!!p?.permissions?.canCreate);
+        this.canUpdate.set(!!p?.permissions?.canUpdate);
+        this.canDeactivate.set(!!p?.permissions?.canDeactivate);
       },
       error: () => {
-        this.canCreate = this.canUpdate = this.canDeactivate = false;
+        this.canCreate.set(false);
+        this.canUpdate.set(false);
+        this.canDeactivate.set(false);
       }
     });
 
@@ -172,34 +174,34 @@ export class CommercialClientsComponent implements OnInit {
 
   /** Public so the Refresh button and the inactive toggle can call it. */
   load(): void {
-    this.loading = true;
-    this.invoiceService.clients(this.showInactive)
-      .pipe(finalize(() => this.loading = false))
+    this.loading.set(true);
+    this.invoiceService.clients(this.showInactive())
+      .pipe(finalize(() => this.loading.set(false)))
       .subscribe({
         next: list => {
-          this.clients = list;
+          this.clients.set(list);
           // A deleted/filtered-away selection would leave the panel open on a ghost.
-          if (this.selectedClientId != null
-              && !list.some(c => c.id === this.selectedClientId)) {
-            this.selectedClientId = null;
+          if (this.selectedClientId() != null
+              && !list.some(c => c.id === this.selectedClientId())) {
+            this.selectedClientId.set(null);
           }
           this.applyDeepLink();
           this.syncLinkedAccount();
         },
-        error: err => this.error = extractApiErrorMessage(err, 'Could not load commercial clients.')
+        error: err => this.error.set(extractApiErrorMessage(err, 'Could not load commercial clients.'))
       });
   }
 
   onShowInactiveChange(): void {
-    this.selectedClientId = null;
+    this.selectedClientId.set(null);
     this.load();
   }
 
   get filtered(): InvoiceClientOption[] {
-    const term = this.search.trim().toLowerCase();
-    if (!term) return this.clients;
+    const term = this.search().trim().toLowerCase();
+    if (!term) return this.clients();
 
-    return this.clients.filter(c =>
+    return this.clients().filter(c =>
       c.legalEntityName.toLowerCase().includes(term)
       || (c.billingContactName ?? '').toLowerCase().includes(term)
       || (c.billingEmail ?? '').toLowerCase().includes(term)
@@ -209,27 +211,27 @@ export class CommercialClientsComponent implements OnInit {
   }
 
   get selectedClient(): InvoiceClientOption | null {
-    if (this.selectedClientId == null) return null;
-    return this.clients.find(c => c.id === this.selectedClientId) ?? null;
+    if (this.selectedClientId() == null) return null;
+    return this.clients().find(c => c.id === this.selectedClientId()) ?? null;
   }
 
   openClientDetails(client: InvoiceClientOption): void {
-    if (this.selectedClientId === client.id) {
+    if (this.selectedClientId() === client.id) {
       this.closeDetailPanel();
       return;
     }
-    this.selectedClientId = client.id;
+    this.selectedClientId.set(client.id);
     // Every client opens on its commercial record. The customer half is a deliberate second look,
     // not a mode the panel remembers from whoever was open before.
-    this.panelTab = 'business';
+    this.panelTab.set('business');
     this.syncLinkedAccount();
   }
 
   closeDetailPanel(): void {
-    this.selectedClientId = null;
-    this.linkedAccount = null;
+    this.selectedClientId.set(null);
+    this.linkedAccount.set(null);
     this.linkedAccountUserId = null;
-    this.panelTab = 'business';
+    this.panelTab.set('business');
   }
 
   /**
@@ -240,20 +242,21 @@ export class CommercialClientsComponent implements OnInit {
    * URL describes the arrival, not the session.
    */
   private applyDeepLink(): void {
-    if (this.deepLinkApplied || this.openClientId == null) return;
+    const openClientId = this.openClientId();
+    if (this.deepLinkApplied || openClientId == null) return;
     this.deepLinkApplied = true;
 
-    if (this.clients.some(c => c.id === this.openClientId)) {
-      this.selectedClientId = this.openClientId;
+    if (this.clients().some(c => c.id === this.openClientId())) {
+      this.selectedClientId.set(openClientId);
       return;
     }
 
     // The named client is not in the ACTIVE list — almost always because it was moved back to
     // Customers. Turning the toggle on and reloading is what shows it, rather than opening on
     // nothing and leaving the admin to wonder whether the link was wrong.
-    if (!this.showInactive) {
-      this.showInactive = true;
-      this.selectedClientId = this.openClientId;
+    if (!this.showInactive()) {
+      this.showInactive.set(true);
+      this.selectedClientId.set(openClientId);
       this.load();
     }
   }
@@ -268,26 +271,26 @@ export class CommercialClientsComponent implements OnInit {
     const userId = this.selectedClient?.sourceUserId ?? null;
 
     if (userId == null) {
-      this.linkedAccount = null;
+      this.linkedAccount.set(null);
       this.linkedAccountUserId = null;
       return;
     }
     if (userId === this.linkedAccountUserId) return;
 
     this.linkedAccountUserId = userId;
-    this.linkedAccount = null;
-    this.loadingLinkedAccount = true;
+    this.linkedAccount.set(null);
+    this.loadingLinkedAccount.set(true);
 
     this.adminService.getUserProfile(userId)
-      .pipe(finalize(() => this.loadingLinkedAccount = false))
+      .pipe(finalize(() => this.loadingLinkedAccount.set(false)))
       .subscribe({
         next: user => {
           // The panel may have moved on while this was in flight.
-          if (this.linkedAccountUserId === userId) this.linkedAccount = user;
+          if (this.linkedAccountUserId === userId) this.linkedAccount.set(user);
         },
         // Non-fatal: the commercial half of the panel is complete without it, and the client's
         // own billing details are what this screen is primarily for.
-        error: () => { if (this.linkedAccountUserId === userId) this.linkedAccount = null; }
+        error: () => { if (this.linkedAccountUserId === userId) this.linkedAccount.set(null); }
       });
   }
 
@@ -321,15 +324,15 @@ export class CommercialClientsComponent implements OnInit {
   // ── Create / edit ──
 
   openCreate(): void {
-    if (!this.canCreate) return;
-    this.editing = null;
-    this.modalOpen = true;
+    if (!this.canCreate()) return;
+    this.editing.set(null);
+    this.modalOpen.set(true);
   }
 
   openEdit(client: InvoiceClientOption): void {
-    if (!this.canUpdate) return;
-    this.editing = client;
-    this.modalOpen = true;
+    if (!this.canUpdate()) return;
+    this.editing.set(client);
+    this.modalOpen.set(true);
   }
 
   /**
@@ -339,15 +342,15 @@ export class CommercialClientsComponent implements OnInit {
    * hiding it reads as the save having failed.
    */
   onClientCreated(clientId: number): void {
-    this.search = '';
-    this.selectedClientId = clientId;
-    this.notice = '';
+    this.search.set('');
+    this.selectedClientId.set(clientId);
+    this.notice.set('');
     this.load();
   }
 
   onClientSaved(clientId: number): void {
-    this.selectedClientId = clientId;
-    this.notice = '';
+    this.selectedClientId.set(clientId);
+    this.notice.set('');
     this.load();
   }
 
@@ -358,36 +361,36 @@ export class CommercialClientsComponent implements OnInit {
    * standalone one is removed. One request either way; the wording is what differs.
    */
   askDelete(client: InvoiceClientOption): void {
-    if (!this.canDeactivate) return;
-    this.error = '';
-    this.pendingDelete = client;
+    if (!this.canDeactivate()) return;
+    this.error.set('');
+    this.pendingDelete.set(client);
   }
 
   cancelDelete(): void {
-    if (this.deleting) return;
-    this.pendingDelete = null;
+    if (this.deleting()) return;
+    this.pendingDelete.set(null);
   }
 
   confirmDelete(): void {
-    const client = this.pendingDelete;
-    if (!client || this.deleting) return;
+    const client = this.pendingDelete();
+    if (!client || this.deleting()) return;
 
-    this.deleting = true;
+    this.deleting.set(true);
     this.contractService.deactivateClient(client.id)
-      .pipe(finalize(() => this.deleting = false))
+      .pipe(finalize(() => this.deleting.set(false)))
       .subscribe({
         next: result => {
-          this.pendingDelete = null;
-          this.notice = result.message;
+          this.pendingDelete.set(null);
+          this.notice.set(result.message);
           this.load();
         },
         error: err => {
-          this.pendingDelete = null;
-          this.error = extractApiErrorMessage(
+          this.pendingDelete.set(null);
+          this.error.set(extractApiErrorMessage(
             err,
             this.isLinked(client)
               ? 'Could not move the client back to Customers.'
-              : 'Could not remove the client.');
+              : 'Could not remove the client.'));
         }
       });
   }
@@ -398,14 +401,14 @@ export class CommercialClientsComponent implements OnInit {
    * end up disagreeing, so the server refuses this one for a linked client and the button is hidden.
    */
   restore(client: InvoiceClientOption): void {
-    if (!this.canDeactivate || this.isLinked(client)) return;
+    if (!this.canDeactivate() || this.isLinked(client)) return;
 
     this.contractService.restoreClient(client.id).subscribe({
       next: result => {
-        this.notice = result.message;
+        this.notice.set(result.message);
         this.load();
       },
-      error: err => this.error = extractApiErrorMessage(err, 'Could not restore the client.')
+      error: err => this.error.set(extractApiErrorMessage(err, 'Could not restore the client.'))
     });
   }
 

@@ -1,7 +1,7 @@
 <div class="promo-codes-section">
   <div class="section-header">
     <h2>Promo Codes Management</h2>
-    @if (userPermissions.permissions.canCreate) {
+    @if (userPermissions().permissions.canCreate) {
     <button 
             class="action-btn add" 
             (click)="startAddingPromoCode()">
@@ -11,23 +11,23 @@
   </div>
 
   <!-- Add Promo Code Form -->
-  @if (isAddingPromoCode) {
+  @if (isAddingPromoCode()) {
   <div class="add-form">
     <h3>Add New Promo Code</h3>
     <form (ngSubmit)="addPromoCode()">
       <div class="form-group">
         <label for="code">Code</label>
-        <input type="text" id="code" [(ngModel)]="newPromoCode.code" name="code" required>
+        <input type="text" id="code" [(ngModel)]="newPromoCode().code" name="code" required>
       </div>
 
       <div class="form-group">
         <label for="description">Description</label>
-        <textarea id="description" [(ngModel)]="newPromoCode.description" name="description" required></textarea>
+        <textarea id="description" [(ngModel)]="newPromoCode().description" name="description" required></textarea>
       </div>
 
       <div class="form-group">
         <label for="discountType">Discount Type</label>
-        <select id="discountType" [(ngModel)]="newPromoCode.isPercentage" name="isPercentage">
+        <select id="discountType" [(ngModel)]="newPromoCode().isPercentage" name="isPercentage">
           <option [ngValue]="false">Fixed Amount</option>
           <option [ngValue]="true">Percentage</option>
         </select>
@@ -35,32 +35,32 @@
 
       <div class="form-group">
         <label for="discountValue">Discount Value</label>
-        <input type="number" id="discountValue" [(ngModel)]="newPromoCode.discountValue" name="discountValue" required>
+        <input type="number" id="discountValue" [(ngModel)]="newPromoCode().discountValue" name="discountValue" required>
       </div>
 
       <div class="form-group">
         <label for="maxUsageCount">Max Usage Count</label>
-        <input type="number" id="maxUsageCount" [(ngModel)]="newPromoCode.maxUsageCount" name="maxUsageCount">
+        <input type="number" id="maxUsageCount" [(ngModel)]="newPromoCode().maxUsageCount" name="maxUsageCount">
       </div>
 
       <div class="form-group">
         <label for="maxUsagePerUser">Max Usage Per User</label>
-        <input type="number" id="maxUsagePerUser" [(ngModel)]="newPromoCode.maxUsagePerUser" name="maxUsagePerUser">
+        <input type="number" id="maxUsagePerUser" [(ngModel)]="newPromoCode().maxUsagePerUser" name="maxUsagePerUser">
       </div>
 
       <div class="form-group">
         <label for="validFrom">Valid From</label>
-        <input type="datetime-local" id="validFrom" [(ngModel)]="newPromoCode.validFrom" name="validFrom">
+        <input type="datetime-local" id="validFrom" [(ngModel)]="newPromoCode().validFrom" name="validFrom">
       </div>
 
       <div class="form-group">
         <label for="validTo">Valid To</label>
-        <input type="datetime-local" id="validTo" [(ngModel)]="newPromoCode.validTo" name="validTo">
+        <input type="datetime-local" id="validTo" [(ngModel)]="newPromoCode().validTo" name="validTo">
       </div>
 
       <div class="form-group">
         <label for="minimumOrderAmount">Minimum Order Amount</label>
-        <input type="number" id="minimumOrderAmount" [(ngModel)]="newPromoCode.minimumOrderAmount" name="minimumOrderAmount">
+        <input type="number" id="minimumOrderAmount" [(ngModel)]="newPromoCode().minimumOrderAmount" name="minimumOrderAmount">
       </div>
 
       <div class="form-actions">
@@ -84,30 +84,30 @@
             <th>Times Used</th>
             <th>Validity</th>
           <th>Status</th>
-          @if (userRole !== 'Moderator') {
+          @if (userRole() !== 'Moderator') {
           <th>Actions</th>
           }
         </tr>
       </thead>
       <tbody>
-        @for (code of promoCodes; track code.id) {
+        @for (code of promoCodes(); track code.id) {
         <tr>
           <td>{{code.code}}</td>
           <td>
-            @if (editingPromoCodeId !== code.id) {
+            @if (editingPromoCodeId() !== code.id) {
             <div>{{code.description}}</div>
             }
-            @if (editingPromoCodeId === code.id) {
+            @if (editingPromoCodeId() === code.id) {
             <textarea aria-label="Description" [(ngModel)]="code.description"></textarea>
             }
           </td>
           <td>
-            @if (editingPromoCodeId !== code.id) {
+            @if (editingPromoCodeId() !== code.id) {
             <div>
               {{code.isPercentage ? code.discountValue + '%' : '$' + code.discountValue}}
             </div>
             }
-            @if (editingPromoCodeId === code.id) {
+            @if (editingPromoCodeId() === code.id) {
             <div class="edit-discount">
               <input aria-label="Discount value" type="number" [(ngModel)]="code.discountValue">
               <select aria-label="Discount type" [(ngModel)]="code.isPercentage">
@@ -118,13 +118,13 @@
             }
           </td>
           <td>
-            @if (editingPromoCodeId !== code.id) {
+            @if (editingPromoCodeId() !== code.id) {
             <div>
               {{code.maxUsageCount ? 'Max: ' + code.maxUsageCount : 'Unlimited'}}
               {{code.maxUsagePerUser ? ' (Per User: ' + code.maxUsagePerUser + ')' : ''}}
             </div>
             }
-            @if (editingPromoCodeId === code.id) {
+            @if (editingPromoCodeId() === code.id) {
             <div class="edit-limits">
               <input type="number" [(ngModel)]="code.maxUsageCount" placeholder="Max Usage">
               <input type="number" [(ngModel)]="code.maxUsagePerUser" placeholder="Per User">
@@ -135,12 +135,12 @@
             {{code.timesUsed}} use{{code.timesUsed === 1 ? '' : 's'}} &middot; {{code.uniqueUsersUsed}} customer{{code.uniqueUsersUsed === 1 ? '' : 's'}}
           </td>
           <td>
-            @if (editingPromoCodeId !== code.id) {
+            @if (editingPromoCodeId() !== code.id) {
             <div>
               {{code.validFrom | date:'short'}} - {{code.validTo | date:'short'}}
             </div>
             }
-            @if (editingPromoCodeId === code.id) {
+            @if (editingPromoCodeId() === code.id) {
             <div class="edit-validity">
               <input aria-label="Valid from" type="datetime-local" [(ngModel)]="code.validFrom">
               <input aria-label="Valid to" type="datetime-local" [(ngModel)]="code.validTo">
@@ -152,31 +152,31 @@
               {{code.isActive ? 'Active' : 'Inactive'}}
             </span>
           </td>
-          @if (userRole !== 'Moderator') {
+          @if (userRole() !== 'Moderator') {
           <td class="actions">
-            @if (editingPromoCodeId !== code.id) {
-              @if (userPermissions.permissions.canUpdate) {
+            @if (editingPromoCodeId() !== code.id) {
+              @if (userPermissions().permissions.canUpdate) {
               <button 
                       class="action-btn edit" 
                       (click)="editPromoCode(code)">
                 Edit
               </button>
               }
-              @if (userPermissions.permissions.canActivate && !code.isActive) {
+              @if (userPermissions().permissions.canActivate && !code.isActive) {
               <button 
                       class="action-btn activate" 
                       (click)="activatePromoCode(code)">
                 Enable
               </button>
               }
-              @if (userPermissions.permissions.canDeactivate && code.isActive) {
+              @if (userPermissions().permissions.canDeactivate && code.isActive) {
               <button 
                       class="action-btn deactivate" 
                       (click)="deactivatePromoCode(code)">
                 Disable
               </button>
               }
-              @if (userPermissions.permissions.canDelete) {
+              @if (userPermissions().permissions.canDelete) {
               <button 
                       class="action-btn delete" 
                       (click)="deletePromoCode(code)">
@@ -184,7 +184,7 @@
               </button>
               }
             }
-            @if (editingPromoCodeId === code.id) {
+            @if (editingPromoCodeId() === code.id) {
               <button class="action-btn save" (click)="savePromoCode(code)">Save</button>
               <button class="action-btn cancel" (click)="cancelEditPromoCode()">Cancel</button>
             }
@@ -198,14 +198,14 @@
   </div>
 
   <!-- Messages -->
-  @if (errorMessage) {
+  @if (errorMessage()) {
   <div class="error-message">
-    {{errorMessage}}
+    {{errorMessage()}}
   </div>
   }
-  @if (successMessage) {
+  @if (successMessage()) {
   <div class="success-message">
-    {{successMessage}}
+    {{successMessage()}}
   </div>
   }
 </div>

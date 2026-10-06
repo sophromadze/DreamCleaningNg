@@ -1,4 +1,4 @@
-import { Component, ViewChild, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject, viewChild, signal } from '@angular/core';
 import { FormsModule, NgModel } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
 import { finalize } from 'rxjs/operators';
@@ -31,7 +31,7 @@ import { faCircleExclamation } from '../../shared/icons/glyphs/faCircleExclamati
   standalone: true,
   imports: [FormsModule, RouterModule, IconComponent],
   templateUrl: './change-password.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['../account-form.scss']
 })
 export class ChangePasswordComponent {
@@ -40,33 +40,33 @@ export class ChangePasswordComponent {
 
   protected readonly icons = { faArrowLeft, faCircleCheck, faCircleExclamation };
 
-  currentPassword = '';
-  newPassword = '';
-  confirmPassword = '';
-  errorMessage = '';
-  successMessage = '';
-  isSubmitting = false;
-  passwordErrors: string[] = [];
-  showCurrentPassword = false;
-  showNewPassword = false;
-  showConfirmPassword = false;
+  readonly currentPassword = signal('');
+  readonly newPassword = signal('');
+  readonly confirmPassword = signal('');
+  readonly errorMessage = signal('');
+  readonly successMessage = signal('');
+  readonly isSubmitting = signal(false);
+  readonly passwordErrors = signal<string[]>([]);
+  readonly showCurrentPassword = signal(false);
+  readonly showNewPassword = signal(false);
+  readonly showConfirmPassword = signal(false);
 
   readonly requirements = getPasswordRequirements();
 
-  @ViewChild('currentPasswordField') currentPasswordField?: NgModel;
-  @ViewChild('newPasswordField') newPasswordField?: NgModel;
-  @ViewChild('confirmPasswordField') confirmPasswordField?: NgModel;
+  readonly currentPasswordField = viewChild<NgModel>('currentPasswordField');
+  readonly newPasswordField = viewChild<NgModel>('newPasswordField');
+  readonly confirmPasswordField = viewChild<NgModel>('confirmPasswordField');
 
   validateNewPassword() {
-    const validation = validatePassword(this.newPassword ?? '');
-    this.passwordErrors = validation.errors;
+    const validation = validatePassword(this.newPassword() ?? '');
+    this.passwordErrors.set(validation.errors);
   }
 
   isFormValid(): boolean {
-    const validation = validatePassword(this.newPassword);
-    return this.currentPassword.length > 0 &&
+    const validation = validatePassword(this.newPassword());
+    return this.currentPassword().length > 0 &&
            validation.isValid &&
-           this.newPassword === this.confirmPassword;
+           this.newPassword() === this.confirmPassword();
   }
 
   goBack() {
@@ -74,36 +74,36 @@ export class ChangePasswordComponent {
   }
 
   onSubmit() {
-    this.currentPasswordField?.control.markAsTouched();
-    this.newPasswordField?.control.markAsTouched();
-    this.confirmPasswordField?.control.markAsTouched();
+    this.currentPasswordField()?.control.markAsTouched();
+    this.newPasswordField()?.control.markAsTouched();
+    this.confirmPasswordField()?.control.markAsTouched();
     this.validateNewPassword();
 
-    if (!this.isFormValid() || this.isSubmitting) {
+    if (!this.isFormValid() || this.isSubmitting()) {
       return;
     }
 
-    this.isSubmitting = true;
-    this.errorMessage = '';
-    this.successMessage = '';
+    this.isSubmitting.set(true);
+    this.errorMessage.set('');
+    this.successMessage.set('');
 
-    this.authService.changePassword(this.currentPassword, this.newPassword)
+    this.authService.changePassword(this.currentPassword(), this.newPassword())
       // `finalize`, not the `complete` callback: RxJS never calls `complete` on an HTTP error,
       // so a failed attempt used to leave the button stuck on "Changing Password...".
-      .pipe(finalize(() => this.isSubmitting = false))
+      .pipe(finalize(() => this.isSubmitting.set(false)))
       .subscribe({
         next: () => {
-          this.successMessage = 'Password changed. Your other devices have been signed out.';
-          this.currentPassword = '';
-          this.newPassword = '';
-          this.confirmPassword = '';
-          this.passwordErrors = [];
+          this.successMessage.set('Password changed. Your other devices have been signed out.');
+          this.currentPassword.set('');
+          this.newPassword.set('');
+          this.confirmPassword.set('');
+          this.passwordErrors.set([]);
           setTimeout(() => {
             this.router.navigate(['/profile'], { queryParams: { tab: 'security' } });
           }, 2000);
         },
         error: (error) => {
-          this.errorMessage = extractApiErrorMessage(error, 'Failed to change password');
+          this.errorMessage.set(extractApiErrorMessage(error, 'Failed to change password'));
         }
       });
   }

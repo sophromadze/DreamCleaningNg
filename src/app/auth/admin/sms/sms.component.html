@@ -3,15 +3,15 @@
   <p class="muted">Compose and send SMS to users by role, like Mails. Only users with a valid 10+ digit phone and &quot;Can receive emails&quot; ON receive SMS; others are skipped.</p>
 
   <div class="alerts">
-    @if (error) {
-    <div class="error">{{ error }}</div>
+    @if (error()) {
+    <div class="error">{{ error() }}</div>
     }
-    @if (success) {
-    <div class="success">{{ success }}</div>
+    @if (success()) {
+    <div class="success">{{ success() }}</div>
     }
   </div>
 
-  @if (stats) {
+  @if (stats(); as stats) {
   <div class="stats">
     <span>Drafts: {{ stats.draftCount }}</span>
     <span>Scheduled: {{ stats.scheduledCount }}</span>
@@ -22,42 +22,42 @@
 
   <div class="toolbar">
     <div class="filters">
-      <button type="button" [class.active]="filterStatus === null" (click)="setFilter(null)">All</button>
-      <button type="button" [class.active]="filterStatus === 0" (click)="setFilter(0)">Draft</button>
-      <button type="button" [class.active]="filterStatus === 1" (click)="setFilter(1)">Scheduled</button>
-      <button type="button" [class.active]="filterStatus === 2" (click)="setFilter(2)">Sent</button>
+      <button type="button" [class.active]="filterStatus() === null" (click)="setFilter(null)">All</button>
+      <button type="button" [class.active]="filterStatus() === 0" (click)="setFilter(0)">Draft</button>
+      <button type="button" [class.active]="filterStatus() === 1" (click)="setFilter(1)">Scheduled</button>
+      <button type="button" [class.active]="filterStatus() === 2" (click)="setFilter(2)">Sent</button>
     </div>
-    @if (userPermissions?.permissions?.canCreate) {
+    @if (userPermissions()?.permissions?.canCreate) {
     <button type="button" class="btn-compose" (click)="startCompose()">Compose</button>
     }
   </div>
 
-  @if (isComposing) {
+  @if (isComposing()) {
   <div class="compose-form">
-    <h3>{{ editingId ? 'Edit SMS' : 'New SMS' }}</h3>
+    <h3>{{ editingId() ? 'Edit SMS' : 'New SMS' }}</h3>
     <div class="form-group">
       <label>Message</label>
       <textarea [(ngModel)]="content" rows="6" placeholder="SMS content (max 1600 chars). 160 chars = 1 segment."></textarea>
-      <span class="hint">Length: {{ (content || '').length }} characters.</span>
+      <span class="hint">Length: {{ (content() || '').length }} characters.</span>
     </div>
     <div class="form-group">
       <label>Send to roles (only users with valid 10+ digit phone and &quot;Can receive emails&quot; ON)</label>
       <div class="role-chks">
         @for (r of ROLES; track r) {
-        <label><input type="checkbox" [(ngModel)]="selectedRoles[r]" /> {{ r }}</label>
+        <label><input type="checkbox" [(ngModel)]="selectedRoles()[r]" /> {{ r }}</label>
         }
       </div>
-      @if (userCounts.length) {
+      @if (userCounts().length) {
       <span class="hint">Recipients: {{ withValidPhoneCount() }}</span>
       }
     </div>
-    @if (!editingId) {
+    @if (!editingId()) {
     <div class="form-group">
       <label><input type="radio" [(ngModel)]="sendNow" [value]="true" /> Send now</label>
       <label><input type="radio" [(ngModel)]="sendNow" [value]="false" /> Schedule</label>
     </div>
     }
-    @if (!sendNow || editingId) {
+    @if (!sendNow() || editingId()) {
     <div class="schedule-opts">
       <p class="timezone-note">All times are in <strong>New York (NY)</strong> time.</p>
       <div class="form-group">
@@ -68,13 +68,13 @@
           <option [ngValue]="2">Monthly (specific day of month)</option>
         </select>
       </div>
-      @if (frequency === null) {
+      @if (frequency() === null) {
       <div class="form-group">
         <label>Date</label>
         <input aria-label="Date" type="date" [(ngModel)]="scheduledDate" />
       </div>
       }
-      @if (frequency === 1) {
+      @if (frequency() === 1) {
       <div class="form-group">
         <label>Day of week</label>
         <select aria-label="Day of week" [(ngModel)]="dayOfWeek">
@@ -88,7 +88,7 @@
         </select>
       </div>
       }
-      @if (frequency === 2) {
+      @if (frequency() === 2) {
       <div class="form-group">
         <label>Day of month (1–31)</label>
         <select aria-label="Day of month (1–31)" [(ngModel)]="dayOfMonth">
@@ -105,10 +105,10 @@
     </div>
     }
     <div class="form-actions">
-      @if (sendNow && !editingId) {
+      @if (sendNow() && !editingId()) {
       <button type="button" class="btn-send-now" (click)="doSendNow()">Send now</button>
       }
-      @if (!sendNow || editingId) {
+      @if (!sendNow() || editingId()) {
       <button type="button" class="btn-success" (click)="doSchedule()">Schedule</button>
       }
       <button type="button" class="btn-save-draft" (click)="doSaveDraft()">Save as draft</button>
@@ -131,7 +131,7 @@
         </tr>
       </thead>
       <tbody>
-        @for (s of list; track s.id) {
+        @for (s of list(); track s.id) {
         <tr>
           <td>{{ (s.content || '').length > 60 ? (s.content || '').slice(0, 60) + '…' : s.content }}</td>
           <td>{{ targetRolesDisplay(s.targetRoles) }}</td>
@@ -139,19 +139,19 @@
           <td>{{ s.recipientCount }}</td>
           <td>{{ s.nextScheduledAt ? (s.nextScheduledAt | nyDate:'datetime') : (s.sentAt ? (s.sentAt | nyDate:'datetime') : '–') }}</td>
           <td>
-            @if (s.status === 0 && userPermissions?.permissions?.canCreate) {
+            @if (s.status === 0 && userPermissions()?.permissions?.canCreate) {
             <button type="button" class="btn-send" (click)="sendNowFor(s.id)">Send now</button>
             }
-            @if ((s.status === 0 || s.status === 1) && userPermissions?.permissions?.canUpdate) {
+            @if ((s.status === 0 || s.status === 1) && userPermissions()?.permissions?.canUpdate) {
             <button type="button" class="btn-edit" (click)="edit(s)">Edit</button>
             }
-            @if (s.status === 1 && s.isActive && userPermissions?.permissions?.canUpdate) {
+            @if (s.status === 1 && s.isActive && userPermissions()?.permissions?.canUpdate) {
             <button type="button" class="btn-disable" (click)="disable(s.id)">Disable</button>
             }
-            @if (s.status === 1 && !s.isActive && userPermissions?.permissions?.canUpdate) {
+            @if (s.status === 1 && !s.isActive && userPermissions()?.permissions?.canUpdate) {
             <button type="button" class="btn-enable" (click)="enable(s.id)">Enable</button>
             }
-            @if ((s.status === 0 || s.status === 1 || s.status === 3) && userPermissions?.permissions?.canDelete) {
+            @if ((s.status === 0 || s.status === 1 || s.status === 3) && userPermissions()?.permissions?.canDelete) {
             <button type="button" class="btn-delete" (click)="delete(s.id)">Delete</button>
             }
           </td>
@@ -160,7 +160,7 @@
       </tbody>
       </table>
     </div>
-    @if (list.length === 0) {
+    @if (list().length === 0) {
     <p class="empty">No SMS.</p>
     }
   </div>

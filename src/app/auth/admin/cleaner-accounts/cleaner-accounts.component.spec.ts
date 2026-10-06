@@ -100,18 +100,18 @@ describe('CleanerAccountsComponent', () => {
   describe('who may change anything', () => {
     it('follows the permission map, not the role name', () => {
       fixture.detectChanges();
-      expect(component.canUpdate).toBe(true);
+      expect(component.canUpdate()).toBe(true);
     });
 
     it('leaves a Moderator read-only', () => {
       admin.getUserPermissions.mockReturnValue(of(permissions(false) as any));
       fixture.detectChanges();
 
-      expect(component.canUpdate).toBe(false);
+      expect(component.canUpdate()).toBe(false);
 
       // Every write is refused client-side too, so a stray call cannot reach the API.
-      component.startLinking(component.accounts[0]);
-      expect(component.linkingUserId).toBeNull();
+      component.startLinking(component.accounts()[0]);
+      expect(component.linkingUserId()).toBeNull();
 
       component.promote({ userId: 3, firstName: 'A', lastName: 'B', email: null, phone: null, role: 'Customer' });
       expect(admin.updateUserRole).not.toHaveBeenCalled();
@@ -123,17 +123,17 @@ describe('CleanerAccountsComponent', () => {
       fixture.detectChanges();
       admin.getLinkableCleaners.mockClear();
 
-      component.startLinking(component.accounts[0]);
+      component.startLinking(component.accounts()[0]);
 
       // A blank term, so the box below only ever narrows what is already on screen.
       expect(admin.getLinkableCleaners).toHaveBeenCalledWith('');
-      expect(component.cleanerResults.length).toBe(1);
+      expect(component.cleanerResults().length).toBe(1);
     });
 
     it('searches the roster on the SERVER, debounced', async () => {
       vi.useFakeTimers();
       fixture.detectChanges();
-      component.startLinking(component.accounts[0]);
+      component.startLinking(component.accounts()[0]);
       admin.getLinkableCleaners.mockClear();
 
       component.onCleanerSearchChanged('mar');
@@ -153,39 +153,39 @@ describe('CleanerAccountsComponent', () => {
       expect(component.isCleanerTaken(taken, 12)).toBe(true);
 
       // Picking one is refused too, not merely styled as unavailable.
-      component.linkCleanerChoice = null;
+      component.linkCleanerChoice.set(null);
       component.chooseCleaner(taken, 12);
-      expect(component.linkCleanerChoice as number | null).toBeNull();
+      expect(component.linkCleanerChoice() as number | null).toBeNull();
 
       // Their own current link is not "taken" - re-opening the editor must show the row selected.
       const own = cleaner({ cleanerId: 5, linkedUserId: 12 });
       expect(component.isCleanerTaken(own, 12)).toBe(false);
       component.chooseCleaner(own, 12);
-      expect(component.linkCleanerChoice as number | null).toBe(5);
+      expect(component.linkCleanerChoice() as number | null).toBe(5);
     });
 
     it('patches the row in place and closes the editor after a link', () => {
       fixture.detectChanges();
-      component.startLinking(component.accounts[0]);
-      component.linkCleanerChoice = 5;
+      component.startLinking(component.accounts()[0]);
+      component.linkCleanerChoice.set(5);
 
-      component.saveLink(component.accounts[0]);
+      component.saveLink(component.accounts()[0]);
 
       expect(admin.linkCleanerAccount).toHaveBeenCalledWith(12, 5);
-      expect(component.accounts[0].cleanerId).toBe(5);
-      expect(component.pagedAccounts[0].cleanerId).toBe(5);
-      expect(component.linkingUserId).toBeNull();
+      expect(component.accounts()[0].cleanerId).toBe(5);
+      expect(component.pagedAccounts()[0].cleanerId).toBe(5);
+      expect(component.linkingUserId()).toBeNull();
       // The stale roster is dropped rather than kept: a wrong availability flag means somebody
       // gets linked twice, and the next open re-reads it anyway.
-      expect(component.cleanerResults.length).toBe(0);
+      expect(component.cleanerResults().length).toBe(0);
     });
 
     it('does nothing when no cleaner was chosen', () => {
       fixture.detectChanges();
-      component.startLinking(component.accounts[0]);
-      component.linkCleanerChoice = null;
+      component.startLinking(component.accounts()[0]);
+      component.linkCleanerChoice.set(null);
 
-      component.saveLink(component.accounts[0]);
+      component.saveLink(component.accounts()[0]);
 
       expect(admin.linkCleanerAccount).not.toHaveBeenCalled();
     });
@@ -193,13 +193,13 @@ describe('CleanerAccountsComponent', () => {
     it('surfaces the server message when a link is refused', () => {
       fixture.detectChanges();
       admin.linkCleanerAccount.mockReturnValue(throwError(() => ({ error: { message: 'That cleaner is already linked to another account.' } })));
-      component.startLinking(component.accounts[0]);
-      component.linkCleanerChoice = 5;
+      component.startLinking(component.accounts()[0]);
+      component.linkCleanerChoice.set(5);
 
-      component.saveLink(component.accounts[0]);
+      component.saveLink(component.accounts()[0]);
 
-      expect(component.errorMessage).toContain('already linked');
-      expect(component.savingLinkUserId).toBeNull();
+      expect(component.errorMessage()).toContain('already linked');
+      expect(component.savingLinkUserId()).toBeNull();
     });
   });
 
@@ -218,18 +218,18 @@ describe('CleanerAccountsComponent', () => {
       fixture.detectChanges();
       vi.spyOn(window, 'confirm').mockReturnValue(true);
 
-      component.demote(component.accounts[0]);
+      component.demote(component.accounts()[0]);
 
       expect(admin.updateUserRole).toHaveBeenCalledWith(12, 'Customer');
-      expect(component.accounts.length).toBe(0);
-      expect(component.pagedAccounts.length).toBe(0);
+      expect(component.accounts().length).toBe(0);
+      expect(component.pagedAccounts().length).toBe(0);
     });
 
     it('does not demote when the confirmation is declined', () => {
       fixture.detectChanges();
       vi.spyOn(window, 'confirm').mockReturnValue(false);
 
-      component.demote(component.accounts[0]);
+      component.demote(component.accounts()[0]);
 
       expect(admin.updateUserRole).not.toHaveBeenCalled();
     });
@@ -270,12 +270,12 @@ describe('CleanerAccountsComponent', () => {
       admin.getCleanerAccounts.mockReturnValue(of(many(45)));
       fixture.detectChanges();
 
-      expect(component.pagedAccounts.length).toBe(20);
-      expect(component.totalPages).toBe(3);
+      expect(component.pagedAccounts().length).toBe(20);
+      expect(component.totalPages()).toBe(3);
 
       component.goToPage(3);
-      expect(component.pagedAccounts.length).toBe(5);
-      expect(component.pagedAccounts[0].userId).toBe(41);
+      expect(component.pagedAccounts().length).toBe(5);
+      expect(component.pagedAccounts()[0].userId).toBe(41);
     });
 
     it('never leaves the viewer stranded past the last page after a filter narrows the list', () => {
@@ -283,26 +283,26 @@ describe('CleanerAccountsComponent', () => {
       fixture.detectChanges();
 
       component.goToPage(3);
-      component.searchTerm = 'Cleaner7';
+      component.searchTerm.set('Cleaner7');
       component.onFilterChanged();
 
-      expect(component.currentPage).toBe(1);
-      expect(component.pagedAccounts.every(a => a.firstName.startsWith('Cleaner7'))).toBe(true);
+      expect(component.currentPage()).toBe(1);
+      expect(component.pagedAccounts().every(a => a.firstName.startsWith('Cleaner7'))).toBe(true);
     });
 
     it('filters by status and by whether a cleaner record is linked', () => {
       admin.getCleanerAccounts.mockReturnValue(of(many(9)));
       fixture.detectChanges();
 
-      component.statusFilter = 'inactive';
+      component.statusFilter.set('inactive');
       component.onFilterChanged();
-      expect(component.pagedAccounts.every(a => !a.isActive)).toBe(true);
+      expect(component.pagedAccounts().every(a => !a.isActive)).toBe(true);
 
-      component.statusFilter = 'all';
-      component.linkFilter = 'unlinked';
+      component.statusFilter.set('all');
+      component.linkFilter.set('unlinked');
       component.onFilterChanged();
-      expect(component.pagedAccounts.length).toBeGreaterThan(0);
-      expect(component.pagedAccounts.every(a => !a.cleanerId)).toBe(true);
+      expect(component.pagedAccounts().length).toBeGreaterThan(0);
+      expect(component.pagedAccounts().every(a => !a.cleanerId)).toBe(true);
     });
 
     it('searches the account name, email, phone, linked cleaner and id', () => {
@@ -313,9 +313,9 @@ describe('CleanerAccountsComponent', () => {
       fixture.detectChanges();
 
       for (const term of ['nino', 'nino@x', '5550001', 'Beridze', '1']) {
-        component.searchTerm = term;
+        component.searchTerm.set(term);
         component.onFilterChanged();
-        expect(component.pagedAccounts.some(a => a.userId === 1), `"${term}" should match account #1`).toBe(true);
+        expect(component.pagedAccounts().some(a => a.userId === 1), `"${term}" should match account #1`).toBe(true);
       }
     });
 
@@ -327,9 +327,9 @@ describe('CleanerAccountsComponent', () => {
       ]));
       fixture.detectChanges();
 
-      component.searchTerm = '7185731923';
+      component.searchTerm.set('7185731923');
       component.onFilterChanged();
-      expect(component.pagedAccounts.length).toBe(1);
+      expect(component.pagedAccounts().length).toBe(1);
     });
   });
 
@@ -383,7 +383,7 @@ describe('CleanerAccountsComponent', () => {
 
       // 80, never 12 - the drawer is pointed at the CLEANER record, and the two ids come from
       // different tables entirely.
-      expect(component.recordCleanerId).toBe(80);
+      expect(component.recordCleanerId()).toBe(80);
     });
 
     it('refuses to open an account with no cleaner record', () => {
@@ -391,7 +391,7 @@ describe('CleanerAccountsComponent', () => {
 
       // "Not linked" on the row is the whole point of this tab. There is nothing to show, so the
       // click is a no-op (and the row drops its pointer cursor) rather than an empty drawer.
-      expect(component.recordCleanerId).toBeNull();
+      expect(component.recordCleanerId()).toBeNull();
     });
 
     it('opens from a click on the ROW, with the action buttons excluded', () => {
@@ -401,10 +401,10 @@ describe('CleanerAccountsComponent', () => {
       // The actions cell stops the click: linking, unlinking and demoting stay one click each
       // rather than also throwing open a panel nobody asked for.
       actions.click();
-      expect(component.recordCleanerId).toBeNull();
+      expect(component.recordCleanerId()).toBeNull();
 
       row.click();
-      expect(component.recordCleanerId).toBe(80);
+      expect(component.recordCleanerId()).toBe(80);
     });
 
     it('reloads the accounts after a save or delete inside the panel', () => {

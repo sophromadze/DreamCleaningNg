@@ -3,16 +3,16 @@
     type="button"
     class="cleaning-type-details-toggle"
     (click)="toggle()"
-    [attr.aria-expanded]="expanded">
+    [attr.aria-expanded]="expanded()">
     <span>{{ toggleButtonLabel }}</span>
-    <i [appIcon]="icons.faChevronDown" [class.rotated]="expanded" aria-hidden="true"></i>
+    <i [appIcon]="icons.faChevronDown" [class.rotated]="expanded()" aria-hidden="true"></i>
   </button>
 
-  @if (expanded) {
+  @if (expanded()) {
   <div
     class="cleaning-type-details-panel"
     role="region"
-    [attr.aria-label]="cleaningType === 'deep' ? 'Deep cleaning checklist' : 'Regular cleaning checklist'">
+    [attr.aria-label]="cleaningType() === 'deep' ? 'Deep cleaning checklist' : 'Regular cleaning checklist'">
     <h3 class="checklist-block-title">{{ panelTitle }}</h3>
 
     @for (section of activeChecklist; track $index) {

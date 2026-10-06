@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy } from '@angular/core';
+import { Component, ChangeDetectionStrategy, signal } from '@angular/core';
 import { MailsComponent } from '../mails/mails.component';
 import { SmsComponent } from '../sms/sms.component';
 
@@ -7,13 +7,13 @@ import { SmsComponent } from '../sms/sms.component';
   standalone: true,
   imports: [MailsComponent, SmsComponent],
   templateUrl: './communications.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./communications.component.scss']
 })
 export class CommunicationsComponent {
-  activeSubTab: 'mails' | 'sms' = 'mails';
+  readonly activeSubTab = signal<'mails' | 'sms'>('mails');
 
   setSubTab(tab: 'mails' | 'sms') {
-    this.activeSubTab = tab;
+    this.activeSubTab.set(tab);
   }
 }

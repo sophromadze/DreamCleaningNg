@@ -1,17 +1,17 @@
 <div class="crm-ads">
   <!-- Toolbar (shared range picker + export) -->
   <div class="ads-toolbar">
-    <div class="preset-dropdown" [class.open]="dropdownOpen">
-      <button type="button" class="dropdown-trigger" (click)="toggleDropdown()" [attr.aria-expanded]="dropdownOpen">
+    <div class="preset-dropdown" [class.open]="dropdownOpen()">
+      <button type="button" class="dropdown-trigger" (click)="toggleDropdown()" [attr.aria-expanded]="dropdownOpen()">
         <span>{{ rangeLabel }}</span>
         <span class="caret" aria-hidden="true">▾</span>
       </button>
-      @if (dropdownOpen) {
+      @if (dropdownOpen()) {
       <ul class="dropdown-menu" role="listbox">
         @for (p of presets; track p.key) {
         <li class="dropdown-item"
-            [class.active]="period === p.key" role="option"
-            [attr.aria-selected]="period === p.key" (click)="selectPreset(p.key)">
+            [class.active]="period() === p.key" role="option"
+            [attr.aria-selected]="period() === p.key" (click)="selectPreset(p.key)">
           {{ p.label }}
         </li>
         }
@@ -28,18 +28,18 @@
         <label for="kw-to">To</label>
         <input id="kw-to" type="date" [(ngModel)]="toDate" />
       </div>
-      <button class="btn-light" (click)="applyCustom()" [disabled]="loadingOrganic || loadingPaid">Apply</button>
+      <button class="btn-light" (click)="applyCustom()" [disabled]="loadingOrganic() || loadingPaid()">Apply</button>
     </div>
 
     <div class="toolbar-spacer"></div>
 
-    <button class="btn-brand" (click)="downloadExcel()" [disabled]="exporting || loadingOrganic || loadingPaid">
-      {{ exporting ? 'Exporting…' : 'Export Excel' }}
+    <button class="btn-brand" (click)="downloadExcel()" [disabled]="exporting() || loadingOrganic() || loadingPaid()">
+      {{ exporting() ? 'Exporting…' : 'Export Excel' }}
     </button>
   </div>
 
-  @if (errorMessage) {
-  <div class="error-banner">{{ errorMessage }}</div>
+  @if (errorMessage()) {
+  <div class="error-banner">{{ errorMessage() }}</div>
   }
 
   <div class="kw-grid">
@@ -51,7 +51,7 @@
           <h2>Organic — Google Search</h2>
         </div>
         <span class="panel-sub">Queries people typed to find you in unpaid Google results</span>
-        @if (organicTotals) {
+        @if (organicTotals(); as organicTotals) {
         <div class="panel-stats">
           <span><strong>{{ organicTotals.clicks | number }}</strong> clicks</span>
           <span><strong>{{ organicTotals.impressions | number }}</strong> impressions</span>
@@ -61,7 +61,7 @@
         }
       </div>
 
-      @if (!loadingOrganic && organic.length > 0) {
+      @if (!loadingOrganic() && organic().length > 0) {
       <div class="ads-table-wrap">
         <table class="ads-table">
           <thead>
@@ -74,7 +74,7 @@
             </tr>
           </thead>
           <tbody>
-            @for (r of organic; track trackByQuery($index, r)) {
+            @for (r of organic(); track trackByQuery($index, r)) {
             <tr>
               <td class="kw-term" [title]="r.query">{{ r.query }}</td>
               <td class="num"><span class="conv-booked">{{ r.clicks | number }}</span></td>
@@ -86,20 +86,20 @@
           </tbody>
         </table>
 
-        @if (organicTotalPages > 1) {
+        @if (organicTotalPages() > 1) {
         <div class="paging">
-          <button class="btn-light" (click)="organicPrev()" [disabled]="organicPage <= 1">← Prev</button>
-          <span class="page-info">Page {{ organicPage }} of {{ organicTotalPages }} · {{ organicTotalCount }} queries</span>
-          <button class="btn-light" (click)="organicNext()" [disabled]="organicPage >= organicTotalPages">Next →</button>
+          <button class="btn-light" (click)="organicPrev()" [disabled]="organicPage() <= 1">← Prev</button>
+          <span class="page-info">Page {{ organicPage() }} of {{ organicTotalPages() }} · {{ organicTotalCount() }} queries</span>
+          <button class="btn-light" (click)="organicNext()" [disabled]="organicPage() >= organicTotalPages()">Next →</button>
         </div>
         }
       </div>
       }
 
-      @if (loadingOrganic) {
+      @if (loadingOrganic()) {
       <div class="state-msg">Loading…</div>
       }
-      @if (!loadingOrganic && organic.length === 0) {
+      @if (!loadingOrganic() && organic().length === 0) {
       <div class="state-msg">
         No organic search data in this range yet.
       </div>
@@ -114,7 +114,7 @@
           <h2>Paid — Google Ads</h2>
         </div>
         <span class="panel-sub">Actual search terms that triggered your ads</span>
-        @if (paidTotals) {
+        @if (paidTotals(); as paidTotals) {
         <div class="panel-stats">
           <span><strong>{{ paidTotals.clicks | number }}</strong> clicks</span>
           <span><strong>{{ paidTotals.costUsd | currency }}</strong> cost</span>
@@ -124,7 +124,7 @@
         }
       </div>
 
-      @if (!loadingPaid && paid.length > 0) {
+      @if (!loadingPaid() && paid().length > 0) {
       <div class="ads-table-wrap">
         <table class="ads-table">
           <thead>
@@ -137,7 +137,7 @@
             </tr>
           </thead>
           <tbody>
-            @for (r of paid; track trackByTerm($index, r)) {
+            @for (r of paid(); track trackByTerm($index, r)) {
             <tr>
               <td class="kw-term" [title]="r.searchTerm">{{ r.searchTerm }}</td>
               <td class="num"><span class="conv-booked">{{ r.clicks | number }}</span></td>
@@ -149,20 +149,20 @@
           </tbody>
         </table>
 
-        @if (paidTotalPages > 1) {
+        @if (paidTotalPages() > 1) {
         <div class="paging">
-          <button class="btn-light" (click)="paidPrev()" [disabled]="paidPage <= 1">← Prev</button>
-          <span class="page-info">Page {{ paidPage }} of {{ paidTotalPages }} · {{ paidTotalCount }} terms</span>
-          <button class="btn-light" (click)="paidNext()" [disabled]="paidPage >= paidTotalPages">Next →</button>
+          <button class="btn-light" (click)="paidPrev()" [disabled]="paidPage() <= 1">← Prev</button>
+          <span class="page-info">Page {{ paidPage() }} of {{ paidTotalPages() }} · {{ paidTotalCount() }} terms</span>
+          <button class="btn-light" (click)="paidNext()" [disabled]="paidPage() >= paidTotalPages()">Next →</button>
         </div>
         }
       </div>
       }
 
-      @if (loadingPaid) {
+      @if (loadingPaid()) {
       <div class="state-msg">Loading…</div>
       }
-      @if (!loadingPaid && paid.length === 0) {
+      @if (!loadingPaid() && paid().length === 0) {
       <div class="state-msg">
         No paid search-term data in this range yet.
       </div>

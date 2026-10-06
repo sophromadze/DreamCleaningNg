@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, OnInit, HostListener, OnChanges, SimpleChanges, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, HostListener, OnChanges, SimpleChanges, ChangeDetectionStrategy, input, model, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
 @Component({
@@ -6,21 +6,20 @@ import { FormsModule } from '@angular/forms';
   standalone: true,
   imports: [FormsModule],
   templateUrl: './date-selector.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./date-selector.component.scss']
 })
 export class DateSelectorComponent implements OnInit, OnChanges {
-  @Input() value: string = '';
-  @Input() minDate: string = '';
-  @Input() isSameDaySelected: boolean = false;
-  @Input() blockedDates: string[] = [];          // YYYY-MM-DD strings of fully blocked days
-  @Input() partiallyBlockedDates: string[] = []; // YYYY-MM-DD strings of partially blocked days
-  @Output() valueChange = new EventEmitter<string>();
+  readonly value = model<string>('');
+  readonly minDate = input<string>('');
+  readonly isSameDaySelected = input<boolean>(false);
+  readonly blockedDates = input<string[]>([]);          // YYYY-MM-DD strings of fully blocked days
+  readonly partiallyBlockedDates = input<string[]>([]); // YYYY-MM-DD strings of partially blocked days
 
-  isDropdownOpen = false;
-  currentMonth: Date = new Date();
+  readonly isDropdownOpen = signal(false);
+  readonly currentMonth = signal<Date>(new Date());
   selectedDate: Date | null = null;
-  calendarDays: Array<{ date: Date; isCurrentMonth: boolean; isSelected: boolean; isDisabled: boolean; isBlocked: boolean; isPartiallyBlocked: boolean }> = [];
+  readonly calendarDays = signal<Array<{ date: Date; isCurrentMonth: boolean; isSelected: boolean; isDisabled: boolean; isBlocked: boolean; isPartiallyBlocked: boolean }>>([], { equal: () => false });
 
   ngOnInit() {
     this.updateFromValue();
@@ -29,14 +28,15 @@ export class DateSelectorComponent implements OnInit, OnChanges {
 
   ngOnChanges(changes: SimpleChanges) {
     // If same day service is selected, update the calendar to show today as selected
-    if (changes['isSameDaySelected'] && this.isSameDaySelected) {
+    const isSameDaySelected = this.isSameDaySelected();
+    if (changes['isSameDaySelected'] && isSameDaySelected) {
       const today = new Date();
       this.selectedDate = new Date(today);
-      this.currentMonth = new Date(today);
+      this.currentMonth.set(new Date(today));
       this.generateCalendar();
     }
     // If same day service is unchecked, update from the current value
-    else if (changes['isSameDaySelected'] && !this.isSameDaySelected) {
+    else if (changes['isSameDaySelected'] && !isSameDaySelected) {
       this.updateFromValue();
       this.generateCalendar();
     }
@@ -55,14 +55,15 @@ export class DateSelectorComponent implements OnInit, OnChanges {
   onDocumentClick(event: Event) {
     const target = event.target as HTMLElement;
     if (!target.closest('.date-selector-container')) {
-      this.isDropdownOpen = false;
+      this.isDropdownOpen.set(false);
     }
   }
 
   updateFromValue() {
-    if (this.value) {
+    const value = this.value();
+    if (value) {
       // Handle the value whether it comes as YYYY-MM-DD or as an ISO string
-      let dateString = this.value;
+      let dateString = value;
       
       // If it contains 'T', it's an ISO string, extract just the date part
       if (dateString.includes('T')) {
@@ -72,24 +73,24 @@ export class DateSelectorComponent implements OnInit, OnChanges {
       // Create date without timezone issues by parsing the date string manually
       const [year, month, day] = dateString.split('-').map(Number);
       this.selectedDate = new Date(year, month - 1, day);
-      this.currentMonth = new Date(this.selectedDate);
+      this.currentMonth.set(new Date(this.selectedDate));
     } else {
       this.selectedDate = null;
-      this.currentMonth = new Date();
+      this.currentMonth.set(new Date());
     }
   }
 
   toggleDropdown(event: Event) {
     event.stopPropagation();
-    this.isDropdownOpen = !this.isDropdownOpen;
-    if (this.isDropdownOpen) {
+    this.isDropdownOpen.set(!this.isDropdownOpen());
+    if (this.isDropdownOpen()) {
       this.generateCalendar();
     }
   }
 
   generateCalendar() {
-    const year = this.currentMonth.getFullYear();
-    const month = this.currentMonth.getMonth();
+    const year = this.currentMonth().getFullYear();
+    const month = this.currentMonth().getMonth();
     
     const firstDay = new Date(year, month, 1);
     const lastDay = new Date(year, month + 1, 0);
@@ -99,7 +100,7 @@ export class DateSelectorComponent implements OnInit, OnChanges {
     const endDate = new Date(lastDay);
     endDate.setDate(endDate.getDate() + (6 - lastDay.getDay()));
     
-    this.calendarDays = [];
+    this.calendarDays.set([]);
     const currentDate = new Date(startDate);
     
     while (currentDate <= endDate) {
@@ -110,10 +111,10 @@ export class DateSelectorComponent implements OnInit, OnChanges {
         currentDate.getDate() === this.selectedDate.getDate() : false;
       const isDisabled = this.isDateDisabled(currentDate);
       const dateStr = this.toDateString(currentDate);
-      const isBlocked = this.blockedDates.includes(dateStr);
-      const isPartiallyBlocked = !isBlocked && this.partiallyBlockedDates.includes(dateStr);
+      const isBlocked = this.blockedDates().includes(dateStr);
+      const isPartiallyBlocked = !isBlocked && this.partiallyBlockedDates().includes(dateStr);
 
-      this.calendarDays.push({
+      this.calendarDays().push({
         date: new Date(currentDate),
         isCurrentMonth,
         isSelected,
@@ -124,12 +125,14 @@ export class DateSelectorComponent implements OnInit, OnChanges {
       
       currentDate.setDate(currentDate.getDate() + 1);
     }
+    this.calendarDays.set(this.calendarDays());
   }
 
   isDateDisabled(date: Date): boolean {
-    if (this.minDate) {
+    const minDateValue = this.minDate();
+    if (minDateValue) {
       // Create minDate without timezone issues
-      const [year, month, day] = this.minDate.split('-').map(Number);
+      const [year, month, day] = minDateValue.split('-').map(Number);
       const minDate = new Date(year, month - 1, day);
       return date < minDate;
     }
@@ -143,21 +146,19 @@ export class DateSelectorComponent implements OnInit, OnChanges {
       const year = date.getFullYear();
       const month = String(date.getMonth() + 1).padStart(2, '0');
       const day = String(date.getDate()).padStart(2, '0');
-      this.value = `${year}-${month}-${day}`;
-            
-      this.valueChange.emit(this.value);
-      this.isDropdownOpen = false;
+      this.value.set(`${year}-${month}-${day}`); // model.set() also emits valueChange
+      this.isDropdownOpen.set(false);
       this.generateCalendar();
     }
   }
 
   previousMonth() {
-    this.currentMonth.setMonth(this.currentMonth.getMonth() - 1);
+    this.currentMonth().setMonth(this.currentMonth().getMonth() - 1);
     this.generateCalendar();
   }
 
   nextMonth() {
-    this.currentMonth.setMonth(this.currentMonth.getMonth() + 1);
+    this.currentMonth().setMonth(this.currentMonth().getMonth() + 1);
     this.generateCalendar();
   }
 
@@ -182,7 +183,7 @@ export class DateSelectorComponent implements OnInit, OnChanges {
   }
 
   getDisplayDate(): string {
-    return this.formatDate(this.value);
+    return this.formatDate(this.value());
   }
 
   private toDateString(date: Date): string {
@@ -197,6 +198,6 @@ export class DateSelectorComponent implements OnInit, OnChanges {
       year: 'numeric', 
       month: 'long' 
     };
-    return this.currentMonth.toLocaleDateString('en-US', options);
+    return this.currentMonth().toLocaleDateString('en-US', options);
   }
 } 

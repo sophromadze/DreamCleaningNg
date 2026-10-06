@@ -6,8 +6,8 @@
       [ngModel]="displayTerm"
       (ngModelChange)="onSearchInput($event)"
       placeholder="Search by name, email, or ID..."
-      [readonly]="!!selectedUser">
-    @if (selectedUser) {
+      [readonly]="!!selectedUser()">
+    @if (selectedUser()) {
     <button
       type="button"
       class="clear-user-btn"
@@ -18,26 +18,26 @@
   </div>
 
   <!-- User Dropdown -->
-  @if (!selectedUser) {
+  @if (!selectedUser()) {
   <div class="user-dropdown">
-    @if (isLoadingUsers) {
+    @if (isLoadingUsers()) {
     <div class="loading-users">
       Loading users...
     </div>
     }
-    @if (!isLoadingUsers && needsMoreCharacters) {
+    @if (!isLoadingUsers() && needsMoreCharacters()) {
     <div class="search-hint">
       Type at least {{ minSearchChars }} characters to search by name, email, or ID.
     </div>
     }
-    @if (!isLoadingUsers && !needsMoreCharacters && filteredUsers.length === 0) {
+    @if (!isLoadingUsers() && !needsMoreCharacters() && filteredUsers().length === 0) {
     <div class="no-users">
       No users found
     </div>
     }
-    @if (!isLoadingUsers && filteredUsers.length > 0) {
+    @if (!isLoadingUsers() && filteredUsers().length > 0) {
     <div class="users-list">
-      @for (user of filteredUsers; track trackByUserId($index, user)) {
+      @for (user of filteredUsers(); track trackByUserId($index, user)) {
       <div
         class="user-item"
         (click)="selectUser(user)">
@@ -52,9 +52,9 @@
     }
     <!-- Render cap: the hidden matches are reported rather than drawn, so the list can never
          grow large enough to lag behind the keystrokes. -->
-    @if (!isLoadingUsers && hiddenMatchCount > 0) {
+    @if (!isLoadingUsers() && hiddenMatchCount > 0) {
     <div class="search-hint search-hint--more">
-      Showing the first {{ maxResults }} of {{ totalMatchCount }} matches — refine your search.
+      Showing the first {{ maxResults }} of {{ totalMatchCount() }} matches — refine your search.
     </div>
     }
   </div>
@@ -62,7 +62,7 @@
 
   <!-- Settle guard feedback: the click was swallowed on purpose because the list had just
        changed under the cursor. See USER_LIST_SETTLE_MS. -->
-  @if (clickRejected && !selectedUser) {
+  @if (clickRejected() && !selectedUser()) {
   <div class="click-rejected-warning">
     <i [appIcon]="icons.faTriangleExclamation"></i>
     <span>The list just updated — please check the name and click again.</span>

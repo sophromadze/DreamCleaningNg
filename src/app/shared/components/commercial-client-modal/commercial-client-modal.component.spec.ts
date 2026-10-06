@@ -54,11 +54,16 @@ describe('CommercialClientModalComponent', () => {
   afterEach(() => httpMock.verify());
 
   const fillCompany = () => {
-    component.form.legalEntityName = 'Chick Tastic LLC';
-    component.form.principalAddress = '1569 Flatbush Ave.';
-    component.form.city = 'Brooklyn';
-    component.form.state = 'NY';
-    component.form.zip = '11210';
+    component.form().legalEntityName = 'Chick Tastic LLC';
+    component.form.set(component.form());
+    component.form().principalAddress = '1569 Flatbush Ave.';
+    component.form.set(component.form());
+    component.form().city = 'Brooklyn';
+    component.form.set(component.form());
+    component.form().state = 'NY';
+    component.form.set(component.form());
+    component.form().zip = '11210';
+    component.form.set(component.form());
   };
 
   const created = (id = 91) => ({
@@ -84,7 +89,7 @@ describe('CommercialClientModalComponent', () => {
     const overlay = () => fixture.nativeElement.querySelector('.cc-modal-overlay') as HTMLElement;
 
     it('is a centred modal by default', () => {
-      expect(component.panel).toBe(false);
+      expect(component.panel()).toBe(false);
       expect(overlay().classList).not.toContain('as-panel');
     });
 
@@ -144,9 +149,12 @@ describe('CommercialClientModalComponent', () => {
 
     it('sends the billing contact as a client signer when both names are given', () => {
       fillCompany();
-      component.form.contactFirstName = 'Casey';
-      component.form.contactLastName = 'Client';
-      component.form.contactEmail = 'casey@chicktastic.invalid';
+      component.form().contactFirstName = 'Casey';
+      component.form.set(component.form());
+      component.form().contactLastName = 'Client';
+      component.form.set(component.form());
+      component.form().contactEmail = 'casey@chicktastic.invalid';
+      component.form.set(component.form());
       component.submit();
 
       const request = httpMock.expectOne(CREATE_URL);
@@ -159,9 +167,12 @@ describe('CommercialClientModalComponent', () => {
 
     it('copies the company address into the location when "same as company" is ticked', () => {
       fillCompany();
-      component.form.addLocation = true;
-      component.form.sameAsCompany = true;
-      component.form.businessBrand = 'Chick Tastic';
+      component.form().addLocation = true;
+      component.form.set(component.form());
+      component.form().sameAsCompany = true;
+      component.form.set(component.form());
+      component.form().businessBrand = 'Chick Tastic';
+      component.form.set(component.form());
       component.submit();
 
       const request = httpMock.expectOne(CREATE_URL);
@@ -189,7 +200,8 @@ describe('CommercialClientModalComponent', () => {
       fillCompany();
       // The exact address of the business account loaded above. Typing it must link nothing:
       // the link opens that customer's My Contracts area, so it is staff's decision alone.
-      component.form.noticeEmail = 'accounts@chicktastic.invalid';
+      component.form().noticeEmail = 'accounts@chicktastic.invalid';
+      component.form.set(component.form());
       component.submit();
 
       const request = httpMock.expectOne(CREATE_URL);
@@ -199,7 +211,8 @@ describe('CommercialClientModalComponent', () => {
 
     it('is sent when an account was explicitly chosen', () => {
       fillCompany();
-      component.form.sourceUserId = 55;
+      component.form().sourceUserId = 55;
+      component.form.set(component.form());
       component.submit();
 
       const request = httpMock.expectOne(CREATE_URL);
@@ -208,84 +221,98 @@ describe('CommercialClientModalComponent', () => {
     });
 
     it('fills blank company fields from the account but never the legal entity name', () => {
-      component.form.sourceUserId = 55;
-      component.form.legalEntityName = '';
+      component.form().sourceUserId = 55;
+      component.form.set(component.form());
+      component.form().legalEntityName = '';
+      component.form.set(component.form());
       component.onSourceUserSelected();
 
-      expect(component.form.city).toBe('Brooklyn');
-      expect(component.form.zip).toBe('11210');
+      expect(component.form().city).toBe('Brooklyn');
+      expect(component.form().zip).toBe('11210');
       // A business is not its owner. Guessing "Casey Client LLC" is worse than leaving it empty.
-      expect(component.form.legalEntityName).toBe('');
+      expect(component.form().legalEntityName).toBe('');
     });
 
     it('never overwrites something the admin already typed', () => {
-      component.form.principalAddress = '9 Somewhere Else Ave.';
-      component.form.sourceUserId = 55;
+      component.form().principalAddress = '9 Somewhere Else Ave.';
+      component.form.set(component.form());
+      component.form().sourceUserId = 55;
+      component.form.set(component.form());
       component.onSourceUserSelected();
 
-      expect(component.form.principalAddress).toBe('9 Somewhere Else Ave.');
+      expect(component.form().principalAddress).toBe('9 Somewhere Else Ave.');
     });
   });
 
   describe('validation', () => {
     it('refuses to submit without a legal entity name, and SAYS SO', () => {
-      component.form.principalAddress = '1569 Flatbush Ave.';
-      component.form.city = 'Brooklyn';
-      component.form.zip = '11210';
+      component.form().principalAddress = '1569 Flatbush Ave.';
+      component.form.set(component.form());
+      component.form().city = 'Brooklyn';
+      component.form.set(component.form());
+      component.form().zip = '11210';
+      component.form.set(component.form());
 
       // The button stays live: a blank required field is reported, never silently enforced by a
       // dead button. A client seeded from a business account arrives with several of these.
-      expect(component.canSubmit).toBe(true);
+      expect(component.canSubmit()).toBe(true);
       component.submit();
 
-      expect(component.errorMessage).toContain('legal entity name');
-      expect(component.invalidField).toBe('legalEntityName');
+      expect(component.errorMessage()).toContain('legal entity name');
+      expect(component.invalidField()).toBe('legalEntityName');
       httpMock.expectNone(CREATE_URL);
     });
 
     it('names the FIRST missing field, in the order the form reads', () => {
-      component.form.legalEntityName = 'Chick Tastic LLC';
-      component.form.entityType = 'a limited liability company';
-      component.form.principalAddress = '1569 Flatbush Ave.';
-      component.form.city = '';
-      component.form.zip = '';
+      component.form().legalEntityName = 'Chick Tastic LLC';
+      component.form.set(component.form());
+      component.form().entityType = 'a limited liability company';
+      component.form.set(component.form());
+      component.form().principalAddress = '1569 Flatbush Ave.';
+      component.form.set(component.form());
+      component.form().city = '';
+      component.form.set(component.form());
+      component.form().zip = '';
+      component.form.set(component.form());
 
       component.submit();
 
-      expect(component.invalidField).toBe('city');
-      expect(component.errorMessage).toContain('city');
+      expect(component.invalidField()).toBe('city');
+      expect(component.errorMessage()).toContain('city');
       httpMock.expectNone(CREATE_URL);
     });
 
     it('clears the marker as soon as the admin types', () => {
       component.submit();
-      expect(component.invalidField).toBe('legalEntityName');
+      expect(component.invalidField()).toBe('legalEntityName');
 
       component.onFieldInput();
 
-      expect(component.invalidField).toBeNull();
-      expect(component.errorMessage).toBe('');
+      expect(component.invalidField()).toBeNull();
+      expect(component.errorMessage()).toBe('');
       httpMock.expectNone(CREATE_URL);
     });
 
     it('names a missing "@" rather than saying "invalid email"', () => {
       fillCompany();
-      component.form.noticeEmail = 'accountschicktastic.invalid';
+      component.form().noticeEmail = 'accountschicktastic.invalid';
+      component.form.set(component.form());
 
       component.submit();
 
-      expect(component.errorMessage).toContain('@');
-      expect(component.invalidField).toBe('noticeEmail');
+      expect(component.errorMessage()).toContain('@');
+      expect(component.invalidField()).toBe('noticeEmail');
       httpMock.expectNone(CREATE_URL);
     });
 
     it('rejects half a billing contact', () => {
       fillCompany();
-      component.form.contactFirstName = 'Casey';
+      component.form().contactFirstName = 'Casey';
+      component.form.set(component.form());
 
       component.submit();
 
-      expect(component.errorMessage).toContain('first and last name');
+      expect(component.errorMessage()).toContain('first and last name');
       httpMock.expectNone(CREATE_URL);
     });
 
@@ -299,8 +326,8 @@ describe('CommercialClientModalComponent', () => {
 
       // finalize, not complete: an HTTP error never reaches complete, which is how a failed save
       // used to leave the form stuck on "Creating…".
-      expect(component.saving).toBe(false);
-      expect(component.errorMessage).toContain('not flagged as a business');
+      expect(component.saving()).toBe(false);
+      expect(component.errorMessage()).toContain('not flagged as a business');
     });
   });
 
@@ -350,27 +377,27 @@ describe('CommercialClientModalComponent', () => {
     it('fills the form from the saved client, field by field', () => {
       openEditing();
 
-      expect(component.isEdit).toBe(true);
-      expect(component.form.legalEntityName).toBe('Chick Tastic LLC');
-      expect(component.form.noticeEmail).toBe('accounts@chicktastic.invalid');
-      expect(component.form.contactFirstName).toBe('Casey');
+      expect(component.isEdit()).toBe(true);
+      expect(component.form().legalEntityName).toBe('Chick Tastic LLC');
+      expect(component.form().noticeEmail).toBe('accounts@chicktastic.invalid');
+      expect(component.form().contactFirstName).toBe('Casey');
 
       // From primaryLocation's raw fields, never re-parsed out of the formatted display string.
-      expect(component.form.addLocation).toBe(true);
-      expect(component.form.businessBrand).toBe('Chick Tastic');
-      expect(component.form.locationAddress).toBe('1569 Flatbush Ave.');
-      expect(component.form.sameAsCompany).toBe(false);
+      expect(component.form().addLocation).toBe(true);
+      expect(component.form().businessBrand).toBe('Chick Tastic');
+      expect(component.form().locationAddress).toBe('1569 Flatbush Ave.');
+      expect(component.form().sameAsCompany).toBe(false);
     });
 
     it('shows the linked account and the contract count', () => {
       openEditing();
 
-      expect(component.isLinked).toBe(true);
-      expect(component.linkedAccountName).toBe('Casey Client');
+      expect(component.isLinked()).toBe(true);
+      expect(component.linkedAccountName()).toBe('Casey Client');
       // The account's LOGIN address, deliberately different from the billing one and shown beside
       // it rather than merged into it.
-      expect(component.linkedAccountEmail).toBe('casey.login@example.invalid');
-      expect(component.contractCount).toBe(1);
+      expect(component.linkedAccountEmail()).toBe('casey.login@example.invalid');
+      expect(component.contractCount()).toBe(1);
     });
 
     it('does not load the business-account picker', () => {
@@ -382,7 +409,8 @@ describe('CommercialClientModalComponent', () => {
 
     it('PUTs to the client and never sends sourceUserId', () => {
       openEditing();
-      component.form.legalEntityName = 'Chick Tastic Holdings LLC';
+      component.form().legalEntityName = 'Chick Tastic Holdings LLC';
+      component.form.set(component.form());
 
       component.submit();
 
@@ -424,18 +452,23 @@ describe('CommercialClientModalComponent', () => {
       fixture.componentRef.setInput('open', true);
       fixture.detectChanges();
 
-      expect(component.canSubmit).toBe(true);
+      expect(component.canSubmit()).toBe(true);
       expect(component.hasBlankRequiredFields).toBe(true);
 
       component.submit();
-      expect(component.invalidField).toBe('legalEntityName');
+      expect(component.invalidField()).toBe('legalEntityName');
       httpMock.expectNone(CREATE_URL + '/91');
 
-      component.form.legalEntityName = 'Chick Tastic LLC';
-      component.form.entityType = 'a limited liability company';
-      component.form.principalAddress = '1569 Flatbush Ave.';
-      component.form.city = 'Brooklyn';
-      component.form.zip = '11210';
+      component.form().legalEntityName = 'Chick Tastic LLC';
+      component.form.set(component.form());
+      component.form().entityType = 'a limited liability company';
+      component.form.set(component.form());
+      component.form().principalAddress = '1569 Flatbush Ave.';
+      component.form.set(component.form());
+      component.form().city = 'Brooklyn';
+      component.form.set(component.form());
+      component.form().zip = '11210';
+      component.form.set(component.form());
       component.submit();
 
       httpMock.expectOne(CREATE_URL + '/91').flush(created(91));
@@ -451,9 +484,9 @@ describe('CommercialClientModalComponent', () => {
       fixture.componentRef.setInput('open', true);
       fixture.detectChanges();
 
-      expect(component.isEdit).toBe(false);
-      expect(component.form.legalEntityName).toBe('');
-      expect(component.contractCount).toBe(0);
+      expect(component.isEdit()).toBe(false);
+      expect(component.form().legalEntityName).toBe('');
+      expect(component.contractCount()).toBe(0);
     });
   });
 });

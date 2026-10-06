@@ -13,7 +13,7 @@ import { faYelp } from '../shared/icons/glyphs/faYelp';
   standalone: true,
   imports: [RouterLink, RouterLinkActive, IconComponent],
   templateUrl: './footer.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './footer.component.scss'
 })
 export class FooterComponent {

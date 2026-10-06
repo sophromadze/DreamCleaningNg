@@ -1,4 +1,4 @@
-import { Component, OnInit, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, ActivatedRoute } from '@angular/router';
 import { GiftCardService } from '../../services/gift-card.service';
@@ -12,7 +12,7 @@ import { faCircleCheck } from '../../shared/icons/glyphs/faCircleCheck';
   standalone: true,
   imports: [CommonModule, PaymentComponent, IconComponent],
   templateUrl: './gift-card-payment.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./gift-card-payment.component.scss']
 })
 export class GiftCardPaymentComponent implements OnInit {
@@ -24,28 +24,28 @@ export class GiftCardPaymentComponent implements OnInit {
   protected readonly icons = { faCircleCheck };
 
   giftCardId: number | null = null;
-  clientSecret: string | null = null;
-  amount: number = 0;
-  paymentCompleted = false;
-  errorMessage: string | null = null;
-  currentUser: any;
+  readonly clientSecret = signal<string | null>(null);
+  readonly amount = signal<number>(0);
+  readonly paymentCompleted = signal(false);
+  readonly errorMessage = signal<string | null>(null);
+  readonly currentUser = signal<any>(undefined);
 
   ngOnInit() {
     this.route.queryParams.subscribe(params => {
       this.giftCardId = params['giftCardId'] ? +params['giftCardId'] : null;
-      this.clientSecret = params['clientSecret'] || null;
-      this.amount = params['amount'] ? +params['amount'] : 0;
+      this.clientSecret.set(params['clientSecret'] || null);
+      this.amount.set(params['amount'] ? +params['amount'] : 0);
     });
 
     this.authService.currentUser.subscribe(user => {
-      this.currentUser = user;
+      this.currentUser.set(user);
     });
   }
 
   get billingDetails() {
     return {
-      name: `${this.currentUser?.firstName} ${this.currentUser?.lastName}`,
-      email: this.currentUser?.email
+      name: `${this.currentUser()?.firstName} ${this.currentUser()?.lastName}`,
+      email: this.currentUser()?.email
     };
   }
 
@@ -53,18 +53,18 @@ export class GiftCardPaymentComponent implements OnInit {
     console.log('[GIFT CARD PAYMENT] Payment completed, confirming gift card payment:', {
       giftCardId: this.giftCardId,
       paymentIntentId: paymentIntent.id,
-      amount: this.amount
+      amount: this.amount()
     });
     
     if (this.giftCardId) {
       this.giftCardService.confirmGiftCardPayment(this.giftCardId, paymentIntent.id).subscribe({
         next: (response) => {
           console.log('[GIFT CARD PAYMENT] Payment confirmation successful:', response);
-          this.paymentCompleted = true;
+          this.paymentCompleted.set(true);
         },
         error: (error) => {
           console.error('[GIFT CARD PAYMENT] Payment confirmation failed:', error);
-          this.errorMessage = error.error?.message || 'Failed to confirm payment';
+          this.errorMessage.set(error.error?.message || 'Failed to confirm payment');
         }
       });
     } else {
@@ -73,6 +73,6 @@ export class GiftCardPaymentComponent implements OnInit {
   }
 
   onPaymentError(error: any) {
-    this.errorMessage = error.message || 'Payment failed. Please try again.';
+    this.errorMessage.set(error.message || 'Payment failed. Please try again.');
   }
 }

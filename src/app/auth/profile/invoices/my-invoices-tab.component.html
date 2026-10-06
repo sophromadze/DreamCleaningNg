@@ -1,19 +1,19 @@
 <div class="mi-tab">
 
-    @if (loading) {
+    @if (loading()) {
     <div class="mi-state">Loading your invoices…</div>
     }
 
-    @if (!loading && error) {
+    @if (!loading() && error()) {
     <div class="mi-state mi-state--error">
-      {{ error }}
+      {{ error() }}
       <button type="button" class="mi-link" (click)="load()">Try again</button>
     </div>
     }
 
-    @if (!loading && !error) {
+    @if (!loading() && !error()) {
 
-      @if (invoices.length === 0) {
+      @if (invoices().length === 0) {
       <p class="mi-state">You have no invoices yet.</p>
       }
       @if (unpaid.length > 0) {
@@ -24,9 +24,9 @@
       </div>
       }
 
-      @if (invoices.length > 0) {
+      @if (invoices().length > 0) {
       <ul class="mi-list">
-        @for (inv of invoices; track inv.invoiceNumber) {
+        @for (inv of invoices(); track inv.invoiceNumber) {
         <li class="mi-row" [class.is-muted]="inv.status === 'Void' || inv.status === 'Cancelled'">
           <div class="mi-row__main">
             <div>

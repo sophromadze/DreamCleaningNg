@@ -6,35 +6,35 @@
 
   <!-- Tabs -->
   <nav class="tabs" aria-label="Blog admin sections">
-    <button type="button" [class.active]="activeTab === 'posts'" (click)="setTab('posts')">Posts</button>
-    @if (editingPost) {
-    <button type="button" [class.active]="activeTab === 'editor'" (click)="setTab('editor')">Editor</button>
+    <button type="button" [class.active]="activeTab() === 'posts'" (click)="setTab('posts')">Posts</button>
+    @if (editingPost()) {
+    <button type="button" [class.active]="activeTab() === 'editor'" (click)="setTab('editor')">Editor</button>
     }
-    <button type="button" [class.active]="activeTab === 'topics'" (click)="setTab('topics')">Topic Queue</button>
+    <button type="button" [class.active]="activeTab() === 'topics'" (click)="setTab('topics')">Topic Queue</button>
     @if (isSuperAdmin) {
-    <button type="button" [class.active]="activeTab === 'settings'" (click)="setTab('settings')">Settings</button>
+    <button type="button" [class.active]="activeTab() === 'settings'" (click)="setTab('settings')">Settings</button>
     }
-    <button type="button" [class.active]="activeTab === 'guide'" (click)="setTab('guide')">How It Works</button>
+    <button type="button" [class.active]="activeTab() === 'guide'" (click)="setTab('guide')">How It Works</button>
   </nav>
 
   <!-- ═══════════ POSTS ═══════════ -->
-  @if (activeTab === 'posts') {
+  @if (activeTab() === 'posts') {
   <section class="tab-panel">
     <div class="toolbar">
       <div class="filters">
-        <button type="button" class="filter-chip" [class.active]="statusFilter === null" (click)="setStatusFilter(null)">All</button>
-        <button type="button" class="filter-chip" [class.active]="statusFilter === BlogPostStatus.PendingReview" (click)="setStatusFilter(BlogPostStatus.PendingReview)">Pending Review</button>
-        <button type="button" class="filter-chip" [class.active]="statusFilter === BlogPostStatus.Draft" (click)="setStatusFilter(BlogPostStatus.Draft)">Drafts</button>
-        <button type="button" class="filter-chip" [class.active]="statusFilter === BlogPostStatus.Published" (click)="setStatusFilter(BlogPostStatus.Published)">Published</button>
+        <button type="button" class="filter-chip" [class.active]="statusFilter() === null" (click)="setStatusFilter(null)">All</button>
+        <button type="button" class="filter-chip" [class.active]="statusFilter() === BlogPostStatus.PendingReview" (click)="setStatusFilter(BlogPostStatus.PendingReview)">Pending Review</button>
+        <button type="button" class="filter-chip" [class.active]="statusFilter() === BlogPostStatus.Draft" (click)="setStatusFilter(BlogPostStatus.Draft)">Drafts</button>
+        <button type="button" class="filter-chip" [class.active]="statusFilter() === BlogPostStatus.Published" (click)="setStatusFilter(BlogPostStatus.Published)">Published</button>
       </div>
       @if (canManage) {
       <button type="button" class="btn btn-primary" (click)="newPost()">+ New Post</button>
       }
     </div>
 
-    @if (!postsLoading) {
+    @if (!postsLoading()) {
     <div class="table-wrapper">
-      @if (posts.length > 0) {
+      @if (posts().length > 0) {
       <table class="posts-table">
         <thead>
           <tr>
@@ -48,7 +48,7 @@
           </tr>
         </thead>
         <tbody>
-          @for (post of posts; track post.id) {
+          @for (post of posts(); track post.id) {
           <tr [class.pending-row]="post.status === BlogPostStatus.PendingReview">
             <td>
               <span class="status-badge" [ngClass]="statusClass(post.status)">{{ statusLabel(post.status) }}</span>
@@ -67,17 +67,17 @@
               <button type="button" class="row-btn" (click)="openEditor(post.id)">{{ canManage ? 'Edit' : 'View' }}</button>
               @if (canManage && post.status !== BlogPostStatus.Published) {
               <button type="button" class="row-btn publish"
-                      [disabled]="actionBusyId === post.id"
+                      [disabled]="actionBusyId() === post.id"
                       (click)="publishFromList(post)">Publish</button>
               }
               @if (canManage && post.status === BlogPostStatus.Published) {
               <button type="button" class="row-btn"
-                      [disabled]="actionBusyId === post.id"
+                      [disabled]="actionBusyId() === post.id"
                       (click)="unpublishFromList(post)">Unpublish</button>
               }
               @if (isSuperAdmin) {
               <button type="button" class="row-btn danger"
-                      [disabled]="actionBusyId === post.id"
+                      [disabled]="actionBusyId() === post.id"
                       (click)="deletePost(post)">Delete</button>
               }
             </td>
@@ -96,9 +96,9 @@
   }
 
   <!-- ═══════════ EDITOR ═══════════ -->
-  @if (activeTab === 'editor' && editingPost) {
+  @if (activeTab() === 'editor' && editingPost()) {
   <section class="tab-panel">
-    @if (editingPost.isAiGenerated && editingPost.status === BlogPostStatus.PendingReview) {
+    @if (editingPost()!.isAiGenerated && editingPost()!.status === BlogPostStatus.PendingReview) {
     <div class="editor-banner ai">
       🤖 This draft was written by AI — read the whole article and check every fact before publishing.
     </div>
@@ -107,29 +107,29 @@
     <div class="editor-topbar">
       <button type="button" class="btn btn-ghost" (click)="closeEditor()">‹ Back to posts</button>
       <div class="editor-status">
-        <span class="status-badge" [ngClass]="statusClass(editingPost.status)">{{ statusLabel(editingPost.status) }}</span>
-        @if (editingPost.status === BlogPostStatus.Published) {
+        <span class="status-badge" [ngClass]="statusClass(editingPost()!.status)">{{ statusLabel(editingPost()!.status) }}</span>
+        @if (editingPost()!.status === BlogPostStatus.Published) {
         <a
-           [href]="'/blog/' + editingPost.slug" target="_blank" rel="noopener">View live ↗</a>
+           [href]="'/blog/' + editingPost()!.slug" target="_blank" rel="noopener">View live ↗</a>
         }
       </div>
       @if (canManage) {
       <div class="editor-actions">
-        <button type="button" class="btn btn-brand" [disabled]="editorBusy" (click)="savePost(false)">Save Draft</button>
-        @if (editingPost.status !== BlogPostStatus.Published) {
+        <button type="button" class="btn btn-brand" [disabled]="editorBusy()" (click)="savePost(false)">Save Draft</button>
+        @if (editingPost()!.status !== BlogPostStatus.Published) {
         <button type="button" class="btn btn-primary"
-                [disabled]="editorBusy" (click)="savePost(true)">Publish</button>
+                [disabled]="editorBusy()" (click)="savePost(true)">Publish</button>
         }
-        @if (editingPost.status === BlogPostStatus.Published) {
+        @if (editingPost()!.status === BlogPostStatus.Published) {
         <button type="button" class="btn btn-ghost"
-                [disabled]="editorBusy" (click)="unpublishFromEditor()">Unpublish</button>
+                [disabled]="editorBusy()" (click)="unpublishFromEditor()">Unpublish</button>
         }
       </div>
       }
     </div>
 
-    @if (editorError) {
-    <p class="editor-error">{{ editorError }}</p>
+    @if (editorError()) {
+    <p class="editor-error">{{ editorError() }}</p>
     }
 
     <div class="editor-grid">
@@ -137,23 +137,23 @@
       <div class="editor-fields">
         <label class="field">
           <span>Title</span>
-          <input type="text" [(ngModel)]="editorForm.title" (ngModelChange)="onTitleChanged($event)"
+          <input type="text" [(ngModel)]="editorForm().title" (ngModelChange)="onTitleChanged($event)"
                  maxlength="200" placeholder="Article headline" />
         </label>
 
         <label class="field">
-          <span>Slug (the link) @if (editorSlugLocked) {
+          <span>Slug (the link) @if (editorSlugLocked()) {
           <small class="locked-hint">🔒 locked — the article is published and Google has this link</small>
           }</span>
-          <input type="text" [(ngModel)]="editorForm.slug" (ngModelChange)="onSlugEdited($event)"
-                 maxlength="220" [disabled]="editorSlugLocked"
+          <input type="text" [(ngModel)]="editorForm().slug" (ngModelChange)="onSlugEdited($event)"
+                 maxlength="220" [disabled]="editorSlugLocked()"
                  placeholder="auto-generated-from-title" />
         </label>
 
         <div class="field-row">
           <label class="field">
             <span>Category</span>
-            <select [(ngModel)]="editorForm.category">
+            <select [(ngModel)]="editorForm().category">
               @for (cat of categories; track cat) {
               <option [value]="cat">{{ cat }}</option>
               }
@@ -161,7 +161,7 @@
           </label>
           <label class="field">
             <span>Author</span>
-            <input type="text" [(ngModel)]="editorForm.authorName" maxlength="100" />
+            <input type="text" [(ngModel)]="editorForm().authorName" maxlength="100" />
           </label>
         </div>
 
@@ -169,14 +169,14 @@
           <span>Meta Title
             <small class="char-counter" [class.over]="metaTitleLength > 60">{{ metaTitleLength }}/60 {{ metaTitleLength > 60 ? '— too long, shorten it' : '✓' }}</small>
           </span>
-          <input type="text" [(ngModel)]="editorForm.metaTitle" maxlength="70" placeholder="Shown as the headline in Google results" />
+          <input type="text" [(ngModel)]="editorForm().metaTitle" maxlength="70" placeholder="Shown as the headline in Google results" />
         </label>
 
         <label class="field">
           <span>Meta Description
             <small class="char-counter" [class.over]="metaDescriptionLength > 160">{{ metaDescriptionLength }}/160 {{ metaDescriptionLength > 160 ? '— too long, shorten it' : '✓' }}</small>
           </span>
-          <textarea [(ngModel)]="editorForm.metaDescription" maxlength="200" rows="2"
+          <textarea [(ngModel)]="editorForm().metaDescription" maxlength="200" rows="2"
                     placeholder="Shown under the headline in Google results"></textarea>
         </label>
 
@@ -184,29 +184,29 @@
           <span>Excerpt
             <small class="char-counter" [class.over]="excerptLength > 160">{{ excerptLength }}/160</small>
           </span>
-          <textarea [(ngModel)]="editorForm.excerpt" maxlength="300" rows="2"
+          <textarea [(ngModel)]="editorForm().excerpt" maxlength="300" rows="2"
                     placeholder="Short teaser shown on the blog listing card"></textarea>
         </label>
 
         <label class="field">
           <span>Tags <small>(comma-separated)</small></span>
-          <input type="text" [(ngModel)]="editorForm.tags" maxlength="500" placeholder="deep cleaning, nyc apartments" />
+          <input type="text" [(ngModel)]="editorForm().tags" maxlength="500" placeholder="deep cleaning, nyc apartments" />
         </label>
 
         <div class="field featured-image-field">
           <span>Featured Image</span>
           <div class="image-row">
-            @if (editorForm.featuredImagePath) {
-            <img [src]="editorForm.featuredImagePath" alt="Featured image preview" class="image-preview" />
+            @if (editorForm().featuredImagePath) {
+            <img [src]="editorForm().featuredImagePath" alt="Featured image preview" class="image-preview" />
             }
             <div class="image-controls">
               @if (canManage) {
               <label class="btn btn-brand upload-btn">
-                {{ uploadBusy ? 'Uploading…' : (editorForm.featuredImagePath ? 'Replace Image' : 'Upload Image') }}
-                <input type="file" accept="image/*" (change)="uploadFeaturedImage($event)" [disabled]="uploadBusy" hidden />
+                {{ uploadBusy() ? 'Uploading…' : (editorForm().featuredImagePath ? 'Replace Image' : 'Upload Image') }}
+                <input type="file" accept="image/*" (change)="uploadFeaturedImage($event)" [disabled]="uploadBusy()" hidden />
               </label>
               }
-              <input type="text" [(ngModel)]="editorForm.featuredImageAlt" maxlength="200"
+              <input type="text" [(ngModel)]="editorForm().featuredImageAlt" maxlength="200"
                      placeholder="Image description (alt text)" />
             </div>
           </div>
@@ -215,7 +215,7 @@
         <label class="field">
           <span>Article (Markdown)</span>
           <textarea class="markdown-input"
-                    [(ngModel)]="editorForm.contentMarkdown"
+                    [(ngModel)]="editorForm().contentMarkdown"
                     (ngModelChange)="onMarkdownChanged($event)"
                     rows="24"
                     placeholder="## Section heading&#10;&#10;Write the article here…"></textarea>
@@ -225,29 +225,29 @@
       <!-- Right: live preview -->
       <div class="editor-preview">
         <div class="preview-header">Preview</div>
-        <div class="preview-body" [innerHTML]="previewHtml"></div>
+        <div class="preview-body" [innerHTML]="previewHtml()"></div>
       </div>
     </div>
   </section>
   }
 
   <!-- ═══════════ TOPIC QUEUE ═══════════ -->
-  @if (activeTab === 'topics') {
+  @if (activeTab() === 'topics') {
   <section class="tab-panel">
     <div class="topics-layout">
       <div class="topics-main">
         <div class="toolbar">
           <h2>Queued Topics</h2>
           @if (canManage) {
-          <button type="button" class="btn btn-brand" [disabled]="suggestBusy" (click)="suggestTopics()">
-            {{ suggestBusy ? 'Asking AI…' : '✨ Suggest Topics with AI' }}
+          <button type="button" class="btn btn-brand" [disabled]="suggestBusy()" (click)="suggestTopics()">
+            {{ suggestBusy() ? 'Asking AI…' : '✨ Suggest Topics with AI' }}
           </button>
           }
         </div>
 
         <p class="hint">The scheduler always takes the topic at the top of this list. Heard a good customer question on a call or in chat? Add it — real questions make the best articles.</p>
 
-        @if (!topicsLoading) {
+        @if (!topicsLoading()) {
         <div>
           @for (topic of queuedTopics; track topic.id; let i = $index) {
           <div class="topic-card">
@@ -272,9 +272,9 @@
             <div class="topic-actions">
               @if (canManage) {
               <button type="button" class="row-btn publish"
-                      [disabled]="generateBusyTopicId !== null"
+                      [disabled]="generateBusyTopicId() !== null"
                       (click)="generateNow(topic)">
-                {{ generateBusyTopicId === topic.id ? 'Writing… (up to a minute)' : 'Generate Now' }}
+                {{ generateBusyTopicId() === topic.id ? 'Writing… (up to a minute)' : 'Generate Now' }}
               </button>
               }
               @if (canManage) {
@@ -320,29 +320,29 @@
         <!-- Add / edit topic form -->
         @if (canManage) {
         <div class="topic-form">
-          <h3>{{ editingTopicId ? 'Edit Topic' : 'Add a Topic' }}</h3>
+          <h3>{{ editingTopicId() ? 'Edit Topic' : 'Add a Topic' }}</h3>
           <label class="field">
             <span>Topic</span>
-            <input type="text" [(ngModel)]="topicForm.topicTitle" maxlength="300"
+            <input type="text" [(ngModel)]="topicForm().topicTitle" maxlength="300"
                    placeholder="e.g. How to deep clean a pre-war apartment kitchen" />
           </label>
           <div class="field-row">
             <label class="field">
               <span>Target keyword <small>(optional)</small></span>
-              <input type="text" [(ngModel)]="topicForm.targetKeyword" maxlength="200"
+              <input type="text" [(ngModel)]="topicForm().targetKeyword" maxlength="200"
                      placeholder="e.g. deep clean apartment kitchen" />
             </label>
           </div>
           <label class="field">
             <span>Notes for the writer <small>(optional)</small></span>
-            <textarea [(ngModel)]="topicForm.notes" maxlength="1000" rows="2"
+            <textarea [(ngModel)]="topicForm().notes" maxlength="1000" rows="2"
                       placeholder="Angle, things to mention, customer question that prompted this…"></textarea>
           </label>
           <div class="form-actions">
-            <button type="button" class="btn btn-primary" [disabled]="!topicForm.topicTitle.trim()" (click)="saveTopic()">
-              {{ editingTopicId ? 'Save Changes' : 'Add to Queue' }}
+            <button type="button" class="btn btn-primary" [disabled]="!topicForm().topicTitle.trim()" (click)="saveTopic()">
+              {{ editingTopicId() ? 'Save Changes' : 'Add to Queue' }}
             </button>
-            @if (editingTopicId) {
+            @if (editingTopicId()) {
             <button type="button" class="btn btn-ghost" (click)="cancelTopicEdit()">Cancel</button>
             }
           </div>
@@ -352,19 +352,19 @@
     </div>
 
     <!-- AI suggestions panel -->
-    @if (suggestionsVisible) {
+    @if (suggestionsVisible()) {
     <div class="suggestions-overlay">
       <div class="suggestions-panel">
         <div class="suggestions-header">
           <h3>AI Topic Suggestions</h3>
-          <button type="button" class="btn btn-ghost" (click)="suggestionsVisible = false">✕ Close</button>
+          <button type="button" class="btn btn-ghost" (click)="suggestionsVisible.set(false)">✕ Close</button>
         </div>
-        @if (suggestBusy) {
+        @if (suggestBusy()) {
         <p class="hint">Thinking of topics that don't overlap with what you already have…</p>
         }
-        @if (!suggestBusy) {
+        @if (!suggestBusy()) {
         <div class="suggestions-list">
-          @for (suggestion of suggestions; track $index) {
+          @for (suggestion of suggestions(); track $index) {
           <label class="suggestion-row">
             <input type="checkbox" [(ngModel)]="suggestion.selected" />
             <span class="suggestion-text">
@@ -375,12 +375,12 @@
           }
         </div>
         }
-        @if (!suggestBusy && suggestions.length > 0) {
+        @if (!suggestBusy() && suggestions().length > 0) {
         <div class="suggestions-footer">
           <button type="button" class="btn btn-primary"
-                  [disabled]="selectedSuggestionsCount === 0 || addSuggestionsBusy"
+                  [disabled]="selectedSuggestionsCount === 0 || addSuggestionsBusy()"
                   (click)="addSelectedSuggestions()">
-            {{ addSuggestionsBusy ? 'Adding…' : 'Add ' + selectedSuggestionsCount + ' to Queue' }}
+            {{ addSuggestionsBusy() ? 'Adding…' : 'Add ' + selectedSuggestionsCount + ' to Queue' }}
           </button>
         </div>
         }
@@ -391,9 +391,9 @@
   }
 
   <!-- ═══════════ SETTINGS ═══════════ -->
-  @if (activeTab === 'settings') {
+  @if (activeTab() === 'settings') {
   <section class="tab-panel">
-    @if (!settingsLoading && settings) {
+    @if (!settingsLoading() && settings()) {
     <div class="settings-panel">
       <div class="setting-row">
         <div class="setting-text">
@@ -402,11 +402,11 @@
             "Soon" badge, and the sitemap stays empty — while drafting and publishing here keep working normally.
             Flip it ON when the first articles are ready; the site goes live instantly, no deploy needed.</p>
         </div>
-        <button type="button" class="toggle" [class.on]="settings.publicVisible"
-                [disabled]="settingsSaving" (click)="togglePublicVisible()"
-                [attr.aria-pressed]="settings.publicVisible">
+        <button type="button" class="toggle" [class.on]="settings()!.publicVisible"
+                [disabled]="settingsSaving()" (click)="togglePublicVisible()"
+                [attr.aria-pressed]="settings()!.publicVisible">
           <span class="knob"></span>
-          <span class="toggle-label">{{ settings.publicVisible ? 'ON' : 'OFF' }}</span>
+          <span class="toggle-label">{{ settings()!.publicVisible ? 'ON' : 'OFF' }}</span>
         </button>
       </div>
 
@@ -414,14 +414,14 @@
         <div class="setting-text">
           <h2>Automatic weekly drafts</h2>
           <p>When ON, the AI writer automatically creates one new draft from the top of the Topic Queue every
-            {{ settings.generationIntervalDays }} day(s). Drafts always wait for a human to review and publish —
+            {{ settings()!.generationIntervalDays }} day(s). Drafts always wait for a human to review and publish —
             nothing goes on the website by itself.</p>
         </div>
-        <button type="button" class="toggle" [class.on]="settings.autoGenerateEnabled"
-                [disabled]="settingsSaving" (click)="toggleAutoGenerate()"
-                [attr.aria-pressed]="settings.autoGenerateEnabled">
+        <button type="button" class="toggle" [class.on]="settings()!.autoGenerateEnabled"
+                [disabled]="settingsSaving()" (click)="toggleAutoGenerate()"
+                [attr.aria-pressed]="settings()!.autoGenerateEnabled">
           <span class="knob"></span>
-          <span class="toggle-label">{{ settings.autoGenerateEnabled ? 'ON' : 'OFF' }}</span>
+          <span class="toggle-label">{{ settings()!.autoGenerateEnabled ? 'ON' : 'OFF' }}</span>
         </button>
       </div>
 
@@ -430,10 +430,10 @@
           <h2>Writer model</h2>
           <p>Which Claude model writes the drafts.</p>
           <select aria-label="Writer model" class="model-select"
-                  [ngModel]="settings.generationModel"
+                  [ngModel]="settings()!.generationModel"
                   (ngModelChange)="onModelChange($event)"
-                  [disabled]="settingsSaving">
-            @for (option of settings.modelOptions; track option.id) {
+                  [disabled]="settingsSaving()">
+            @for (option of settings()!.modelOptions; track option.id) {
             <option [value]="option.id">{{ option.label }}</option>
             }
           </select>
@@ -444,17 +444,17 @@
       <div class="settings-facts">
         <div class="fact">
           <span class="fact-label">Last generation</span>
-          <span class="fact-value">{{ settings.lastRunAt ? formatDateTime(settings.lastRunAt) : 'Never ran yet' }}</span>
+          <span class="fact-value">{{ settings()!.lastRunAt ? formatDateTime(settings()!.lastRunAt) : 'Never ran yet' }}</span>
         </div>
-        @if (settings.lastRunResult) {
+        @if (settings()!.lastRunResult) {
         <div class="fact">
           <span class="fact-label">Result</span>
-          <span class="fact-value" [class.failed]="settings.lastRunResult.startsWith('Failed')">{{ settings.lastRunResult }}</span>
+          <span class="fact-value" [class.failed]="settings()!.lastRunResult!.startsWith('Failed')">{{ settings()!.lastRunResult }}</span>
         </div>
         }
         <div class="fact">
           <span class="fact-label">Topics waiting in queue</span>
-          <span class="fact-value">{{ settings.queuedTopicsCount }}</span>
+          <span class="fact-value">{{ settings()!.queuedTopicsCount }}</span>
         </div>
       </div>
     </div>
@@ -465,15 +465,15 @@
   }
 
   <!-- ═══════════ HOW IT WORKS ═══════════ -->
-  @if (activeTab === 'guide') {
+  @if (activeTab() === 'guide') {
   <section class="tab-panel guide">
     <div class="lang-toggle" role="group" aria-label="Guide language">
-      <button type="button" [class.active]="guideLang === 'ka'" (click)="guideLang = 'ka'">ქართული</button>
-      <button type="button" [class.active]="guideLang === 'en'" (click)="guideLang = 'en'">EN</button>
+      <button type="button" [class.active]="guideLang() === 'ka'" (click)="guideLang.set('ka')">ქართული</button>
+      <button type="button" [class.active]="guideLang() === 'en'" (click)="guideLang.set('en')">EN</button>
     </div>
 
     <!-- ─── ქართული ─── -->
-    @if (guideLang === 'ka') {
+    @if (guideLang() === 'ka') {
       <h2>როგორ მუშაობს ბლოგი — მარტივი ენით</h2>
 
       <div class="guide-block">
@@ -547,7 +547,7 @@
     }
 
     <!-- ─── English ─── -->
-    @if (guideLang === 'en') {
+    @if (guideLang() === 'en') {
     <h2>How the blog works — plain and simple</h2>
 
     <div class="guide-block">

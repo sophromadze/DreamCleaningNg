@@ -3,7 +3,7 @@
   <h1 class="sr-only">Bubble Rewards</h1>
 
   <!-- Loading skeleton (same shimmer style as profile) -->
-  @if (summaryLoading) {
+  @if (summaryLoading()) {
   <div class="rewards-skeleton">
     <div class="rewards-skeleton-section">
       <div class="rewards-shimmer-hero" [shimmer]="true"></div>
@@ -22,16 +22,16 @@
     </div>
   </div>
   }
-  @if (!summaryLoading && summary && summary.pointsSystemEnabled) {
+  @if (!summaryLoading() && summary() && summary()!.pointsSystemEnabled) {
 
 
     <!-- ── Refer a Friend (top) — the shared card, also on the profile Overview tab ── -->
-    <app-refer-a-friend class="referral-hero-slot" [code]="summary.referralCode" [shareUrl]="summary.shareUrl"></app-refer-a-friend>
+    <app-refer-a-friend class="referral-hero-slot" [code]="summary()!.referralCode" [shareUrl]="summary()!.shareUrl"></app-refer-a-friend>
 
     <!-- Referral list -->
-    @if (referrals.length > 0) {
+    @if (referrals().length > 0) {
     <div class="referral-list referral-list--scroll">
-      @for (r of referrals; track $index) {
+      @for (r of referrals(); track $index) {
       <div class="referral-item">
         <div class="referral-item__name">{{ r.referredUserName }}</div>
         <div class="referral-item__status" [class.status-done]="r.orderBonusGiven" [class.status-pending]="!r.orderBonusGiven">
@@ -41,12 +41,12 @@
       }
     </div>
     }
-    @if (!referralsLoading && referrals.length === 0) {
+    @if (!referralsLoading() && referrals().length === 0) {
     <p class="empty-hint referral-empty">No referrals yet. Share your code to start earning!</p>
     }
 
     <!-- ── Hero tier card ─────────────────────────────────── -->
-    <div class="tier-hero" [style.--tier-color]="getTierColor(summary.tier)">
+    <div class="tier-hero" [style.--tier-color]="getTierColor(summary()!.tier)">
 
       <!-- Floating CSS bubbles decoration -->
       <div class="tier-hero__bubbles" aria-hidden="true">
@@ -60,28 +60,28 @@
       <div class="tier-hero__top">
         <div class="tier-hero__tier-badge">
           <span class="tier-hero__tier-label">Tier</span>
-          <span class="tier-hero__name">{{ getTierLabel(summary.tier) }}</span>
+          <span class="tier-hero__name">{{ getTierLabel(summary()!.tier) }}</span>
         </div>
         <div class="tier-hero__points-block">
-          <div class="tier-hero__points-num">{{ summary.currentPoints | number }}</div>
+          <div class="tier-hero__points-num">{{ summary()!.currentPoints | number }}</div>
           <div class="tier-hero__points-label">bubble points</div>
         </div>
       </div>
 
       <!-- Tier progress bar -->
-      @if (summary.nextTierName) {
+      @if (summary()!.nextTierName) {
       <div class="tier-progress">
         <div class="tier-progress__labels">
-          <span>{{ getTierLabel(summary.tier) }}</span>
-          <span class="tier-progress__next">{{ summary.nextTierName }}</span>
+          <span>{{ getTierLabel(summary()!.tier) }}</span>
+          <span class="tier-progress__next">{{ summary()!.nextTierName }}</span>
         </div>
         <div class="tier-progress__track">
-          <div class="tier-progress__fill" [style.width.%]="summary.tierProgressPercent"></div>
+          <div class="tier-progress__fill" [style.width.%]="summary()!.tierProgressPercent"></div>
         </div>
-        <div class="tier-progress__hint">${{ summary.amountToNextTier | number:'1.0-0' }} more to unlock {{ summary.nextTierName }}</div>
+        <div class="tier-progress__hint">${{ summary()!.amountToNextTier | number:'1.0-0' }} more to unlock {{ summary()!.nextTierName }}</div>
       </div>
       }
-      @if (!summary.nextTierName) {
+      @if (!summary()!.nextTierName) {
       <div class="tier-progress">
         <div class="tier-progress__track tier-progress__track--full">
           <div class="tier-progress__fill" style="width:100%"></div>
@@ -95,25 +95,25 @@
     <div class="stats-row">
       <div class="stat-pill">
         <div class="stat-pill__icon">⭐</div>
-        <div class="stat-pill__value">{{ summary.totalEarned | number }}</div>
+        <div class="stat-pill__value">{{ summary()!.totalEarned | number }}</div>
         <div class="stat-pill__label">Total Earned</div>
       </div>
       <div class="stat-pill">
         <div class="stat-pill__icon">🎁</div>
-        <div class="stat-pill__value">{{ summary.totalRedeemed | number }}</div>
+        <div class="stat-pill__value">{{ summary()!.totalRedeemed | number }}</div>
         <div class="stat-pill__label">Redeemed</div>
       </div>
-      @if (summary.bubbleCredits > 0) {
+      @if (summary()!.bubbleCredits > 0) {
       <div class="stat-pill stat-pill--green">
         <div class="stat-pill__icon">💵</div>
-        <div class="stat-pill__value">${{ summary.bubbleCredits | number:'1.2-2' }}</div>
+        <div class="stat-pill__value">${{ summary()!.bubbleCredits | number:'1.2-2' }}</div>
         <div class="stat-pill__label">Reward Balance</div>
       </div>
       }
-      @if (summary.streakCount > 1) {
+      @if (summary()!.streakCount > 1) {
       <div class="stat-pill stat-pill--fire">
         <div class="stat-pill__icon">🔥</div>
-        <div class="stat-pill__value">{{ summary.streakCount }}</div>
+        <div class="stat-pill__value">{{ summary()!.streakCount }}</div>
         <div class="stat-pill__label">Order Streak</div>
       </div>
       }
@@ -124,7 +124,7 @@
       <h2 class="section-title">Redeem Points</h2>
       <p class="section-hint">Apply points at checkout on your next booking.</p>
       <div class="redemption-grid">
-        @for (opt of summary.availableRedemptions; track $index) {
+        @for (opt of summary()!.availableRedemptions; track $index) {
         <div
              class="redemption-card"
              [class.redemption-card--available]="opt.available"
@@ -139,7 +139,7 @@
             <span class="status-badge">✓ Available</span>
             }
             @if (!opt.available) {
-            <span class="status-badge status-badge--locked">{{ summary.currentPoints | number }} / {{ opt.points | number }}</span>
+            <span class="status-badge status-badge--locked">{{ summary()!.currentPoints | number }} / {{ opt.points | number }}</span>
             }
           </div>
         </div>
@@ -150,15 +150,15 @@
     <!-- ── Points History ────────────────────────────────── -->
     <div class="section">
       <h2 class="section-title">Points History</h2>
-      @if (historyLoading) {
+      @if (historyLoading()) {
       <div class="loading-hint">Loading history...</div>
       }
-      @if (!historyLoading && history.length === 0) {
+      @if (!historyLoading() && history().length === 0) {
       <div class="empty-hint">No transactions yet.</div>
       }
-      @if (!historyLoading && history.length > 0) {
+      @if (!historyLoading() && history().length > 0) {
       <div class="history-list history-list--scroll">
-        @for (item of history; track $index) {
+        @for (item of history(); track $index) {
         <div
              class="history-item"
              [class.history-item--clickable]="!!item.orderId"
@@ -186,17 +186,17 @@
       }
 
       <!-- Pagination -->
-      @if (historyTotalPages > 1) {
+      @if (historyTotalPages() > 1) {
       <div class="history-pagination">
-        <button (click)="prevHistoryPage()" [disabled]="historyPage === 1">←</button>
-        <span>{{ historyPage }} / {{ historyTotalPages }}</span>
-        <button (click)="nextHistoryPage()" [disabled]="historyPage === historyTotalPages">→</button>
+        <button (click)="prevHistoryPage()" [disabled]="historyPage() === 1">←</button>
+        <span>{{ historyPage() }} / {{ historyTotalPages() }}</span>
+        <button (click)="nextHistoryPage()" [disabled]="historyPage() === historyTotalPages()">→</button>
       </div>
       }
     </div>
 
     <!-- ── How It Works Guide ────────────────────────────── -->
-    @if (summary.guide) {
+    @if (summary()!.guide) {
     <div class="section guide-section">
       <h2 class="section-title">How It Works</h2>
 
@@ -204,13 +204,13 @@
       <div class="guide-block">
         <div class="guide-block__title">Earning Points</div>
         <div class="guide-block__body">
-          <p>Every dollar you spend on a cleaning earns you <strong>{{ summary.guide.pointsPerDollar | number:'1.0-1' }} bubble points</strong>. Your tier multiplies this:</p>
+          <p>Every dollar you spend on a cleaning earns you <strong>{{ summary()!.guide.pointsPerDollar | number:'1.0-1' }} bubble points</strong>. Your tier multiplies this:</p>
           <ul class="guide-list">
-            <li>Bubble tier — <strong>{{ summary.guide.bubbleMultiplier }}x</strong> (base rate)</li>
-            <li>Super Bubble tier — <strong>{{ summary.guide.superBubbleMultiplier }}x</strong></li>
-            <li>Ultra Bubble tier — <strong>{{ summary.guide.ultraBubbleMultiplier }}x</strong></li>
+            <li>Bubble tier — <strong>{{ summary()!.guide.bubbleMultiplier }}x</strong> (base rate)</li>
+            <li>Super Bubble tier — <strong>{{ summary()!.guide.superBubbleMultiplier }}x</strong></li>
+            <li>Ultra Bubble tier — <strong>{{ summary()!.guide.ultraBubbleMultiplier }}x</strong></li>
           </ul>
-          <p class="guide-example">Example: a $100 cleaning at Bubble tier = {{ 100 * summary.guide.pointsPerDollar * summary.guide.bubbleMultiplier | number:'1.0-0' }} pts &nbsp;|&nbsp; Super Bubble = {{ 100 * summary.guide.pointsPerDollar * summary.guide.superBubbleMultiplier | number:'1.0-0' }} pts &nbsp;|&nbsp; Ultra Bubble = {{ 100 * summary.guide.pointsPerDollar * summary.guide.ultraBubbleMultiplier | number:'1.0-0' }} pts</p>
+          <p class="guide-example">Example: a $100 cleaning at Bubble tier = {{ 100 * summary()!.guide.pointsPerDollar * summary()!.guide.bubbleMultiplier | number:'1.0-0' }} pts &nbsp;|&nbsp; Super Bubble = {{ 100 * summary()!.guide.pointsPerDollar * summary()!.guide.superBubbleMultiplier | number:'1.0-0' }} pts &nbsp;|&nbsp; Ultra Bubble = {{ 100 * summary()!.guide.pointsPerDollar * summary()!.guide.ultraBubbleMultiplier | number:'1.0-0' }} pts</p>
         </div>
       </div>
 
@@ -221,8 +221,8 @@
           <p>Your tier is based on your <strong>total lifetime spending</strong> with us.</p>
           <ul class="guide-list">
             <li>Bubble — starts from $0</li>
-            <li>Super Bubble — unlock at <strong>${{ summary.guide.tierSuperBubbleMinSpent | number:'1.0-0' }} spent</strong></li>
-            <li>Ultra Bubble — unlock at <strong>${{ summary.guide.tierUltraBubbleMinSpent | number:'1.0-0' }} spent</strong></li>
+            <li>Super Bubble — unlock at <strong>${{ summary()!.guide.tierSuperBubbleMinSpent | number:'1.0-0' }} spent</strong></li>
+            <li>Ultra Bubble — unlock at <strong>${{ summary()!.guide.tierUltraBubbleMinSpent | number:'1.0-0' }} spent</strong></li>
           </ul>
           <p>Higher tiers multiply every point you earn going forward.</p>
         </div>
@@ -233,9 +233,9 @@
         <div class="guide-block__title">Redeeming Points</div>
         <div class="guide-block__body">
           <p>Apply points at checkout to get a discount on your next booking:</p>
-          @if (summary.availableRedemptions.length > 0) {
+          @if (summary()!.availableRedemptions.length > 0) {
           <ul class="guide-list">
-            @for (opt of summary.availableRedemptions; track $index) {
+            @for (opt of summary()!.availableRedemptions; track $index) {
             <li>
               <strong>{{ opt.points | number }} pts</strong> = <strong>${{ opt.dollarValue | number:'1.0-0' }} off</strong>
             </li>
@@ -251,31 +251,31 @@
         <div class="guide-block__title">Bonuses</div>
         <div class="guide-block__body">
           <ul class="guide-list">
-            @if (summary.guide.welcomeBonusEnabled) {
+            @if (summary()!.guide.welcomeBonusEnabled) {
             <li>
-              <strong>Welcome bonus:</strong> get <strong>{{ summary.guide.welcomeBonusPoints | number }} pts</strong> when you create your account.
+              <strong>Welcome bonus:</strong> get <strong>{{ summary()!.guide.welcomeBonusPoints | number }} pts</strong> when you create your account.
             </li>
             }
-            @if (summary.guide.recurringBonusEnabled) {
+            @if (summary()!.guide.recurringBonusEnabled) {
             <li>
               <strong>Returning customer bonus:</strong>
               <p class="guide-li-para">After your first cleaning, you can earn <strong>extra points</strong> on future bookings based on the <strong>cleaning frequency</strong> you choose when you book — on the step <strong>“How often would you like us to clean?”</strong> It is tied to that choice for each booking, not a flat boost on every order.</p>
-              <p class="guide-li-para"><strong>One Time</strong> cleanings are <strong>not</strong> eligible. Recurring plans are, for example: <strong>Weekly</strong> <strong>{{ summary.guide.recurringBonusPercent | number:'1.0-0' }}%</strong> extra on points for that order, <strong>Bi-Weekly</strong> <strong>10%</strong>, and <strong>Monthly</strong> <strong>5%</strong> — the same percentages you see on each option when you book.</p>
+              <p class="guide-li-para"><strong>One Time</strong> cleanings are <strong>not</strong> eligible. Recurring plans are, for example: <strong>Weekly</strong> <strong>{{ summary()!.guide.recurringBonusPercent | number:'1.0-0' }}%</strong> extra on points for that order, <strong>Bi-Weekly</strong> <strong>10%</strong>, and <strong>Monthly</strong> <strong>5%</strong> — the same percentages you see on each option when you book.</p>
             </li>
             }
-            @if (summary.guide.nextOrderBoosterEnabled) {
+            @if (summary()!.guide.nextOrderBoosterEnabled) {
             <li>
-              <strong>Loyalty booster:</strong> book again within <strong>{{ summary.guide.nextOrderBoosterDays }} days</strong> of your last cleaning and earn an extra <strong>{{ summary.guide.nextOrderBoosterPercent | number:'1.0-0' }}%</strong> points.
+              <strong>Loyalty booster:</strong> book again within <strong>{{ summary()!.guide.nextOrderBoosterDays }} days</strong> of your last cleaning and earn an extra <strong>{{ summary()!.guide.nextOrderBoosterPercent | number:'1.0-0' }}%</strong> points.
             </li>
             }
-            @if (summary.guide.streakEnabled) {
+            @if (summary()!.guide.streakEnabled) {
             <li>
-              <strong>Streak bonuses:</strong> book 3 cleanings in a row and earn <strong>+{{ summary.guide.streak3Bonus | number }} pts</strong>; reach 6 in a row for <strong>+{{ summary.guide.streak6Bonus | number }} pts</strong>.
+              <strong>Streak bonuses:</strong> book 3 cleanings in a row and earn <strong>+{{ summary()!.guide.streak3Bonus | number }} pts</strong>; reach 6 in a row for <strong>+{{ summary()!.guide.streak6Bonus | number }} pts</strong>.
             </li>
             }
-            @if (summary.guide.reviewBonusEnabled) {
+            @if (summary()!.guide.reviewBonusEnabled) {
             <li>
-              <strong>Review bonus:</strong> leave us a Google review and earn <strong>{{ summary.guide.reviewBonusPoints | number }} pts</strong> (awarded manually by our team).
+              <strong>Review bonus:</strong> leave us a Google review and earn <strong>{{ summary()!.guide.reviewBonusPoints | number }} pts</strong> (awarded manually by our team).
             </li>
             }
           </ul>
@@ -283,19 +283,19 @@
       </div>
 
       <!-- Referrals -->
-      @if (summary.guide.referralEnabled) {
+      @if (summary()!.guide.referralEnabled) {
       <div class="guide-block">
         <div class="guide-block__title">Refer a Friend</div>
         <div class="guide-block__body">
           <p>Share your referral link and both of you benefit:</p>
           <ul class="guide-list">
-            @if (summary.guide.referralNewUserBonusEnabled && summary.guide.referralNewUserBonusPoints > 0) {
+            @if (summary()!.guide.referralNewUserBonusEnabled && summary()!.guide.referralNewUserBonusPoints > 0) {
             <li>
-              Your friend gets the normal <strong>welcome bonus</strong> when they create an account, plus an extra <strong>{{ summary.guide.referralNewUserBonusPoints | number }} pts</strong> for signing up with your link or entering your code during registration.
+              Your friend gets the normal <strong>welcome bonus</strong> when they create an account, plus an extra <strong>{{ summary()!.guide.referralNewUserBonusPoints | number }} pts</strong> for signing up with your link or entering your code during registration.
             </li>
             }
             <li>
-              You earn a <strong>${{ summary.guide.referralOrderCreditAmount | number:'1.0-0' }} reward balance</strong> once your friend completes their first cleaning — apply manually on your future bookings.
+              You earn a <strong>${{ summary()!.guide.referralOrderCreditAmount | number:'1.0-0' }} reward balance</strong> once your friend completes their first cleaning — apply manually on your future bookings.
             </li>
           </ul>
           <p>There's no limit to how many friends you can refer.</p>
@@ -309,7 +309,7 @@
   }
 
   <!-- System disabled notice -->
-  @if (!summaryLoading && summary && !summary.pointsSystemEnabled) {
+  @if (!summaryLoading() && summary() && !summary()!.pointsSystemEnabled) {
   <div class="disabled-notice">
     The Bubble Rewards program is currently paused. Check back soon!
   </div>

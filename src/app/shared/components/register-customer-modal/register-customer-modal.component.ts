@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, OnChanges, SimpleChanges, ChangeDetectionStrategy, inject, output, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { finalize } from 'rxjs/operators';
 import { AdminService } from '../../../services/admin.service';
@@ -40,24 +40,24 @@ export interface RegisteredCustomer {
   standalone: true,
   imports: [FormsModule],
   templateUrl: './register-customer-modal.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./register-customer-modal.component.scss']
 })
 export class RegisterCustomerModalComponent implements OnChanges {
   private adminService = inject(AdminService);
 
   /** Host-controlled visibility. Every false→true transition resets the form. */
-  @Input() open = false;
+  readonly open = input(false);
 
   /** Cancel, backdrop click, ✕, or a completed registration. The host clears its own flag. */
-  @Output() closed = new EventEmitter<void>();
+  readonly closed = output<void>();
 
   /** Emitted once the customer exists on the server. */
-  @Output() registered = new EventEmitter<RegisteredCustomer>();
+  readonly registered = output<RegisteredCustomer>();
 
-  form = { firstName: '', lastName: '', email: '', phone: '', noEmail: false };
-  errorMessage = '';
-  isRegistering = false;
+  readonly form = signal({ firstName: '', lastName: '', email: '', phone: '', noEmail: false }, { equal: () => false });
+  readonly errorMessage = signal('');
+  readonly isRegistering = signal(false);
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['open'] && changes['open'].currentValue && !changes['open'].previousValue) {
@@ -66,14 +66,14 @@ export class RegisterCustomerModalComponent implements OnChanges {
   }
 
   private reset(): void {
-    this.form = { firstName: '', lastName: '', email: '', phone: '', noEmail: false };
-    this.errorMessage = '';
-    this.isRegistering = false;
+    this.form.set({ firstName: '', lastName: '', email: '', phone: '', noEmail: false });
+    this.errorMessage.set('');
+    this.isRegistering.set(false);
   }
 
   close(): void {
-    if (this.isRegistering) return;
-    this.errorMessage = '';
+    if (this.isRegistering()) return;
+    this.errorMessage.set('');
     this.closed.emit();
   }
 
@@ -82,7 +82,8 @@ export class RegisterCustomerModalComponent implements OnChanges {
     const input = event.target as HTMLInputElement;
     const cleaned = sanitizePhoneInput(input.value);
     if (input.value !== cleaned) input.value = cleaned;
-    this.form.phone = cleaned;
+    this.form().phone = cleaned;
+    this.form.set(this.form());
   }
 
   /**
@@ -90,47 +91,47 @@ export class RegisterCustomerModalComponent implements OnChanges {
    * next to the box that caused it rather than only after pressing Register.
    */
   onEmailBlur(): void {
-    if (this.form.noEmail || !this.form.email?.trim()) return;
-    const problem = describeEmailProblem(this.form.email);
-    if (problem) this.errorMessage = problem;
+    if (this.form().noEmail || !this.form().email?.trim()) return;
+    const problem = describeEmailProblem(this.form().email);
+    if (problem) this.errorMessage.set(problem);
   }
 
   /** Any edit clears the standing error — it described the value that just changed. */
   onFieldInput(): void {
-    if (this.errorMessage) this.errorMessage = '';
+    if (this.errorMessage()) this.errorMessage.set('');
   }
 
   onNoEmailToggle(): void {
-    this.errorMessage = '';
+    this.errorMessage.set('');
   }
 
   submit(): void {
-    const f = this.form;
+    const f = this.form();
 
     if (!f.firstName?.trim() || !f.lastName?.trim()) {
-      this.errorMessage = 'First name and last name are required.';
+      this.errorMessage.set('First name and last name are required.');
       return;
     }
 
     if (!f.noEmail) {
       if (!f.email?.trim()) {
-        this.errorMessage = 'Email is required (or mark the customer as having no email).';
+        this.errorMessage.set('Email is required (or mark the customer as having no email).');
         return;
       }
       const problem = describeEmailProblem(f.email);
       if (problem) {
-        this.errorMessage = problem;
+        this.errorMessage.set(problem);
         return;
       }
     }
 
     if (f.noEmail && !normalizePhone10(f.phone)) {
-      this.errorMessage = 'Phone is required for customers without an email.';
+      this.errorMessage.set('Phone is required for customers without an email.');
       return;
     }
 
-    this.errorMessage = '';
-    this.isRegistering = true;
+    this.errorMessage.set('');
+    this.isRegistering.set(true);
 
     this.adminService.registerUser({
       firstName: f.firstName.trim(),
@@ -141,7 +142,7 @@ export class RegisterCustomerModalComponent implements OnChanges {
     })
       // `complete` never fires on an HTTP error, so releasing the button there left a failed
       // registration stuck on "Registering…" with the form disabled. finalize covers both paths.
-      .pipe(finalize(() => { this.isRegistering = false; }))
+      .pipe(finalize(() => { this.isRegistering.set(false); }))
       .subscribe({
         next: (res: any) => {
           const customer: RegisteredCustomer = {
@@ -158,10 +159,10 @@ export class RegisterCustomerModalComponent implements OnChanges {
           this.closed.emit();
         },
         error: (err) => {
-          this.errorMessage = err?.status === 409
+          this.errorMessage.set(err?.status === 409
             ? 'A user with this email already exists.'
             // Never `err.message`: that is the transport text the admin could not act on.
-            : extractApiErrorMessage(err, 'Registration failed. Please try again.');
+            : extractApiErrorMessage(err, 'Registration failed. Please try again.'));
         }
       });
   }

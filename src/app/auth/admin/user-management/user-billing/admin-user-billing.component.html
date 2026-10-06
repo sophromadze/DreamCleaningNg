@@ -1,20 +1,20 @@
 <div class="aub">
-  @if (loading) {
+  @if (loading()) {
   <div class="aub-loading">Loading billing…</div>
   }
-  @if (!loading && error) {
-  <div class="aub-error">{{ error }} <button type="button" class="aub-link" (click)="load()">Retry</button></div>
+  @if (!loading() && error()) {
+  <div class="aub-error">{{ error() }} <button type="button" class="aub-link" (click)="load()">Retry</button></div>
   }
 
-  @if (!loading && !error && data) {
-    @if (!data.featureEnabled) {
+  @if (!loading() && !error() && data()) {
+    @if (!data()!.featureEnabled) {
     <p class="aub-muted">Saved cards are switched off on this server — nothing below can be charged.</p>
     }
 
     <!-- Open problems first -->
-    @if (data.openIssues.length > 0) {
+    @if (data()!.openIssues.length > 0) {
     <div class="aub-issues">
-      @for (n of data.openIssues; track $index) {
+      @for (n of data()!.openIssues; track $index) {
       <div class="aub-issue" [class.critical]="n.severity === 'critical'">
         <strong>{{ n.title }}</strong>
         <span>{{ n.message }}</span>
@@ -24,13 +24,13 @@
     </div>
     }
 
-    <h4>Saved cards <span class="aub-count">{{ data.cards.length }}</span></h4>
-    @if (data.cards.length === 0) {
+    <h4>Saved cards <span class="aub-count">{{ data()!.cards.length }}</span></h4>
+    @if (data()!.cards.length === 0) {
     <p class="aub-muted">No saved cards.</p>
     }
-    @if (data.cards.length > 0) {
+    @if (data()!.cards.length > 0) {
     <ul class="aub-cards">
-      @for (c of data.cards; track $index) {
+      @for (c of data()!.cards; track $index) {
       <li>
         <span class="aub-card-name">{{ cardLabel(c) }}</span>
         @if (c.isPrimary) {
@@ -56,13 +56,13 @@
     <h4>Automatic payments</h4>
     <div class="aub-row">
       <span>General agreement</span>
-      <span class="aub-chip" [class.ok]="data.autoPay.autoPayEnabled">{{ data.autoPay.autoPayEnabled ? 'On' : 'Off' }}</span>
-      @if (data.autoPay.autoPayEnabledAt) {
-      <span class="aub-muted">since {{ data.autoPay.autoPayEnabledAt | date:'MMM d, y' }}</span>
+      <span class="aub-chip" [class.ok]="data()!.autoPay.autoPayEnabled">{{ data()!.autoPay.autoPayEnabled ? 'On' : 'Off' }}</span>
+      @if (data()!.autoPay.autoPayEnabledAt) {
+      <span class="aub-muted">since {{ data()!.autoPay.autoPayEnabledAt | date:'MMM d, y' }}</span>
       }
     </div>
     <ul class="aub-arrangements">
-      @for (a of data.autoPay.arrangements; track $index) {
+      @for (a of data()!.autoPay.arrangements; track $index) {
       <li>
         <div>
           <strong>{{ a.title }}</strong>
@@ -83,12 +83,12 @@
     </ul>
 
     <h4>Balance due</h4>
-    @if (data.outstanding.length === 0) {
+    @if (data()!.outstanding.length === 0) {
     <p class="aub-muted">Nothing owed.</p>
     }
-    @if (data.outstanding.length > 0) {
+    @if (data()!.outstanding.length > 0) {
     <ul class="aub-list">
-      @for (o of data.outstanding; track $index) {
+      @for (o of data()!.outstanding; track $index) {
       <li>
         <span>{{ o.reference }} — {{ o.description }}</span>
         <strong>${{ o.amountDue | number:'1.2-2' }}</strong>
@@ -104,13 +104,13 @@
     }
 
     <h4>Saved-card charge attempts</h4>
-    @if (data.recentAttempts.length === 0) {
+    @if (data()!.recentAttempts.length === 0) {
     <p class="aub-muted">None.</p>
     }
-    @if (data.recentAttempts.length > 0) {
+    @if (data()!.recentAttempts.length > 0) {
     <div class="aub-table">
       <div class="aub-tr aub-th"><span>When</span><span>For</span><span>By</span><span>Card</span><span class="num">Amount</span><span>Result</span></div>
-      @for (a of data.recentAttempts; track $index) {
+      @for (a of data()!.recentAttempts; track $index) {
       <div class="aub-tr">
         <span>{{ a.createdAt | date:'MMM d, h:mm a' }}</span>
         <span>{{ a.obligation }}</span>
@@ -129,13 +129,13 @@
     }
 
     <h4>Recent billing history</h4>
-    @if (data.recentHistory.length === 0) {
+    @if (data()!.recentHistory.length === 0) {
     <p class="aub-muted">No payments yet.</p>
     }
-    @if (data.recentHistory.length > 0) {
+    @if (data()!.recentHistory.length > 0) {
     <div class="aub-table">
       <div class="aub-tr aub-th"><span>Date</span><span>Reference</span><span>Description</span><span>Method</span><span class="num">Amount</span><span>Status</span></div>
-      @for (h of data.recentHistory; track $index) {
+      @for (h of data()!.recentHistory; track $index) {
       <div class="aub-tr">
         <span>{{ h.date | date:'MMM d, y' }}</span>
         <span>{{ h.reference }}</span>

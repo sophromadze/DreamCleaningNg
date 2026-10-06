@@ -63,17 +63,17 @@ describe('ContractsComponent', () => {
     flushPermissions();
     flushList();
     expect(component).toBeTruthy();
-    expect(component.view).toBe('list');
+    expect(component.view()).toBe('list');
   });
 
   it('opens the detail view for a deep link from an email', () => {
-    component.openContractId = 42;
+    fixture.componentRef.setInput('openContractId', 42);
     fixture.detectChanges();
     flushPermissions();
     flushList();
 
-    expect(component.view).toBe('detail');
-    expect(component.selectedContractId).toBe(42);
+    expect(component.view()).toBe('detail');
+    expect(component.selectedContractId()).toBe(42);
 
     // The detail child mounts and fetches that contract — the whole point of the deep link.
     http.expectOne(r => r.url.endsWith('/crm/contracts/42')).flush({
@@ -103,10 +103,10 @@ describe('ContractsComponent', () => {
     component.onGenerated({ id: 7, status: ContractStatus.PreviewGenerated } as any);
     flushList();
 
-    expect(component.view).toBe('detail');
-    expect(component.selectedContractId).toBe(7);
+    expect(component.view()).toBe('detail');
+    expect(component.selectedContractId()).toBe(7);
     // Handed straight through, so the preview does not re-fetch what it was just given.
-    expect(component.preloadedDetail?.id).toBe(7);
+    expect(component.preloadedDetail()?.id).toBe(7);
   });
 
   // ── Create next invoice, from the list ───────────────────────────────────
@@ -184,7 +184,7 @@ describe('ContractsComponent', () => {
     // The EDIT form, not the read-only detail: reviewing the generated dates and figures before
     // anything is sent is the entire reason the draft exists.
     expect(navigate).toHaveBeenCalledWith(['/admin/commercial/invoices', 55, 'edit']);
-    expect(component.billingContractId).toBeNull();
+    expect(component.billingContractId()).toBeNull();
   });
 
   it('clears the preloaded detail when returning to the list', () => {
@@ -197,9 +197,9 @@ describe('ContractsComponent', () => {
     component.backToList();
     flushList();
 
-    expect(component.view).toBe('list');
-    expect(component.preloadedDetail).toBeNull();
-    expect(component.selectedContractId).toBeNull();
+    expect(component.view()).toBe('list');
+    expect(component.preloadedDetail()).toBeNull();
+    expect(component.selectedContractId()).toBeNull();
   });
 });
 
@@ -1054,19 +1054,19 @@ describe('ContractDetailComponent', () => {
   afterEach(() => http.verify({ ignoreCancelled: true }));
 
   it('renders a preloaded contract without re-fetching it', () => {
-    component.contractId = 3;
-    component.preloaded = detail() as any;
+    fixture.componentRef.setInput('contractId', 3);
+    fixture.componentRef.setInput('preloaded', detail() as any);
     fixture.detectChanges();
 
     http.expectNone(r => r.url.endsWith('/crm/contracts/3'));
-    expect(component.detail?.contractNumber).toBe('DC-2026-0003');
+    expect(component.detail()?.contractNumber).toBe('DC-2026-0003');
   });
 
   it('shows the signature block the SERVER composed, marks and all', () => {
     // Rebuilding it in the browser would show "awaiting signature" for a party who had already
     // signed, because the marks only exist server-side.
-    component.contractId = 3;
-    component.preloaded = detail({
+    fixture.componentRef.setInput('contractId', 3);
+    fixture.componentRef.setInput('preloaded', detail({
       signatureBlock: {
         contractor: {
           partyLabel: 'CONTRACTOR', entityName: 'Nodar Alania Inc. d/b/a Dream Cleaning NYC',
@@ -1079,12 +1079,12 @@ describe('ContractDetailComponent', () => {
           signerName: 'Natalie Finkels', hasSigned: false, signatureMark: ''
         }
       }
-    }) as any;
+    }) as any);
     fixture.detectChanges();
 
-    expect(component.signatureBlock?.contractor.hasSigned).toBe(true);
-    expect(component.signatureBlock?.contractor.signatureMark).toContain('data:image/png');
-    expect(component.signatureBlock?.client.hasSigned).toBe(false);
+    expect(component.signatureBlock()?.contractor.hasSigned).toBe(true);
+    expect(component.signatureBlock()?.contractor.signatureMark).toContain('data:image/png');
+    expect(component.signatureBlock()?.client.hasSigned).toBe(false);
 
     const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
     expect(text).toContain('Awaiting signature');   // the client half only
@@ -1103,9 +1103,9 @@ describe('ContractDetailComponent', () => {
     ];
 
     for (const [status, expected] of cases) {
-      component.contractId = 3;
-      component.permissions = allPermissions();
-      component.preloaded = detail({ status }) as any;
+      fixture.componentRef.setInput('contractId', 3);
+      fixture.componentRef.setInput('permissions', allPermissions());
+      fixture.componentRef.setInput('preloaded', detail({ status }) as any);
       component.ngOnInit();
       expect(component.canRevise).toBe(expected);
     }
@@ -1115,12 +1115,12 @@ describe('ContractDetailComponent', () => {
 
   it('hides every edit-related action from a Manager', () => {
     // A Manager keeps the whole create/send flow but cannot change a generated document.
-    component.contractId = 3;
-    component.permissions = allPermissions({
+    fixture.componentRef.setInput('contractId', 3);
+    fixture.componentRef.setInput('permissions', allPermissions({
       backToEdit: false, createRevision: false, createAmendment: false,
       deleteContract: false, restoreContract: false, signAsContractor: false
-    });
-    component.preloaded = detail({ status: ContractStatus.AwaitingSignatures }) as any;
+    }));
+    fixture.componentRef.setInput('preloaded', detail({ status: ContractStatus.AwaitingSignatures }) as any);
     component.ngOnInit();
 
     expect(component.showEdit).toBe(false);
@@ -1133,9 +1133,9 @@ describe('ContractDetailComponent', () => {
   });
 
   it('shows every edit action to a CEO but never the Void button', () => {
-    component.contractId = 3;
-    component.permissions = allPermissions({ deleteContract: false });
-    component.preloaded = detail({ status: ContractStatus.AwaitingSignatures }) as any;
+    fixture.componentRef.setInput('contractId', 3);
+    fixture.componentRef.setInput('permissions', allPermissions({ deleteContract: false }));
+    fixture.componentRef.setInput('preloaded', detail({ status: ContractStatus.AwaitingSignatures }) as any);
     component.ngOnInit();
 
     expect(component.canRevise).toBe(true);
@@ -1145,9 +1145,9 @@ describe('ContractDetailComponent', () => {
 
   it('renders nothing actionable until the permissions have loaded', () => {
     // Unknown authority must fail closed, not flash buttons that then vanish.
-    component.contractId = 3;
-    component.permissions = null;
-    component.preloaded = detail({ status: ContractStatus.PreviewGenerated }) as any;
+    fixture.componentRef.setInput('contractId', 3);
+    fixture.componentRef.setInput('permissions', null);
+    fixture.componentRef.setInput('preloaded', detail({ status: ContractStatus.PreviewGenerated }) as any);
     component.ngOnInit();
 
     expect(component.showEdit).toBe(false);
@@ -1157,35 +1157,35 @@ describe('ContractDetailComponent', () => {
 
   it('offers Sign as Contractor only to the designated signer who also holds the authority', () => {
     // Identity AND authority. Either alone is not enough, and the API re-checks both.
-    component.contractId = 3;
-    component.permissions = allPermissions();
-    component.preloaded = detail({ isPendingContractorSigner: true }) as any;
+    fixture.componentRef.setInput('contractId', 3);
+    fixture.componentRef.setInput('permissions', allPermissions());
+    fixture.componentRef.setInput('preloaded', detail({ isPendingContractorSigner: true }) as any);
     component.ngOnInit();
     expect(component.canSignAsContractor).toBe(true);
 
     // Right authority, but this account is not the named signer.
-    component.preloaded = detail({ isPendingContractorSigner: false }) as any;
+    fixture.componentRef.setInput('preloaded', detail({ isPendingContractorSigner: false }) as any);
     component.ngOnInit();
     expect(component.canSignAsContractor).toBe(false);
 
     // Named signer, but no officer title.
-    component.permissions = allPermissions({ signAsContractor: false });
-    component.preloaded = detail({ isPendingContractorSigner: true }) as any;
+    fixture.componentRef.setInput('permissions', allPermissions({ signAsContractor: false }));
+    fixture.componentRef.setInput('preloaded', detail({ isPendingContractorSigner: true }) as any);
     component.ngOnInit();
     expect(component.canSignAsContractor).toBe(false);
   });
 
   it('separates regenerating the PDF from re-sending it', () => {
-    component.contractId = 3;
-    component.permissions = allPermissions();
-    component.preloaded = detail({ status: ContractStatus.Completed }) as any;
+    fixture.componentRef.setInput('contractId', 3);
+    fixture.componentRef.setInput('permissions', allPermissions());
+    fixture.componentRef.setInput('preloaded', detail({ status: ContractStatus.Completed }) as any);
     component.ngOnInit();
 
     expect(component.canRegenerateExecuted).toBe(true);
     expect(component.canResendExecuted).toBe(true);
 
     // They are independently gated, so one can be withheld without the other.
-    component.permissions = allPermissions({ resendExecutedCopy: false });
+    fixture.componentRef.setInput('permissions', allPermissions({ resendExecutedCopy: false }));
     component.ngOnInit();
     expect(component.canRegenerateExecuted).toBe(true);
     expect(component.canResendExecuted).toBe(false);
@@ -1195,9 +1195,9 @@ describe('ContractDetailComponent', () => {
   // anyone does next is edit it. Landing on the new contract's preview instead showed a Draft with
   // no document, which read as "the button did nothing".
   it('lands the admin in the edit form after Create Amendment', () => {
-    component.contractId = 3;
-    component.permissions = allPermissions();
-    component.preloaded = detail({ status: ContractStatus.Completed }) as any;
+    fixture.componentRef.setInput('contractId', 3);
+    fixture.componentRef.setInput('permissions', allPermissions());
+    fixture.componentRef.setInput('preloaded', detail({ status: ContractStatus.Completed }) as any);
     component.ngOnInit();
 
     let editing: any = null;
@@ -1209,13 +1209,13 @@ describe('ContractDetailComponent', () => {
     request.flush(detail({ id: 12, contractNumber: 'DC-2026-0012' }));
 
     expect(editing).toBe(12);
-    expect(component.busy).toBe(false);
+    expect(component.busy()).toBe(false);
   });
 
   it('lands the admin in the edit form after Duplicate as new contract', () => {
-    component.contractId = 3;
-    component.permissions = allPermissions();
-    component.preloaded = detail({ status: ContractStatus.Completed }) as any;
+    fixture.componentRef.setInput('contractId', 3);
+    fixture.componentRef.setInput('permissions', allPermissions());
+    fixture.componentRef.setInput('preloaded', detail({ status: ContractStatus.Completed }) as any);
     component.ngOnInit();
 
     let editing: any = null;
@@ -1232,28 +1232,28 @@ describe('ContractDetailComponent', () => {
   // The shell keeps this component mounted and only swaps the input, so ngOnInit does not run
   // again — without ngOnChanges the previous contract simply stayed on screen.
   it('reloads when the shell points it at a different contract', () => {
-    component.contractId = 3;
-    component.preloaded = detail() as any;
+    fixture.componentRef.setInput('contractId', 3);
+    fixture.componentRef.setInput('preloaded', detail() as any);
     fixture.detectChanges();
-    expect(component.detail?.id).toBe(3);
+    expect(component.detail()?.id).toBe(3);
 
-    component.contractId = 4;
-    component.preloaded = null;
+    fixture.componentRef.setInput('contractId', 4);
+    fixture.componentRef.setInput('preloaded', null);
     component.ngOnChanges({
       contractId: { currentValue: 4, previousValue: 3, firstChange: false, isFirstChange: () => false }
     });
 
     http.expectOne(r => r.url.endsWith('/crm/contracts/4')).flush(detail({ id: 4 }));
-    expect(component.detail?.id).toBe(4);
+    expect(component.detail()?.id).toBe(4);
   });
 
   it('names genuinely missing information and disables both sends until it is filled', () => {
-    component.contractId = 3;
-    component.preloaded = detail({
+    fixture.componentRef.setInput('contractId', 3);
+    fixture.componentRef.setInput('preloaded', detail({
       unresolvedTokens: ['PAPER_TOWELS_PROVIDED_BY'],
       missingFields: ['Supplies: who provides paper towels']
-    }) as any;
-    component.permissions = allPermissions();
+    }) as any);
+    fixture.componentRef.setInput('permissions', allPermissions());
     fixture.detectChanges();
 
     const host = fixture.nativeElement as HTMLElement;
@@ -1275,9 +1275,9 @@ describe('ContractDetailComponent', () => {
    * contract's configuration hides, so nothing is listed and nothing is blocked.
    */
   it('shows no banner and allows sending when only hidden or optional fields are blank', () => {
-    component.contractId = 3;
-    component.preloaded = detail({ unresolvedTokens: [], missingFields: [] }) as any;
-    component.permissions = allPermissions();
+    fixture.componentRef.setInput('contractId', 3);
+    fixture.componentRef.setInput('preloaded', detail({ unresolvedTokens: [], missingFields: [] }) as any);
+    fixture.componentRef.setInput('permissions', allPermissions());
     fixture.detectChanges();
 
     const host = fixture.nativeElement as HTMLElement;
@@ -1303,13 +1303,13 @@ describe('ContractDetailComponent', () => {
    * it was read.
    */
   it('explains which actions need an officer title instead of leaving a silent gap', () => {
-    component.contractId = 3;
-    component.permissions = allPermissions({
+    fixture.componentRef.setInput('contractId', 3);
+    fixture.componentRef.setInput('permissions', allPermissions({
       authority: 'manager',
       backToEdit: false, createRevision: false, createAmendment: false,
       deleteContract: false, restoreContract: false, signAsContractor: false
-    });
-    component.preloaded = detail({ status: ContractStatus.PreviewGenerated }) as any;
+    }));
+    fixture.componentRef.setInput('preloaded', detail({ status: ContractStatus.PreviewGenerated }) as any);
     component.ngOnInit();
     fixture.detectChanges();
 
@@ -1333,9 +1333,9 @@ describe('ContractDetailComponent', () => {
   /** An officer sees no note at all, because nothing is being withheld from them. */
   it('shows no officer-title note to a CEO or CTO', () => {
     for (const authority of ['ceo', 'cto']) {
-      component.contractId = 3;
-      component.permissions = allPermissions({ authority });
-      component.preloaded = detail() as any;
+      fixture.componentRef.setInput('contractId', 3);
+      fixture.componentRef.setInput('permissions', allPermissions({ authority }));
+      fixture.componentRef.setInput('preloaded', detail() as any);
       component.ngOnInit();
       fixture.detectChanges();
 
@@ -1349,10 +1349,10 @@ describe('ContractDetailComponent', () => {
    * everybody — a missing field is not evidence of a missing title.
    */
   it('stays quiet when the server does not report an authority level', () => {
-    component.contractId = 3;
-    component.permissions = allPermissions({ backToEdit: false });
-    delete (component.permissions as any).authority;
-    component.preloaded = detail() as any;
+    fixture.componentRef.setInput('contractId', 3);
+    fixture.componentRef.setInput('permissions', allPermissions({ backToEdit: false }));
+    delete (component.permissions() as any).authority;
+    fixture.componentRef.setInput('preloaded', detail() as any);
     component.ngOnInit();
 
     expect(component.authorityLimitsActions).toBe(false);
@@ -1360,9 +1360,9 @@ describe('ContractDetailComponent', () => {
 
   /** The note only lists what the contract's own state would otherwise have offered. */
   it('does not list Delete when the contract is already archived', () => {
-    component.contractId = 3;
-    component.permissions = allPermissions({ authority: 'manager', deleteContract: false });
-    component.preloaded = detail({ isHidden: true, canDelete: false, canRestore: true }) as any;
+    fixture.componentRef.setInput('contractId', 3);
+    fixture.componentRef.setInput('permissions', allPermissions({ authority: 'manager', deleteContract: false }));
+    fixture.componentRef.setInput('preloaded', detail({ isHidden: true, canDelete: false, canRestore: true }) as any);
     component.ngOnInit();
 
     expect(component.actionsNeedingOfficerTitle).not.toContain('Delete');
@@ -1378,9 +1378,9 @@ describe('ContractDetailComponent', () => {
    * contract out.
    */
   it('opens the delete-or-archive dialog rather than acting immediately', () => {
-    component.contractId = 3;
-    component.permissions = allPermissions();
-    component.preloaded = detail({ canHardDelete: true }) as any;
+    fixture.componentRef.setInput('contractId', 3);
+    fixture.componentRef.setInput('permissions', allPermissions());
+    fixture.componentRef.setInput('preloaded', detail({ canHardDelete: true }) as any);
     component.ngOnInit();
     fixture.detectChanges();
 
@@ -1389,7 +1389,7 @@ describe('ContractDetailComponent', () => {
     deleteButton.click();
     fixture.detectChanges();
 
-    expect(component.deleteDialogOpen).toBe(true);
+    expect(component.deleteDialogOpen()).toBe(true);
     // Nothing was sent — opening a dialog is not an action.
     http.expectNone(r => r.url.includes('/delete'));
     http.expectNone(r => r.url.includes('/permanent'));
@@ -1400,9 +1400,9 @@ describe('ContractDetailComponent', () => {
 
   /** Archive is the long-standing soft delete, under the name it always deserved. */
   it('archives through the existing soft-delete endpoint', () => {
-    component.contractId = 3;
-    component.permissions = allPermissions();
-    component.preloaded = detail() as any;
+    fixture.componentRef.setInput('contractId', 3);
+    fixture.componentRef.setInput('permissions', allPermissions());
+    fixture.componentRef.setInput('preloaded', detail() as any);
     component.ngOnInit();
 
     component.openDeleteDialog();
@@ -1412,8 +1412,8 @@ describe('ContractDetailComponent', () => {
     expect(req.request.method).toBe('POST');
     req.flush(detail({ isHidden: true, canDelete: false, canRestore: true }));
 
-    expect(component.deleteDialogOpen).toBe(false);
-    expect(component.successMessage).toContain('archived');
+    expect(component.deleteDialogOpen()).toBe(false);
+    expect(component.successMessage()).toContain('archived');
   });
 
   /**
@@ -1421,36 +1421,36 @@ describe('ContractDetailComponent', () => {
    * same phrase, so this only decides whether to bother asking.
    */
   it('refuses to permanently delete until the contract number is typed', () => {
-    component.contractId = 3;
-    component.permissions = allPermissions();
-    component.preloaded = detail({ canHardDelete: true }) as any;
+    fixture.componentRef.setInput('contractId', 3);
+    fixture.componentRef.setInput('permissions', allPermissions());
+    fixture.componentRef.setInput('preloaded', detail({ canHardDelete: true }) as any);
     component.ngOnInit();
     component.openDeleteDialog();
 
     expect(component.hardDeleteConfirmationPhrase).toBe('DELETE DC-2026-0003');
 
-    component.hardDeleteConfirmation = 'DELETE';
+    component.hardDeleteConfirmation.set('DELETE');
     expect(component.hardDeleteConfirmed).toBe(false);
     component.permanentlyDeleteContract();
     http.expectNone(r => r.url.includes('/permanent'));
 
     // Wrong contract's number — the point of typing it is that it names the one you mean.
-    component.hardDeleteConfirmation = 'DELETE DC-2026-0004';
+    component.hardDeleteConfirmation.set('DELETE DC-2026-0004');
     expect(component.hardDeleteConfirmed).toBe(false);
 
     // Case and surrounding space are not the test.
-    component.hardDeleteConfirmation = '  delete dc-2026-0003  ';
+    component.hardDeleteConfirmation.set('  delete dc-2026-0003  ');
     expect(component.hardDeleteConfirmed).toBe(true);
   });
 
   /** With the phrase typed, it deletes and hands the list a message to show. */
   it('permanently deletes and returns to the list with a message', () => {
-    component.contractId = 3;
-    component.permissions = allPermissions();
-    component.preloaded = detail({ canHardDelete: true }) as any;
+    fixture.componentRef.setInput('contractId', 3);
+    fixture.componentRef.setInput('permissions', allPermissions());
+    fixture.componentRef.setInput('preloaded', detail({ canHardDelete: true }) as any);
     component.ngOnInit();
     component.openDeleteDialog();
-    component.hardDeleteConfirmation = 'DELETE DC-2026-0003';
+    component.hardDeleteConfirmation.set('DELETE DC-2026-0003');
 
     let emitted = '';
     component.deleted.subscribe(m => emitted = m);
@@ -1471,14 +1471,14 @@ describe('ContractDetailComponent', () => {
    * does not exist — the reason names which record is protecting the contract.
    */
   it('shows the server reason instead of the confirmation field when full delete is blocked', () => {
-    component.contractId = 3;
-    component.permissions = allPermissions();
-    component.preloaded = detail({
+    fixture.componentRef.setInput('contractId', 3);
+    fixture.componentRef.setInput('permissions', allPermissions());
+    fixture.componentRef.setInput('preloaded', detail({
       status: ContractStatus.FullySigned,
       canHardDelete: false,
       cannotHardDeleteReason:
         'This contract carries a signature and cannot be permanently deleted. Archive it instead.'
-    }) as any;
+    }) as any);
     component.ngOnInit();
     component.openDeleteDialog();
     fixture.detectChanges();
@@ -1491,16 +1491,16 @@ describe('ContractDetailComponent', () => {
     expect(dom.querySelector('.blocked-reason')?.textContent).toContain('Archive it instead');
 
     // And it cannot be fired past the UI either.
-    component.hardDeleteConfirmation = 'DELETE DC-2026-0003';
+    component.hardDeleteConfirmation.set('DELETE DC-2026-0003');
     component.permanentlyDeleteContract();
     http.expectNone(r => r.url.includes('/permanent'));
   });
 
   /** An older backend omits the flag, so the option is simply not offered. */
   it('does not offer full delete when the server did not say it was allowed', () => {
-    component.contractId = 3;
-    component.permissions = allPermissions();
-    component.preloaded = detail() as any;   // no canHardDelete field at all
+    fixture.componentRef.setInput('contractId', 3);
+    fixture.componentRef.setInput('permissions', allPermissions());
+    fixture.componentRef.setInput('preloaded', detail() as any);   // no canHardDelete field at all
     component.ngOnInit();
 
     expect(component.canHardDelete).toBe(false);

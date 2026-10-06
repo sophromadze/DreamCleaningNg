@@ -16,9 +16,9 @@
   }
 
   <!-- Error Message -->
-  @if (errorMessage) {
+  @if (errorMessage()) {
   <div class="alert alert-error">
-    {{ errorMessage }}
+    {{ errorMessage() }}
   </div>
   }
 
@@ -77,8 +77,8 @@
                 type="button"
                 class="delivery-option"
                 role="radio"
-                [attr.aria-checked]="!isSendLater"
-                [class.selected]="!isSendLater"
+                [attr.aria-checked]="!isSendLater()"
+                [class.selected]="!isSendLater()"
                 (click)="setDeliveryMode('now')">
                 <span class="delivery-option-title">Send to someone now</span>
                 <span class="delivery-option-text">We email the gift card to the recipient right after payment</span>
@@ -87,8 +87,8 @@
                 type="button"
                 class="delivery-option"
                 role="radio"
-                [attr.aria-checked]="isSendLater"
-                [class.selected]="isSendLater"
+                [attr.aria-checked]="isSendLater()"
+                [class.selected]="isSendLater()"
                 (click)="setDeliveryMode('later')">
                 <span class="delivery-option-title">Buy for myself - send later</span>
                 <span class="delivery-option-text">The card waits in your profile until you choose who to send it to</span>
@@ -97,7 +97,7 @@
           </div>
 
           <!-- Send later: needs an account -->
-          @if (isSendLater && !currentUser) {
+          @if (isSendLater() && !currentUser()) {
           <div class="send-later-notice">
             <p>To buy a gift card for yourself and send it later, please log in or create an account. Your amount stays selected.</p>
             <div class="send-later-notice-actions">
@@ -107,15 +107,15 @@
           </div>
           }
 
-          @if (isSendLater && currentUser) {
+          @if (isSendLater() && currentUser()) {
           <div class="send-later-notice">
             <p>The gift card will be saved in your profile under <strong>Gift Cards</strong>. Nothing is sent to anyone until you press <strong>Send to someone</strong> there.</p>
-            <p class="send-later-notice-account">Receipt goes to: <strong>{{ currentUser.email }}</strong></p>
+            <p class="send-later-notice-account">Receipt goes to: <strong>{{ currentUser().email }}</strong></p>
           </div>
           }
 
           <!-- Recipient Information -->
-          @if (!isSendLater) {
+          @if (!isSendLater()) {
           <div class="form-section">
             <h2>Recipient Information</h2>
             
@@ -162,7 +162,7 @@
           }
 
           <!-- Sender Information (send later: taken from the signed-in profile) -->
-          @if (!isSendLater) {
+          @if (!isSendLater()) {
           <div class="form-section">
             <h2>Your Information</h2>
             
@@ -207,7 +207,7 @@
           }
 
           <!-- Message -->
-          @if (!isSendLater) {
+          @if (!isSendLater()) {
           <div class="form-group">
             <label for="message">Personal Message *</label>
             <textarea 
@@ -235,8 +235,8 @@
 
           <!-- Form Actions -->
           <div class="form-actions">
-            <button type="button" class="btn btn-primary" [disabled]="isLoading || (isSendLater && !currentUser)" (click)="onCreateGiftCard()">
-              {{ isLoading ? 'Processing...' : 'Purchase Gift Card' }}
+            <button type="button" class="btn btn-primary" [disabled]="isLoading() || (isSendLater() && !currentUser())" (click)="onCreateGiftCard()">
+              {{ isLoading() ? 'Processing...' : 'Purchase Gift Card' }}
             </button>
           </div>
         </div>
@@ -244,34 +244,34 @@
         <!-- Right Side - Gift Card Preview -->
         <div class="gift-card-preview">
           <div class="gift-card" 
-                [style.backgroundImage]="giftCardBackgroundPath ? 'url(' + giftCardBackgroundPath + ')' : 'none'"
-                [class.loading]="isLoadingBackground">
+                [style.backgroundImage]="giftCardBackgroundPath() ? 'url(' + giftCardBackgroundPath() + ')' : 'none'"
+                [class.loading]="isLoadingBackground()">
             
             <!-- Optional: Show loading overlay -->
-            @if (isLoadingBackground) {
+            @if (isLoadingBackground()) {
             <div class="loading-overlay"></div>
             }
             
             <!-- Your existing gift card content -->
             <div class="gift-card-header">
               <h3>Dream Cleaning</h3>
-              <div class="amount">{{ formatCurrency(previewGiftCard?.amount || 0) }}</div>
+              <div class="amount">{{ formatCurrency(previewGiftCard()?.amount || 0) }}</div>
             </div>
             
             <div class="gift-card-body">
               <div class="left-section"></div>
               <div class="right-section">
-                @if (!isSendLater) {
+                @if (!isSendLater()) {
                 <div class="recipient-info">
-                  <p class="dear">Dear {{ previewGiftCard?.recipientName || 'Recipient Name' }},</p>
-                  @if (previewGiftCard?.message) {
+                  <p class="dear">Dear {{ previewGiftCard()?.recipientName || 'Recipient Name' }},</p>
+                  @if (previewGiftCard()?.message) {
                   <div class="message">
-                    <p>{{ previewGiftCard.message }}</p>
+                    <p>{{ previewGiftCard().message }}</p>
                   </div>
                   }
                 </div>
                 }
-                @if (isSendLater) {
+                @if (isSendLater()) {
                 <div class="recipient-info">
                   <p class="dear">Dear Recipient Name,</p>
                   <div class="message">
@@ -279,10 +279,10 @@
                   </div>
                 </div>
                 }
-                @if (!isSendLater) {
+                @if (!isSendLater()) {
                 <div class="gift-card-note">Gift card code will be sent to recipient's and your email</div>
                 }
-                @if (isSendLater) {
+                @if (isSendLater()) {
                 <div class="gift-card-note">Gift card code will be saved in your profile and sent to your email</div>
                 }
               </div>

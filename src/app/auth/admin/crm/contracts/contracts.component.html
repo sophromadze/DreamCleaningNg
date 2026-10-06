@@ -1,7 +1,7 @@
 <div class="contracts-tab">
 
   <!-- List -->
-  @if (view === 'list') {
+  @if (view() === 'list') {
     <div class="list-header">
       <div class="filters">
         <input type="search" class="search-input" placeholder="Search number, client or address…"
@@ -26,14 +26,14 @@
       }
     </div>
 
-    @if (errorMessage) {
-    <div class="alert error">{{ errorMessage }}</div>
+    @if (errorMessage()) {
+    <div class="alert error">{{ errorMessage() }}</div>
     }
-    @if (successMessage) {
-    <div class="alert success">{{ successMessage }}</div>
+    @if (successMessage()) {
+    <div class="alert success">{{ successMessage() }}</div>
     }
 
-    @if (!loading) {
+    @if (!loading()) {
     <div class="table-wrap">
       <table class="contracts-table">
         <thead>
@@ -49,7 +49,7 @@
           </tr>
         </thead>
         <tbody>
-          @for (row of contractsList; track row.id) {
+          @for (row of contractsList(); track row.id) {
           <tr (click)="openDetail(row.id)" class="clickable">
             <td class="mono">
               {{ row.contractNumber }}
@@ -85,8 +85,8 @@
               @if (canCreateNextInvoice(row)) {
               <button type="button" class="btn-row-action"
                       (click)="createNextInvoice(row)"
-                      [disabled]="billingContractId === row.id">
-                {{ billingContractId === row.id ? 'Creating…' : 'Create next invoice' }}
+                      [disabled]="billingContractId() === row.id">
+                {{ billingContractId() === row.id ? 'Creating…' : 'Create next invoice' }}
               </button>
               } @else {
               <span class="secondary">—</span>
@@ -97,7 +97,7 @@
         </tbody>
       </table>
 
-      @if (!contractsList.length) {
+      @if (!contractsList().length) {
       <p class="empty">
         No contracts yet. Start one with “New contract”.
       </p>
@@ -105,25 +105,25 @@
     </div>
     }
 
-    @if (loading) {
+    @if (loading()) {
     <p class="empty">Loading contracts…</p>
     }
   }
 
   <!-- Create / edit -->
-  @if (view === 'form') {
+  @if (view() === 'form') {
   <app-contract-form
-                     [contractId]="selectedContractId"
+                     [contractId]="selectedContractId()"
                      (generated)="onGenerated($event)"
                      (cancelled)="backToList()"></app-contract-form>
   }
 
   <!-- Detail -->
-  @if (view === 'detail' && selectedContractId) {
+  @if (view() === 'detail' && selectedContractId()) {
   <app-contract-detail
-                       [contractId]="selectedContractId"
-                       [preloaded]="preloadedDetail"
-                       [permissions]="permissions"
+                       [contractId]="selectedContractId()!"
+                       [preloaded]="preloadedDetail()"
+                       [permissions]="permissions()"
                        (back)="backToList()"
                        (edit)="editContract($event)"
                        (invoiceCreated)="openInvoice($event)"

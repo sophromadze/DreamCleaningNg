@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, PLATFORM_ID, ChangeDetectionStrategy, NgZone, inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, PLATFORM_ID, ChangeDetectionStrategy, NgZone, inject, signal } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
@@ -21,7 +21,7 @@ import { setIntervalOutsideZone } from '../../shared/zone-free-timers';
   standalone: true,
   imports: [CommonModule, RouterModule, FormsModule, IconComponent],
   templateUrl: './booking-success.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./booking-success.component.scss']
 })
 export class BookingSuccessComponent implements OnInit, OnDestroy {
@@ -42,39 +42,39 @@ export class BookingSuccessComponent implements OnInit, OnDestroy {
   /** True only when this page was reached by the navigation that follows a payment. */
   private arrivedFromPayment = false;
 
-  hasCleaningSupplies = false;
-  isCustomServiceType = false;
-  suppliesLoaded = false;
+  readonly hasCleaningSupplies = signal(false);
+  readonly isCustomServiceType = signal(false);
+  readonly suppliesLoaded = signal(false);
   /**
    * The customer's "please provide" list, straight from the shared checklist builder so this
    * page, the confirmation email and the SMS cannot name different products. Empty means the
    * customer bought their way out of every item — rendered as "nothing to prepare", never as
    * an empty bulleted box.
    */
-  supplyChecklistItems: string[] = [];
+  readonly supplyChecklistItems = signal<string[]>([]);
 
   // Bubble points earn preview
-  bubblePointsEnabled = false;
-  estimatedPoints = 0;
+  readonly bubblePointsEnabled = signal(false);
+  readonly estimatedPoints = signal(0);
 
   // OTP verification step
-  step: 'success' | 'verify-otp' = 'success';
-  otpCode = '';
-  otpError = '';
-  otpLoading = false;
-  sendingOtp = false;
-  resendCooldown = 0;
+  readonly step = signal<'success' | 'verify-otp'>('success');
+  readonly otpCode = signal('');
+  readonly otpError = signal('');
+  readonly otpLoading = signal(false);
+  readonly sendingOtp = signal(false);
+  readonly resendCooldown = signal(0);
   private resendTimer: any;
-  loginEmail = '';
+  readonly loginEmail = signal('');
 
   ngOnInit() {
     this.orderId = this.route.snapshot.paramMap.get('orderId') ?? '';
 
     if (isPlatformBrowser(this.platformId)) {
       const state = (history.state as any) ?? {};
-      this.loginEmail = state.contactEmail
+      this.loginEmail.set(state.contactEmail
         ?? this.authService.currentUserValue?.email
-        ?? '';
+        ?? '');
 
       // The purchase conversion belongs to the payment that just happened, not to somebody
       // re-opening their receipt. The sessionStorage guard below de-duplicates within a tab; a
@@ -89,21 +89,21 @@ export class BookingSuccessComponent implements OnInit, OnDestroy {
             this.order = order;
             const extras = order.extraServices ?? [];
 
-            this.hasCleaningSupplies = hasCleaningSuppliesExtra(extras);
-            this.isCustomServiceType = this.isCustomServiceTypeOrder(order);
-            this.supplyChecklistItems = buildSupplyChecklistItems(
-              resolveSupplyChecklistFacts(extras, this.isCustomServiceType)
-            );
-            this.suppliesLoaded = true;
+            this.hasCleaningSupplies.set(hasCleaningSuppliesExtra(extras));
+            this.isCustomServiceType.set(this.isCustomServiceTypeOrder(order));
+            this.supplyChecklistItems.set(buildSupplyChecklistItems(
+              resolveSupplyChecklistFacts(extras, this.isCustomServiceType())
+            ));
+            this.suppliesLoaded.set(true);
             this.loadEstimatedPoints(order);
             this.trackPurchaseConversion(order);
           },
           error: () => {
-            this.suppliesLoaded = true; // fall back to default checklist
+            this.suppliesLoaded.set(true); // fall back to default checklist
           }
         });
       } else {
-        this.suppliesLoaded = true;
+        this.suppliesLoaded.set(true);
       }
     }
   }
@@ -125,45 +125,45 @@ export class BookingSuccessComponent implements OnInit, OnDestroy {
       }
     }
     // Auto-registered guest (no password, no social, unverified): verify email then set password
-    if (!this.loginEmail && user) {
-      this.loginEmail = user.email;
+    if (!this.loginEmail() && user) {
+      this.loginEmail.set(user.email);
     }
     this.sendOtp();
   }
 
   private sendOtp() {
-    if (!this.loginEmail) return;
-    this.sendingOtp = true;
-    this.otpError = '';
+    if (!this.loginEmail()) return;
+    this.sendingOtp.set(true);
+    this.otpError.set('');
 
-    this.authService.sendLoginOtp(this.loginEmail).subscribe({
+    this.authService.sendLoginOtp(this.loginEmail()).subscribe({
       next: () => {
-        this.sendingOtp = false;
-        this.step = 'verify-otp';
+        this.sendingOtp.set(false);
+        this.step.set('verify-otp');
         this.startResendCooldown();
       },
       error: (err) => {
-        this.sendingOtp = false;
-        this.otpError = err.error?.message || 'Failed to send verification code. Please try again.';
+        this.sendingOtp.set(false);
+        this.otpError.set(err.error?.message || 'Failed to send verification code. Please try again.');
       }
     });
   }
 
   resendOtp() {
-    if (this.resendCooldown > 0) return;
-    this.otpCode = '';
-    this.otpError = '';
+    if (this.resendCooldown() > 0) return;
+    this.otpCode.set('');
+    this.otpError.set('');
     this.sendOtp();
   }
 
   submitOtp() {
-    if (!this.otpCode || this.otpCode.length !== 6) return;
-    this.otpLoading = true;
-    this.otpError = '';
+    if (!this.otpCode() || this.otpCode().length !== 6) return;
+    this.otpLoading.set(true);
+    this.otpError.set('');
 
-    this.authService.verifyLoginOtp(this.loginEmail, this.otpCode).subscribe({
+    this.authService.verifyLoginOtp(this.loginEmail(), this.otpCode()).subscribe({
       next: () => {
-        this.otpLoading = false;
+        this.otpLoading.set(false);
         // Store the order URL so set-password can redirect back after completion
         if (isPlatformBrowser(this.platformId)) {
           localStorage.setItem('postSetPasswordUrl', `/order/${this.orderId}`);
@@ -171,19 +171,19 @@ export class BookingSuccessComponent implements OnInit, OnDestroy {
         this.router.navigate(['/set-password']);
       },
       error: (err) => {
-        this.otpLoading = false;
-        this.otpError = err.error?.message || 'Invalid code. Please try again.';
+        this.otpLoading.set(false);
+        this.otpError.set(err.error?.message || 'Invalid code. Please try again.');
       }
     });
   }
 
   private startResendCooldown(seconds = 60) {
-    this.resendCooldown = seconds;
+    this.resendCooldown.set(seconds);
     this.resendTimer = setIntervalOutsideZone(this.zone, () => {
-      this.resendCooldown--;
-      if (this.resendCooldown <= 0) {
+      this.resendCooldown.update(v => v - 1);
+      if (this.resendCooldown() <= 0) {
         clearInterval(this.resendTimer);
-        this.resendCooldown = 0;
+        this.resendCooldown.set(0);
       }
     }, 1000);
   }
@@ -197,8 +197,8 @@ export class BookingSuccessComponent implements OnInit, OnDestroy {
         const base = (order.total ?? 0) - (order.tax ?? 0) - (order.tips ?? 0) - (order.companyDevelopmentTips ?? 0);
         const points = Math.floor(Math.max(0, base) * pointsPerDollar);
         if (points > 0) {
-          this.bubblePointsEnabled = true;
-          this.estimatedPoints = points;
+          this.bubblePointsEnabled.set(true);
+          this.estimatedPoints.set(points);
         }
       },
       error: () => {}

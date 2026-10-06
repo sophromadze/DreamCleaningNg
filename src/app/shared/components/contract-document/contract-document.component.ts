@@ -1,4 +1,4 @@
-import { Component, Input, ChangeDetectionStrategy } from '@angular/core';
+import { Component, Input, ChangeDetectionStrategy, signal, input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ContractSignatureBlock, ContractSignatureParty } from '../../../services/contract.service';
 
@@ -20,7 +20,7 @@ import { ContractSignatureBlock, ContractSignatureParty } from '../../../service
   standalone: true,
   imports: [CommonModule],
   templateUrl: './contract-document.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./contract-document.component.scss']
 })
 export class ContractDocumentComponent {
@@ -38,13 +38,13 @@ export class ContractDocumentComponent {
   }
   get documentHtml(): string { return this._documentHtml; }
 
-  @Input() signatureBlock: ContractSignatureBlock | null = null;
+  readonly signatureBlock = input<ContractSignatureBlock | null>(null);
 
   /** Shows "signature pending" placeholders rather than blank lines while unsigned. */
-  @Input() showSignatureBlock = true;
+  readonly showSignatureBlock = input(true);
 
-  htmlBeforeSignatures = '';
-  htmlAfterSignatures = '';
+  readonly htmlBeforeSignatures = signal('');
+  readonly htmlAfterSignatures = signal('');
 
   private static readonly ANCHOR = '<div class="dc-doc-signature-anchor"></div>';
 
@@ -54,17 +54,18 @@ export class ContractDocumentComponent {
     if (index < 0) {
       // No anchor (a template body without a signature block) - render it all and let the
       // signature block fall to the end rather than dropping it.
-      this.htmlBeforeSignatures = html;
-      this.htmlAfterSignatures = '';
+      this.htmlBeforeSignatures.set(html);
+      this.htmlAfterSignatures.set('');
       return;
     }
-    this.htmlBeforeSignatures = html.substring(0, index);
-    this.htmlAfterSignatures = html.substring(index + ContractDocumentComponent.ANCHOR.length);
+    this.htmlBeforeSignatures.set(html.substring(0, index));
+    this.htmlAfterSignatures.set(html.substring(index + ContractDocumentComponent.ANCHOR.length));
   }
 
   get parties(): ContractSignatureParty[] {
-    if (!this.signatureBlock) return [];
-    return [this.signatureBlock.contractor, this.signatureBlock.client];
+    const signatureBlock = this.signatureBlock();
+    if (!signatureBlock) return [];
+    return [signatureBlock.contractor, signatureBlock.client];
   }
 
   /** True when the mark is a drawn image rather than a typed name. */

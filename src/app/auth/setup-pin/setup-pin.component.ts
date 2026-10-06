@@ -1,4 +1,4 @@
-import { Component, PLATFORM_ID, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, PLATFORM_ID, ChangeDetectionStrategy, inject, signal } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -19,7 +19,7 @@ import { faSpinner } from '../../shared/icons/glyphs/faSpinner';
   standalone: true,
   imports: [FormsModule, IconComponent],
   templateUrl: './setup-pin.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./setup-pin.component.scss']
 })
 export class SetupPinComponent {
@@ -30,15 +30,15 @@ export class SetupPinComponent {
   protected readonly icons = { faCircleCheck, faCircleExclamation, faCircleInfo, faEye, faEyeSlash, faLock, faShieldHalved, faSpinner };
 
   // Backend rule: 4–12 digits, digits-only.
-  pin = '';
-  confirmPin = '';
-  isSaving = false;
-  error = '';
-  notice = '';
+  readonly pin = signal('');
+  readonly confirmPin = signal('');
+  readonly isSaving = signal(false);
+  readonly error = signal('');
+  readonly notice = signal('');
 
   // Toggle visibility on each field so the user can sanity-check their typing.
-  showPin = false;
-  showConfirm = false;
+  readonly showPin = signal(false);
+  readonly showConfirm = signal(false);
 
   private isBrowser: boolean;
 
@@ -53,50 +53,50 @@ export class SetupPinComponent {
     const input = event.target as HTMLInputElement;
     const cleaned = input.value.replace(/\D/g, '');
     if (cleaned !== input.value) input.value = cleaned;
-    this[field] = cleaned;
+    this[field].set(cleaned);
   }
 
   // Tiny strength meter: 4 weak, 5 ok, 6+ strong. Purely advisory.
   strengthLabel(): string {
-    if (!this.pin) return '';
-    if (this.pin.length < 4) return 'Too short';
-    if (this.pin.length === 4) return 'Weak';
-    if (this.pin.length === 5) return 'OK';
+    if (!this.pin()) return '';
+    if (this.pin().length < 4) return 'Too short';
+    if (this.pin().length === 4) return 'Weak';
+    if (this.pin().length === 5) return 'OK';
     return 'Strong';
   }
 
   strengthClass(): string {
-    if (!this.pin) return '';
-    if (this.pin.length < 4) return 'weak';
-    if (this.pin.length === 4) return 'weak';
-    if (this.pin.length === 5) return 'ok';
+    if (!this.pin()) return '';
+    if (this.pin().length < 4) return 'weak';
+    if (this.pin().length === 4) return 'weak';
+    if (this.pin().length === 5) return 'ok';
     return 'strong';
   }
 
   save(): void {
-    if (this.isSaving) return;
-    if (!this.pin || this.pin.length < 4 || this.pin.length > 12) {
-      this.error = 'PIN must be 4–12 digits.';
+    if (this.isSaving()) return;
+    if (!this.pin() || this.pin().length < 4 || this.pin().length > 12) {
+      this.error.set('PIN must be 4–12 digits.');
       return;
     }
-    if (this.pin !== this.confirmPin) {
-      this.error = 'PINs don\'t match.';
+    if (this.pin() !== this.confirmPin()) {
+      this.error.set('PINs don\'t match.');
       return;
     }
 
-    this.error = '';
-    this.isSaving = true;
+    this.error.set('');
+    this.isSaving.set(true);
 
-    this.twoFactor.setPin(this.pin, this.confirmPin).subscribe({
+    this.twoFactor.setPin(this.pin(), this.confirmPin()).subscribe({
       next: () => {
-        this.isSaving = false;
-        this.notice = 'PIN set. Redirecting…';
+        this.isSaving.set(false);
+        this.notice.set('PIN set. Redirecting…');
         // setPin() already cleared `tf_requires_pin_setup` and stored the new device token.
         setTimeout(() => this.router.navigateByUrl('/'), 800);
       },
       error: (err) => {
-        this.isSaving = false;
-        this.error = err.error?.message || 'Could not set PIN.';
+        this.isSaving.set(false);
+        this.error.set(err.error?.message || 'Could not set PIN.');
       }
     });
   }

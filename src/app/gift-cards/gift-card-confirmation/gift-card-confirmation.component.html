@@ -1,5 +1,5 @@
 <div class="gift-card-confirmation-container">
-  @if (!paymentCompleted) {
+  @if (!paymentCompleted()) {
   <div class="confirmation-content">
     <h1>Complete Your Gift Card Purchase</h1>
     
@@ -25,7 +25,7 @@
       <h3>Payment Information</h3>
       
       <!-- Apple Pay / Google Pay button -->
-      @if (showApplePay) {
+      @if (showApplePay()) {
       <div id="payment-request-button" class="applepay-button-container"></div>
       }
 
@@ -35,16 +35,16 @@
       </div>
       
       <!-- Card Error Message -->
-      @if (cardError) {
+      @if (cardError()) {
       <div class="card-error">
-        {{ cardError }}
+        {{ cardError() }}
       </div>
       }
       
       <!-- Error Message -->
-      @if (errorMessage) {
+      @if (errorMessage()) {
       <div class="error-message">
-        {{ errorMessage }}
+        {{ errorMessage() }}
       </div>
       }
       
@@ -53,11 +53,11 @@
         <button 
           class="pay-btn" 
           (click)="processPayment()"
-          [disabled]="isProcessing || !!cardError">
-          @if (!isProcessing) {
+          [disabled]="isProcessing() || !!cardError()">
+          @if (!isProcessing()) {
           <span>Pay ${{ giftCardAmount | number:'1.2-2' }}</span>
           }
-          @if (isProcessing) {
+          @if (isProcessing()) {
           <span>Processing...</span>
           }
         </button>
@@ -65,7 +65,7 @@
         <button 
           class="btn-danger" 
           (click)="cancelPurchase()"
-          [disabled]="isProcessing">
+          [disabled]="isProcessing()">
           Cancel
         </button>
       </div>
@@ -74,7 +74,7 @@
   }
   
   <!-- Success Content -->
-  @if (paymentCompleted && giftCardData?.sendLater) {
+  @if (paymentCompleted() && giftCardData?.sendLater) {
   <div class="success-content">
     <i [appIcon]="icons.faCircleCheck" class="success-icon"></i>
     <h1>Payment Successful!</h1>
@@ -87,7 +87,7 @@
   </div>
   }
 
-  @if (paymentCompleted && !giftCardData?.sendLater) {
+  @if (paymentCompleted() && !giftCardData?.sendLater) {
   <div class="success-content">
     <i [appIcon]="icons.faCircleCheck" class="success-icon"></i>
     <h1>Payment Successful!</h1>

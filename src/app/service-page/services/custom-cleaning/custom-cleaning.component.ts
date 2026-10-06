@@ -10,7 +10,7 @@ import { StructuredDataService } from '../../../services/structured-data.service
   standalone: true,
   imports: [RouterModule, CardImageDirective],
   templateUrl: './custom-cleaning.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './custom-cleaning.component.scss'
 })
 export class CustomCleaningComponent implements OnInit, OnDestroy {

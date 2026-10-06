@@ -1,25 +1,25 @@
 <div class="discounts-host">
   <div class="sub-tabs">
-    <button type="button" class="sub-tab-btn" [class.active]="activeSubTab === 'promo-codes'" (click)="setSubTab('promo-codes')">Promos</button>
-    <button type="button" class="sub-tab-btn" [class.active]="activeSubTab === 'special-offers'" (click)="setSubTab('special-offers')">Special Offers</button>
-    <button type="button" class="sub-tab-btn" [class.active]="activeSubTab === 'subscriptions'" (click)="setSubTab('subscriptions')">Subs</button>
-    <button type="button" class="sub-tab-btn" [class.active]="activeSubTab === 'gift-cards'" (click)="setSubTab('gift-cards')">Gift Cards</button>
-    <button type="button" class="sub-tab-btn" [class.active]="activeSubTab === 'loyalty'" (click)="setSubTab('loyalty')">Loyalty</button>
+    <button type="button" class="sub-tab-btn" [class.active]="activeSubTab() === 'promo-codes'" (click)="setSubTab('promo-codes')">Promos</button>
+    <button type="button" class="sub-tab-btn" [class.active]="activeSubTab() === 'special-offers'" (click)="setSubTab('special-offers')">Special Offers</button>
+    <button type="button" class="sub-tab-btn" [class.active]="activeSubTab() === 'subscriptions'" (click)="setSubTab('subscriptions')">Subs</button>
+    <button type="button" class="sub-tab-btn" [class.active]="activeSubTab() === 'gift-cards'" (click)="setSubTab('gift-cards')">Gift Cards</button>
+    <button type="button" class="sub-tab-btn" [class.active]="activeSubTab() === 'loyalty'" (click)="setSubTab('loyalty')">Loyalty</button>
   </div>
   <div class="sub-content">
-    @if (activeSubTab === 'promo-codes') {
+    @if (activeSubTab() === 'promo-codes') {
     <app-promo-codes></app-promo-codes>
     }
-    @if (activeSubTab === 'special-offers') {
+    @if (activeSubTab() === 'special-offers') {
     <app-special-offers></app-special-offers>
     }
-    @if (activeSubTab === 'subscriptions') {
+    @if (activeSubTab() === 'subscriptions') {
     <app-subscriptions></app-subscriptions>
     }
-    @if (activeSubTab === 'gift-cards') {
+    @if (activeSubTab() === 'gift-cards') {
     <app-admin-gift-cards></app-admin-gift-cards>
     }
-    @if (activeSubTab === 'loyalty') {
+    @if (activeSubTab() === 'loyalty') {
     <app-loyalty-discount-admin></app-loyalty-discount-admin>
     }
   </div>

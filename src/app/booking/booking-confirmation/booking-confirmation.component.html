@@ -2,7 +2,7 @@
   <!-- bookingData is null on a refresh/deep-link (BookingDataService is in-memory only).
        ngOnInit redirects in that case, but router.navigate is async, so this block would
        still render once and crash on bookingData.serviceDate below. -->
-  @if (!paymentCompleted && bookingData) {
+  @if (!paymentCompleted() && bookingData()) {
   <div class="confirmation-content">
     <h1>Complete Your Booking</h1>
     
@@ -10,9 +10,9 @@
     <div class="booking-summary">
       <h2>Booking Summary</h2>
       <div class="summary-details">
-        <p><strong>Service Date:</strong> {{ bookingData.serviceDate | date:'fullDate' }}</p>
-        <p><strong>Service Time:</strong> {{ bookingData.serviceTime }}</p>
-        <p><strong>Total Amount:</strong> ${{ orderTotal | number:'1.2-2' }}</p>
+        <p><strong>Service Date:</strong> {{ bookingData().serviceDate | date:'fullDate' }}</p>
+        <p><strong>Service Time:</strong> {{ bookingData().serviceTime }}</p>
+        <p><strong>Total Amount:</strong> ${{ orderTotal() | number:'1.2-2' }}</p>
       </div>
     </div>
 
@@ -21,7 +21,7 @@
       <h2>Payment Information</h2>
 
       <!-- Fully covered by gift card / credits: no charge required -->
-      @if (fullyCovered) {
+      @if (fullyCovered()) {
       <div class="fully-covered-notice">
         <i [appIcon]="icons.faGift"></i>
         <p>Your gift card covers the full amount. No payment is required — just confirm your booking.</p>
@@ -29,46 +29,46 @@
       }
 
       <!-- Saved cards vs. a new card (signed-in customer only; selecting never charges — Pay does) -->
-      @if (savedCards.length > 0 && !fullyCovered) {
+      @if (savedCards().length > 0 && !fullyCovered()) {
       <div class="saved-card-choice" role="radiogroup" aria-label="Payment method">
-        @for (card of savedCards; track card.id) {
-        <label class="pay-option" [class.selected]="selectedCardId === card.id">
-          <input type="radio" name="paymentMethodChoice" [checked]="selectedCardId === card.id"
-                 (change)="selectPaymentMethod(card.id)" [disabled]="isProcessing">
+        @for (card of savedCards(); track card.id) {
+        <label class="pay-option" [class.selected]="selectedCardId() === card.id">
+          <input type="radio" name="paymentMethodChoice" [checked]="selectedCardId() === card.id"
+                 (change)="selectPaymentMethod(card.id)" [disabled]="isProcessing()">
           <span>Pay with {{ cardLabel(card) }}@if (card.isPrimary) {
           <span class="pay-option-badge"> · Primary</span>
           }</span>
         </label>
         }
-        <label class="pay-option" [class.selected]="selectedCardId === null">
-          <input type="radio" name="paymentMethodChoice" [checked]="selectedCardId === null"
-                 (change)="selectPaymentMethod(null)" [disabled]="isProcessing">
+        <label class="pay-option" [class.selected]="selectedCardId() === null">
+          <input type="radio" name="paymentMethodChoice" [checked]="selectedCardId() === null"
+                 (change)="selectPaymentMethod(null)" [disabled]="isProcessing()">
           <span>Enter a new card</span>
         </label>
       </div>
       }
 
       <!-- Apple Pay / Google Pay button -->
-      @if (showApplePay && !fullyCovered && !usingSavedCard) {
+      @if (showApplePay() && !fullyCovered() && !usingSavedCard) {
       <div id="payment-request-button" class="applepay-button-container"></div>
       }
 
       <!-- Card Element Container (kept in the DOM for Stripe even while hidden, so it can be
            revealed if the gift card no longer covers the full amount or the saved card is
            deselected) -->
-      <div id="card-element" class="card-element-container" [hidden]="fullyCovered || usingSavedCard">
+      <div id="card-element" class="card-element-container" [hidden]="fullyCovered() || usingSavedCard">
         <!-- Stripe Elements will be mounted here -->
       </div>
 
       <!-- Card Error Message -->
-      @if (cardError && !fullyCovered && !usingSavedCard) {
+      @if (cardError() && !fullyCovered() && !usingSavedCard) {
       <div class="card-error">
-        {{ cardError }}
+        {{ cardError() }}
       </div>
       }
       
       <!-- The card WAS charged; only our confirmation is late. Never phrased as a failure. -->
-      @if (finalizingPayment) {
+      @if (finalizingPayment()) {
       <div class="finalizing-notice" role="status" aria-live="polite">
         <i [appIcon]="icons.faCircleNotch" class="fa-spin" aria-hidden="true"></i>
         <div>
@@ -80,7 +80,7 @@
       }
 
       <!-- Money-sensitive notice (auto-refund / contact us) — stays until the customer dismisses it -->
-      @if (stickyNotice) {
+      @if (stickyNotice(); as stickyNotice) {
       <div class="support-notice"
            [class.support-notice--critical]="stickyNotice.severity === 'critical'"
           >
@@ -90,15 +90,15 @@
       }
 
       <!-- Error Message -->
-      @if (errorMessage) {
+      @if (errorMessage()) {
       <div class="error-message">
-        {{ errorMessage }}
+        {{ errorMessage() }}
       </div>
       }
 
       <!-- Re-entering this page while a charge started earlier is still settling. Says so
            plainly instead of offering a Pay button that would take a second payment. -->
-      @if (resumedInFlight) {
+      @if (resumedInFlight()) {
       <div class="support-notice">
         <p>
           Your payment is still being processed. Please don't close this page or pay again —
@@ -112,14 +112,14 @@
         <button
           class="pay-btn"
           (click)="onPayClicked()"
-          [disabled]="isProcessing || (!fullyCovered && !usingSavedCard && !!cardError)">
-          @if (!isProcessing && fullyCovered) {
+          [disabled]="isProcessing() || (!fullyCovered() && !usingSavedCard && !!cardError())">
+          @if (!isProcessing() && fullyCovered()) {
           <span>Complete Booking</span>
           }
-          @if (!isProcessing && !fullyCovered) {
-          <span>Pay ${{ orderTotal | number:'1.2-2' }}</span>
+          @if (!isProcessing() && !fullyCovered()) {
+          <span>Pay ${{ orderTotal() | number:'1.2-2' }}</span>
           }
-          @if (isProcessing) {
+          @if (isProcessing()) {
           <span>Processing...</span>
           }
         </button>
@@ -127,7 +127,7 @@
         <button 
           class="cancel-btn" 
           (click)="cancelBooking()"
-          [disabled]="isProcessing">
+          [disabled]="isProcessing()">
           Cancel
         </button>
       </div>
@@ -136,23 +136,23 @@
   }
   
   <!-- Success Content -->
-  @if (paymentCompleted) {
+  @if (paymentCompleted()) {
   <div class="success-content">
     <i [appIcon]="icons.faCircleCheck" class="success-icon"></i>
     <h1>Payment Successful!</h1>
     <p>Your booking has been confirmed.</p>
-    <p class="order-info">Order #{{ orderId }}</p>
+    <p class="order-info">Order #{{ orderId() }}</p>
     
-    <a [routerLink]="['/order', orderId]" class="view-order-btn">View Order Now</a>
+    <a [routerLink]="['/order', orderId()]" class="view-order-btn">View Order Now</a>
   </div>
   }
 </div>
 
 <!-- Asked between the Pay click and the charge; it starts nothing by itself. -->
 <app-save-card-modal
-  [open]="showSaveCardModal"
-  [busy]="isProcessing"
-  [amountLabel]="'$' + (orderTotal | number:'1.2-2')"
+  [open]="showSaveCardModal()"
+  [busy]="isProcessing()"
+  [amountLabel]="'$' + (orderTotal() | number:'1.2-2')"
   (choose)="onSaveCardChoice($event)"
   (dismissed)="onSaveCardDismissed()">
 </app-save-card-modal>

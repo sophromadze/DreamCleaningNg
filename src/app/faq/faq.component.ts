@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, PLATFORM_ID, inject, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, OnDestroy, PLATFORM_ID, inject, ChangeDetectionStrategy, signal } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { BubbleFieldComponent } from '../bubble-field/bubble-field.component';
 import { StructuredDataService } from '../services/structured-data.service';
@@ -10,13 +10,13 @@ import { listStartingPrices } from '../shared/pricing/marketing-price-format';
   standalone: true,
   imports: [BubbleFieldComponent],
   templateUrl: './faq.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./faq.component.scss']
 })
 export class FaqComponent implements OnInit, OnDestroy {
   private platformId = inject<Object>(PLATFORM_ID);
 
-  openItems: Set<number> = new Set();
+  readonly openItems = signal<Set<number>>(new Set(), { equal: () => false });
   /**
    * Every price on this page, including the "Cleaning Supplies" / "Vacuum Cleaner" extras, comes
    * from the booking catalogue via MarketingPricingService - already resolved on the server, so
@@ -61,15 +61,17 @@ export class FaqComponent implements OnInit, OnDestroy {
   }
 
   toggleItem(index: number): void {
-    if (this.openItems.has(index)) {
-      this.openItems.delete(index);
+    if (this.openItems().has(index)) {
+      this.openItems().delete(index);
+      this.openItems.set(this.openItems());
     } else {
-      this.openItems.add(index);
+      this.openItems().add(index);
+      this.openItems.set(this.openItems());
     }
   }
 
   isOpen(index: number): boolean {
-    return this.openItems.has(index);
+    return this.openItems().has(index);
   }
 
   private injectFaqSchema(): void {

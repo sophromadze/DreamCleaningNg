@@ -43,27 +43,27 @@ describe('ContractDocumentComponent', () => {
 
   it('splits the document at the signature anchor so the block renders in the middle', () => {
     component.documentHtml = `<p>Sections 1-35</p>${ANCHOR}<h2>EXHIBIT A</h2>`;
-    component.signatureBlock = block();
+    fixture.componentRef.setInput('signatureBlock', block());
     fixture.detectChanges();
 
-    expect(component.htmlBeforeSignatures).toContain('Sections 1-35');
-    expect(component.htmlAfterSignatures).toContain('EXHIBIT A');
+    expect(component.htmlBeforeSignatures()).toContain('Sections 1-35');
+    expect(component.htmlAfterSignatures()).toContain('EXHIBIT A');
     // The anchor itself is consumed, never rendered.
-    expect(component.htmlBeforeSignatures).not.toContain('dc-doc-signature-anchor');
-    expect(component.htmlAfterSignatures).not.toContain('dc-doc-signature-anchor');
+    expect(component.htmlBeforeSignatures()).not.toContain('dc-doc-signature-anchor');
+    expect(component.htmlAfterSignatures()).not.toContain('dc-doc-signature-anchor');
   });
 
   it('renders the whole body when there is no anchor rather than dropping it', () => {
     component.documentHtml = '<p>A body with no signature block</p>';
     fixture.detectChanges();
 
-    expect(component.htmlBeforeSignatures).toContain('A body with no signature block');
-    expect(component.htmlAfterSignatures).toBe('');
+    expect(component.htmlBeforeSignatures()).toContain('A body with no signature block');
+    expect(component.htmlAfterSignatures()).toBe('');
   });
 
   it('shows an awaiting-signature placeholder until a party signs', () => {
     component.documentHtml = ANCHOR;
-    component.signatureBlock = block();
+    fixture.componentRef.setInput('signatureBlock', block());
     fixture.detectChanges();
 
     const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
@@ -91,7 +91,7 @@ describe('ContractDocumentComponent', () => {
     signed.client.signatureMark = 'Natalie Finkels';
 
     component.documentHtml = ANCHOR;
-    component.signatureBlock = signed;
+    fixture.componentRef.setInput('signatureBlock', signed);
     fixture.detectChanges();
 
     const host = fixture.nativeElement as HTMLElement;
@@ -102,8 +102,8 @@ describe('ContractDocumentComponent', () => {
 
   it('can hide the signature block entirely', () => {
     component.documentHtml = ANCHOR;
-    component.signatureBlock = block();
-    component.showSignatureBlock = false;
+    fixture.componentRef.setInput('signatureBlock', block());
+    fixture.componentRef.setInput('showSignatureBlock', false);
     fixture.detectChanges();
 
     expect((fixture.nativeElement as HTMLElement).querySelector('.dc-signature-grid')).toBeNull();

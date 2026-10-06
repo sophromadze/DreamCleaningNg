@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, PLATFORM_ID, HostListener, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, PLATFORM_ID, HostListener, ChangeDetectionStrategy, inject, signal } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -22,7 +22,7 @@ type LoginStep = 'email' | 'password' | 'otp';
     AppleSigninButtonComponent
 ],
   templateUrl: './auth-modal.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './auth-modal.component.scss'
 })
 export class AuthModalComponent implements OnInit, OnDestroy {
@@ -32,23 +32,23 @@ export class AuthModalComponent implements OnInit, OnDestroy {
   private authModalService = inject(AuthModalService);
   private platformId = inject<Object>(PLATFORM_ID);
 
-  isLoginMode = true;
-  loginStep: LoginStep = 'email';
+  readonly isLoginMode = signal(true);
+  readonly loginStep = signal<LoginStep>('email');
 
   emailForm: FormGroup;
   passwordForm: FormGroup;
   otpForm: FormGroup;
   registerForm: FormGroup;
 
-  isLoading = false;
-  errorMessage: string | null = null;
-  successMessage: string | null = null;
-  showResendOption = false;
+  readonly isLoading = signal(false);
+  readonly errorMessage = signal<string | null>(null);
+  readonly successMessage = signal<string | null>(null);
+  readonly showResendOption = signal(false);
   resendEmail = '';
-  showModal = false;
-  showPassword = false;
-  showConfirmPassword = false;
-  checkedEmail = '';
+  readonly showModal = signal(false);
+  readonly showPassword = signal(false);
+  readonly showConfirmPassword = signal(false);
+  readonly checkedEmail = signal('');
 
   private isBrowser: boolean;
   private subscriptions = new Subscription();
@@ -103,19 +103,19 @@ export class AuthModalComponent implements OnInit, OnDestroy {
 
   ngOnInit() {
     const modalSub = this.authModalService.isOpen$.subscribe(isOpen => {
-      this.showModal = isOpen;
+      this.showModal.set(isOpen);
       if (isOpen) {
         this.listenForGoogleSignIn();
         this.resetLoginState();
         const initialMode = this.authModalService.getInitialMode();
-        this.isLoginMode = initialMode === 'login';
+        this.isLoginMode.set(initialMode === 'login');
         this.patchReferralFromStorage();
       }
     });
 
     const modeSub = this.authModalService.initialMode$.subscribe(mode => {
-      if (this.showModal) {
-        this.isLoginMode = mode === 'login';
+      if (this.showModal()) {
+        this.isLoginMode.set(mode === 'login');
         this.resetLoginState();
         this.patchReferralFromStorage();
       }
@@ -134,7 +134,7 @@ export class AuthModalComponent implements OnInit, OnDestroy {
     if (this.googleSignInListening || !this.isBrowser) return;
     this.googleSignInListening = true;
     const googleSub = this.authService.socialAuthService.authState.subscribe((user) => {
-      if (user && user.provider === 'GOOGLE' && this.showModal) {
+      if (user && user.provider === 'GOOGLE' && this.showModal()) {
         this.handleGoogleSignIn(user);
       }
     });
@@ -147,24 +147,24 @@ export class AuthModalComponent implements OnInit, OnDestroy {
 
   @HostListener('document:keydown.escape', ['$event'])
   handleEscape(event: Event) {
-    if (this.showModal) {
+    if (this.showModal()) {
       this.closeModal();
     }
   }
 
   private resetLoginState() {
-    this.loginStep = 'email';
-    this.checkedEmail = '';
-    this.errorMessage = null;
-    this.successMessage = null;
-    this.showResendOption = false;
+    this.loginStep.set('email');
+    this.checkedEmail.set('');
+    this.errorMessage.set(null);
+    this.successMessage.set(null);
+    this.showResendOption.set(false);
     this.emailForm.reset();
     this.passwordForm.reset();
     this.otpForm.reset();
   }
 
   private patchReferralFromStorage(): void {
-    if (!this.isBrowser || this.isLoginMode) return;
+    if (!this.isBrowser || this.isLoginMode()) return;
     try {
       const saved = localStorage.getItem('dreamcleaning_referral');
       if (saved) {
@@ -190,8 +190,8 @@ export class AuthModalComponent implements OnInit, OnDestroy {
   }
 
   private async handleGoogleSignIn(user: any) {
-    this.isLoading = true;
-    this.errorMessage = null;
+    this.isLoading.set(true);
+    this.errorMessage.set(null);
     try {
       // Skip handleAuthResponse's internal navigation — navigateAfterLogin below is the
       // single source of truth for modal-driven login, and it honors the modal's returnUrl
@@ -204,14 +204,14 @@ export class AuthModalComponent implements OnInit, OnDestroy {
       }
       this.navigateAfterLogin();
     } catch (error: any) {
-      this.isLoading = false;
-      this.errorMessage = error?.error?.message || 'Google login failed. Please try again.';
+      this.isLoading.set(false);
+      this.errorMessage.set(error?.error?.message || 'Google login failed. Please try again.');
     }
   }
 
   async handleAppleSignIn(response: any) {
-    this.isLoading = true;
-    this.errorMessage = null;
+    this.isLoading.set(true);
+    this.errorMessage.set(null);
     try {
       await this.authService.handleAppleUser(response, true);
       if (this.authService.hasPendingTwoFactorOrPinSetup()) {
@@ -220,14 +220,14 @@ export class AuthModalComponent implements OnInit, OnDestroy {
       }
       this.navigateAfterLogin();
     } catch (error: any) {
-      this.isLoading = false;
-      this.errorMessage = error?.error?.message || error?.message || 'Apple login failed. Please try again.';
+      this.isLoading.set(false);
+      this.errorMessage.set(error?.error?.message || error?.message || 'Apple login failed. Please try again.');
     }
   }
 
   handleAppleError(error: any) {
-    this.isLoading = false;
-    this.errorMessage = error?.error?.message || error?.message || 'Apple login failed. Please try again.';
+    this.isLoading.set(false);
+    this.errorMessage.set(error?.error?.message || error?.message || 'Apple login failed. Please try again.');
   }
 
   closeModal() {
@@ -248,31 +248,31 @@ export class AuthModalComponent implements OnInit, OnDestroy {
   }
 
   toggleMode() {
-    this.isLoginMode = !this.isLoginMode;
+    this.isLoginMode.set(!this.isLoginMode());
     this.resetLoginState();
     this.patchReferralFromStorage();
   }
 
   goBackToEmail() {
-    this.loginStep = 'email';
-    this.errorMessage = null;
-    this.successMessage = null;
+    this.loginStep.set('email');
+    this.errorMessage.set(null);
+    this.successMessage.set(null);
     this.passwordForm.reset();
     this.otpForm.reset();
   }
 
   resendOtp() {
-    if (!this.checkedEmail) return;
-    this.isLoading = true;
-    this.errorMessage = null;
-    this.authService.sendLoginOtp(this.checkedEmail).subscribe({
+    if (!this.checkedEmail()) return;
+    this.isLoading.set(true);
+    this.errorMessage.set(null);
+    this.authService.sendLoginOtp(this.checkedEmail()).subscribe({
       next: () => {
-        this.isLoading = false;
-        this.successMessage = 'A new code has been sent to your email.';
+        this.isLoading.set(false);
+        this.successMessage.set('A new code has been sent to your email.');
       },
       error: (err) => {
-        this.isLoading = false;
-        this.errorMessage = err.error?.message || 'Failed to resend code.';
+        this.isLoading.set(false);
+        this.errorMessage.set(err.error?.message || 'Failed to resend code.');
       }
     });
   }
@@ -281,11 +281,11 @@ export class AuthModalComponent implements OnInit, OnDestroy {
     if (!this.resendEmail) return;
     this.authService.resendVerification(this.resendEmail).subscribe({
       next: () => {
-        this.errorMessage = 'Verification email sent! Please check your inbox.';
-        this.showResendOption = false;
+        this.errorMessage.set('Verification email sent! Please check your inbox.');
+        this.showResendOption.set(false);
       },
       error: () => {
-        this.errorMessage = 'Failed to resend verification email.';
+        this.errorMessage.set('Failed to resend verification email.');
       }
     });
   }
@@ -317,38 +317,38 @@ export class AuthModalComponent implements OnInit, OnDestroy {
   /** Step 1: check if email exists and whether it has a password */
   onEmailSubmit() {
     if (!this.emailForm.valid) return;
-    this.errorMessage = null;
-    this.successMessage = null;
-    this.isLoading = true;
+    this.errorMessage.set(null);
+    this.successMessage.set(null);
+    this.isLoading.set(true);
     const email: string = this.emailForm.value.email.trim().toLowerCase();
 
     this.authService.checkEmailStatus(email).subscribe({
       next: (status) => {
-        this.isLoading = false;
+        this.isLoading.set(false);
         if (!status.exists) {
-          this.errorMessage = 'No account found with this email address.';
+          this.errorMessage.set('No account found with this email address.');
           return;
         }
-        this.checkedEmail = email;
+        this.checkedEmail.set(email);
         if (status.hasPassword) {
-          this.loginStep = 'password';
+          this.loginStep.set('password');
         } else {
-          this.isLoading = true;
+          this.isLoading.set(true);
           this.authService.sendLoginOtp(email).subscribe({
             next: () => {
-              this.isLoading = false;
-              this.loginStep = 'otp';
+              this.isLoading.set(false);
+              this.loginStep.set('otp');
             },
             error: (err) => {
-              this.isLoading = false;
-              this.errorMessage = err.error?.message || 'Failed to send login code.';
+              this.isLoading.set(false);
+              this.errorMessage.set(err.error?.message || 'Failed to send login code.');
             }
           });
         }
       },
       error: (err) => {
-        this.isLoading = false;
-        this.errorMessage = err.error?.message || 'Something went wrong. Please try again.';
+        this.isLoading.set(false);
+        this.errorMessage.set(err.error?.message || 'Something went wrong. Please try again.');
       }
     });
   }
@@ -356,12 +356,12 @@ export class AuthModalComponent implements OnInit, OnDestroy {
   /** Step 2a: submit email + password */
   onPasswordSubmit() {
     if (!this.passwordForm.valid) return;
-    this.errorMessage = null;
-    this.isLoading = true;
+    this.errorMessage.set(null);
+    this.isLoading.set(true);
 
-    this.authService.login({ email: this.checkedEmail, password: this.passwordForm.value.password }).subscribe({
+    this.authService.login({ email: this.checkedEmail(), password: this.passwordForm.value.password }).subscribe({
       next: (response: any) => {
-        this.isLoading = false;
+        this.isLoading.set(false);
         // 2FA gate (staff on an untrusted device): no tokens yet — go to the challenge
         // screen which drives verify-email + verify-pin. authService.login already
         // stashed the pending challenge.
@@ -379,19 +379,19 @@ export class AuthModalComponent implements OnInit, OnDestroy {
         this.navigateAfterLogin();
       },
       error: (error) => {
-        this.isLoading = false;
+        this.isLoading.set(false);
         if (error.status === 400 && error.error?.message) {
-          this.errorMessage = error.error.message;
+          this.errorMessage.set(error.error.message);
           if (error.error.message.includes('verify your email')) {
-            this.showResendOption = true;
-            this.resendEmail = this.checkedEmail;
+            this.showResendOption.set(true);
+            this.resendEmail = this.checkedEmail();
           }
         } else if (error.status === 401) {
-          this.errorMessage = 'Invalid password.';
+          this.errorMessage.set('Invalid password.');
         } else if (error.status === 0 || error.status >= 500) {
-          this.errorMessage = 'Unable to connect to server. Please try again.';
+          this.errorMessage.set('Unable to connect to server. Please try again.');
         } else {
-          this.errorMessage = 'Login failed. Please try again.';
+          this.errorMessage.set('Login failed. Please try again.');
         }
       }
     });
@@ -400,26 +400,26 @@ export class AuthModalComponent implements OnInit, OnDestroy {
   /** Step 2b: submit OTP code */
   onOtpSubmit() {
     if (!this.otpForm.valid) return;
-    this.errorMessage = null;
-    this.isLoading = true;
+    this.errorMessage.set(null);
+    this.isLoading.set(true);
 
-    this.authService.verifyLoginOtp(this.checkedEmail, this.otpForm.value.code).subscribe({
+    this.authService.verifyLoginOtp(this.checkedEmail(), this.otpForm.value.code).subscribe({
       next: () => {
-        this.isLoading = false;
+        this.isLoading.set(false);
         this.closeModal();
         this.router.navigate(['/set-password']);
       },
       error: (error) => {
-        this.isLoading = false;
-        this.errorMessage = error.error?.message || 'Invalid code. Please try again.';
+        this.isLoading.set(false);
+        this.errorMessage.set(error.error?.message || 'Invalid code. Please try again.');
       }
     });
   }
 
   /** Registration submit */
   onSubmit() {
-    this.errorMessage = null;
-    this.isLoading = true;
+    this.errorMessage.set(null);
+    this.isLoading.set(true);
 
     if (this.registerForm.valid) {
       const firstName = this.registerForm.get('firstName')?.value;
@@ -435,7 +435,7 @@ export class AuthModalComponent implements OnInit, OnDestroy {
 
       this.authService.register(formValue).subscribe({
         next: (response) => {
-          this.isLoading = false;
+          this.isLoading.set(false);
           if (response.requiresEmailVerification) {
             this.closeModal();
             this.router.navigate(['/auth/verify-email-notice'], {
@@ -450,20 +450,20 @@ export class AuthModalComponent implements OnInit, OnDestroy {
           }
         },
         error: (error) => {
-          this.isLoading = false;
+          this.isLoading.set(false);
           if (error.status === 400 && error.error?.message) {
-            this.errorMessage = error.error.message;
+            this.errorMessage.set(error.error.message);
           } else if (error.status === 409) {
-            this.errorMessage = 'An account with this email already exists.';
+            this.errorMessage.set('An account with this email already exists.');
           } else if (error.status === 0 || error.status >= 500) {
-            this.errorMessage = 'Unable to connect to server. Please check your connection and try again.';
+            this.errorMessage.set('Unable to connect to server. Please check your connection and try again.');
           } else {
-            this.errorMessage = 'Registration failed. Please try again.';
+            this.errorMessage.set('Registration failed. Please try again.');
           }
         }
       });
     } else {
-      this.isLoading = false;
+      this.isLoading.set(false);
       Object.keys(this.registerForm.controls).forEach(key => {
         this.registerForm.get(key)?.markAsTouched();
       });

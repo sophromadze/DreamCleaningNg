@@ -1,4 +1,4 @@
-import { Component, OnInit, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy, inject, signal } from '@angular/core';
 import { MaintenanceModeService, MaintenanceModeStatus } from '../services/maintenance-mode.service';
 import { formatNyDateTime } from '../shared/ny-time.util';
 
@@ -14,14 +14,14 @@ import { formatNyDateTime } from '../shared/ny-time.util';
         </div>
         <h1>We're Under Maintenance</h1>
         <p class="maintenance-message">
-          {{ status?.message || 'We are currently performing scheduled maintenance to improve our services.' }}
+          {{ status()?.message || 'We are currently performing scheduled maintenance to improve our services.' }}
         </p>
         <p class="maintenance-info">
           We apologize for any inconvenience. Please check back soon!
         </p>
-        @if (status && status.startedAt) {
+        @if (status() && status()!.startedAt) {
         <div class="maintenance-details">
-          <p><strong>Maintenance Started:</strong> {{ formatDate(status.startedAt) }}</p>
+          <p><strong>Maintenance Started:</strong> {{ formatDate(status()!.startedAt) }}</p>
         </div>
         }
         <div class="contact-info">
@@ -32,7 +32,7 @@ import { formatNyDateTime } from '../shared/ny-time.util';
       </div>
     </div>
   `,
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styles: [`
     .maintenance-container {
       min-height: 100vh;
@@ -133,7 +133,7 @@ import { formatNyDateTime } from '../shared/ny-time.util';
 export class MaintenanceModeComponent implements OnInit {
   private maintenanceModeService = inject(MaintenanceModeService);
 
-  status: MaintenanceModeStatus | null = null;
+  readonly status = signal<MaintenanceModeStatus | null>(null);
 
   ngOnInit() {
     this.loadMaintenanceStatus();
@@ -142,7 +142,7 @@ export class MaintenanceModeComponent implements OnInit {
   loadMaintenanceStatus() {
     this.maintenanceModeService.getStatus().subscribe({
       next: (status) => {
-        this.status = status;
+        this.status.set(status);
       },
       error: (error) => {
         console.error('Failed to load maintenance status:', error);

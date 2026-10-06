@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy } from '@angular/core';
+import { Component, ChangeDetectionStrategy, signal } from '@angular/core';
 import {
   MOVE_IN_OUT_CHECKLIST_SECTIONS,
   MOVE_IN_OUT_IMPORTANT_REQUIREMENTS,
@@ -17,19 +17,19 @@ import { faXmark } from '../../icons/glyphs/faXmark';
   standalone: true,
   imports: [IconComponent],
   templateUrl: './move-in-out-checklist.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './move-in-out-checklist.component.scss',
 })
 export class MoveInOutChecklistComponent {
   protected readonly icons = { faCheck, faChevronDown, faChevronUp, faExclamation, faXmark };
 
-  expanded = false;
+  readonly expanded = signal(false);
 
   readonly sections: CleaningChecklistSection[] = MOVE_IN_OUT_CHECKLIST_SECTIONS;
   readonly importantRequirements: string[] = MOVE_IN_OUT_IMPORTANT_REQUIREMENTS;
   readonly notIncluded: string[] = MOVE_IN_OUT_NOT_INCLUDED;
 
   toggle(): void {
-    this.expanded = !this.expanded;
+    this.expanded.set(!this.expanded());
   }
 }

@@ -1,6 +1,6 @@
 <div class="crm-calls">
   <!-- Stats header — scoped to the selected date range + direction (full set, before category filter) -->
-  @if (summary) {
+  @if (summary(); as summary) {
   <div class="stats-section">
     <div class="stats-strip">
       <div class="stat">
@@ -72,32 +72,32 @@
       </select>
     </div>
 
-    <label class="hide-toggle" [class.disabled]="!!categoryFilter">
-      <input type="checkbox" [(ngModel)]="hideNonCustomer" (change)="onHideToggle()" [disabled]="!!categoryFilter" />
+    <label class="hide-toggle" [class.disabled]="!!categoryFilter()">
+      <input type="checkbox" [(ngModel)]="hideNonCustomer" (change)="onHideToggle()" [disabled]="!!categoryFilter()" />
       Hide cleaners &amp; spam
-      @if (hideNonCustomer && !categoryFilter && hiddenCount > 0) {
+      @if (hideNonCustomer() && !categoryFilter() && hiddenCount > 0) {
       <span class="hidden-count">({{ hiddenCount }} hidden)</span>
       }
     </label>
 
     <div class="toolbar-spacer"></div>
 
-    <button class="btn-light" (click)="reclassify()" [disabled]="reclassifying" title="Recompute categories for all calls">
-      {{ reclassifying ? 'Reclassifying…' : 'Reclassify' }}
+    <button class="btn-light" (click)="reclassify()" [disabled]="reclassifying()" title="Recompute categories for all calls">
+      {{ reclassifying() ? 'Reclassifying…' : 'Reclassify' }}
     </button>
-    <button class="btn-brand" (click)="downloadExcel()" [disabled]="exporting">
-      {{ exporting ? 'Exporting…' : 'Download Excel' }}
+    <button class="btn-brand" (click)="downloadExcel()" [disabled]="exporting()">
+      {{ exporting() ? 'Exporting…' : 'Download Excel' }}
     </button>
   </div>
 
-  @if (errorMessage) {
-  <div class="error-banner">{{ errorMessage }}</div>
+  @if (errorMessage()) {
+  <div class="error-banner">{{ errorMessage() }}</div>
   }
 
   <!-- Table -->
-  @if (!loading) {
+  @if (!loading()) {
   <div class="calls-table-wrap">
-    @if (calls.length) {
+    @if (calls().length) {
     <table class="calls-table">
       <thead>
         <tr>
@@ -111,7 +111,7 @@
         </tr>
       </thead>
       <tbody>
-        @for (call of calls; track trackByCallId($index, call)) {
+        @for (call of calls(); track trackByCallId($index, call)) {
         <tr>
           <td>{{ call.startTimeUtc | date:'MMM d, y, HH:mm' }}</td>
           <td>
@@ -152,11 +152,11 @@
     }
 
     <!-- Paging -->
-    @if (totalPages > 1) {
+    @if (totalPages() > 1) {
     <div class="paging">
-      <button class="btn-light" (click)="prevPage()" [disabled]="page <= 1">← Prev</button>
-      <span class="page-info">Page {{ page }} of {{ totalPages }} · {{ totalCount }} calls</span>
-      <button class="btn-light" (click)="nextPage()" [disabled]="page >= totalPages">Next →</button>
+      <button class="btn-light" (click)="prevPage()" [disabled]="page() <= 1">← Prev</button>
+      <span class="page-info">Page {{ page() }} of {{ totalPages() }} · {{ totalCount() }} calls</span>
+      <button class="btn-light" (click)="nextPage()" [disabled]="page() >= totalPages()">Next →</button>
     </div>
     }
   </div>

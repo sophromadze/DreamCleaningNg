@@ -1,4 +1,4 @@
-import { Component, PLATFORM_ID, OnInit, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, PLATFORM_ID, OnInit, ChangeDetectionStrategy, inject, signal } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { RouterModule, Router, ActivatedRoute } from '@angular/router';
@@ -15,7 +15,7 @@ type LoginStep = 'email' | 'password' | 'otp';
   standalone: true,
   imports: [FormsModule, ReactiveFormsModule, RouterModule, GoogleSigninWrapperComponent, AppleSigninButtonComponent],
   templateUrl: './login.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './login.component.scss'
 })
 export class LoginComponent implements OnInit {
@@ -25,27 +25,27 @@ export class LoginComponent implements OnInit {
   private route = inject(ActivatedRoute);
   private platformId = inject<Object>(PLATFORM_ID);
 
-  isLoginMode = true;
-  loginStep: LoginStep = 'email';
+  readonly isLoginMode = signal(true);
+  readonly loginStep = signal<LoginStep>('email');
 
   emailForm: FormGroup;
   passwordForm: FormGroup;
   otpForm: FormGroup;
   registerForm: FormGroup;
 
-  isLoading = false;
-  errorMessage: string | null = null;
-  successMessage: string | null = null;
+  readonly isLoading = signal(false);
+  readonly errorMessage = signal<string | null>(null);
+  readonly successMessage = signal<string | null>(null);
   returnUrl: string;
-  showResendOption = false;
+  readonly showResendOption = signal(false);
   resendEmail = '';
-  showPassword = false;
-  showConfirmPassword = false;
+  readonly showPassword = signal(false);
+  readonly showConfirmPassword = signal(false);
   referralValid: boolean | null = null;
   private isBrowser: boolean;
 
   /** Email entered in step 1, passed forward to step 2 */
-  checkedEmail = '';
+  readonly checkedEmail = signal('');
 
   constructor() {
     this.isBrowser = isPlatformBrowser(this.platformId);
@@ -119,30 +119,30 @@ export class LoginComponent implements OnInit {
   }
 
   private async handleGoogleSignIn(user: any) {
-    this.isLoading = true;
-    this.errorMessage = null;
+    this.isLoading.set(true);
+    this.errorMessage.set(null);
     try {
       await this.authService.handleGoogleUser(user);
     } catch (error: any) {
-      this.isLoading = false;
-      this.errorMessage = error?.error?.message || 'Google login failed. Please try again.';
+      this.isLoading.set(false);
+      this.errorMessage.set(error?.error?.message || 'Google login failed. Please try again.');
     }
   }
 
   async handleAppleSignIn(response: any) {
-    this.isLoading = true;
-    this.errorMessage = null;
+    this.isLoading.set(true);
+    this.errorMessage.set(null);
     try {
       await this.authService.handleAppleUser(response);
     } catch (error: any) {
-      this.isLoading = false;
-      this.errorMessage = error?.error?.message || error?.message || 'Apple login failed. Please try again.';
+      this.isLoading.set(false);
+      this.errorMessage.set(error?.error?.message || error?.message || 'Apple login failed. Please try again.');
     }
   }
 
   handleAppleError(error: any) {
-    this.isLoading = false;
-    this.errorMessage = error?.error?.message || error?.message || 'Apple login failed. Please try again.';
+    this.isLoading.set(false);
+    this.errorMessage.set(error?.error?.message || error?.message || 'Apple login failed. Please try again.');
   }
 
   onForgotPassword() {
@@ -150,33 +150,33 @@ export class LoginComponent implements OnInit {
   }
 
   toggleMode() {
-    this.isLoginMode = !this.isLoginMode;
-    this.loginStep = 'email';
-    this.errorMessage = null;
-    this.successMessage = null;
-    this.checkedEmail = '';
+    this.isLoginMode.set(!this.isLoginMode());
+    this.loginStep.set('email');
+    this.errorMessage.set(null);
+    this.successMessage.set(null);
+    this.checkedEmail.set('');
   }
 
   goBackToEmail() {
-    this.loginStep = 'email';
-    this.errorMessage = null;
-    this.successMessage = null;
+    this.loginStep.set('email');
+    this.errorMessage.set(null);
+    this.successMessage.set(null);
     this.passwordForm.reset();
     this.otpForm.reset();
   }
 
   resendOtp() {
-    if (!this.checkedEmail) return;
-    this.isLoading = true;
-    this.errorMessage = null;
-    this.authService.sendLoginOtp(this.checkedEmail).subscribe({
+    if (!this.checkedEmail()) return;
+    this.isLoading.set(true);
+    this.errorMessage.set(null);
+    this.authService.sendLoginOtp(this.checkedEmail()).subscribe({
       next: () => {
-        this.isLoading = false;
-        this.successMessage = 'A new code has been sent to your email.';
+        this.isLoading.set(false);
+        this.successMessage.set('A new code has been sent to your email.');
       },
       error: (err) => {
-        this.isLoading = false;
-        this.errorMessage = err.error?.message || 'Failed to resend code.';
+        this.isLoading.set(false);
+        this.errorMessage.set(err.error?.message || 'Failed to resend code.');
       }
     });
   }
@@ -185,11 +185,11 @@ export class LoginComponent implements OnInit {
     if (!this.resendEmail) return;
     this.authService.resendVerification(this.resendEmail).subscribe({
       next: () => {
-        this.errorMessage = 'Verification email sent! Please check your inbox.';
-        this.showResendOption = false;
+        this.errorMessage.set('Verification email sent! Please check your inbox.');
+        this.showResendOption.set(false);
       },
       error: () => {
-        this.errorMessage = 'Failed to resend verification email.';
+        this.errorMessage.set('Failed to resend verification email.');
       }
     });
   }
@@ -221,39 +221,39 @@ export class LoginComponent implements OnInit {
   /** Step 1: check if email exists and whether it has a password */
   onEmailSubmit() {
     if (!this.emailForm.valid) return;
-    this.errorMessage = null;
-    this.successMessage = null;
-    this.isLoading = true;
+    this.errorMessage.set(null);
+    this.successMessage.set(null);
+    this.isLoading.set(true);
     const email: string = this.emailForm.value.email.trim().toLowerCase();
 
     this.authService.checkEmailStatus(email).subscribe({
       next: (status) => {
-        this.isLoading = false;
+        this.isLoading.set(false);
         if (!status.exists) {
-          this.errorMessage = 'No account found with this email address.';
+          this.errorMessage.set('No account found with this email address.');
           return;
         }
-        this.checkedEmail = email;
+        this.checkedEmail.set(email);
         if (status.hasPassword) {
-          this.loginStep = 'password';
+          this.loginStep.set('password');
         } else {
           // Send OTP immediately
-          this.isLoading = true;
+          this.isLoading.set(true);
           this.authService.sendLoginOtp(email).subscribe({
             next: () => {
-              this.isLoading = false;
-              this.loginStep = 'otp';
+              this.isLoading.set(false);
+              this.loginStep.set('otp');
             },
             error: (err) => {
-              this.isLoading = false;
-              this.errorMessage = err.error?.message || 'Failed to send login code.';
+              this.isLoading.set(false);
+              this.errorMessage.set(err.error?.message || 'Failed to send login code.');
             }
           });
         }
       },
       error: (err) => {
-        this.isLoading = false;
-        this.errorMessage = err.error?.message || 'Something went wrong. Please try again.';
+        this.isLoading.set(false);
+        this.errorMessage.set(err.error?.message || 'Something went wrong. Please try again.');
       }
     });
   }
@@ -261,12 +261,12 @@ export class LoginComponent implements OnInit {
   /** Step 2a: submit email + password */
   onPasswordSubmit() {
     if (!this.passwordForm.valid) return;
-    this.errorMessage = null;
-    this.isLoading = true;
+    this.errorMessage.set(null);
+    this.isLoading.set(true);
 
-    this.authService.login({ email: this.checkedEmail, password: this.passwordForm.value.password }).subscribe({
+    this.authService.login({ email: this.checkedEmail(), password: this.passwordForm.value.password }).subscribe({
       next: (response: any) => {
-        this.isLoading = false;
+        this.isLoading.set(false);
         // 2FA gate: backend returned a challenge envelope, no tokens yet. Route to the
         // 2FA challenge screen which will drive verify-email + verify-pin.
         if (response?.twoFactor) {
@@ -287,18 +287,18 @@ export class LoginComponent implements OnInit {
         this.router.navigateByUrl(finalReturnUrl);
       },
       error: (error) => {
-        this.isLoading = false;
+        this.isLoading.set(false);
         if (error.status === 400 && error.error?.message) {
-          this.errorMessage = error.error.message;
+          this.errorMessage.set(error.error.message);
           if (error.error.message.toLowerCase().includes('verify your email')) {
             this.router.navigate(['/auth/verify-email-notice']);
           }
         } else if (error.status === 401) {
-          this.errorMessage = 'Invalid password.';
+          this.errorMessage.set('Invalid password.');
         } else if (error.status === 0 || error.status >= 500) {
-          this.errorMessage = 'Unable to connect to server. Please try again.';
+          this.errorMessage.set('Unable to connect to server. Please try again.');
         } else {
-          this.errorMessage = 'Login failed. Please try again.';
+          this.errorMessage.set('Login failed. Please try again.');
         }
       }
     });
@@ -307,12 +307,12 @@ export class LoginComponent implements OnInit {
   /** Step 2b: submit OTP code */
   onOtpSubmit() {
     if (!this.otpForm.valid) return;
-    this.errorMessage = null;
-    this.isLoading = true;
+    this.errorMessage.set(null);
+    this.isLoading.set(true);
 
-    this.authService.verifyLoginOtp(this.checkedEmail, this.otpForm.value.code).subscribe({
+    this.authService.verifyLoginOtp(this.checkedEmail(), this.otpForm.value.code).subscribe({
       next: (response) => {
-        this.isLoading = false;
+        this.isLoading.set(false);
         if (response.requiresPasswordSetup) {
           this.router.navigate(['/set-password']);
         } else {
@@ -325,18 +325,18 @@ export class LoginComponent implements OnInit {
         }
       },
       error: (error) => {
-        this.isLoading = false;
-        this.errorMessage = error.error?.message || 'Invalid code. Please try again.';
+        this.isLoading.set(false);
+        this.errorMessage.set(error.error?.message || 'Invalid code. Please try again.');
       }
     });
   }
 
   /** Registration submit */
   onSubmit() {
-    this.errorMessage = null;
-    this.isLoading = true;
+    this.errorMessage.set(null);
+    this.isLoading.set(true);
 
-    if (!this.isLoginMode) {
+    if (!this.isLoginMode()) {
       if (this.registerForm.valid) {
         const firstName = this.registerForm.get('firstName')?.value;
         const lastName = this.registerForm.get('lastName')?.value;
@@ -352,7 +352,7 @@ export class LoginComponent implements OnInit {
 
         this.authService.register(formValue).subscribe({
           next: (response) => {
-            this.isLoading = false;
+            this.isLoading.set(false);
             // Keep dreamcleaning_referral in localStorage — it will be cleared after booking
             if (response.requiresEmailVerification) {
               this.router.navigate(['/auth/verify-email-notice']);
@@ -361,20 +361,20 @@ export class LoginComponent implements OnInit {
             }
           },
           error: (error) => {
-            this.isLoading = false;
+            this.isLoading.set(false);
             if (error.status === 400 && error.error?.message) {
-              this.errorMessage = error.error.message;
+              this.errorMessage.set(error.error.message);
             } else if (error.status === 409) {
-              this.errorMessage = 'An account with this email already exists.';
+              this.errorMessage.set('An account with this email already exists.');
             } else if (error.status === 0 || error.status >= 500) {
-              this.errorMessage = 'Unable to connect to server. Please check your connection and try again.';
+              this.errorMessage.set('Unable to connect to server. Please check your connection and try again.');
             } else {
-              this.errorMessage = 'Registration failed. Please try again.';
+              this.errorMessage.set('Registration failed. Please try again.');
             }
           }
         });
       } else {
-        this.isLoading = false;
+        this.isLoading.set(false);
         Object.keys(this.registerForm.controls).forEach(key => {
           this.registerForm.get(key)?.markAsTouched();
         });

@@ -10,18 +10,18 @@
     hardcoded anywhere else.
   </p>
 
-  @if (error) {
-  <div class="alert alert-error">{{ error }}</div>
+  @if (error()) {
+  <div class="alert alert-error">{{ error() }}</div>
   }
-  @if (notice) {
-  <div class="alert alert-success">{{ notice }}</div>
+  @if (notice()) {
+  <div class="alert alert-success">{{ notice() }}</div>
   }
 
-  @if (loading) {
+  @if (loading()) {
   <div class="loading-note">Loading…</div>
   }
 
-  @if (!loading && settings) {
+  @if (!loading() && settings()) {
   <form (ngSubmit)="save()">
 
     <section class="card">
@@ -29,36 +29,36 @@
 
       <div class="field">
         <label for="legalName">Legal entity name *</label>
-        <input id="legalName" type="text" [(ngModel)]="form.companyLegalName" name="companyLegalName"
+        <input id="legalName" type="text" [(ngModel)]="form().companyLegalName" name="companyLegalName"
                [disabled]="!canEdit" required>
       </div>
 
       <div class="field">
         <label for="dba">DBA name</label>
-        <input id="dba" type="text" [(ngModel)]="form.companyDbaName" name="companyDbaName"
+        <input id="dba" type="text" [(ngModel)]="form().companyDbaName" name="companyDbaName"
                [disabled]="!canEdit" placeholder="Dream Cleaning NYC">
       </div>
 
       <div class="field">
         <label for="address">Address</label>
-        <input id="address" type="text" [(ngModel)]="form.companyAddress" name="companyAddress"
+        <input id="address" type="text" [(ngModel)]="form().companyAddress" name="companyAddress"
                [disabled]="!canEdit">
       </div>
 
       <div class="field-row">
         <div class="field">
           <label for="city">City</label>
-          <input id="city" type="text" [(ngModel)]="form.companyCity" name="companyCity"
+          <input id="city" type="text" [(ngModel)]="form().companyCity" name="companyCity"
                  [disabled]="!canEdit">
         </div>
         <div class="field">
           <label for="state">State</label>
-          <input id="state" type="text" [(ngModel)]="form.companyState" name="companyState"
+          <input id="state" type="text" [(ngModel)]="form().companyState" name="companyState"
                  [disabled]="!canEdit">
         </div>
         <div class="field">
           <label for="zip">ZIP</label>
-          <input id="zip" type="text" [(ngModel)]="form.companyZip" name="companyZip"
+          <input id="zip" type="text" [(ngModel)]="form().companyZip" name="companyZip"
                  [disabled]="!canEdit">
         </div>
       </div>
@@ -66,12 +66,12 @@
       <div class="field-row">
         <div class="field">
           <label for="phone">Phone</label>
-          <input id="phone" type="text" [(ngModel)]="form.companyPhone" name="companyPhone"
+          <input id="phone" type="text" [(ngModel)]="form().companyPhone" name="companyPhone"
                  [disabled]="!canEdit">
         </div>
         <div class="field">
           <label for="email">Email</label>
-          <input id="email" type="email" [(ngModel)]="form.companyEmail" name="companyEmail"
+          <input id="email" type="email" [(ngModel)]="form().companyEmail" name="companyEmail"
                  [disabled]="!canEdit">
         </div>
       </div>
@@ -85,7 +85,7 @@
       </p>
 
       <label class="toggle-row">
-        <input type="checkbox" [(ngModel)]="form.stripeAchEnabled" name="stripeAchEnabled"
+        <input type="checkbox" [(ngModel)]="form().stripeAchEnabled" name="stripeAchEnabled"
                [disabled]="!canEdit">
         <span class="toggle-text">
           <strong>Stripe ACH Direct Debit</strong>
@@ -97,7 +97,7 @@
       </label>
 
       <label class="toggle-row">
-        <input type="checkbox" [(ngModel)]="form.stripeCardEnabled" name="stripeCardEnabled"
+        <input type="checkbox" [(ngModel)]="form().stripeCardEnabled" name="stripeCardEnabled"
                [disabled]="!canEdit">
         <span class="toggle-text">
           <strong>Stripe Card</strong>
@@ -109,7 +109,7 @@
       </label>
 
       <label class="toggle-row">
-        <input type="checkbox" [(ngModel)]="form.manualAchEnabled" name="manualAchEnabled"
+        <input type="checkbox" [(ngModel)]="form().manualAchEnabled" name="manualAchEnabled"
                [disabled]="!canEdit">
         <span class="toggle-text">
           <strong>Manual ACH Bank Transfer</strong>
@@ -124,17 +124,17 @@
         The warning that stops misleading instructions going out: manual ACH switched on but
         missing the fields a customer actually needs to pay.
       -->
-      @if (form.manualAchEnabled && !settings.manualAchComplete) {
+      @if (form().manualAchEnabled && !settings()!.manualAchComplete) {
       <div class="alert alert-warning">
         <strong>Manual ACH is enabled but incomplete.</strong>
         The bank details below are missing:
-        {{ settings.missingManualAchFields.join(', ') }}.
+        {{ settings()!.missingManualAchFields.join(', ') }}.
         Invoices will not show manual transfer instructions until these are filled in — an
         incomplete block is worse than none, because the customer only finds out at their bank.
       </div>
       }
 
-      @if (!form.stripeAchEnabled && !form.stripeCardEnabled && !form.manualAchEnabled) {
+      @if (!form().stripeAchEnabled && !form().stripeCardEnabled && !form().manualAchEnabled) {
       <div class="alert alert-warning"
           >
         <strong>No payment method is enabled.</strong>
@@ -157,7 +157,7 @@
 
       <div class="field">
         <label for="accountHolder">Account holder</label>
-        <input id="accountHolder" type="text" [(ngModel)]="form.bankAccountHolder"
+        <input id="accountHolder" type="text" [(ngModel)]="form().bankAccountHolder"
                name="bankAccountHolder" [disabled]="!canEdit"
                placeholder="Nodar Alania Inc. DBA Dream Cleaning NYC">
         <span class="hint">
@@ -167,14 +167,14 @@
 
       <div class="field">
         <label for="bankName">Bank name</label>
-        <input id="bankName" type="text" [(ngModel)]="form.bankName" name="bankName"
+        <input id="bankName" type="text" [(ngModel)]="form().bankName" name="bankName"
                [disabled]="!canEdit">
       </div>
 
       <div class="field-row">
         <div class="field">
           <label for="routing">Routing number</label>
-          <input id="routing" type="text" [(ngModel)]="form.bankRoutingNumber"
+          <input id="routing" type="text" [(ngModel)]="form().bankRoutingNumber"
                  name="bankRoutingNumber" [disabled]="!canEdit" autocomplete="off">
         </div>
 
@@ -185,7 +185,7 @@
                  [disabled]="!canEdit" autocomplete="off"
                  placeholder="Leave blank to keep the current number">
           <span class="hint">
-            Currently {{ settings.bankAccountNumber || 'not set' }}. Type a new number only to
+            Currently {{ settings()!.bankAccountNumber || 'not set' }}. Type a new number only to
             replace it.
           </span>
         </div>
@@ -193,20 +193,20 @@
 
       <div class="field">
         <label for="accountType">Account type</label>
-        <input id="accountType" type="text" [(ngModel)]="form.bankAccountType"
+        <input id="accountType" type="text" [(ngModel)]="form().bankAccountType"
                name="bankAccountType" [disabled]="!canEdit" placeholder="Business Checking">
       </div>
 
       <div class="field">
         <label for="achInstructions">ACH instructions</label>
-        <textarea id="achInstructions" rows="3" [(ngModel)]="form.achInstructions"
+        <textarea id="achInstructions" rows="3" [(ngModel)]="form().achInstructions"
                   name="achInstructions" [disabled]="!canEdit"></textarea>
         <span class="hint">Shown under the bank details on the invoice and the PDF.</span>
       </div>
 
       <div class="field">
         <label for="wireRouting">Wire routing number</label>
-        <input id="wireRouting" type="text" [(ngModel)]="form.bankWireRoutingNumber"
+        <input id="wireRouting" type="text" [(ngModel)]="form().bankWireRoutingNumber"
                name="bankWireRoutingNumber" [disabled]="!canEdit" autocomplete="off">
         <span class="hint">
           Optional. Some banks use a different routing number for wires — it is never required for
@@ -216,7 +216,7 @@
 
       <div class="field">
         <label for="wireInstructions">Wire instructions</label>
-        <textarea id="wireInstructions" rows="3" [(ngModel)]="form.wireInstructions"
+        <textarea id="wireInstructions" rows="3" [(ngModel)]="form().wireInstructions"
                   name="wireInstructions" [disabled]="!canEdit"></textarea>
         <span class="hint">Optional — the wire block is hidden entirely when this is blank.</span>
       </div>
@@ -232,7 +232,7 @@
       <div class="field-row">
         <div class="field">
           <label for="defaultTaxType">Default sales tax treatment</label>
-          <select id="defaultTaxType" [(ngModel)]="form.defaultTaxType" name="defaultTaxType"
+          <select id="defaultTaxType" [(ngModel)]="form().defaultTaxType" name="defaultTaxType"
                   [disabled]="!canEdit">
             <option [ngValue]="InvoiceTaxType.Exempt">Tax exempt</option>
             <option [ngValue]="InvoiceTaxType.Included">Tax included</option>
@@ -242,13 +242,13 @@
 
         <div class="field">
           <label for="defaultTaxRate">Default tax rate (%)</label>
-          <input id="defaultTaxRate" type="number" step="0.001" [(ngModel)]="form.defaultTaxRate"
+          <input id="defaultTaxRate" type="number" step="0.001" [(ngModel)]="form().defaultTaxRate"
                  name="defaultTaxRate" [disabled]="!canEdit" placeholder="8.875">
         </div>
 
         <div class="field">
           <label for="defaultDueTerms">Default payment terms</label>
-          <select id="defaultDueTerms" [(ngModel)]="form.defaultDueTerms" name="defaultDueTerms"
+          <select id="defaultDueTerms" [(ngModel)]="form().defaultDueTerms" name="defaultDueTerms"
                   [disabled]="!canEdit">
             @for (t of dueTermsOptions; track t.value) {
             <option [ngValue]="t.value">{{ t.label }}</option>
@@ -259,26 +259,26 @@
 
       <div class="field">
         <label for="defaultNote">Default customer note</label>
-        <textarea id="defaultNote" rows="2" [(ngModel)]="form.defaultCustomerNote"
+        <textarea id="defaultNote" rows="2" [(ngModel)]="form().defaultCustomerNote"
                   name="defaultCustomerNote" [disabled]="!canEdit"></textarea>
       </div>
 
       <div class="field">
         <label for="footer">Invoice footer text</label>
-        <input id="footer" type="text" [(ngModel)]="form.invoiceFooterText"
+        <input id="footer" type="text" [(ngModel)]="form().invoiceFooterText"
                name="invoiceFooterText" [disabled]="!canEdit">
       </div>
     </section>
 
     @if (canEdit) {
     <div class="form-actions">
-      @if (settings.updatedAt) {
+      @if (settings()!.updatedAt) {
       <span class="updated-at">
-        Last updated {{ settings.updatedAt | date:'MMM d, y, h:mm a' }}
+        Last updated {{ settings()!.updatedAt | date:'MMM d, y, h:mm a' }}
       </span>
       }
-      <button type="submit" class="btn-primary" [disabled]="saving || !form.companyLegalName">
-        {{ saving ? 'Saving…' : 'Save billing settings' }}
+      <button type="submit" class="btn-primary" [disabled]="saving() || !form().companyLegalName">
+        {{ saving() ? 'Saving…' : 'Save billing settings' }}
       </button>
     </div>
     }

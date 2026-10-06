@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, Output, ChangeDetectionStrategy } from '@angular/core';
+import { Component, ChangeDetectionStrategy, output, input } from '@angular/core';
 
 /**
  * Shared +/− stepper (extracted from the booking page; also used by order-edit).
@@ -17,18 +17,18 @@ import { Component, EventEmitter, Input, Output, ChangeDetectionStrategy } from 
   selector: 'app-quantity-control',
   standalone: true,
   templateUrl: './quantity-control.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./quantity-control.component.scss']
 })
 export class QuantityControlComponent {
   /** Already-formatted display text (e.g. 'Studio', 2, 1.5). */
-  @Input() value: string | number | null = null;
-  @Input() decrementDisabled = false;
-  @Input() incrementDisabled = false;
-  @Input() variant: 'plain' | 'extra' = 'plain';
+  readonly value = input<string | number | null>(null);
+  readonly decrementDisabled = input(false);
+  readonly incrementDisabled = input(false);
+  readonly variant = input<'plain' | 'extra'>('plain');
   /** What the stepper changes (e.g. 'bedrooms'); names the icon-only buttons "Decrease bedrooms" / "Increase bedrooms". */
-  @Input() label = '';
+  readonly label = input('');
   /** Emits the click event so call sites can keep e.g. $event.stopPropagation(). */
-  @Output() decrement = new EventEmitter<MouseEvent>();
-  @Output() increment = new EventEmitter<MouseEvent>();
+  readonly decrement = output<MouseEvent>();
+  readonly increment = output<MouseEvent>();
 }

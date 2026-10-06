@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectionStrategy, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { Subject, takeUntil } from 'rxjs';
@@ -20,7 +20,7 @@ import { faGift } from '../../shared/icons/glyphs/faGift';
   standalone: true,
   imports: [CommonModule, RouterModule, SaveCardModalComponent, IconComponent],
   templateUrl: './booking-confirmation.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./booking-confirmation.component.scss']
 })
 export class BookingConfirmationComponent implements OnInit, OnDestroy {
@@ -35,25 +35,25 @@ export class BookingConfirmationComponent implements OnInit, OnDestroy {
 
   protected readonly icons = { faCircleCheck, faCircleNotch, faGift };
 
-  orderId: number = 0;
-  isProcessing = false;
-  paymentCompleted = false;
-  errorMessage = '';
-  bookingData: any = null;
+  readonly orderId = signal<number>(0);
+  readonly isProcessing = signal(false);
+  readonly paymentCompleted = signal(false);
+  readonly errorMessage = signal('');
+  readonly bookingData = signal<any>(null);
   paymentClientSecret: string | null = null;
-  orderTotal: number = 0;
+  readonly orderTotal = signal<number>(0);
   currentUser: any;
-  cardError: string | null = null;
-  showApplePay = false;
+  readonly cardError = signal<string | null>(null);
+  readonly showApplePay = signal(false);
   // True when a gift card (or credits) covers the full amount, so no Stripe charge is needed.
   // Drives the UI to hide the card form and confirm the booking directly. The server has the
   // final say via the prepare-payment `requiresPayment` flag.
-  fullyCovered = false;
+  readonly fullyCovered = signal(false);
 
   // Money-sensitive notice (auto-refund outcome from confirm-payment). Shown in its own banner
   // that stays until the customer manually dismisses it — no auto-clear — so they can read it and
   // note the contact details. Severity is keyed off the backend "code", not the human text.
-  stickyNotice: { message: string; severity: 'warning' | 'critical' } | null = null;
+  readonly stickyNotice = signal<{ message: string; severity: 'warning' | 'critical' } | null>(null);
 
   // Remove the preparePayment flag - we don't need it anymore
   isPreparing = false;
@@ -61,14 +61,14 @@ export class BookingConfirmationComponent implements OnInit, OnDestroy {
   // Set when this page is re-entered while a charge started by an earlier instance of it is
   // still finishing. The earlier instance's confirm-payment is deliberately NOT cancelled (the
   // card is already charged by then), so it will complete and navigate on its own.
-  resumedInFlight = false;
+  readonly resumedInFlight = signal(false);
 
   private destroy$ = new Subject<void>();
 
   // Saved cards: offered to the signed-in customer as payment options. Selecting one never
   // charges anything — the charge happens only on the explicit Pay click. null = a new card.
-  savedCards: SavedCard[] = [];
-  selectedCardId: number | null = null;
+  readonly savedCards = signal<SavedCard[]>([]);
+  readonly selectedCardId = signal<number | null>(null);
 
   /**
    * Set when Stripe HAS taken the money but our confirmation of it failed to reach the server
@@ -76,10 +76,10 @@ export class BookingConfirmationComponent implements OnInit, OnDestroy {
    * shows a payment error, and the Pay button stays down, because "payment failed" after a
    * successful charge is precisely what made customers pay twice (2026-09-16).
    */
-  finalizingPayment = false;
+  readonly finalizingPayment = signal(false);
 
   get selectedCard(): SavedCard | null {
-    return this.savedCards.find(c => c.id === this.selectedCardId) ?? null;
+    return this.savedCards().find(c => c.id === this.selectedCardId()) ?? null;
   }
 
   get usingSavedCard(): boolean {
@@ -90,8 +90,8 @@ export class BookingConfirmationComponent implements OnInit, OnDestroy {
 
   /** null = enter a new card. */
   selectPaymentMethod(cardId: number | null): void {
-    if (cardId !== this.selectedCardId) this.saveCardChoice = null;   // a different card is a new question
-    this.selectedCardId = cardId;
+    if (cardId !== this.selectedCardId()) this.saveCardChoice = null;   // a different card is a new question
+    this.selectedCardId.set(cardId);
   }
 
   // ── "Save your card?", asked before the charge (2026-09) ────────────────────────────────
@@ -99,7 +99,7 @@ export class BookingConfirmationComponent implements OnInit, OnDestroy {
   // The question is put BETWEEN the Pay click and prepare-payment, so nothing exists yet to
   // duplicate: no session, no PaymentIntent, no charge. The answer rides along to the SAME
   // intent as setup_future_usage at confirmation. There is no prompt after payment.
-  showSaveCardModal = false;
+  readonly showSaveCardModal = signal(false);
   /** The answer for THIS attempt. Kept across a retry so nobody is asked twice for one payment. */
   saveCardChoice: boolean | null = null;
   /** Server rollout switch. */
@@ -107,15 +107,15 @@ export class BookingConfirmationComponent implements OnInit, OnDestroy {
 
   /** A new, reusable card typed by a signed-in customer — the only case worth asking about. */
   private get canAskToSaveCard(): boolean {
-    return this.savedCardsFeature && !this.fullyCovered && !this.usingSavedCard
+    return this.savedCardsFeature && !this.fullyCovered() && !this.usingSavedCard
       && this.authService.isLoggedIn() && this.saveCardChoice === null;
   }
 
   /** The Pay button. Asks first when there is something to ask; otherwise pays exactly as before. */
   onPayClicked(): void {
-    if (this.isProcessing) return;
+    if (this.isProcessing()) return;
     if (this.canAskToSaveCard) {
-      this.showSaveCardModal = true;
+      this.showSaveCardModal.set(true);
       return;
     }
     this.processPayment();
@@ -123,14 +123,14 @@ export class BookingConfirmationComponent implements OnInit, OnDestroy {
 
   onSaveCardChoice(save: boolean): void {
     this.saveCardChoice = save;
-    this.showSaveCardModal = false;
+    this.showSaveCardModal.set(false);
     this.processPayment();
   }
 
   /** ✕ / Escape / backdrop: back to the payment form with everything still typed in. Nothing
    *  was prepared or charged, so there is nothing to abandon. */
   onSaveCardDismissed(): void {
-    this.showSaveCardModal = false;
+    this.showSaveCardModal.set(false);
   }
 
   ngOnInit() {
@@ -138,15 +138,15 @@ export class BookingConfirmationComponent implements OnInit, OnDestroy {
     // Checked BEFORE the booking-data guard below, because a completed booking has already had
     // its data cleared — without this it would look like a stale visit and bounce to /booking.
     if (this.bookingDataService.paymentPhase === 'completed') {
-      this.paymentCompleted = true;
-      this.orderId = this.bookingDataService.completedOrderId ?? 0;
+      this.paymentCompleted.set(true);
+      this.orderId.set(this.bookingDataService.completedOrderId ?? 0);
       return;
     }
 
     // Get booking data from service
-    this.bookingData = this.bookingDataService.getBookingData();
+    this.bookingData.set(this.bookingDataService.getBookingData());
 
-    if (!this.bookingData) {
+    if (!this.bookingData()) {
       // No booking data, redirect back to booking
       this.router.navigate(['/booking']);
       return;
@@ -157,8 +157,8 @@ export class BookingConfirmationComponent implements OnInit, OnDestroy {
     // that earlier request will navigate to the success page when it lands. This is the state
     // that used to be lost with the component, which is how one booking became two.
     if (this.bookingDataService.paymentPhase === 'in-flight') {
-      this.resumedInFlight = true;
-      this.isProcessing = true;
+      this.resumedInFlight.set(true);
+      this.isProcessing.set(true);
     }
 
     // Get current user for billing details
@@ -171,15 +171,15 @@ export class BookingConfirmationComponent implements OnInit, OnDestroy {
 
     // Saved cards — offered only to a signed-in customer (a guest has none), and only when the
     // server's rollout switch is on. Any failure simply leaves the ordinary card form.
-    if (this.authService.isLoggedIn() && !this.fullyCovered) {
+    if (this.authService.isLoggedIn() && !this.fullyCovered()) {
       this.billingService.savedCardsEnabled().subscribe(enabled => {
         this.savedCardsFeature = enabled;
         if (!enabled) return;
         this.billingService.getCards().subscribe({
           next: (cards) => {
-            this.savedCards = cards.filter(c => c.isUsable && !!c.paymentMethodId);
+            this.savedCards.set(cards.filter(c => c.isUsable && !!c.paymentMethodId));
             // Default to the Primary card; one click switches to any other card or a new one.
-            this.selectedCardId = (this.savedCards.find(c => c.isPrimary) ?? this.savedCards[0])?.id ?? null;
+            this.selectedCardId.set((this.savedCards().find(c => c.isPrimary) ?? this.savedCards()[0])?.id ?? null);
           },
           error: () => { /* no saved-card options — normal card form remains */ }
         });
@@ -204,25 +204,25 @@ export class BookingConfirmationComponent implements OnInit, OnDestroy {
 
   private async initApplePay() {
     // No wallet button when a gift card covers the full amount (nothing to charge).
-    if (this.fullyCovered) return;
-    const pr = await this.stripeService.createPaymentRequest(this.orderTotal, 'Dream Cleaning NYC');
+    if (this.fullyCovered()) return;
+    const pr = await this.stripeService.createPaymentRequest(this.orderTotal(), 'Dream Cleaning NYC');
     if (!pr) return;
-    this.showApplePay = true;
+    this.showApplePay.set(true);
     setTimeout(() => this.stripeService.createPaymentRequestButton(pr, 'payment-request-button'), 0);
 
     pr.on('paymentmethod', (ev: any) => {
       // Also refuses to start while a charge from an earlier visit to this page is still
       // settling — isProcessing alone is component-local and resets when the page re-mounts.
-      if (this.isProcessing || this.bookingDataService.paymentPhase !== 'idle') {
+      if (this.isProcessing() || this.bookingDataService.paymentPhase !== 'idle') {
         ev.complete('fail');
         return;
       }
-      this.isProcessing = true;
-      this.errorMessage = '';
+      this.isProcessing.set(true);
+      this.errorMessage.set('');
       // No takeUntil on this one: cancelling it would leave the wallet sheet waiting on an
       // ev.complete() that never comes. The backend's prepare-session reuse covers the
       // duplicate case here.
-      this.bookingService.preparePayment(this.bookingData).subscribe({
+      this.bookingService.preparePayment(this.bookingData()).subscribe({
         next: async (response: any) => {
           try {
             if (response.guestToken && response.guestUser && !this.authService.isLoggedIn()) {
@@ -247,15 +247,15 @@ export class BookingConfirmationComponent implements OnInit, OnDestroy {
           } catch (payErr: any) {
             ev.complete('fail');
             this.bookingDataService.markPaymentIdle();
-            this.errorMessage = payErr.message || 'Payment failed. Please try again.';
-            this.isProcessing = false;
+            this.errorMessage.set(payErr.message || 'Payment failed. Please try again.');
+            this.isProcessing.set(false);
           }
         },
         error: (err: any) => {
           ev.complete('fail');
           this.bookingDataService.markPaymentIdle();
-          this.errorMessage = err.error?.message || 'Failed to prepare payment';
-          this.isProcessing = false;
+          this.errorMessage.set(err.error?.message || 'Failed to prepare payment');
+          this.isProcessing.set(false);
         }
       });
     });
@@ -269,12 +269,12 @@ export class BookingConfirmationComponent implements OnInit, OnDestroy {
       if (cardElement) {
         // Listen for card errors
         cardElement.on('change', (event: any) => {
-          this.cardError = event.error ? event.error.message : null;
+          this.cardError.set(event.error ? event.error.message : null);
         });
       }
     } catch (error) {
       console.error('Failed to initialize Stripe elements:', error);
-      this.errorMessage = 'Failed to initialize payment form';
+      this.errorMessage.set('Failed to initialize payment form');
     }
   }
 
@@ -283,46 +283,46 @@ export class BookingConfirmationComponent implements OnInit, OnDestroy {
     let total;
     
     // First try to use the pre-calculated total
-    if (this.bookingData.calculation?.total !== undefined && this.bookingData.calculation?.total !== null) {
-      total = this.bookingData.calculation.total;
-    } else if (this.bookingData.total !== undefined && this.bookingData.total !== null) {
-      total = this.bookingData.total;
+    if (this.bookingData().calculation?.total !== undefined && this.bookingData().calculation?.total !== null) {
+      total = this.bookingData().calculation.total;
+    } else if (this.bookingData().total !== undefined && this.bookingData().total !== null) {
+      total = this.bookingData().total;
     } else {
       // Fallback calculation through the shared calculator — only fires when
       // bookingData.total is missing, but must match the booking page exactly
       // (loyalty included) so we don't quietly drop a discount and overcharge.
       // Custom Pricing splits its tax out of the admin-entered tax-inclusive amount, so the
       // fallback has to reuse that split rather than taxing the subtotal again.
-      const taxOverride = this.bookingData.isCustomPricing && this.bookingData.customAmount > 0
-        ? splitTaxInclusiveAmount(this.bookingData.customAmount).tax
+      const taxOverride = this.bookingData().isCustomPricing && this.bookingData().customAmount > 0
+        ? splitTaxInclusiveAmount(this.bookingData().customAmount).tax
         : null;
 
       const totals = calculateTotals({
-        subTotal: this.bookingData.subTotal || 0,
+        subTotal: this.bookingData().subTotal || 0,
         taxOverride,
-        discountAmount: this.bookingData.discountAmount || 0,
-        subscriptionDiscountAmount: this.bookingData.subscriptionDiscountAmount || 0,
-        loyaltyDiscountAmount: this.bookingData.loyaltyDiscountAmount || 0,
-        tips: this.bookingData.tips || 0,
-        giftCardAmountUsed: this.bookingData.giftCardAmountToUse || 0
+        discountAmount: this.bookingData().discountAmount || 0,
+        subscriptionDiscountAmount: this.bookingData().subscriptionDiscountAmount || 0,
+        loyaltyDiscountAmount: this.bookingData().loyaltyDiscountAmount || 0,
+        tips: this.bookingData().tips || 0,
+        giftCardAmountUsed: this.bookingData().giftCardAmountToUse || 0
       });
       total = totals.total;
     }
 
-    this.orderTotal = total;
+    this.orderTotal.set(total);
     // Below Stripe's $0.50 minimum the charge is impossible — treat as fully covered.
-    this.fullyCovered = total < 0.5;
+    this.fullyCovered.set(total < 0.5);
   }
 
   // REMOVE the old preparePayment method entirely
 
   // Prepare payment and get payment intent WITHOUT creating order
   async processPayment() {
-    if (this.isProcessing || (!this.fullyCovered && !this.usingSavedCard && this.cardError)) return;
+    if (this.isProcessing() || (!this.fullyCovered() && !this.usingSavedCard && this.cardError())) return;
 
-    this.isProcessing = true;
-    this.errorMessage = '';
-    this.stickyNotice = null;
+    this.isProcessing.set(true);
+    this.errorMessage.set('');
+    this.stickyNotice.set(null);
 
     try {
       // Prepare payment - this creates payment intent but NOT the order.
@@ -333,10 +333,10 @@ export class BookingConfirmationComponent implements OnInit, OnDestroy {
       // The confirm-payment calls below are deliberately left unguarded — by the time they run
       // the card HAS been charged, and aborting the request that records it would leave the
       // customer paid-up with no order.
-      this.bookingService.preparePayment(this.bookingData).pipe(takeUntil(this.destroy$)).subscribe({
+      this.bookingService.preparePayment(this.bookingData()).pipe(takeUntil(this.destroy$)).subscribe({
         next: async (response) => {
           this.paymentClientSecret = response.paymentClientSecret;
-          this.orderTotal = response.total;
+          this.orderTotal.set(response.total);
           const sessionId = response.sessionId; // Store sessionId for confirm-payment
 
           // Guest booking: auto-login user that was created during preparePayment
@@ -355,12 +355,12 @@ export class BookingConfirmationComponent implements OnInit, OnDestroy {
           // Gift card (or credits) fully covered the order — the server skipped Stripe.
           // Confirm the booking directly without a card charge.
           if (response.requiresPayment === false || !response.paymentClientSecret) {
-            this.fullyCovered = true;
+            this.fullyCovered.set(true);
             // No charge, but an order is about to exist — same guard applies.
             this.bookingDataService.markPaymentInFlight();
             this.bookingService.confirmPayment(0, '', sessionId).subscribe({
               next: (confirmResponse) => {
-                this.orderId = confirmResponse.orderId;
+                this.orderId.set(confirmResponse.orderId);
                 this.handlePaymentSuccess();
               },
               error: (error) => this.handleConfirmError(error)
@@ -370,10 +370,10 @@ export class BookingConfirmationComponent implements OnInit, OnDestroy {
 
           // Server says payment IS required but the UI assumed full coverage (e.g. the gift
           // card balance dropped since validation). Reveal the card form for the remainder.
-          if (this.fullyCovered) {
-            this.fullyCovered = false;
-            this.errorMessage = 'Your gift card no longer covers the full amount. Please enter your card details to pay the remaining balance.';
-            this.isProcessing = false;
+          if (this.fullyCovered()) {
+            this.fullyCovered.set(false);
+            this.errorMessage.set('Your gift card no longer covers the full amount. Please enter your card details to pay the remaining balance.');
+            this.isProcessing.set(false);
             this.initApplePay();
             return;
           }
@@ -406,18 +406,18 @@ export class BookingConfirmationComponent implements OnInit, OnDestroy {
             // Payment failed - no order was created, so nothing to clean up.
             // Release the guard: a declined card must leave the customer able to try again.
             this.bookingDataService.markPaymentIdle();
-            this.errorMessage = paymentError.message || 'Payment failed. Please try again.';
-            this.isProcessing = false;
+            this.errorMessage.set(paymentError.message || 'Payment failed. Please try again.');
+            this.isProcessing.set(false);
           }
         },
         error: (error) => {
-          this.errorMessage = error.error?.message || 'Failed to prepare payment';
-          this.isProcessing = false;
+          this.errorMessage.set(error.error?.message || 'Failed to prepare payment');
+          this.isProcessing.set(false);
         }
       });
     } catch (error: any) {
-      this.errorMessage = 'An unexpected error occurred';
-      this.isProcessing = false;
+      this.errorMessage.set('An unexpected error occurred');
+      this.isProcessing.set(false);
     }
   }
 
@@ -438,7 +438,7 @@ export class BookingConfirmationComponent implements OnInit, OnDestroy {
    */
   private settleAlreadyPaidAttempt(response: any, sessionId: string): boolean {
     if (response?.orderId > 0) {
-      this.orderId = response.orderId;
+      this.orderId.set(response.orderId);
       this.handlePaymentSuccess();
       return true;
     }
@@ -465,21 +465,21 @@ export class BookingConfirmationComponent implements OnInit, OnDestroy {
   private confirmChargedBooking(paymentIntentId: string, sessionId: string, attempt = 1): void {
     this.bookingService.confirmPayment(0, paymentIntentId, sessionId).subscribe({
       next: (confirmResponse: any) => {
-        this.finalizingPayment = false;
-        this.orderId = confirmResponse.orderId;
+        this.finalizingPayment.set(false);
+        this.orderId.set(confirmResponse.orderId);
         this.handlePaymentSuccess();
       },
       error: (error: any) => {
         const transient = !error?.status || error.status === 0 || error.status >= 500;
         if (!transient) {
-          this.finalizingPayment = false;
+          this.finalizingPayment.set(false);
           this.handleConfirmError(error);
           return;
         }
 
-        this.finalizingPayment = true;
-        this.errorMessage = '';
-        this.isProcessing = true; // the Pay button stays down — the card is already charged
+        this.finalizingPayment.set(true);
+        this.errorMessage.set('');
+        this.isProcessing.set(true); // the Pay button stays down — the card is already charged
         if (attempt >= 4) {
           // Still no answer. The money is safe and the booking will be finalised from the same
           // intent; the guard stays up so this page never offers to take it again.
@@ -491,13 +491,13 @@ export class BookingConfirmationComponent implements OnInit, OnDestroy {
   }
 
   private handlePaymentSuccess() {
-    this.paymentCompleted = true;
-    this.isProcessing = false;
-    this.resumedInFlight = false;
+    this.paymentCompleted.set(true);
+    this.isProcessing.set(false);
+    this.resumedInFlight.set(false);
 
     // The order exists. Recorded on the service so a back-navigation onto this page shows the
     // booking as done instead of offering to pay for it again.
-    this.bookingDataService.markPaymentSettled(this.orderId);
+    this.bookingDataService.markPaymentSettled(this.orderId());
 
     // Celebratory cue — payment confirmed and order created.
     this.orderSound.playBookingConfirmed();
@@ -506,7 +506,7 @@ export class BookingConfirmationComponent implements OnInit, OnDestroy {
     this.bookingDataService.clearBookingData();
     
     // Handle subscription refresh if needed
-    const selectedSubscription = this.bookingData.subscription;
+    const selectedSubscription = this.bookingData().subscription;
     if (selectedSubscription && selectedSubscription.subscriptionDays > 0) {
       this.bookingService.getUserSubscription().subscribe({
         next: (subscriptionData) => {
@@ -532,18 +532,18 @@ export class BookingConfirmationComponent implements OnInit, OnDestroy {
     });
     
     // Navigate to booking-success for Google Ads conversion tracking, then auto-redirect to order
-    this.router.navigate(['/booking-success', this.orderId], {
-      state: { paymentSuccess: true, contactEmail: this.bookingData?.contactEmail }
+    this.router.navigate(['/booking-success', this.orderId()], {
+      state: { paymentSuccess: true, contactEmail: this.bookingData()?.contactEmail }
     });
   }
 
   get billingDetails() {
-    const firstName = this.currentUser?.firstName ?? this.bookingData?.contactFirstName ?? '';
-    const lastName = this.currentUser?.lastName ?? this.bookingData?.contactLastName ?? '';
+    const firstName = this.currentUser?.firstName ?? this.bookingData()?.contactFirstName ?? '';
+    const lastName = this.currentUser?.lastName ?? this.bookingData()?.contactLastName ?? '';
     return {
       name: `${firstName} ${lastName}`.trim(),
-      email: this.currentUser?.email ?? this.bookingData?.contactEmail,
-      phone: this.currentUser?.phone || this.bookingData?.contactPhone
+      email: this.currentUser?.email ?? this.bookingData()?.contactEmail,
+      phone: this.currentUser?.phone || this.bookingData()?.contactPhone
     };
   }
 
@@ -561,12 +561,12 @@ export class BookingConfirmationComponent implements OnInit, OnDestroy {
     const code = error.error?.code;
     if (code === 'booking_refunded') {
       // Charge WAS refunded — reassuring, lower severity.
-      this.stickyNotice = { message: msg, severity: 'warning' };
+      this.stickyNotice.set({ message: msg, severity: 'warning' });
     } else if (code === 'booking_refund_failed') {
       // Charge was NOT refunded — customer must contact us; highest severity.
-      this.stickyNotice = { message: msg, severity: 'critical' };
+      this.stickyNotice.set({ message: msg, severity: 'critical' });
     } else {
-      this.errorMessage = msg;
+      this.errorMessage.set(msg);
     }
 
     // `booking_refund_failed` is the one outcome that must NOT release the guard. The charge
@@ -576,12 +576,12 @@ export class BookingConfirmationComponent implements OnInit, OnDestroy {
     // failure this whole change exists to prevent. The only ways out are deliberate: reload
     // the page, or contact support (as the notice instructs).
     if (code === 'booking_refund_failed') {
-      this.resumedInFlight = false;
+      this.resumedInFlight.set(false);
       return;
     }
 
-    this.isProcessing = false;
-    this.resumedInFlight = false;
+    this.isProcessing.set(false);
+    this.resumedInFlight.set(false);
     // Every other outcome is a terminal failure the customer can act on: release the guard so
     // they can try again. A declined card must never strand somebody who simply wants to pay.
     this.bookingDataService.markPaymentIdle();
@@ -589,7 +589,7 @@ export class BookingConfirmationComponent implements OnInit, OnDestroy {
   }
 
   dismissStickyNotice() {
-    this.stickyNotice = null;
+    this.stickyNotice.set(null);
   }
 
   cancelBooking() {

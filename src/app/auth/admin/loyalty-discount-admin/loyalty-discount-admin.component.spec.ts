@@ -49,7 +49,7 @@ describe('LoyaltyDiscountAdminComponent', () => {
   it('shows the settings panel to a SuperAdmin and loads it', () => {
     startAs('SuperAdmin');
 
-    expect(component.canManageSettings).toBe(true);
+    expect(component.canManageSettings()).toBe(true);
     // The settings GET only goes out for the role that can see the panel.
     const settings = http.match(endsWith('/admin/loyalty-discount-settings'));
     expect(settings.length).toBe(1);
@@ -58,7 +58,7 @@ describe('LoyaltyDiscountAdminComponent', () => {
   it('hides it from a regular Admin, and never asks the API for the settings', () => {
     startAs('Admin');
 
-    expect(component.canManageSettings).toBe(false);
+    expect(component.canManageSettings()).toBe(false);
     expect(http.match(endsWith('/admin/loyalty-discount-settings')).length).toBe(0);
 
     const headings = Array.from(fixture.nativeElement.querySelectorAll('.panel-header h2'))
@@ -71,7 +71,7 @@ describe('LoyaltyDiscountAdminComponent', () => {
   it('hides it from a Moderator too', () => {
     startAs('Moderator');
 
-    expect(component.canManageSettings).toBe(false);
+    expect(component.canManageSettings()).toBe(false);
     expect(fixture.nativeElement.querySelector('form.settings-form')).toBeNull();
   });
 

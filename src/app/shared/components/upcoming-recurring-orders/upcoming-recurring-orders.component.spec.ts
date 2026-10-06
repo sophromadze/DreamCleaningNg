@@ -80,7 +80,7 @@ describe('UpcomingRecurringOrdersComponent', () => {
     data.orders[1] = { ...data.orders[1], paymentMethod: 'Cash', includedInPayAll: false, isPaid: true };
     data.orders[2] = { ...data.orders[2], paymentMethod: 'Invoice', includedInPayAll: false };
     data.payAllCount = 1; data.payAllTotal = 150;
-    load(data); component.showPayAll = true; fixture.detectChanges();
+    load(data); component.showPayAll.set(true); fixture.detectChanges();
     const text = fixture.nativeElement.querySelector('.uro-modal-list').textContent;
     expect(text).toContain('excluded (Cash)'); expect(text).toContain('excluded (Invoice)');
     expect(component.orders.map(o => o.paymentMethod)).toEqual(['Normal', 'Cash', 'Invoice']);
@@ -176,10 +176,10 @@ describe('UpcomingRecurringOrdersComponent', () => {
   });
 
   it('refreshes authoritative payability after closing an unpaid card form', () => {
-    load(); component.showPayAll = true;
+    load(); component.showPayAll.set(true);
     component.closePayAll();
     httpMock.expectOne(UPCOMING_URL).flush(upcoming()); fixture.detectChanges();
-    expect(component.showPayAll).toBe(false);
+    expect(component.showPayAll()).toBe(false);
     expect(fixture.nativeElement.querySelector('.uro-payall-btn')).not.toBeNull();
     expect(fixture.nativeElement.querySelectorAll('.uro-item .uro-pay-btn').length).toBe(1);
     expect(fixture.nativeElement.textContent).not.toContain('Payment is already being processed');
@@ -191,7 +191,7 @@ describe('UpcomingRecurringOrdersComponent', () => {
       { message: 'boom' }, { status: 500, statusText: 'Server Error' });
     fixture.detectChanges();
 
-    expect(component.errorMessage).toBeTruthy();
+    expect(component.errorMessage()).toBeTruthy();
     // The section reports itself as broken; it does not throw, and the page around it is fine.
     expect(fixture.nativeElement.querySelector('.uro-error')).not.toBeNull();
   });
@@ -206,10 +206,10 @@ describe('UpcomingRecurringOrdersComponent', () => {
 
     await component.confirmPayAll();
 
-    expect(component.payAllError).toBe(PAY_ALL_UNCONFIRMED_MESSAGE);
-    expect(component.payAllError).toContain("don't pay again");
-    expect(component.payAllError).not.toMatch(/could not be completed|declined|failed/i);
-    expect(component.payingAll).toBe(false);
+    expect(component.payAllError()).toBe(PAY_ALL_UNCONFIRMED_MESSAGE);
+    expect(component.payAllError()).toContain("don't pay again");
+    expect(component.payAllError()).not.toMatch(/could not be completed|declined|failed/i);
+    expect(component.payingAll()).toBe(false);
   });
 
   it('still reports a genuine card decline as a decline', async () => {
@@ -220,6 +220,6 @@ describe('UpcomingRecurringOrdersComponent', () => {
 
     await component.confirmPayAll();
 
-    expect(component.payAllError).toBe('Your card was declined.');
+    expect(component.payAllError()).toBe('Your card was declined.');
   });
 });

@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ViewChild, ElementRef, PLATFORM_ID, ChangeDetectorRef, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, ElementRef, PLATFORM_ID, ChangeDetectorRef, ChangeDetectionStrategy, inject, viewChild, signal } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AdminService, OrderStatistics, DailyStatistics, MonthlyFinancialRate } from '../../services/admin.service';
@@ -60,7 +60,7 @@ interface MonthlyExpenseCategory {
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './statistics.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./statistics.component.scss']
 })
 export class StatisticsComponent implements OnInit, OnDestroy {
@@ -69,34 +69,34 @@ export class StatisticsComponent implements OnInit, OnDestroy {
   private cdr = inject(ChangeDetectorRef);
   private platformId = inject<Object>(PLATFORM_ID);
 
-  @ViewChild('ordersChart') ordersCanvas!: ElementRef<HTMLCanvasElement>;
-  @ViewChild('revenueChart') revenueCanvas!: ElementRef<HTMLCanvasElement>;
+  readonly ordersCanvas = viewChild<ElementRef<HTMLCanvasElement>>('ordersChart');
+  readonly revenueCanvas = viewChild<ElementRef<HTMLCanvasElement>>('revenueChart');
 
-  stats: OrderStatistics | null = null;
+  readonly stats = signal<OrderStatistics | null>(null);
   dailyData: DailyStatistics[] = [];
   chartData: ChartDataPoint[] = [];
-  isLoading = false;
-  error = '';
+  readonly isLoading = signal(false);
+  readonly error = signal('');
   ordersChart: Chart | null = null;
   revenueChart: Chart | null = null;
   isBrowser: boolean;
 
-  activeQuickFilter: QuickFilter = 'year';
-  customFrom = '';
-  customTo = '';
-  chartGrouping: ChartGrouping = 'months';
+  readonly activeQuickFilter = signal<QuickFilter>('year');
+  readonly customFrom = signal('');
+  readonly customTo = signal('');
+  readonly chartGrouping = signal<ChartGrouping>('months');
 
   // Click-to-expand state for the Net Income breakdown panel.
-  revenueBreakdownExpanded = false;
+  readonly revenueBreakdownExpanded = signal(false);
 
   /** Expense itemisation for the breakdown panel, rolled up to one line per month. */
-  expenseCategories: MonthlyExpenseCategory[] = [];
+  readonly expenseCategories = signal<MonthlyExpenseCategory[]>([]);
 
   // Exchange / bonus rates panel (per-month GEL→USD, SuperAdmin-overridable).
-  ratesExpanded = false;
-  rates: RateRow[] = [];
-  ratesLoading = false;
-  ratesError = '';
+  readonly ratesExpanded = signal(false);
+  readonly rates = signal<RateRow[]>([]);
+  readonly ratesLoading = signal(false);
+  readonly ratesError = signal('');
 
   /** SuperAdmins can override FX/bonus rates; view-only Admins see the page read-only. */
   canEdit = false;
@@ -116,65 +116,65 @@ export class StatisticsComponent implements OnInit, OnDestroy {
   }
 
   onQuickFilterChange(filter: QuickFilter): void {
-    this.activeQuickFilter = filter;
-    this.customFrom = '';
-    this.customTo = '';
+    this.activeQuickFilter.set(filter);
+    this.customFrom.set('');
+    this.customTo.set('');
     // Pick a sensible default grouping for the new range so the chart isn't pegged to "days"
     // when looking at a year (which makes the bars unreadable).
     if (filter === 'year' || filter === 'all') {
-      this.chartGrouping = 'months';
+      this.chartGrouping.set('months');
     } else if (filter === 'month') {
-      this.chartGrouping = 'weeks';
+      this.chartGrouping.set('weeks');
     } else {
-      this.chartGrouping = 'days';
+      this.chartGrouping.set('days');
     }
     this.loadData();
   }
 
   applyCustomRange(): void {
-    if (this.customFrom && this.customTo) {
-      this.loadData(this.customFrom, this.customTo);
+    if (this.customFrom() && this.customTo()) {
+      this.loadData(this.customFrom(), this.customTo());
     }
   }
 
   clearCustomRange(): void {
-    this.customFrom = '';
-    this.customTo = '';
-    this.activeQuickFilter = 'year';
-    this.chartGrouping = 'months';
+    this.customFrom.set('');
+    this.customTo.set('');
+    this.activeQuickFilter.set('year');
+    this.chartGrouping.set('months');
     this.loadData();
   }
 
   setGrouping(grouping: ChartGrouping): void {
-    this.chartGrouping = grouping;
+    this.chartGrouping.set(grouping);
     this.processChartData();
     this.buildCharts();
   }
 
   toggleRevenueBreakdown(): void {
-    this.revenueBreakdownExpanded = !this.revenueBreakdownExpanded;
+    this.revenueBreakdownExpanded.set(!this.revenueBreakdownExpanded());
   }
 
   toggleRatesPanel(): void {
-    this.ratesExpanded = !this.ratesExpanded;
-    if (this.ratesExpanded && this.rates.length === 0) {
+    this.ratesExpanded.set(!this.ratesExpanded());
+    if (this.ratesExpanded() && this.rates().length === 0) {
       this.loadRates();
     }
   }
 
   /** Load the per-month locked rates for the current date range. */
   loadRates(): void {
-    this.ratesLoading = true;
-    this.ratesError = '';
-    const { from, to } = this.getDateRange(this.customFrom || undefined, this.customTo || undefined);
+    this.ratesLoading.set(true);
+    this.ratesError.set('');
+    const { from, to } = this.getDateRange(this.customFrom() || undefined, this.customTo() || undefined);
     this.adminService.getFinancialRates(from, to).subscribe({
       next: (rows) => {
-        this.rates = rows.map(r => ({ ...r, editValue: r.usdPerGel, saving: false }));
-        this.ratesLoading = false;
+        this.rates.set(rows.map(r => ({ ...r, editValue: r.usdPerGel, saving: false })));
+        this.ratesLoading.set(false);
       },
       error: (err) => {
-        this.ratesError = err?.error?.message || 'Failed to load exchange rates.';
-        this.ratesLoading = false;
+        this.ratesError.set(err?.error?.message || 'Failed to load exchange rates.');
+        this.ratesLoading.set(false);
       }
     });
   }
@@ -189,19 +189,19 @@ export class StatisticsComponent implements OnInit, OnDestroy {
 
   saveRate(r: RateRow): void {
     if (!r.editValue || r.editValue <= 0) {
-      this.ratesError = 'Rate must be greater than zero.';
+      this.ratesError.set('Rate must be greater than zero.');
       return;
     }
     r.saving = true;
-    this.ratesError = '';
+    this.ratesError.set('');
     this.adminService.setFinancialRate(r.year, r.month, r.editValue).subscribe({
       next: (updated) => {
         Object.assign(r, updated, { editValue: updated.usdPerGel, saving: false });
         // Rate change affects bonus conversion — reload the headline numbers/charts.
-        this.loadData(this.customFrom || undefined, this.customTo || undefined);
+        this.loadData(this.customFrom() || undefined, this.customTo() || undefined);
       },
       error: (err) => {
-        this.ratesError = err?.error?.message || 'Failed to save rate.';
+        this.ratesError.set(err?.error?.message || 'Failed to save rate.');
         r.saving = false;
       }
     });
@@ -209,22 +209,22 @@ export class StatisticsComponent implements OnInit, OnDestroy {
 
   refetchRate(r: RateRow): void {
     r.saving = true;
-    this.ratesError = '';
+    this.ratesError.set('');
     this.adminService.refetchFinancialRate(r.year, r.month).subscribe({
       next: (updated) => {
         Object.assign(r, updated, { editValue: updated.usdPerGel, saving: false });
-        this.loadData(this.customFrom || undefined, this.customTo || undefined);
+        this.loadData(this.customFrom() || undefined, this.customTo() || undefined);
       },
       error: (err) => {
-        this.ratesError = err?.error?.message || 'Failed to re-fetch rate.';
+        this.ratesError.set(err?.error?.message || 'Failed to re-fetch rate.');
         r.saving = false;
       }
     });
   }
 
   private loadData(fromOverride?: string, toOverride?: string): void {
-    this.isLoading = true;
-    this.error = '';
+    this.isLoading.set(true);
+    this.error.set('');
 
     const { from, to } = this.getDateRange(fromOverride, toOverride);
 
@@ -233,21 +233,21 @@ export class StatisticsComponent implements OnInit, OnDestroy {
       daily: this.adminService.getDailyStatistics(from, to)
     }).subscribe({
       next: ({ stats, daily }) => {
-        this.stats = stats;
+        this.stats.set(stats);
         this.dailyData = daily;
-        this.expenseCategories = this.rollUpExpensesByMonth(stats);
-        this.isLoading = false;
+        this.expenseCategories.set(this.rollUpExpensesByMonth(stats));
+        this.isLoading.set(false);
         this.cdr.detectChanges();
         this.processChartData();
         setTimeout(() => this.buildCharts(), 0);
         // Keep the rates panel in sync with the visible range when it's open.
-        if (this.ratesExpanded) {
+        if (this.ratesExpanded()) {
           this.loadRates();
         }
       },
       error: (err) => {
-        this.error = err?.error?.message || 'Failed to load statistics.';
-        this.isLoading = false;
+        this.error.set(err?.error?.message || 'Failed to load statistics.');
+        this.isLoading.set(false);
       }
     });
   }
@@ -314,7 +314,7 @@ export class StatisticsComponent implements OnInit, OnDestroy {
     }
 
     const now = new Date();
-    switch (this.activeQuickFilter) {
+    switch (this.activeQuickFilter()) {
       case 'today':
         return { from: this.formatDate(now), to: this.formatDate(now) };
       case 'week': {
@@ -343,8 +343,8 @@ export class StatisticsComponent implements OnInit, OnDestroy {
     }
 
     const { from, to } = this.getDateRange(
-      this.customFrom || undefined,
-      this.customTo || undefined
+      this.customFrom() || undefined,
+      this.customTo() || undefined
     );
 
     let startDate: Date;
@@ -386,12 +386,12 @@ export class StatisticsComponent implements OnInit, OnDestroy {
       current.setDate(current.getDate() + 1);
     }
 
-    if (this.chartGrouping === 'days') {
+    if (this.chartGrouping() === 'days') {
       this.chartData = allDays.map(d => ({
         ...d,
         label: this.formatLabel(d.label, 'days')
       }));
-    } else if (this.chartGrouping === 'weeks') {
+    } else if (this.chartGrouping() === 'weeks') {
       this.chartData = this.groupByWeek(allDays);
     } else {
       this.chartData = this.groupByMonth(allDays);
@@ -466,12 +466,13 @@ export class StatisticsComponent implements OnInit, OnDestroy {
   }
 
   private buildOrdersChart(): void {
-    if (!this.ordersCanvas) return;
+    const ordersCanvas = this.ordersCanvas();
+    if (!ordersCanvas) return;
     this.ordersChart?.destroy();
 
     const labels = this.chartData.map(d => d.label);
 
-    this.ordersChart = new Chart(this.ordersCanvas.nativeElement, {
+    this.ordersChart = new Chart(ordersCanvas.nativeElement, {
       type: 'line',
       data: {
         labels,
@@ -521,12 +522,13 @@ export class StatisticsComponent implements OnInit, OnDestroy {
   }
 
   private buildRevenueChart(): void {
-    if (!this.revenueCanvas) return;
+    const revenueCanvas = this.revenueCanvas();
+    if (!revenueCanvas) return;
     this.revenueChart?.destroy();
 
     const labels = this.chartData.map(d => d.label);
 
-    this.revenueChart = new Chart(this.revenueCanvas.nativeElement, {
+    this.revenueChart = new Chart(revenueCanvas.nativeElement, {
       type: 'line',
       data: {
         labels,

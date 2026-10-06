@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, inject, ChangeDetectionStrategy, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { finalize } from 'rxjs/operators';
 
@@ -31,45 +31,45 @@ import { extractApiErrorMessage } from '../../../../utils/http-error.utils';
   standalone: true,
   imports: [FormsModule],
   templateUrl: './business-types.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./business-types.component.scss']
 })
 export class BusinessTypesComponent implements OnInit {
   private contracts = inject(ContractService);
 
-  templates: ScopeTemplate[] = [];
-  selected: ScopeTemplate | null = null;
+  readonly templates = signal<ScopeTemplate[]>([]);
+  readonly selected = signal<ScopeTemplate | null>(null, { equal: () => false });
 
-  loading = true;
-  saving = false;
-  error = '';
-  notice = '';
+  readonly loading = signal(true);
+  readonly saving = signal(false);
+  readonly error = signal('');
+  readonly notice = signal('');
 
   /** "Show archived" — retired types, restorable. Off by default. */
-  includeArchived = false;
+  readonly includeArchived = signal(false);
 
   // New-row inputs, one per category plus one for the type itself.
-  newTypeName = '';
-  newCategoryTitle = '';
-  newItemLabels: Record<number, string> = {};
+  readonly newTypeName = signal('');
+  readonly newCategoryTitle = signal('');
+  readonly newItemLabels = signal<Record<number, string>>({}, { equal: () => false });
 
   ngOnInit(): void {
     this.load();
   }
 
   private load(selectId?: number): void {
-    this.loading = true;
-    this.contracts.getScopeTemplates(this.includeArchived)
-      .pipe(finalize(() => this.loading = false))
+    this.loading.set(true);
+    this.contracts.getScopeTemplates(this.includeArchived())
+      .pipe(finalize(() => this.loading.set(false)))
       .subscribe({
         next: rows => {
-          this.templates = rows;
-          const target = selectId ?? this.selected?.id;
+          this.templates.set(rows);
+          const target = selectId ?? this.selected()?.id;
           const match = target ? rows.find(t => t.id === target) : rows[0];
           if (match) this.open(match.id);
-          else this.selected = null;
+          else this.selected.set(null);
         },
-        error: err => this.error = extractApiErrorMessage(err, 'Could not load the business types.')
+        error: err => this.error.set(extractApiErrorMessage(err, 'Could not load the business types.'))
       });
   }
 
@@ -85,26 +85,26 @@ export class BusinessTypesComponent implements OnInit {
    * that could not see what it had archived would have no way to un-archive it.
    */
   open(id: number): void {
-    this.error = '';
+    this.error.set('');
     this.contracts.getScopeTemplate(id).subscribe({
       next: t => {
         // Deep clone: everything below edits a working copy, so an abandoned edit leaves the
         // loaded list untouched and Save is the only thing that writes.
-        this.selected = JSON.parse(JSON.stringify(t)) as ScopeTemplate;
-        this.newItemLabels = {};
+        this.selected.set(JSON.parse(JSON.stringify(t)) as ScopeTemplate);
+        this.newItemLabels.set({});
       },
-      error: err => this.error = extractApiErrorMessage(err, 'Could not open that business type.')
+      error: err => this.error.set(extractApiErrorMessage(err, 'Could not open that business type.'))
     });
   }
 
   // ── The type itself ────────────────────────────────────────────────────────
 
   createType(): void {
-    const name = this.newTypeName.trim();
-    if (!name || this.saving) return;
+    const name = this.newTypeName().trim();
+    if (!name || this.saving()) return;
 
-    this.saving = true;
-    this.error = '';
+    this.saving.set(true);
+    this.error.set('');
 
     this.contracts.createScopeTemplate({
       name,
@@ -112,79 +112,79 @@ export class BusinessTypesComponent implements OnInit {
       // "the {{PREMISES_TYPE}} operated by Client", so a blank would read badly.
       premisesType: 'premises',
       allowsCustomRows: true,
-      sortOrder: this.templates.length + 1,
+      sortOrder: this.templates().length + 1,
       structure: { groups: [] }
     })
-      .pipe(finalize(() => this.saving = false))
+      .pipe(finalize(() => this.saving.set(false)))
       .subscribe({
         next: created => {
-          this.newTypeName = '';
-          this.notice = `“${created.name}” created. Add its categories and items below.`;
+          this.newTypeName.set('');
+          this.notice.set(`“${created.name}” created. Add its categories and items below.`);
           this.load(created.id);
         },
-        error: err => this.error = extractApiErrorMessage(err, 'Could not create the business type.')
+        error: err => this.error.set(extractApiErrorMessage(err, 'Could not create the business type.'))
       });
   }
 
   save(): void {
-    if (!this.selected || this.saving) return;
+    if (!this.selected() || this.saving()) return;
 
-    const name = this.selected.name.trim();
-    if (!name) { this.error = 'Enter a name for the business type.'; return; }
+    const name = this.selected()!.name.trim();
+    if (!name) { this.error.set('Enter a name for the business type.'); return; }
 
-    this.saving = true;
-    this.error = '';
+    this.saving.set(true);
+    this.error.set('');
 
-    this.contracts.updateScopeTemplate(this.selected.id, {
+    this.contracts.updateScopeTemplate(this.selected()!.id, {
       name,
-      premisesType: this.selected.premisesType,
-      allowsCustomRows: this.selected.allowsCustomRows,
-      sortOrder: this.selected.sortOrder ?? 0,
-      structure: this.selected.structure
+      premisesType: this.selected()!.premisesType,
+      allowsCustomRows: this.selected()!.allowsCustomRows,
+      sortOrder: this.selected()!.sortOrder ?? 0,
+      structure: this.selected()!.structure
     })
-      .pipe(finalize(() => this.saving = false))
+      .pipe(finalize(() => this.saving.set(false)))
       .subscribe({
         next: saved => {
-          this.notice = `Saved. “${saved.name}” applies to contracts created from now on; `
-            + 'existing contracts keep the scope they were built with.';
+          this.notice.set(`Saved. “${saved.name}” applies to contracts created from now on; `
+            + 'existing contracts keep the scope they were built with.');
           this.load(saved.id);
         },
-        error: err => this.error = extractApiErrorMessage(err, 'Could not save the business type.')
+        error: err => this.error.set(extractApiErrorMessage(err, 'Could not save the business type.'))
       });
   }
 
   archiveType(): void {
-    if (!this.selected) return;
+    if (!this.selected()) return;
     if (!confirm(
-      `Archive “${this.selected.name}”?\n\n` +
+      `Archive “${this.selected()!.name}”?\n\n` +
       'It stops being offered on new contracts. Contracts that already use it are completely ' +
       'unaffected — they carry their own frozen copy of the scope.')) return;
 
-    this.contracts.archiveScopeTemplate(this.selected.id).subscribe({
-      next: res => { this.notice = res.message; this.load(); },
-      error: err => this.error = extractApiErrorMessage(err, 'Could not archive that business type.')
+    this.contracts.archiveScopeTemplate(this.selected()!.id).subscribe({
+      next: res => { this.notice.set(res.message); this.load(); },
+      error: err => this.error.set(extractApiErrorMessage(err, 'Could not archive that business type.'))
     });
   }
 
   restoreType(id: number): void {
     this.contracts.restoreScopeTemplate(id).subscribe({
-      next: res => { this.notice = res.message; this.load(id); },
-      error: err => this.error = extractApiErrorMessage(err, 'Could not restore that business type.')
+      next: res => { this.notice.set(res.message); this.load(id); },
+      error: err => this.error.set(extractApiErrorMessage(err, 'Could not restore that business type.'))
     });
   }
 
   // ── Categories ─────────────────────────────────────────────────────────────
 
   get groups(): ScopeGroup[] {
-    return this.selected?.structure?.groups ?? [];
+    return this.selected()?.structure?.groups ?? [];
   }
 
   addCategory(): void {
-    if (!this.selected) return;
-    const title = this.newCategoryTitle.trim();
+    if (!this.selected()) return;
+    const title = this.newCategoryTitle().trim();
     if (!title) return;
 
-    this.selected.structure.groups.push({
+    this.selected()!.structure.groups.push({
       // The KEY is what the agreement body references as {{SCOPE:key}}. Derived from the title
       // once, at creation, and never rewritten afterwards — renaming a category must not silently
       // orphan the token an agreement body inlines it by. A key the body does not know simply gets
@@ -196,13 +196,14 @@ export class BusinessTypesComponent implements OnInit {
       archived: false,
       items: []
     });
+    this.selected.set(this.selected());
 
-    this.newCategoryTitle = '';
+    this.newCategoryTitle.set('');
   }
 
   moveCategory(index: number, delta: number): void {
-    if (!this.selected) return;
-    const groups = this.selected.structure.groups;
+    if (!this.selected()) return;
+    const groups = this.selected()!.structure.groups;
     const target = index + delta;
     if (target < 0 || target >= groups.length) return;
     [groups[index], groups[target]] = [groups[target], groups[index]];
@@ -215,25 +216,27 @@ export class BusinessTypesComponent implements OnInit {
    * the honest action. Anything already saved is archived instead — see the class comment.
    */
   removeCategory(index: number): void {
-    if (!this.selected) return;
-    const group = this.selected.structure.groups[index];
+    if (!this.selected()) return;
+    const group = this.selected()!.structure.groups[index];
 
     if (this.isUnsaved(group)) {
-      this.selected.structure.groups.splice(index, 1);
+      this.selected()!.structure.groups.splice(index, 1);
+      this.selected.set(this.selected());
       return;
     }
 
     group.archived = !group.archived;
+    this.selected.set(this.selected());
   }
 
   // ── Items ──────────────────────────────────────────────────────────────────
 
   addItem(groupIndex: number): void {
-    if (!this.selected) return;
-    const label = (this.newItemLabels[groupIndex] ?? '').trim();
+    if (!this.selected()) return;
+    const label = (this.newItemLabels()[groupIndex] ?? '').trim();
     if (!label) return;
 
-    this.selected.structure.groups[groupIndex].items.push({
+    this.selected()!.structure.groups[groupIndex].items.push({
       label,
       // Ticked by default: on a MASTER template this flag is the default an admin sees
       // pre-selected when they choose the business type, and most items on a checklist are things
@@ -241,27 +244,31 @@ export class BusinessTypesComponent implements OnInit {
       selected: true,
       archived: false
     });
+    this.selected.set(this.selected());
 
-    this.newItemLabels[groupIndex] = '';
+    this.newItemLabels()[groupIndex] = '';
+    this.newItemLabels.set(this.newItemLabels());
   }
 
   moveItem(groupIndex: number, index: number, delta: number): void {
-    if (!this.selected) return;
-    const items = this.selected.structure.groups[groupIndex].items;
+    if (!this.selected()) return;
+    const items = this.selected()!.structure.groups[groupIndex].items;
     const target = index + delta;
     if (target < 0 || target >= items.length) return;
     [items[index], items[target]] = [items[target], items[index]];
   }
 
   removeItem(groupIndex: number, index: number): void {
-    if (!this.selected) return;
-    const items = this.selected.structure.groups[groupIndex].items;
+    if (!this.selected()) return;
+    const items = this.selected()!.structure.groups[groupIndex].items;
     items[index].archived = !items[index].archived;
+    this.selected.set(this.selected());
   }
 
   deleteItem(groupIndex: number, index: number): void {
-    if (!this.selected) return;
-    this.selected.structure.groups[groupIndex].items.splice(index, 1);
+    if (!this.selected()) return;
+    this.selected()!.structure.groups[groupIndex].items.splice(index, 1);
+    this.selected.set(this.selected());
   }
 
   activeItemCount(group: ScopeGroup): number {

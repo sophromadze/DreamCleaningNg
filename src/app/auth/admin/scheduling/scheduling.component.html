@@ -1,7 +1,7 @@
 <div class="scheduling-section">
   <div class="section-header">
     <h2>Scheduling - Block Dates &amp; Hours</h2>
-    @if (!showForm) {
+    @if (!showForm()) {
     <button class="btn btn-primary" (click)="openAddForm()">
       + Block Date / Hours
     </button>
@@ -14,21 +14,21 @@
   </p>
 
   <!-- Messages -->
-  @if (errorMessage) {
-  <div class="error-message">{{ errorMessage }}</div>
+  @if (errorMessage()) {
+  <div class="error-message">{{ errorMessage() }}</div>
   }
-  @if (successMessage) {
-  <div class="success-message">{{ successMessage }}</div>
+  @if (successMessage()) {
+  <div class="success-message">{{ successMessage() }}</div>
   }
 
   <!-- Add/Edit Form -->
-  @if (showForm) {
+  @if (showForm()) {
   <div class="form-section">
-    <h3>{{ editingSlot ? 'Edit Block' : 'New Block' }}</h3>
+    <h3>{{ editingSlot() ? 'Edit Block' : 'New Block' }}</h3>
 
     <div class="form-group">
       <label>Date</label>
-      <input aria-label="Date" type="date" [(ngModel)]="formDate" [min]="formDate || ''" />
+      <input aria-label="Date" type="date" [(ngModel)]="formDate" [min]="formDate() || ''" />
     </div>
 
     <div class="form-group">
@@ -38,7 +38,7 @@
       </label>
     </div>
 
-    @if (!formIsFullDay) {
+    @if (!formIsFullDay()) {
     <div class="hours-selection">
       <label>Select hours to block:</label>
       <div class="hours-actions">
@@ -49,10 +49,10 @@
         @for (hour of allTimeSlots; track hour) {
         <label
           class="hour-chip"
-          [class.selected]="formSelectedHours.has(hour)">
+          [class.selected]="formSelectedHours().has(hour)">
           <input
             type="checkbox"
-            [checked]="formSelectedHours.has(hour)"
+            [checked]="formSelectedHours().has(hour)"
             (change)="toggleHour(hour)"
             hidden />
           {{ formatTime(hour) }}
@@ -72,7 +72,7 @@
 
     <div class="form-actions">
       <button class="btn btn-primary" (click)="save()">
-        {{ editingSlot ? 'Update' : 'Save' }}
+        {{ editingSlot() ? 'Update' : 'Save' }}
       </button>
       <button class="btn btn-secondary" (click)="cancelForm()">Cancel</button>
     </div>
@@ -80,12 +80,12 @@
   }
 
   <!-- Loading -->
-  @if (isLoading) {
+  @if (isLoading()) {
   <div class="loading">Loading...</div>
   }
 
   <!-- Blocked Slots Table -->
-  @if (!isLoading && blockedSlots.length > 0) {
+  @if (!isLoading() && blockedSlots().length > 0) {
   <div class="table-wrapper">
     <table class="data-table">
       <thead>
@@ -99,7 +99,7 @@
         </tr>
       </thead>
       <tbody>
-        @for (slot of blockedSlots; track $index) {
+        @for (slot of blockedSlots(); track $index) {
         <tr [class.past]="isPastDate(slot.date)">
           <td>{{ formatDate(slot.date) }}</td>
           <td>
@@ -124,7 +124,7 @@
   }
 
   <!-- Empty State -->
-  @if (!isLoading && blockedSlots.length === 0) {
+  @if (!isLoading() && blockedSlots().length === 0) {
   <div class="empty-state">
     <p>No blocked dates or hours configured. All time slots are available for booking.</p>
   </div>

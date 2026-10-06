@@ -11,33 +11,33 @@
   <div class="section-header">
     <div class="header-left">
       <h2>Cleaners</h2>
-      @if (!loading) {
-      <span class="user-count">{{ accounts.length }} total</span>
+      @if (!loading()) {
+      <span class="user-count">{{ accounts().length }} total</span>
       }
     </div>
     <div class="header-right">
-      @if (canUpdate) {
+      @if (canUpdate()) {
       <button class="action-btn register-customer" (click)="togglePromotePanel()">
-        {{ showPromotePanel ? 'Close' : '+ Make an account a cleaner' }}
+        {{ showPromotePanel() ? 'Close' : '+ Make an account a cleaner' }}
       </button>
       }
-      <button class="action-btn refresh" (click)="load()" [disabled]="loading">
-        {{ loading ? 'Loading…' : 'Refresh' }}
+      <button class="action-btn refresh" (click)="load()" [disabled]="loading()">
+        {{ loading() ? 'Loading…' : 'Refresh' }}
       </button>
     </div>
   </div>
 
   <div class="messages">
-    @if (errorMessage) {
-    <div class="error-message">{{ errorMessage }}</div>
+    @if (errorMessage()) {
+    <div class="error-message">{{ errorMessage() }}</div>
     }
-    @if (successMessage) {
-    <div class="success-message">{{ successMessage }}</div>
+    @if (successMessage()) {
+    <div class="success-message">{{ successMessage() }}</div>
     }
   </div>
 
   <!-- ── Promote an existing customer account ────────────────────────────────────────── -->
-  @if (canUpdate && showPromotePanel) {
+  @if (canUpdate() && showPromotePanel()) {
   <section class="ca-panel">
     <h3>Make an account a cleaner account</h3>
     <p class="ca-hint">
@@ -49,21 +49,21 @@
     <input type="text"
            class="search-input ca-input"
            placeholder="Search customers by name, email or phone…"
-           [ngModel]="promoteSearch"
+           [ngModel]="promoteSearch()"
            (ngModelChange)="onPromoteSearchChanged($event)">
 
-    @if (promoteSearching) {
+    @if (promoteSearching()) {
     <p class="ca-hint">Searching…</p>
     }
-    @if (!promoteSearching && promoteSearch.length >= 2 && promoteResults.length === 0) {
+    @if (!promoteSearching() && promoteSearch().length >= 2 && promoteResults().length === 0) {
     <p class="ca-hint">
       No customer accounts match that.
     </p>
     }
 
-    @if (promoteResults.length > 0) {
+    @if (promoteResults().length > 0) {
     <ul class="ca-result-list">
-      @for (user of promoteResults; track trackByUserId($index, user)) {
+      @for (user of promoteResults(); track trackByUserId($index, user)) {
       <li class="ca-result">
         <span class="ca-result-name">{{ user.firstName }} {{ user.lastName }}</span>
         <span class="ca-result-meta">{{ user.email || 'no email' }}@if (user.phone) {
@@ -72,8 +72,8 @@
         <button type="button"
                 class="action-btn small primary"
                 (click)="promote(user)"
-                [disabled]="promotingUserId === user.userId">
-          {{ promotingUserId === user.userId ? 'Moving…' : 'Make cleaner' }}
+                [disabled]="promotingUserId() === user.userId">
+          {{ promotingUserId() === user.userId ? 'Moving…' : 'Make cleaner' }}
         </button>
       </li>
       }
@@ -85,19 +85,19 @@
   <div class="filters-section">
     <div class="search-box">
       <input type="text"
-             [ngModel]="searchTerm"
-             (ngModelChange)="searchTerm = $event; onFilterChanged()"
+             [ngModel]="searchTerm()"
+             (ngModelChange)="searchTerm.set($event); onFilterChanged()"
              placeholder="Search name, email, phone, cleaner or ID…"
              class="search-input">
     </div>
     <div class="filter-controls">
-      <select aria-label="Filter by status" [ngModel]="statusFilter" (ngModelChange)="statusFilter = $event; onFilterChanged()" class="filter-select">
+      <select aria-label="Filter by status" [ngModel]="statusFilter()" (ngModelChange)="statusFilter.set($event); onFilterChanged()" class="filter-select">
         <option value="all">All Status</option>
         <option value="active">Active</option>
         <option value="inactive">Blocked</option>
       </select>
       <!-- An unlinked account signs in and sees nothing, so it earns a filter of its own. -->
-      <select aria-label="Filter by link" [ngModel]="linkFilter" (ngModelChange)="linkFilter = $event; onFilterChanged()" class="filter-select">
+      <select aria-label="Filter by link" [ngModel]="linkFilter()" (ngModelChange)="linkFilter.set($event); onFilterChanged()" class="filter-select">
         <option value="all">All Accounts</option>
         <option value="linked">Linked</option>
         <option value="unlinked">Not linked</option>
@@ -117,13 +117,13 @@
               <th class="col-email">Email</th>
               <th class="col-cleaner">Linked Cleaner</th>
               <th class="col-jobs">Jobs</th>
-              @if (canUpdate) {
+              @if (canUpdate()) {
               <th class="col-actions">Actions</th>
               }
             </tr>
           </thead>
           <tbody>
-            @for (account of pagedAccounts; track trackByUserId($index, account)) {
+            @for (account of pagedAccounts(); track trackByUserId($index, account)) {
               <!--
                 Clicking the ROW opens the cleaner record, the same way a Customers row opens its
                 detail panel. The action buttons stop the click (see .col-actions below), so
@@ -136,7 +136,7 @@
               -->
               <tr class="user-row"
                   [class.ca-row-clickable]="!!account.cleanerId"
-                  [class.row-selected]="linkingUserId === account.userId || (!!account.cleanerId && recordCleanerId === account.cleanerId)"
+                  [class.row-selected]="linkingUserId() === account.userId || (!!account.cleanerId && recordCleanerId() === account.cleanerId)"
                   [class.row-blocked]="!account.isActive"
                   [class.row-flagged-yellow]="account.isActive && !account.cleanerId"
                   (click)="openCleanerRecord(account)">
@@ -236,7 +236,7 @@
                   button inside the detail panel, where the record being edited is on screen.
                   stopPropagation keeps them from also opening that panel.
                 -->
-                @if (canUpdate) {
+                @if (canUpdate()) {
                 <td class="col-actions" (click)="$event.stopPropagation()">
                   <div class="row-actions">
                     <button class="icon-btn note"
@@ -247,14 +247,14 @@
                     @if (account.cleanerId) {
                     <button class="icon-btn warn"
                             (click)="unlink(account)"
-                            [disabled]="savingLinkUserId === account.userId"
+                            [disabled]="savingLinkUserId() === account.userId"
                             title="Unlink from the cleaner record">
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18.84 12.25l1.72-1.71a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M5.17 11.75l-1.72 1.71a5 5 0 0 0 7.07 7.07l1.71-1.71"/><line x1="2" y1="2" x2="22" y2="22"/></svg>
                     </button>
                     }
                     <button class="icon-btn danger"
                             (click)="demote(account)"
-                            [disabled]="demotingUserId === account.userId"
+                            [disabled]="demotingUserId() === account.userId"
                             title="Move back to a customer account">
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/><path d="M9 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h4"/></svg>
                     </button>
@@ -265,9 +265,9 @@
 
               <!-- Link editor, inline under the row it belongs to so it can never be ambiguous
                    which account is being re-pointed. -->
-              @if (linkingUserId === account.userId) {
+              @if (linkingUserId() === account.userId) {
               <tr class="ca-editor-row">
-                <td [attr.colspan]="canUpdate ? 6 : 5">
+                <td [attr.colspan]="canUpdate() ? 6 : 5">
                   <div class="ca-editor">
                     <label class="ca-editor-label" [attr.for]="'cleaner-search-' + account.userId">
                       Link {{ account.firstName }} {{ account.lastName }} to a cleaner record
@@ -277,24 +277,24 @@
                            class="search-input ca-input"
                            [id]="'cleaner-search-' + account.userId"
                            placeholder="Search cleaners by name, last name, email or phone…"
-                           [ngModel]="cleanerSearch"
+                           [ngModel]="cleanerSearch()"
                            (ngModelChange)="onCleanerSearchChanged($event)">
 
-                    @if (cleanerSearching) {
+                    @if (cleanerSearching()) {
                     <p class="ca-hint">Searching…</p>
                     }
-                    @if (!cleanerSearching && cleanerResults.length === 0) {
+                    @if (!cleanerSearching() && cleanerResults().length === 0) {
                     <p class="ca-hint">
                       No cleaner records match that.
                     </p>
                     }
 
-                    @if (cleanerResults.length > 0) {
+                    @if (cleanerResults().length > 0) {
                     <ul class="ca-cleaner-list">
-                      @for (cleaner of cleanerResults; track trackByCleanerId($index, cleaner)) {
+                      @for (cleaner of cleanerResults(); track trackByCleanerId($index, cleaner)) {
                       <li
                           class="ca-cleaner"
-                          [class.selected]="linkCleanerChoice === cleaner.cleanerId"
+                          [class.selected]="linkCleanerChoice() === cleaner.cleanerId"
                           [class.taken]="isCleanerTaken(cleaner, account.userId)"
                           (click)="chooseCleaner(cleaner, account.userId)">
                         <span class="ca-cleaner-name">
@@ -330,8 +330,8 @@
                       <button type="button"
                               class="action-btn small primary"
                               (click)="saveLink(account)"
-                              [disabled]="!linkCleanerChoice || savingLinkUserId === account.userId">
-                        {{ savingLinkUserId === account.userId ? 'Saving…' : 'Save link' }}
+                              [disabled]="!linkCleanerChoice() || savingLinkUserId() === account.userId">
+                        {{ savingLinkUserId() === account.userId ? 'Saving…' : 'Save link' }}
                       </button>
                       <button type="button" class="action-btn small" (click)="cancelLinking()">Cancel</button>
                     </div>
@@ -341,14 +341,14 @@
               }
             }
 
-            @if (!loading && pagedAccounts.length === 0) {
+            @if (!loading() && pagedAccounts().length === 0) {
             <tr>
-              <td [attr.colspan]="canUpdate ? 6 : 5" class="empty-row">
-                @if (accounts.length === 0) {
+              <td [attr.colspan]="canUpdate() ? 6 : 5" class="empty-row">
+                @if (accounts().length === 0) {
                   No cleaner accounts yet. An account becomes one automatically when somebody
                   registers with an email that is already on a cleaner record.
                 }
-                @if (accounts.length > 0) {
+                @if (accounts().length > 0) {
                 No cleaner accounts match the current filters.
                 }
               </td>
@@ -360,26 +360,26 @@
     </div>
 
     <!-- Pagination — 20 a page, same pager as the Users tab -->
-    @if (totalPages > 1) {
+    @if (totalPages() > 1) {
     <div class="pagination">
-      <button class="page-btn" (click)="previousPage()" [disabled]="currentPage === 1">‹ Previous</button>
-      <button class="page-btn" (click)="goToPage(1)" [class.active]="currentPage === 1">1</button>
-      @if (totalPages > 5 && currentPage > 3) {
+      <button class="page-btn" (click)="previousPage()" [disabled]="currentPage() === 1">‹ Previous</button>
+      <button class="page-btn" (click)="goToPage(1)" [class.active]="currentPage() === 1">1</button>
+      @if (totalPages() > 5 && currentPage() > 3) {
       <span class="page-ellipsis">…</span>
       }
       @for (page of getVisiblePages(); track page) {
       <button
               class="page-btn"
               (click)="goToPage(page)"
-              [class.active]="currentPage === page">{{ page }}</button>
+              [class.active]="currentPage() === page">{{ page }}</button>
       }
-      @if (totalPages > 5 && currentPage < totalPages - 2) {
+      @if (totalPages() > 5 && currentPage() < totalPages() - 2) {
       <span class="page-ellipsis">…</span>
       }
       <button class="page-btn"
-              (click)="goToPage(totalPages)"
-              [class.active]="currentPage === totalPages">{{ totalPages }}</button>
-      <button class="page-btn" (click)="nextPage()" [disabled]="currentPage === totalPages">Next ›</button>
+              (click)="goToPage(totalPages())"
+              [class.active]="currentPage() === totalPages()">{{ totalPages() }}</button>
+      <button class="page-btn" (click)="nextPage()" [disabled]="currentPage() === totalPages()">Next ›</button>
     </div>
     }
   </div>
@@ -400,7 +400,7 @@
   transformed ancestor becomes its containing block - which would trap a 760px modal inside a
   720px drawer. The slide-in animates `right` instead.
 -->
-@if (recordCleanerId) {
+@if (recordCleanerId()) {
 <div class="ca-record-backdrop" (click)="closeCleanerRecord()"></div>
 }
 
@@ -409,14 +409,14 @@
   ranking, phone, document AND its Edit / Delete / close buttons. A second title bar above it would
   print the name twice and offer a second close.
 -->
-@if (recordCleanerId) {
+@if (recordCleanerId()) {
 <div class="ca-record-panel"
        role="dialog"
        aria-modal="true"
-       [attr.aria-label]="recordCleanerName + ' — cleaner record'">
+       [attr.aria-label]="recordCleanerName() + ' — cleaner record'">
   <div class="ca-record-body">
     <app-cleaners-dashboard [embedded]="true"
-                            [focusCleanerId]="recordCleanerId"
+                            [focusCleanerId]="recordCleanerId()"
                             (closed)="closeCleanerRecord()"
                             (changed)="onCleanerRecordChanged()"></app-cleaners-dashboard>
   </div>

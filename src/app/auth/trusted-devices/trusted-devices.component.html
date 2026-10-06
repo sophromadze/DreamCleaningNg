@@ -10,32 +10,32 @@
     </p>
   </div>
 
-  @if (error) {
+  @if (error()) {
   <div class="td-message td-error">
-    <i class="fas fa-exclamation-circle"></i> {{ error }}
+    <i class="fas fa-exclamation-circle"></i> {{ error() }}
   </div>
   }
-  @if (notice) {
+  @if (notice()) {
   <div class="td-message td-notice">
-    <i class="fas fa-check-circle"></i> {{ notice }}
+    <i class="fas fa-check-circle"></i> {{ notice() }}
   </div>
   }
 
-  @if (loading) {
+  @if (loading()) {
   <div class="td-loading">
     <i class="fas fa-spinner fa-spin"></i> Loading devices…
   </div>
   }
 
-  @if (!loading && devices.length === 0) {
+  @if (!loading() && devices().length === 0) {
   <div class="td-empty">
     <i class="fas fa-mobile-screen"></i>
     <p>No trusted devices yet. Sign in from a device and check "Trust this device" to add one.</p>
   </div>
   }
-  @if (!loading && devices.length > 0) {
+  @if (!loading() && devices().length > 0) {
   <ul class="td-list">
-    @for (d of devices; track d.id) {
+    @for (d of devices(); track d.id) {
 
       <li class="td-item" [class.is-current]="d.isCurrentDevice">
         <div class="td-item-icon">
@@ -69,12 +69,12 @@
           <button type="button"
                   class="td-revoke-btn"
                   (click)="askRevoke(d.id)"
-                  [disabled]="pendingRevokeId !== null">
+                  [disabled]="pendingRevokeId() !== null">
             <i class="fas fa-trash"></i> Remove
           </button>
         </div>
       </li>
-      @if (pendingRevokeId === d.id) {
+      @if (pendingRevokeId() === d.id) {
       <li class="td-confirm">
         <div>
           <i class="fas fa-exclamation-triangle"></i>
@@ -91,10 +91,10 @@
           }
         </div>
         <div class="td-confirm-actions">
-          <button type="button" class="btn btn-secondary btn-cancel btn-sm" (click)="cancelRevoke()" [disabled]="revoking">Cancel</button>
-          <button type="button" class="btn btn-danger btn-sm" (click)="confirmRevoke()" [disabled]="revoking">
-            <i class="fas" [class.fa-spinner]="revoking" [class.fa-spin]="revoking" [class.fa-trash]="!revoking"></i>
-            {{ revoking ? 'Removing…' : 'Remove' }}
+          <button type="button" class="btn btn-secondary btn-cancel btn-sm" (click)="cancelRevoke()" [disabled]="revoking()">Cancel</button>
+          <button type="button" class="btn btn-danger btn-sm" (click)="confirmRevoke()" [disabled]="revoking()">
+            <i class="fas" [class.fa-spinner]="revoking()" [class.fa-spin]="revoking()" [class.fa-trash]="!revoking()"></i>
+            {{ revoking() ? 'Removing…' : 'Remove' }}
           </button>
         </div>
       </li>
@@ -105,31 +105,31 @@
 
   <!-- Shown even with an empty list: a device that signed in without "Trust this device"
        never appears above, and this is the only way to sign it out. -->
-  @if (!loading) {
+  @if (!loading()) {
   <div class="td-footer">
     <p class="td-footer-hint">
       Someone else signed in to your account? Sign out everywhere except this device —
       this also reaches devices that aren't listed above.
     </p>
-    @if (!confirmingSignOutOthers) {
+    @if (!confirmingSignOutOthers()) {
     <button type="button"
             class="td-revoke-btn"
             (click)="askSignOutOthers()"
-            [disabled]="pendingRevokeId !== null">
+            [disabled]="pendingRevokeId() !== null">
       <i class="fas fa-right-from-bracket"></i> Sign out all other devices
     </button>
     }
-    @if (confirmingSignOutOthers) {
+    @if (confirmingSignOutOthers()) {
     <div class="td-confirm">
       <div>
         <i class="fas fa-exclamation-triangle"></i>
         Sign out every other device and remove them from this list? You stay signed in here.
       </div>
       <div class="td-confirm-actions">
-        <button type="button" class="btn btn-secondary btn-cancel btn-sm" (click)="cancelSignOutOthers()" [disabled]="signingOutOthers">Cancel</button>
-        <button type="button" class="btn btn-danger btn-sm" (click)="confirmSignOutOthers()" [disabled]="signingOutOthers">
-          <i class="fas" [class.fa-spinner]="signingOutOthers" [class.fa-spin]="signingOutOthers" [class.fa-right-from-bracket]="!signingOutOthers"></i>
-          {{ signingOutOthers ? 'Signing out…' : 'Sign out others' }}
+        <button type="button" class="btn btn-secondary btn-cancel btn-sm" (click)="cancelSignOutOthers()" [disabled]="signingOutOthers()">Cancel</button>
+        <button type="button" class="btn btn-danger btn-sm" (click)="confirmSignOutOthers()" [disabled]="signingOutOthers()">
+          <i class="fas" [class.fa-spinner]="signingOutOthers()" [class.fa-spin]="signingOutOthers()" [class.fa-right-from-bracket]="!signingOutOthers()"></i>
+          {{ signingOutOthers() ? 'Signing out…' : 'Sign out others' }}
         </button>
       </div>
     </div>

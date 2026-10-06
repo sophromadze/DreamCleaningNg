@@ -1,4 +1,4 @@
-import { Directive, ElementRef, Input, OnChanges, OnDestroy, Renderer2, SimpleChanges, inject } from '@angular/core';
+import { Directive, ElementRef, OnChanges, OnDestroy, Renderer2, SimpleChanges, inject, input } from '@angular/core';
 
 /**
  * Classic shimmer directive.
@@ -14,7 +14,7 @@ export class ShimmerDirective implements OnChanges, OnDestroy {
   private el = inject<ElementRef<HTMLElement>>(ElementRef);
   private renderer = inject(Renderer2);
 
-  @Input() shimmer: boolean = true;
+  readonly shimmer = input<boolean>(true);
 
   ngOnChanges(changes: SimpleChanges): void {
     if (!('shimmer' in changes)) return;
@@ -25,7 +25,7 @@ export class ShimmerDirective implements OnChanges, OnDestroy {
     const foamTracks = native.querySelectorAll('.foam-track');
     foamTracks.forEach((node) => node.parentElement?.removeChild(node));
 
-    if (this.shimmer) {
+    if (this.shimmer()) {
       this.renderer.addClass(native, 'shimmer-loading');
     } else {
       this.renderer.removeClass(native, 'shimmer-loading');

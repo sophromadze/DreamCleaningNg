@@ -1,4 +1,4 @@
-import { Component, Input, ChangeDetectionStrategy } from '@angular/core';
+import { Component, Input, ChangeDetectionStrategy, signal } from '@angular/core';
 import { PromoCodesComponent } from '../promo-codes/promo-codes.component';
 import { SpecialOffersComponent } from '../special-offers/special-offers.component';
 import { SubscriptionsComponent } from '../subscriptions/subscriptions.component';
@@ -18,11 +18,11 @@ type DiscountSubTab = 'promo-codes' | 'special-offers' | 'subscriptions' | 'gift
     LoyaltyDiscountAdminComponent
 ],
   templateUrl: './discounts.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./discounts.component.scss']
 })
 export class DiscountsComponent {
-  activeSubTab: DiscountSubTab = 'promo-codes';
+  readonly activeSubTab = signal<DiscountSubTab>('promo-codes');
 
   @Input() set initialSubTab(tab: string | null | undefined) {
     if (
@@ -32,13 +32,13 @@ export class DiscountsComponent {
       tab === 'gift-cards' ||
       tab === 'loyalty'
     ) {
-      this.activeSubTab = tab;
+      this.activeSubTab.set(tab);
     } else {
-      this.activeSubTab = 'promo-codes';
+      this.activeSubTab.set('promo-codes');
     }
   }
 
   setSubTab(tab: DiscountSubTab) {
-    this.activeSubTab = tab;
+    this.activeSubTab.set(tab);
   }
 }

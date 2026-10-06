@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, OnChanges, OnDestroy, OnInit, SimpleChanges, ChangeDetectionStrategy, inject, output, input, signal, computed } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Subject, debounceTime, distinctUntilChanged, takeUntil } from 'rxjs';
 import { AdminService, UserAdmin } from '../../services/admin.service';
@@ -52,7 +52,7 @@ export const USER_LIST_SETTLE_MS = 350;
   standalone: true,
   imports: [FormsModule, IconComponent],
   templateUrl: './admin-user-search.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./admin-user-search.component.scss']
 })
 export class AdminUserSearchComponent implements OnInit, OnChanges, OnDestroy {
@@ -61,7 +61,7 @@ export class AdminUserSearchComponent implements OnInit, OnChanges, OnDestroy {
   protected readonly icons = { faTriangleExclamation, faXmark };
 
   /** Currently selected target user (owned by the booking page). */
-  @Input() selectedUser: UserAdmin | null = null;
+  readonly selectedUser = input<UserAdmin | null>(null);
 
   /**
    * Customers the host created during THIS page session (the header's Register Customer action).
@@ -74,23 +74,23 @@ export class AdminUserSearchComponent implements OnInit, OnChanges, OnDestroy {
    *  - `GET /api/admin/users` is an ordinary cacheable GET.
    * A seeded entry disappears silently the moment the server's own list contains that id.
    */
-  @Input() seedUsers: UserAdmin[] = [];
+  readonly seedUsers = input<UserAdmin[]>([]);
 
-  @Output() userSelected = new EventEmitter<UserAdmin>();
-  @Output() cleared = new EventEmitter<void>();
+  readonly userSelected = output<UserAdmin>();
+  readonly cleared = output<void>();
 
-  userSearchTerm = '';
+  readonly userSearchTerm = signal('');
 
   /** Everything searchable: the server's customers plus any `seedUsers` it doesn't know about yet. */
   availableUsers: UserAdmin[] = [];
-  filteredUsers: UserAdmin[] = [];
-  isLoadingUsers = false;
+  readonly filteredUsers = signal<UserAdmin[]>([]);
+  readonly isLoadingUsers = signal(false);
 
   /** The last server response, kept raw so `seedUsers` can be re-merged without a refetch. */
   private serverUsers: UserAdmin[] = [];
 
   /** Total matches before `USER_SEARCH_MAX_RESULTS` truncation — drives the "refine" footer. */
-  totalMatchCount = 0;
+  readonly totalMatchCount = signal(0);
 
   /**
    * `Date.now()` of the last time the RENDERED list actually changed (different users, or a
@@ -100,7 +100,7 @@ export class AdminUserSearchComponent implements OnInit, OnChanges, OnDestroy {
   lastListChangedAt = 0;
 
   /** Set when a click was refused by the settle guard; cleared on the next input or selection. */
-  clickRejected = false;
+  readonly clickRejected = signal(false);
 
   /** Monotonic token: only the newest `loadUsers()` response is allowed to apply. */
   private loadGeneration = 0;
@@ -144,24 +144,23 @@ export class AdminUserSearchComponent implements OnInit, OnChanges, OnDestroy {
 
   /** With a selected user the input shows their label read-only; otherwise the live search term. */
   get displayTerm(): string {
-    if (!this.selectedUser) return this.userSearchTerm;
-    const emailLabel = this.selectedUser.isNoEmailUser ? 'No email' : this.selectedUser.email;
-    return `${this.selectedUser.firstName} ${this.selectedUser.lastName} (${emailLabel})`;
+    const selectedUser = this.selectedUser();
+    if (!selectedUser) return this.userSearchTerm();
+    const emailLabel = selectedUser.isNoEmailUser ? 'No email' : selectedUser.email;
+    return `${selectedUser.firstName} ${selectedUser.lastName} (${emailLabel})`;
   }
 
   /** True while the admin has typed too little for the list to be shown at all. */
-  get needsMoreCharacters(): boolean {
-    return this.userSearchTerm.trim().length < USER_SEARCH_MIN_CHARS;
-  }
+  readonly needsMoreCharacters = computed<boolean>(() => this.userSearchTerm().trim().length < USER_SEARCH_MIN_CHARS);
 
   /** How many matches were hidden by the render cap. */
   get hiddenMatchCount(): number {
-    return Math.max(0, this.totalMatchCount - this.filteredUsers.length);
+    return Math.max(0, this.totalMatchCount() - this.filteredUsers().length);
   }
 
   onSearchInput(value: string): void {
-    this.userSearchTerm = value;
-    this.clickRejected = false;
+    this.userSearchTerm.set(value);
+    this.clickRejected.set(false);
     // Deliberately NOT filtered synchronously — the debounce is what stops the list moving
     // while the admin is still typing.
     this.searchTerm$.next(value);
@@ -174,7 +173,7 @@ export class AdminUserSearchComponent implements OnInit, OnChanges, OnDestroy {
    */
   loadUsers(forceRefresh = false): void {
     const generation = ++this.loadGeneration;
-    this.isLoadingUsers = true;
+    this.isLoadingUsers.set(true);
 
     this.adminService.getUsers(forceRefresh)
       .pipe(takeUntil(this.destroy$))
@@ -197,7 +196,7 @@ export class AdminUserSearchComponent implements OnInit, OnChanges, OnDestroy {
           }
           this.rebuildAvailableUsers();
           this.applyFilter();
-          this.isLoadingUsers = false;
+          this.isLoadingUsers.set(false);
         },
         error: (error) => {
           if (generation !== this.loadGeneration) return;
@@ -207,7 +206,7 @@ export class AdminUserSearchComponent implements OnInit, OnChanges, OnDestroy {
           // didn't come back, and the admin should still be able to book for them.
           this.rebuildAvailableUsers();
           this.applyFilter();
-          this.isLoadingUsers = false;
+          this.isLoadingUsers.set(false);
         }
       });
   }
@@ -221,13 +220,14 @@ export class AdminUserSearchComponent implements OnInit, OnChanges, OnDestroy {
    * canonical row wins as soon as the backend knows about it and nobody is ever shown twice.
    */
   private rebuildAvailableUsers(): void {
-    if (!this.seedUsers?.length) {
+    const seedUsers = this.seedUsers();
+    if (!seedUsers?.length) {
       this.availableUsers = this.serverUsers;
       return;
     }
 
     const knownIds = new Set(this.serverUsers.map(user => user.id));
-    const pending = this.seedUsers.filter(user => !knownIds.has(user.id));
+    const pending = seedUsers.filter(user => !knownIds.has(user.id));
 
     this.availableUsers = pending.length ? [...pending, ...this.serverUsers] : this.serverUsers;
   }
@@ -237,7 +237,7 @@ export class AdminUserSearchComponent implements OnInit, OnChanges, OnDestroy {
    * go through `onSearchInput` so the debounce applies.
    */
   applyFilter(): void {
-    const search = this.userSearchTerm.toLowerCase().trim();
+    const search = this.userSearchTerm().toLowerCase().trim();
 
     // No more "empty box = render every customer": that unbounded ngFor is what made the list
     // lag behind the keystrokes in the first place.
@@ -262,11 +262,11 @@ export class AdminUserSearchComponent implements OnInit, OnChanges, OnDestroy {
    */
   private setFilteredUsers(next: UserAdmin[], totalMatches: number): void {
     const changed =
-      next.length !== this.filteredUsers.length ||
-      next.some((user, i) => user.id !== this.filteredUsers[i].id);
+      next.length !== this.filteredUsers().length ||
+      next.some((user, i) => user.id !== this.filteredUsers()[i].id);
 
-    this.filteredUsers = next;
-    this.totalMatchCount = totalMatches;
+    this.filteredUsers.set(next);
+    this.totalMatchCount.set(totalMatches);
 
     if (changed) {
       this.lastListChangedAt = Date.now();
@@ -281,19 +281,19 @@ export class AdminUserSearchComponent implements OnInit, OnChanges, OnDestroy {
     // The list moved within the settle window, so this row may not be the one the admin was
     // aiming at. Refuse rather than book for whoever happens to be under the cursor.
     if (Date.now() - this.lastListChangedAt < USER_LIST_SETTLE_MS) {
-      this.clickRejected = true;
+      this.clickRejected.set(true);
       return;
     }
 
-    this.clickRejected = false;
-    this.userSearchTerm = '';
+    this.clickRejected.set(false);
+    this.userSearchTerm.set('');
     this.applyFilter();
     this.userSelected.emit(user);
   }
 
   clearSelectedUser(): void {
-    this.clickRejected = false;
-    this.userSearchTerm = '';
+    this.clickRejected.set(false);
+    this.userSearchTerm.set('');
     this.applyFilter();
     this.cleared.emit();
   }

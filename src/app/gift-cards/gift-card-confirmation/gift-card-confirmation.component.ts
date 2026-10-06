@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, PLATFORM_ID, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, PLATFORM_ID, ChangeDetectionStrategy, inject, signal } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { GiftCardService, CreateGiftCard } from '../../services/gift-card.service';
@@ -13,7 +13,7 @@ import { faEnvelope } from '../../shared/icons/glyphs/faEnvelope';
   standalone: true,
   imports: [CommonModule, RouterModule, IconComponent],
   templateUrl: './gift-card-confirmation.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./gift-card-confirmation.component.scss']
 })
 export class GiftCardConfirmationComponent implements OnInit, OnDestroy {
@@ -26,17 +26,17 @@ export class GiftCardConfirmationComponent implements OnInit, OnDestroy {
   protected readonly icons = { faCircleCheck, faEnvelope };
 
   giftCardId: number = 0;
-  isProcessing = false;
-  paymentCompleted = false;
-  errorMessage = '';
+  readonly isProcessing = signal(false);
+  readonly paymentCompleted = signal(false);
+  readonly errorMessage = signal('');
   giftCardData: CreateGiftCard | null = null;
   paymentClientSecret: string | null = null;
   giftCardAmount: number = 0;
   currentUser: any;
   isPreparing = false;
 
-  cardError: string | null = null;
-  showApplePay = false;
+  readonly cardError = signal<string | null>(null);
+  readonly showApplePay = signal(false);
   private isBrowser: boolean;
 
   constructor() {
@@ -91,13 +91,13 @@ export class GiftCardConfirmationComponent implements OnInit, OnDestroy {
 
       if (cardElement) {
         cardElement.on('change', (event: any) => {
-          this.cardError = event.error ? event.error.message : null;
+          this.cardError.set(event.error ? event.error.message : null);
         });
       }
       this.initApplePay();
     } catch (error) {
       console.error('Failed to initialize Stripe elements:', error);
-      this.errorMessage = 'Failed to initialize payment form';
+      this.errorMessage.set('Failed to initialize payment form');
     }
   }
 
@@ -105,13 +105,13 @@ export class GiftCardConfirmationComponent implements OnInit, OnDestroy {
     if (!this.isBrowser || !this.giftCardData) return;
     const pr = await this.stripeService.createPaymentRequest(this.giftCardAmount, 'Dream Cleaning NYC');
     if (!pr) return;
-    this.showApplePay = true;
+    this.showApplePay.set(true);
     setTimeout(() => this.stripeService.createPaymentRequestButton(pr, 'payment-request-button'), 0);
 
     pr.on('paymentmethod', (ev: any) => {
-      if (this.isProcessing) { ev.complete('fail'); return; }
-      this.isProcessing = true;
-      this.errorMessage = '';
+      if (this.isProcessing()) { ev.complete('fail'); return; }
+      this.isProcessing.set(true);
+      this.errorMessage.set('');
       this.giftCardService.createGiftCard(this.giftCardData!).subscribe({
         next: async (response: any) => {
           try {
@@ -121,32 +121,32 @@ export class GiftCardConfirmationComponent implements OnInit, OnDestroy {
             );
             ev.complete('success');
             this.giftCardService.confirmGiftCardPayment(this.giftCardId, paymentIntent.id).subscribe({
-              next: () => { this.paymentCompleted = true; this.isProcessing = false; },
+              next: () => { this.paymentCompleted.set(true); this.isProcessing.set(false); },
               error: (err: any) => {
-                this.errorMessage = err.error?.message || 'Payment confirmation failed';
-                this.isProcessing = false;
+                this.errorMessage.set(err.error?.message || 'Payment confirmation failed');
+                this.isProcessing.set(false);
               }
             });
           } catch (payErr: any) {
             ev.complete('fail');
-            this.errorMessage = payErr.message || 'Payment failed. Please try again.';
-            this.isProcessing = false;
+            this.errorMessage.set(payErr.message || 'Payment failed. Please try again.');
+            this.isProcessing.set(false);
           }
         },
         error: (err: any) => {
           ev.complete('fail');
-          this.errorMessage = err.error?.message || 'Failed to create gift card. Please try again.';
-          this.isProcessing = false;
+          this.errorMessage.set(err.error?.message || 'Failed to create gift card. Please try again.');
+          this.isProcessing.set(false);
         }
       });
     });
   }
 
   async processPayment() {
-    if (!this.giftCardData || this.isProcessing || this.cardError) return;
+    if (!this.giftCardData || this.isProcessing() || this.cardError()) return;
     
-    this.isProcessing = true;
-    this.errorMessage = '';
+    this.isProcessing.set(true);
+    this.errorMessage.set('');
     
     try {
       // Create the gift card and get payment intent
@@ -165,33 +165,33 @@ export class GiftCardConfirmationComponent implements OnInit, OnDestroy {
             // Confirm payment with backend
             this.giftCardService.confirmGiftCardPayment(this.giftCardId, paymentIntent.id).subscribe({
               next: (confirmResponse) => {
-                this.paymentCompleted = true;
-                this.isProcessing = false;
+                this.paymentCompleted.set(true);
+                this.isProcessing.set(false);
               },
               error: (error) => {
-                this.errorMessage = error.error?.message || 'Payment confirmation failed';
-                this.isProcessing = false;
+                this.errorMessage.set(error.error?.message || 'Payment confirmation failed');
+                this.isProcessing.set(false);
               }
             });
           } catch (paymentError: any) {
-            this.errorMessage = paymentError.message || 'Payment failed. Please try again.';
-            this.isProcessing = false;
+            this.errorMessage.set(paymentError.message || 'Payment failed. Please try again.');
+            this.isProcessing.set(false);
           }
         },
         error: (error) => {
           if (error.status === 401) {
             // "Send later" answers 401 with its own message when the session has ended.
-            this.errorMessage = error.error?.message
-              || 'Authentication required. Please try again or contact support if the issue persists.';
+            this.errorMessage.set(error.error?.message
+              || 'Authentication required. Please try again or contact support if the issue persists.');
           } else {
-            this.errorMessage = error.error?.message || 'Failed to create gift card. Please try again.';
+            this.errorMessage.set(error.error?.message || 'Failed to create gift card. Please try again.');
           }
-          this.isProcessing = false;
+          this.isProcessing.set(false);
         }
       });
     } catch (error: any) {
-      this.errorMessage = 'An unexpected error occurred';
-      this.isProcessing = false;
+      this.errorMessage.set('An unexpected error occurred');
+      this.isProcessing.set(false);
     }
   }
 

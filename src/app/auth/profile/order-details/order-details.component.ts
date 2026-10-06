@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, HostListener, ElementRef, ChangeDetectionStrategy, NgZone, inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, HostListener, ElementRef, ChangeDetectionStrategy, NgZone, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, ActivatedRoute, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -23,7 +23,7 @@ import { debugTimersPaused } from '../../../shared/debug-timers';
   standalone: true,
   imports: [CommonModule, RouterModule, FormsModule],
   templateUrl: './order-details.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./order-details.component.scss']
 })
 export class OrderDetailsComponent implements OnInit, OnDestroy {
@@ -36,20 +36,20 @@ export class OrderDetailsComponent implements OnInit, OnDestroy {
   private elementRef = inject(ElementRef);
 
   private readonly zone = inject(NgZone);
-  order: Order | null = null;
-  isLoading = true;
-  errorMessage = '';
-  showCancelModal = false;
-  cancelReason = '';
+  readonly order = signal<Order | null>(null, { equal: () => false });
+  readonly isLoading = signal(true);
+  readonly errorMessage = signal('');
+  readonly showCancelModal = signal(false);
+  readonly cancelReason = signal('');
   now = new Date();
-  isCancelling = false;
+  readonly isCancelling = signal(false);
   private timeUpdateInterval?: any;
 
   // Assigned-admin pill state. The pill is visible to everyone who can see the order;
   // the edit dropdown is only shown to Admin/SuperAdmin (canEditAssignedAdmin()).
-  availableAdmins: ShiftAdmin[] = [];
-  showAdminEditor = false;
-  isSavingAssignedAdmin = false;
+  readonly availableAdmins = signal<ShiftAdmin[]>([]);
+  readonly showAdminEditor = signal(false);
+  readonly isSavingAssignedAdmin = signal(false);
 
   ngOnInit() {
     const orderId = this.route.snapshot.params['id'];
@@ -57,7 +57,7 @@ export class OrderDetailsComponent implements OnInit, OnDestroy {
 
     if (this.canEditAssignedAdmin()) {
       this.shiftService.getShiftAdmins().subscribe({
-        next: admins => this.availableAdmins = admins,
+        next: admins => this.availableAdmins.set(admins),
         error: () => { /* dropdown will just show "Unassigned" + the current assignee */ }
       });
     }
@@ -69,16 +69,16 @@ export class OrderDetailsComponent implements OnInit, OnDestroy {
       }, 60000);
     }
 
-    if (this.order) {
-      const serviceDate = new Date(this.order.serviceDate);
+    if (this.order()) {
+      const serviceDate = new Date(this.order()!.serviceDate);
       const now = new Date();
       const hoursUntilService = (serviceDate.getTime() - now.getTime()) / (1000 * 60 * 60);
       
       if (hoursUntilService <= 48) {
-          this.errorMessage = 'This order cannot be edited. Orders must be edited at least 48 hours before the scheduled service.';
+          this.errorMessage.set('This order cannot be edited. Orders must be edited at least 48 hours before the scheduled service.');
           // Optionally redirect back
           setTimeout(() => {
-              this.router.navigate(['/order', this.order!.id]);
+              this.router.navigate(['/order', this.order()!.id]);
           }, 3000);
       }
     }
@@ -92,16 +92,16 @@ export class OrderDetailsComponent implements OnInit, OnDestroy {
   }
 
   loadOrder(orderId: number) {
-    this.isLoading = true;
+    this.isLoading.set(true);
     this.orderService.getOrderById(orderId).subscribe({
       next: (order) => {
-        this.order = order;        
-        this.isLoading = false;
+        this.order.set(order);        
+        this.isLoading.set(false);
       },
       error: (error) => {
         console.error('Error loading order:', error);
-        this.errorMessage = 'Failed to load order details';
-        this.isLoading = false;
+        this.errorMessage.set('Failed to load order details');
+        this.isLoading.set(false);
       }
     });
   }
@@ -113,17 +113,17 @@ export class OrderDetailsComponent implements OnInit, OnDestroy {
    * Vacuum Cleaner), which the template renders as "nothing to prepare".
    */
   get supplyChecklistItems(): string[] {
-    if (!this.order) return [];
+    if (!this.order()) return [];
     return buildSupplyChecklistItems(
-      resolveSupplyChecklistFactsForExtras(this.order.extraServices ?? [], this.isCustomServiceType())
+      resolveSupplyChecklistFactsForExtras(this.order()!.extraServices ?? [], this.isCustomServiceType())
     );
   }
 
   getServiceDuration(): number {
-    if (!this.order) return 0;
+    if (!this.order()) return 0;
 
     // Check for Cleaners service
-    const cleanersService = this.order.services.find(s => isCleanersLine(s));
+    const cleanersService = this.order()!.services.find(s => isCleanersLine(s));
 
     if (cleanersService) {
       return cleanersService.duration; // This is already in minutes
@@ -132,82 +132,82 @@ export class OrderDetailsComponent implements OnInit, OnDestroy {
     // Custom orders store TotalDuration as per-cleaner × cleaners; customers see
     // the per-cleaner value they agreed to (cleaners × hours is explicit there).
     if (this.isCustomServiceType()) {
-      return Math.ceil(this.order.totalDuration / (this.order.maidsCount || 1));
+      return Math.ceil(this.order()!.totalDuration / (this.order()!.maidsCount || 1));
     }
 
     // Regular orders: the full total — staffing is the team's decision and the
     // customer never sees a per-cleaner split.
-    return this.order.totalDuration;
+    return this.order()!.totalDuration;
   }
 
   /** Cleaner count is customer-facing only where it's part of the customer's own
    *  selection (cleaner+hours services, custom orders) — never for regular types. */
   shouldShowCleanersCount(): boolean {
-    if (!this.order) return false;
+    if (!this.order()) return false;
     if (this.isCustomServiceType()) return true;
-    return this.order.services.some(s => isCleanersLine(s));
+    return this.order()!.services.some(s => isCleanersLine(s));
   }
 
   isCustomServiceType(): boolean {
-    if (!this.order) return false;
+    if (!this.order()) return false;
     // The server says so directly; the service-line heuristic below covers an older payload.
-    if (this.order.isCustomServiceType) return true;
+    if (this.order()!.isCustomServiceType) return true;
     
     // Check if this order has a service with ServiceId = 0 (custom service marker)
     // OR check if all services arrays are empty (another indicator of custom pricing)
-    const hasCustomServiceMarker = this.order.services.some(s => s.serviceId === 0);
-    const hasNoRegularServices = this.order.services.length === 0 || 
-      (this.order.services.length === 1 && this.order.services[0].serviceId === 0);
+    const hasCustomServiceMarker = this.order()!.services.some(s => s.serviceId === 0);
+    const hasNoRegularServices = this.order()!.services.length === 0 || 
+      (this.order()!.services.length === 1 && this.order()!.services[0].serviceId === 0);
     
     return hasCustomServiceMarker || hasNoRegularServices;
   }
 
   /** Custom orders: the admin ticked "show bedrooms & bathrooms" and at least one count exists. */
   showCustomRoomCounts(): boolean {
-    return !!this.order?.showRoomCountsToCustomer
-      && (this.order.bedroomsQuantity != null || this.order.bathroomsQuantity != null);
+    return !!this.order()?.showRoomCountsToCustomer
+      && (this.order()!.bedroomsQuantity != null || this.order()!.bathroomsQuantity != null);
   }
 
   openCancelModal() {
-    this.showCancelModal = true;
+    this.showCancelModal.set(true);
   }
 
   closeCancelModal() {
-    this.showCancelModal = false;
-    this.cancelReason = '';
+    this.showCancelModal.set(false);
+    this.cancelReason.set('');
   }
 
   confirmCancelOrder() {
-    if (!this.order || !this.cancelReason.trim()) return;
+    if (!this.order() || !this.cancelReason().trim()) return;
 
-    this.orderService.cancelOrder(this.order.id, { reason: this.cancelReason }).subscribe({
+    this.orderService.cancelOrder(this.order()!.id, { reason: this.cancelReason() }).subscribe({
       next: (response) => {
         this.closeCancelModal();
         this.router.navigate(['/profile']);
       },
       error: (error) => {
-        this.errorMessage = error.error?.message || 'Failed to cancel order';
+        this.errorMessage.set(error.error?.message || 'Failed to cancel order');
       }
     });
   }
 
   canEditOrder(): boolean {
-    if (!this.order) return false;
-    if (this.order.recurringSeriesId) return false;
+    if (!this.order()) return false;
+    if (this.order()!.recurringSeriesId) return false;
 
     // Don't allow editing custom service type orders
     if (this.isCustomServiceType()) return false;
 
-    const serviceDate = new Date(this.order.serviceDate);
+    const serviceDate = new Date(this.order()!.serviceDate);
     const now = new Date();
     const hoursUntilService = (serviceDate.getTime() - now.getTime()) / (1000 * 60 * 60);
-    return this.order.status === 'Active' && hoursUntilService > 48;
+    return this.order()!.status === 'Active' && hoursUntilService > 48;
   }
 
   canCancelOrder(): boolean {
-    if (!this.order) return false;
-    if (this.order.recurringSeriesId) return false;
-    return this.order.status === 'Active';
+    if (!this.order()) return false;
+    if (this.order()!.recurringSeriesId) return false;
+    return this.order()!.status === 'Active';
   }
 
   // ════════════════════════════════════════
@@ -222,39 +222,43 @@ export class OrderDetailsComponent implements OnInit, OnDestroy {
 
   /** Pre-formatted "F. LastName" string from the backend, or 'Unassigned' fallback. */
   assignedAdminLabel(): string {
-    return this.order?.assignedAdminDisplayName?.trim() || 'Unassigned';
+    return this.order()?.assignedAdminDisplayName?.trim() || 'Unassigned';
   }
 
   toggleAdminEditor(): void {
     if (!this.canEditAssignedAdmin()) return;
-    this.showAdminEditor = !this.showAdminEditor;
+    this.showAdminEditor.set(!this.showAdminEditor());
   }
 
   closeAdminEditor(): void {
-    this.showAdminEditor = false;
+    this.showAdminEditor.set(false);
   }
 
   selectAssignedAdmin(adminId: number | null): void {
-    if (!this.order || this.isSavingAssignedAdmin) return;
-    if ((this.order.assignedAdminId ?? null) === adminId) {
-      this.showAdminEditor = false;
+    if (!this.order() || this.isSavingAssignedAdmin()) return;
+    if ((this.order()!.assignedAdminId ?? null) === adminId) {
+      this.showAdminEditor.set(false);
       return;
     }
 
-    this.isSavingAssignedAdmin = true;
-    this.orderService.setAssignedAdmin(this.order.id, adminId).subscribe({
+    this.isSavingAssignedAdmin.set(true);
+    this.orderService.setAssignedAdmin(this.order()!.id, adminId).subscribe({
       next: (result) => {
-        if (!this.order) return;
-        this.order.assignedAdminId = result.adminId ?? null;
-        this.order.assignedAdminFirstName = result.firstName ?? null;
-        this.order.assignedAdminLastName = result.lastName ?? null;
-        this.order.assignedAdminDisplayName = result.displayName ?? null;
-        this.isSavingAssignedAdmin = false;
-        this.showAdminEditor = false;
+        if (!this.order()) return;
+        this.order()!.assignedAdminId = result.adminId ?? null;
+        this.order.set(this.order());
+        this.order()!.assignedAdminFirstName = result.firstName ?? null;
+        this.order.set(this.order());
+        this.order()!.assignedAdminLastName = result.lastName ?? null;
+        this.order.set(this.order());
+        this.order()!.assignedAdminDisplayName = result.displayName ?? null;
+        this.order.set(this.order());
+        this.isSavingAssignedAdmin.set(false);
+        this.showAdminEditor.set(false);
       },
       error: (err) => {
-        this.isSavingAssignedAdmin = false;
-        this.errorMessage = err.error?.message || 'Failed to update assigned admin';
+        this.isSavingAssignedAdmin.set(false);
+        this.errorMessage.set(err.error?.message || 'Failed to update assigned admin');
       }
     });
   }
@@ -262,20 +266,20 @@ export class OrderDetailsComponent implements OnInit, OnDestroy {
   // Close the dropdown when the user clicks outside the pill area.
   @HostListener('document:click', ['$event'])
   onDocumentClick(event: MouseEvent): void {
-    if (!this.showAdminEditor) return;
+    if (!this.showAdminEditor()) return;
     const host = this.elementRef.nativeElement as HTMLElement;
     const pill = host.querySelector('.assigned-admin-pill');
     if (pill && !pill.contains(event.target as Node)) {
-      this.showAdminEditor = false;
+      this.showAdminEditor.set(false);
     }
   }
 
   isLateCancellation(): boolean {
-    if (!this.order) return false;
-    const serviceDate = new Date(this.order.serviceDate);
+    if (!this.order()) return false;
+    const serviceDate = new Date(this.order()!.serviceDate);
     const now = new Date();
     const hoursUntilService = (serviceDate.getTime() - now.getTime()) / (1000 * 60 * 60);
-    return this.order.isPaid && hoursUntilService <= 48;
+    return this.order()!.isPaid && hoursUntilService <= 48;
   }
 
   /** An order needs no payment from the website when it's Stripe-paid (isPaid) OR was
@@ -285,18 +289,18 @@ export class OrderDetailsComponent implements OnInit, OnDestroy {
   /** The unpaid block (Pay Now + its own Cancel Order) is on screen. The general Cancel Order
    *  button is hidden while it is, so the page never shows two. */
   showsUnpaidActions(): boolean {
-    return !!this.order && !this.order.recurringSeriesId && !this.isEffectivelyPaid()
-      && this.order.status !== 'Cancelled';
+    return !!this.order() && !this.order()!.recurringSeriesId && !this.isEffectivelyPaid()
+      && this.order()!.status !== 'Cancelled';
   }
 
   isEffectivelyPaid(): boolean {
-    return !!this.order && (!!this.order.isPaid || (!!this.order.paymentMethod && this.order.paymentMethod !== 'Normal'));
+    return !!this.order() && (!!this.order()!.isPaid || (!!this.order()!.paymentMethod && this.order()!.paymentMethod !== 'Normal'));
   }
 
   /** Additional amount to pay. The backend resolves it (tips included, less what was already collected — `OrderAdditionalCharge`). Use it as-is. */
   getEffectivePendingUpdateAmount(): number {
-    if (!this.order || (this.order.pendingUpdateAmount ?? 0) <= 0.01) return 0;
-    return Math.round((this.order.pendingUpdateAmount ?? 0) * 100) / 100;
+    if (!this.order() || (this.order()!.pendingUpdateAmount ?? 0) <= 0.01) return 0;
+    return Math.round((this.order()!.pendingUpdateAmount ?? 0) * 100) / 100;
   }
 
   getStatusClass(status: string): string {
@@ -377,23 +381,23 @@ export class OrderDetailsComponent implements OnInit, OnDestroy {
   }
 
   getHoursUntilService(): number {
-    if (!this.order?.serviceDate) return 0;
-    const serviceDate = new Date(this.order.serviceDate);
+    if (!this.order()?.serviceDate) return 0;
+    const serviceDate = new Date(this.order()!.serviceDate);
     const diffMs = serviceDate.getTime() - this.now.getTime();
     return Math.floor(diffMs / (1000 * 60 * 60));
   }
 
   getServiceQuantity(service: Service): number {
-    const orderService = this.order?.services.find(s => s.serviceId === service.id);
+    const orderService = this.order()?.services.find(s => s.serviceId === service.id);
     return orderService ? orderService.quantity : 0;
   }
 
   getCleaningTypeText(): string {
-    if (!this.order) return 'Normal Cleaning';
+    if (!this.order()) return 'Normal Cleaning';
     
     // The Deep / Super Deep flags decide; an unkeyed, un-flagged line by its name as before.
-    const superDeepCleaning = this.order.extraServices.find(s => isSuperDeepExtra(s));
-    const deepCleaning = this.order.extraServices.find(s => isDeepOrSuperDeepExtra(s) && !isSuperDeepExtra(s));
+    const superDeepCleaning = this.order()!.extraServices.find(s => isSuperDeepExtra(s));
+    const deepCleaning = this.order()!.extraServices.find(s => isDeepOrSuperDeepExtra(s) && !isSuperDeepExtra(s));
     
     if (superDeepCleaning) {
       return 'Super Deep Cleaning';
@@ -409,13 +413,13 @@ export class OrderDetailsComponent implements OnInit, OnDestroy {
   }
 
   getDisplayExtraServices() {
-    if (!this.order) return [];
-    return this.order.extraServices.filter(e => !this.isCleaningTypeExtra(e));
+    if (!this.order()) return [];
+    return this.order()!.extraServices.filter(e => !this.isCleaningTypeExtra(e));
   }
 
   hasCleanerService(): boolean {
-    if (!this.order) return false;
-    return this.order.services.some(s => isCleanersLine(s));
+    if (!this.order()) return false;
+    return this.order()!.services.some(s => isCleanersLine(s));
   }
 
   /** Service-line checks for the template: by serviceKey, the name only for an unkeyed line. */
@@ -428,18 +432,18 @@ export class OrderDetailsComponent implements OnInit, OnDestroy {
   }
 
   cancelUnpaidOrder() {
-    if (!this.order) return;
+    if (!this.order()) return;
     
     if (!confirm('Are you sure you want to cancel this unpaid order? This action cannot be undone.')) {
       return;
     }
 
-    this.isCancelling = true;
-    this.errorMessage = '';
+    this.isCancelling.set(true);
+    this.errorMessage.set('');
 
-    this.orderService.cancelOrder(this.order.id, { reason: 'Customer cancelled unpaid order' }).subscribe({
+    this.orderService.cancelOrder(this.order()!.id, { reason: 'Customer cancelled unpaid order' }).subscribe({
       next: (response: any) => {
-        this.isCancelling = false;
+        this.isCancelling.set(false);
         alert(response?.message || 'Order cancelled successfully');
         // Trigger a custom event to notify header component to refresh unpaid orders check
         if (typeof window !== 'undefined') {
@@ -448,9 +452,9 @@ export class OrderDetailsComponent implements OnInit, OnDestroy {
         this.router.navigate(['/profile']);
       },
       error: (error) => {
-        this.isCancelling = false;
+        this.isCancelling.set(false);
         const errorMsg = error.error?.message || error.message || 'Failed to cancel order. Please try again.';
-        this.errorMessage = errorMsg;
+        this.errorMessage.set(errorMsg);
         alert(errorMsg);
         console.error('Error cancelling order:', error);
       }

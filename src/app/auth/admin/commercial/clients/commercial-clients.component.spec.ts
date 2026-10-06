@@ -104,19 +104,19 @@ describe('CommercialClientsComponent', () => {
     it('lists linked and standalone clients together', () => {
       start();
 
-      expect(component.clients.length).toBe(2);
+      expect(component.clients().length).toBe(2);
       expect(component.isLinked(LINKED)).toBe(true);
       expect(component.isLinked(STANDALONE)).toBe(false);
     });
 
     it('lists a client with no contracts like any other', () => {
       start();
-      expect(component.clients.find(c => c.id === 91)?.contracts).toEqual([]);
+      expect(component.clients().find(c => c.id === 91)?.contracts).toEqual([]);
     });
 
     it('finds a client by the linked account holder\'s name', () => {
       start();
-      component.search = 'casey';
+      component.search.set('casey');
 
       expect(component.filtered.map(c => c.id)).toEqual([7]);
     });
@@ -126,11 +126,11 @@ describe('CommercialClientsComponent', () => {
 
       // The default request carried no flag at all — that is what keeps a removed client out of
       // every other picker in the app.
-      component.showInactive = true;
+      component.showInactive.set(true);
       component.onShowInactiveChange();
 
       httpMock.expectOne(INACTIVE_URL).flush([LINKED, STANDALONE, REMOVED]);
-      expect(component.clients.length).toBe(3);
+      expect(component.clients().length).toBe(3);
     });
   });
 
@@ -138,22 +138,22 @@ describe('CommercialClientsComponent', () => {
     it('offers create, edit and delete to an admin who holds them', () => {
       start();
 
-      expect(component.canCreate).toBe(true);
-      expect(component.canUpdate).toBe(true);
-      expect(component.canDeactivate).toBe(true);
+      expect(component.canCreate()).toBe(true);
+      expect(component.canUpdate()).toBe(true);
+      expect(component.canDeactivate()).toBe(true);
     });
 
     it('refuses every action for a view-only admin', () => {
       start({ canCreate: false, canUpdate: false, canDeactivate: false });
 
       component.openCreate();
-      expect(component.modalOpen).toBe(false);
+      expect(component.modalOpen()).toBe(false);
 
       component.openEdit(LINKED);
-      expect(component.modalOpen).toBe(false);
+      expect(component.modalOpen()).toBe(false);
 
       component.askDelete(LINKED);
-      expect(component.pendingDelete).toBeNull();
+      expect(component.pendingDelete()).toBeNull();
     });
 
     it('assumes nothing when the permission map cannot be read', () => {
@@ -162,9 +162,9 @@ describe('CommercialClientsComponent', () => {
         { message: 'nope' }, { status: 500, statusText: 'Server Error' });
       httpMock.expectOne(CLIENTS_URL).flush([]);
 
-      expect(component.canCreate).toBe(false);
-      expect(component.canUpdate).toBe(false);
-      expect(component.canDeactivate).toBe(false);
+      expect(component.canCreate()).toBe(false);
+      expect(component.canUpdate()).toBe(false);
+      expect(component.canDeactivate()).toBe(false);
     });
   });
 
@@ -174,8 +174,8 @@ describe('CommercialClientsComponent', () => {
 
       component.openEdit(LINKED);
 
-      expect(component.modalOpen).toBe(true);
-      expect(component.editing).toBe(LINKED);
+      expect(component.modalOpen()).toBe(true);
+      expect(component.editing()).toBe(LINKED);
     });
 
     it('opens it empty for a new client', () => {
@@ -183,8 +183,8 @@ describe('CommercialClientsComponent', () => {
 
       component.openCreate();
 
-      expect(component.modalOpen).toBe(true);
-      expect(component.editing).toBeNull();
+      expect(component.modalOpen()).toBe(true);
+      expect(component.editing()).toBeNull();
     });
 
     it('reloads after a save', () => {
@@ -193,18 +193,18 @@ describe('CommercialClientsComponent', () => {
       component.onClientSaved(7);
       httpMock.expectOne(CLIENTS_URL).flush([LINKED, STANDALONE]);
 
-      expect(component.selectedClientId).toBe(7);
+      expect(component.selectedClientId()).toBe(7);
     });
 
     it('clears the search after a creation so the new client cannot be hidden', () => {
       start();
-      component.search = 'existing';
+      component.search.set('existing');
 
       component.onClientCreated(91);
       httpMock.expectOne(CLIENTS_URL).flush([LINKED, STANDALONE]);
 
-      expect(component.search).toBe('');
-      expect(component.selectedClientId).toBe(91);
+      expect(component.search()).toBe('');
+      expect(component.selectedClientId()).toBe(91);
     });
   });
 
@@ -214,7 +214,7 @@ describe('CommercialClientsComponent', () => {
 
       component.openClientDetails(LINKED);
 
-      expect(component.selectedClientId).toBe(7);
+      expect(component.selectedClientId()).toBe(7);
       expect(component.selectedClient).toBe(LINKED);
     });
 
@@ -224,7 +224,7 @@ describe('CommercialClientsComponent', () => {
 
       component.openClientDetails(LINKED);
 
-      expect(component.selectedClientId).toBeNull();
+      expect(component.selectedClientId()).toBeNull();
     });
   });
 
@@ -248,8 +248,8 @@ describe('CommercialClientsComponent', () => {
         isActive: true, totalOrders: 12, totalSpent: 4820.5
       });
 
-      expect(component.linkedAccount?.id).toBe(55);
-      expect(component.linkedAccount?.totalOrders).toBe(12);
+      expect(component.linkedAccount()?.id).toBe(55);
+      expect(component.linkedAccount()?.totalOrders).toBe(12);
     });
 
     // The panel used to ask for `users/{id}/details`, an AdminService helper whose endpoint was
@@ -269,7 +269,7 @@ describe('CommercialClientsComponent', () => {
       component.openClientDetails(STANDALONE);
 
       httpMock.expectNone(r => r.url.includes('/profile'));
-      expect(component.linkedAccount).toBeNull();
+      expect(component.linkedAccount()).toBeNull();
     });
 
     /**
@@ -313,7 +313,7 @@ describe('CommercialClientsComponent', () => {
 
         component.openClientDetails(STANDALONE);
 
-        expect(component.panelTab).toBe('business');
+        expect(component.panelTab()).toBe('business');
       });
 
       it('goes back to the commercial record when the panel is closed', () => {
@@ -323,7 +323,7 @@ describe('CommercialClientsComponent', () => {
 
         component.closeDetailPanel();
 
-        expect(component.panelTab).toBe('business');
+        expect(component.panelTab()).toBe('business');
         expect(component.showsCustomerPanel).toBe(false);
       });
     });
@@ -335,7 +335,7 @@ describe('CommercialClientsComponent', () => {
 
       component.closeDetailPanel();
 
-      expect(component.linkedAccount).toBeNull();
+      expect(component.linkedAccount()).toBeNull();
     });
   });
 
@@ -345,16 +345,16 @@ describe('CommercialClientsComponent', () => {
    */
   describe('opening a client from a link', () => {
     it('expands the client the link named', () => {
-      component.openClientId = 7;
+      fixture.componentRef.setInput('openClientId', 7);
       start();
 
-      expect(component.selectedClientId).toBe(7);
+      expect(component.selectedClientId()).toBe(7);
     });
 
     it('does not drag the panel back on a later reload', () => {
       // The URL describes the arrival, not the session: an admin who has since opened a different
       // client must not be yanked back to this one by a refresh or a filter change.
-      component.openClientId = 7;
+      fixture.componentRef.setInput('openClientId', 7);
       start();
       drainLinkedAccount();
 
@@ -362,7 +362,7 @@ describe('CommercialClientsComponent', () => {
       component.load();
       httpMock.expectOne(CLIENTS_URL).flush([LINKED, STANDALONE]);
 
-      expect(component.selectedClientId).toBe(91);
+      expect(component.selectedClientId()).toBe(91);
     });
   });
 
@@ -415,7 +415,7 @@ describe('CommercialClientsComponent', () => {
 
       component.askDelete(LINKED);
 
-      expect(component.pendingDelete).toBe(LINKED);
+      expect(component.pendingDelete()).toBe(LINKED);
       httpMock.expectNone(directoryUrl(7));
     });
 
@@ -430,8 +430,8 @@ describe('CommercialClientsComponent', () => {
       request.flush({ message: 'Removed.', businessFlagRemoved: true });
 
       httpMock.expectOne(CLIENTS_URL).flush([STANDALONE]);
-      expect(component.pendingDelete).toBeNull();
-      expect(component.notice).toBe('Removed.');
+      expect(component.pendingDelete()).toBeNull();
+      expect(component.notice()).toBe('Removed.');
     });
 
     it('does nothing on cancel', () => {
@@ -440,7 +440,7 @@ describe('CommercialClientsComponent', () => {
 
       component.cancelDelete();
 
-      expect(component.pendingDelete).toBeNull();
+      expect(component.pendingDelete()).toBeNull();
       httpMock.expectNone(directoryUrl(7));
     });
 

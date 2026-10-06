@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit, PLATFORM_ID, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, OnDestroy, OnInit, PLATFORM_ID, ChangeDetectionStrategy, inject, signal } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { Router, RouterModule, NavigationEnd } from '@angular/router';
 import { Subscription } from 'rxjs';
@@ -24,7 +24,7 @@ import { findAdvertisedFirstTimeOffer } from '../shared/booking/special-offer-ke
   standalone: true,
   imports: [RouterModule, IconComponent],
   templateUrl: './first-time-offer-popup.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './first-time-offer-popup.component.scss'
 })
 export class FirstTimeOfferPopupComponent implements OnInit, OnDestroy {
@@ -39,14 +39,14 @@ export class FirstTimeOfferPopupComponent implements OnInit, OnDestroy {
   private static readonly SCROLL_THRESHOLD = 600;
 
   /** Display label for the first-time discount, e.g. "10%" or "$20". Empty until loaded. */
-  firstTimeDiscountLabel = '';
+  readonly firstTimeDiscountLabel = signal('');
 
   private isBrowser: boolean;
-  private hasScrolled = false;
-  private dismissed = false;
-  private _path = '/';
+  private readonly hasScrolled = signal(false);
+  private readonly dismissed = signal(false);
+  private readonly _path = signal('/');
   /** True when the logged-in user already placed their first order (offer no longer applies). */
-  private usedFirstTimeOffer = false;
+  private readonly usedFirstTimeOffer = signal(false);
   private subscriptions = new Subscription();
   private scrollHandler = () => this.onScroll();
 
@@ -57,18 +57,18 @@ export class FirstTimeOfferPopupComponent implements OnInit, OnDestroy {
   /** Popup shows only when: offer loaded, scrolled past hero, on an allowed route, not dismissed, eligible, on desktop. */
   get isVisible(): boolean {
     return this.isBrowser &&
-      !this.dismissed &&
-      this.hasScrolled &&
-      !!this.firstTimeDiscountLabel &&
-      !this.usedFirstTimeOffer &&
-      !this.isHiddenRoute(this._path) &&
+      !this.dismissed() &&
+      this.hasScrolled() &&
+      !!this.firstTimeDiscountLabel() &&
+      !this.usedFirstTimeOffer() &&
+      !this.isHiddenRoute(this._path()) &&
       this.isDesktop();
   }
 
   ngOnInit() {
     if (!this.isBrowser) return;
 
-    this._path = window.location.pathname || '/';
+    this._path.set(window.location.pathname || '/');
     this.loadFirstTimeOffer();
 
     window.addEventListener('scroll', this.scrollHandler, { passive: true });
@@ -79,7 +79,7 @@ export class FirstTimeOfferPopupComponent implements OnInit, OnDestroy {
       this.router.events.pipe(
         filter((e): e is NavigationEnd => e instanceof NavigationEnd)
       ).subscribe(() => {
-        this._path = window.location.pathname || '/';
+        this._path.set(window.location.pathname || '/');
       })
     );
 
@@ -87,7 +87,7 @@ export class FirstTimeOfferPopupComponent implements OnInit, OnDestroy {
     // (firstTimeOrder flips to false), the popup is no longer relevant to them.
     this.subscriptions.add(
       this.authService.currentUser.subscribe(user => {
-        this.usedFirstTimeOffer = !!user && user.firstTimeOrder === false;
+        this.usedFirstTimeOffer.set(!!user && user.firstTimeOrder === false);
       })
     );
   }
@@ -105,17 +105,17 @@ export class FirstTimeOfferPopupComponent implements OnInit, OnDestroy {
    * re-creates it, so the offer pops up again after a reload.
    */
   close() {
-    this.dismissed = true;
+    this.dismissed.set(true);
     if (this.isBrowser) {
       window.removeEventListener('scroll', this.scrollHandler);
     }
   }
 
   private onScroll() {
-    if (this.hasScrolled) return; // sticky once revealed
+    if (this.hasScrolled()) return; // sticky once revealed
     const y = window.scrollY || document.documentElement.scrollTop || 0;
     if (y > FirstTimeOfferPopupComponent.SCROLL_THRESHOLD) {
-      this.hasScrolled = true;
+      this.hasScrolled.set(true);
       // Threshold met — stop listening so scrolling no longer triggers change detection.
       window.removeEventListener('scroll', this.scrollHandler);
     }
@@ -126,9 +126,9 @@ export class FirstTimeOfferPopupComponent implements OnInit, OnDestroy {
     this.specialOfferService.getPublicSpecialOffers().subscribe({
       next: (offers) => {
         const offer = findAdvertisedFirstTimeOffer(offers);
-        this.firstTimeDiscountLabel = this.buildDiscountLabel(offer);
+        this.firstTimeDiscountLabel.set(this.buildDiscountLabel(offer));
       },
-      error: () => { this.firstTimeDiscountLabel = ''; }
+      error: () => { this.firstTimeDiscountLabel.set(''); }
     });
   }
 

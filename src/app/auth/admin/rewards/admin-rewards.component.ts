@@ -1,4 +1,4 @@
-import { Component, OnInit, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
@@ -20,7 +20,7 @@ interface CategoryGroup {
   standalone: true,
   imports: [CommonModule, FormsModule, RouterModule, NyDatePipe],
   templateUrl: './admin-rewards.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './admin-rewards.component.scss'
 })
 export class AdminRewardsComponent implements OnInit {
@@ -28,32 +28,32 @@ export class AdminRewardsComponent implements OnInit {
   private adminService = inject(AdminService);
   private authService = inject(AuthService);
 
-  activeTab: 'settings' | 'stats' = 'settings';
+  readonly activeTab = signal<'settings' | 'stats'>('settings');
 
   // Settings tab
-  categoryGroups: CategoryGroup[] = [];
-  settingsLoading = true;
-  settingsSaveMessage = '';
-  masterSwitch = true;
+  readonly categoryGroups = signal<CategoryGroup[]>([]);
+  readonly settingsLoading = signal(true);
+  readonly settingsSaveMessage = signal('');
+  readonly masterSwitch = signal(true);
 
   // Stats tab
-  stats: RewardsStats | null = null;
-  statsLoading = false;
+  readonly stats = signal<RewardsStats | null>(null);
+  readonly statsLoading = signal(false);
 
   // Reset modal
-  showResetModal = false;
-  resetTarget: 'all' | 'specific' = 'all';
-  resetUserId: number | null = null;
-  resetUserSearch = '';
+  readonly showResetModal = signal(false);
+  readonly resetTarget = signal<'all' | 'specific'>('all');
+  readonly resetUserId = signal<number | null>(null);
+  readonly resetUserSearch = signal('');
   userList: UserAdmin[] = [];
-  filteredUsers: UserAdmin[] = [];
-  resetLoading = false;
-  resetMessage = '';
-  resetError = '';
-  undoAvailable = false;
-  undoLoading = false;
-  undoCreatedAt = '';
-  undoScope: 'all' | 'specific' | '' = '';
+  readonly filteredUsers = signal<UserAdmin[]>([]);
+  readonly resetLoading = signal(false);
+  readonly resetMessage = signal('');
+  readonly resetError = signal('');
+  readonly undoAvailable = signal(false);
+  readonly undoLoading = signal(false);
+  readonly undoCreatedAt = signal('');
+  readonly undoScope = signal<'all' | 'specific' | ''>('');
 
   /** Kept as a belt-and-braces check on the controls. Since 2026-09 the Rewards tab is
    *  SuperAdmin-only (hidden in the panel, [Authorize(Roles = "SuperAdmin")] on the reads), so
@@ -70,27 +70,27 @@ export class AdminRewardsComponent implements OnInit {
   }
 
   loadSettings(): void {
-    this.settingsLoading = true;
+    this.settingsLoading.set(true);
     this.bubbleRewardsService.getAdminSettings().subscribe({
       next: (settings) => {
         this.buildCategoryGroups(settings);
-        this.settingsLoading = false;
+        this.settingsLoading.set(false);
         const masterSetting = settings.find(s => s.settingKey === 'PointsSystemEnabled');
-        if (masterSetting) this.masterSwitch = masterSetting.settingValue === 'true';
+        if (masterSetting) this.masterSwitch.set(masterSetting.settingValue === 'true');
       },
-      error: () => { this.settingsLoading = false; }
+      error: () => { this.settingsLoading.set(false); }
     });
   }
 
   buildCategoryGroups(settings: RewardsSettings[]): void {
     const categories = [...new Set(settings.map(s => s.category))];
-    this.categoryGroups = categories.map(cat => ({
+    this.categoryGroups.set(categories.map(cat => ({
       category: cat,
       settings: settings.filter(s => s.category === cat),
       open: cat === 'Points' || cat === 'Tiers',
       pendingChanges: {},
       saving: false
-    }));
+    })));
   }
 
   onSettingChange(group: CategoryGroup, key: string, value: string): void {
@@ -108,8 +108,8 @@ export class AdminRewardsComponent implements OnInit {
       next: () => {
         group.saving = false;
         group.pendingChanges = {};
-        this.settingsSaveMessage = `Saved ${group.category} settings.`;
-        setTimeout(() => this.settingsSaveMessage = '', 3000);
+        this.settingsSaveMessage.set(`Saved ${group.category} settings.`);
+        setTimeout(() => this.settingsSaveMessage.set(''), 3000);
         // Update local settings values
         updates.forEach(u => {
           const s = group.settings.find(s => s.settingKey === u.key);
@@ -124,23 +124,23 @@ export class AdminRewardsComponent implements OnInit {
     const val = enabled ? 'true' : 'false';
     this.bubbleRewardsService.updateAdminSetting('PointsSystemEnabled', val).subscribe({
       next: () => {
-        this.masterSwitch = enabled;
-        this.settingsSaveMessage = `Rewards system ${enabled ? 'enabled' : 'disabled'}.`;
-        setTimeout(() => this.settingsSaveMessage = '', 3000);
+        this.masterSwitch.set(enabled);
+        this.settingsSaveMessage.set(`Rewards system ${enabled ? 'enabled' : 'disabled'}.`);
+        setTimeout(() => this.settingsSaveMessage.set(''), 3000);
       }
     });
   }
 
   switchTab(tab: 'settings' | 'stats'): void {
-    this.activeTab = tab;
-    if (tab === 'stats' && !this.stats) this.loadStats();
+    this.activeTab.set(tab);
+    if (tab === 'stats' && !this.stats()) this.loadStats();
   }
 
   loadStats(): void {
-    this.statsLoading = true;
+    this.statsLoading.set(true);
     this.bubbleRewardsService.getRewardsStats().subscribe({
-      next: (s) => { this.stats = s; this.statsLoading = false; },
-      error: () => { this.statsLoading = false; }
+      next: (s) => { this.stats.set(s); this.statsLoading.set(false); },
+      error: () => { this.statsLoading.set(false); }
     });
   }
 
@@ -169,13 +169,13 @@ export class AdminRewardsComponent implements OnInit {
   }
 
   openResetModal(): void {
-    this.showResetModal = true;
-    this.resetTarget = 'all';
-    this.resetUserId = null;
-    this.resetUserSearch = '';
-    this.filteredUsers = [];
-    this.resetMessage = '';
-    this.resetError = '';
+    this.showResetModal.set(true);
+    this.resetTarget.set('all');
+    this.resetUserId.set(null);
+    this.resetUserSearch.set('');
+    this.filteredUsers.set([]);
+    this.resetMessage.set('');
+    this.resetError.set('');
     if (this.userList.length === 0) {
       this.adminService.getUsers().subscribe({
         next: (res) => {
@@ -187,49 +187,49 @@ export class AdminRewardsComponent implements OnInit {
   }
 
   closeResetModal(): void {
-    this.showResetModal = false;
+    this.showResetModal.set(false);
   }
 
   onUserSearchChange(): void {
-    const q = this.resetUserSearch.toLowerCase();
-    this.filteredUsers = this.userList.filter(u =>
+    const q = this.resetUserSearch().toLowerCase();
+    this.filteredUsers.set(this.userList.filter(u =>
       `${u.firstName} ${u.lastName} ${u.email}`.toLowerCase().includes(q)
-    );
-    this.resetUserId = null;
+    ));
+    this.resetUserId.set(null);
   }
 
   selectResetUser(user: UserAdmin): void {
-    this.resetUserId = user.id;
-    this.resetUserSearch = `${user.firstName} ${user.lastName} (${user.email})`;
-    this.filteredUsers = [];
+    this.resetUserId.set(user.id);
+    this.resetUserSearch.set(`${user.firstName} ${user.lastName} (${user.email})`);
+    this.filteredUsers.set([]);
   }
 
   confirmReset(): void {
-    if (this.resetTarget === 'specific' && !this.resetUserId) {
-      this.resetError = 'Please select a user.';
+    if (this.resetTarget() === 'specific' && !this.resetUserId()) {
+      this.resetError.set('Please select a user.');
       return;
     }
-    const confirmationMessage = this.resetTarget === 'all'
+    const confirmationMessage = this.resetTarget() === 'all'
       ? 'Are you sure you want to clear Bubble Points for ALL clients? This cannot be undone.'
       : 'Are you sure you want to clear Bubble Points for this client? This cannot be undone.';
     const isConfirmed = window.confirm(confirmationMessage);
     if (!isConfirmed) {
       return;
     }
-    this.resetLoading = true;
-    this.resetMessage = '';
-    this.resetError = '';
-    const userId = this.resetTarget === 'specific' ? this.resetUserId! : undefined;
+    this.resetLoading.set(true);
+    this.resetMessage.set('');
+    this.resetError.set('');
+    const userId = this.resetTarget() === 'specific' ? this.resetUserId()! : undefined;
     this.bubbleRewardsService.resetBubblePoints(userId).subscribe({
       next: (res: any) => {
-        this.resetLoading = false;
-        this.resetMessage = res.message ?? 'Done.';
-        this.resetError = '';
+        this.resetLoading.set(false);
+        this.resetMessage.set(res.message ?? 'Done.');
+        this.resetError.set('');
         this.loadUndoStatus();
       },
       error: (err) => {
-        this.resetLoading = false;
-        this.resetError = err?.error?.message ?? 'Failed to reset points.';
+        this.resetLoading.set(false);
+        this.resetError.set(err?.error?.message ?? 'Failed to reset points.');
       }
     });
   }
@@ -237,35 +237,35 @@ export class AdminRewardsComponent implements OnInit {
   loadUndoStatus(): void {
     this.bubbleRewardsService.getResetUndoStatus().subscribe({
       next: (status) => {
-        this.undoAvailable = !!status.available;
-        this.undoCreatedAt = status.createdAt ?? '';
-        this.undoScope = status.scope ?? '';
+        this.undoAvailable.set(!!status.available);
+        this.undoCreatedAt.set(status.createdAt ?? '');
+        this.undoScope.set(status.scope ?? '');
       },
       error: () => {
-        this.undoAvailable = false;
-        this.undoCreatedAt = '';
-        this.undoScope = '';
+        this.undoAvailable.set(false);
+        this.undoCreatedAt.set('');
+        this.undoScope.set('');
       }
     });
   }
 
   undoLastReset(): void {
-    if (this.undoLoading || !this.undoAvailable) return;
+    if (this.undoLoading() || !this.undoAvailable()) return;
     const confirmed = window.confirm('Are you sure you want to undo the latest Bubble Points reset? This will overwrite current Bubble Points data.');
     if (!confirmed) return;
 
-    this.undoLoading = true;
-    this.resetError = '';
-    this.resetMessage = '';
+    this.undoLoading.set(true);
+    this.resetError.set('');
+    this.resetMessage.set('');
     this.bubbleRewardsService.undoLastBubbleReset().subscribe({
       next: (res: any) => {
-        this.undoLoading = false;
-        this.resetMessage = res?.message ?? 'Latest reset has been restored.';
+        this.undoLoading.set(false);
+        this.resetMessage.set(res?.message ?? 'Latest reset has been restored.');
         this.loadUndoStatus();
       },
       error: (err) => {
-        this.undoLoading = false;
-        this.resetError = err?.error?.message ?? 'Failed to undo reset.';
+        this.undoLoading.set(false);
+        this.resetError.set(err?.error?.message ?? 'Failed to undo reset.');
       }
     });
   }

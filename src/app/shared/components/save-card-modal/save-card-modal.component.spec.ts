@@ -14,8 +14,8 @@ describe('SaveCardModalComponent', () => {
     await TestBed.configureTestingModule({ imports: [SaveCardModalComponent] }).compileComponents();
     fixture = TestBed.createComponent(SaveCardModalComponent);
     component = fixture.componentInstance;
-    component.open = true;
-    component.amountLabel = '$141.54';
+    fixture.componentRef.setInput('open', true);
+    fixture.componentRef.setInput('amountLabel', '$141.54');
     fixture.detectChanges();
   });
 
@@ -63,7 +63,7 @@ describe('SaveCardModalComponent', () => {
   });
 
   it('locks both buttons while the host is paying, so one answer is one payment', () => {
-    component.busy = true;
+    fixture.componentRef.setInput('busy', true);
     fixture.detectChanges();
 
     let chosen = 0;
@@ -85,9 +85,9 @@ describe('SaveCardModalComponent', () => {
     component.choose.subscribe(v => choices.push(v));
 
     component.decide(true);
-    component.open = false;
+    fixture.componentRef.setInput('open', false);
     fixture.detectChanges();
-    component.open = true;
+    fixture.componentRef.setInput('open', true);
     fixture.detectChanges();
     component.decide(false);
 

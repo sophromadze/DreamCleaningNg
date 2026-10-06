@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, OnDestroy, OnInit, ChangeDetectionStrategy, inject, signal, computed } from '@angular/core';
 import { ActivatedRoute, RouterModule } from '@angular/router';
 import { Subscription } from 'rxjs';
 import {
@@ -23,7 +23,7 @@ import { faXmark } from '../shared/icons/glyphs/faXmark';
   standalone: true,
   imports: [RouterModule, IconComponent],
   templateUrl: './cleaning-checklist.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './cleaning-checklist.component.scss',
 })
 export class CleaningChecklistComponent implements OnInit, OnDestroy {
@@ -37,13 +37,13 @@ export class CleaningChecklistComponent implements OnInit, OnDestroy {
   readonly notIncluded = CHECKLIST_NOT_INCLUDED;
   readonly extras = CHECKLIST_EXTRAS;
 
-  activeRoom: ChecklistRoomKey = 'kitchen';
+  readonly activeRoom = signal<ChecklistRoomKey>('kitchen');
   private fragmentSubscription?: Subscription;
 
   ngOnInit(): void {
     this.fragmentSubscription = this.route.fragment.subscribe((fragment) => {
       if (fragment === 'bathroom' || fragment === 'living' || fragment === 'bedroom') {
-        this.activeRoom = fragment;
+        this.activeRoom.set(fragment);
       }
     });
   }
@@ -52,12 +52,10 @@ export class CleaningChecklistComponent implements OnInit, OnDestroy {
     this.fragmentSubscription?.unsubscribe();
   }
 
-  get activeSection(): ChecklistComparisonSection {
-    return this.comparisonSections.find((section) => section.key === this.activeRoom) ?? this.comparisonSections[0]!;
-  }
+  readonly activeSection = computed<ChecklistComparisonSection>(() => this.comparisonSections.find((section) => section.key === this.activeRoom()) ?? this.comparisonSections[0]!);
 
   selectRoom(room: ChecklistRoomKey): void {
-    this.activeRoom = room;
+    this.activeRoom.set(room);
   }
 
   trackComparisonSection(_: number, section: ChecklistComparisonSection): ChecklistRoomKey {

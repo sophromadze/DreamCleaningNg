@@ -8,19 +8,19 @@
       
       <div class="stats-cards">
         <div class="stat-card">
-          <div class="stat-value">{{ totalGiftCards }}</div>
+          <div class="stat-value">{{ totalGiftCards() }}</div>
           <div class="stat-label">Total Gift Cards</div>
         </div>
         <div class="stat-card">
-          <div class="stat-value">{{ formatCurrency(totalAmountSold) }}</div>
+          <div class="stat-value">{{ formatCurrency(totalAmountSold()) }}</div>
           <div class="stat-label">Total Sold</div>
         </div>
         <div class="stat-card">
-          <div class="stat-value">{{ formatCurrency(totalAmountUsed) }}</div>
+          <div class="stat-value">{{ formatCurrency(totalAmountUsed()) }}</div>
           <div class="stat-label">Total Used</div>
         </div>
         <div class="stat-card">
-          <div class="stat-value">{{ activeGiftCards }}</div>
+          <div class="stat-value">{{ activeGiftCards() }}</div>
           <div class="stat-label">Active Cards</div>
         </div>
       </div>
@@ -48,8 +48,8 @@
                 <button 
                   class="btn-upload" 
                   (click)="uploadImage()"
-                  [disabled]="!selectedFile || isUploading || (!isSuperAdmin && !userPermissions.permissions.canUpdate)">
-                  {{ isUploading ? 'Uploading...' : 'Upload' }}
+                  [disabled]="!selectedFile || isUploading() || (!isSuperAdmin() && !userPermissions().permissions.canUpdate)">
+                  {{ isUploading() ? 'Uploading...' : 'Upload' }}
                 </button>
               </div>
               
@@ -63,19 +63,19 @@
           <div class="preview-section">
             <div class="preview-container">
               <!-- Show uploaded preview if available -->
-              @if (imagePreviewUrl) {
+              @if (imagePreviewUrl()) {
               <div 
                 class="background-preview" 
-                [style.backgroundImage]="'url(' + imagePreviewUrl + ')'">
+                [style.backgroundImage]="'url(' + imagePreviewUrl() + ')'">
                 <span class="preview-badge">New Upload</span>
               </div>
               }
               <!-- Show current background -->
-              @if (!imagePreviewUrl && giftCardBackgroundPath) {
+              @if (!imagePreviewUrl() && giftCardBackgroundPath()) {
               <div 
                 class="background-preview" 
-                [style.backgroundImage]="'url(' + giftCardBackgroundPath + ')'">
-                <span class="preview-badge">{{ hasGiftCardBackground ? 'Current' : (giftCardBackgroundMissing ? 'Default — uploaded image missing, please re-upload' : 'Default') }}</span>
+                [style.backgroundImage]="'url(' + giftCardBackgroundPath() + ')'">
+                <span class="preview-badge">{{ hasGiftCardBackground() ? 'Current' : (giftCardBackgroundMissing() ? 'Default — uploaded image missing, please re-upload' : 'Default') }}</span>
               </div>
               }
             </div>
@@ -116,7 +116,7 @@
       </div>
     </div>
   
-    @if (!loading) {
+    @if (!loading()) {
     <div class="gift-cards-table">
       <div class="table-wrapper" #tableWrapper>
         <table>
@@ -130,16 +130,16 @@
             <th>Sender</th>
             <th>Purchaser</th>
             <th>Status</th>
-            @if (isSuperAdmin || userPermissions.permissions.canActivate || userPermissions.permissions.canDeactivate) {
+            @if (isSuperAdmin() || userPermissions().permissions.canActivate || userPermissions().permissions.canDeactivate) {
             <th>Actions</th>
             }
           </tr>
         </thead>
         <tbody>
-          @for (giftCard of paginatedGiftCards; track giftCard.id) {
+          @for (giftCard of paginatedGiftCards(); track giftCard.id) {
             <tr [class.inactive]="!giftCard.isActive"
                 [class.fully-used]="giftCard.isFullyUsed"
-                [class.expanded]="selectedGiftCard?.id === giftCard.id"
+                [class.expanded]="selectedGiftCard()?.id === giftCard.id"
                 (click)="viewDetails(giftCard)">
               <td>{{ giftCard.id }}</td>
               <td>{{ formatCurrency(giftCard.originalAmount) }}</td>
@@ -197,7 +197,7 @@
                   {{ giftCard.isPendingSend ? 'Not sent yet' : 'Sent' }}
                 </span>
               </td>
-              @if (isSuperAdmin || userPermissions.permissions.canActivate || userPermissions.permissions.canDeactivate) {
+              @if (isSuperAdmin() || userPermissions().permissions.canActivate || userPermissions().permissions.canDeactivate) {
               <td class="actions">
                 @if (canToggleGiftCardStatus(giftCard)) {
                 <button
@@ -212,7 +212,7 @@
               }
             </tr>
             <!-- Expanded Details Row -->
-            @if (selectedGiftCard?.id === giftCard.id) {
+            @if (selectedGiftCard()?.id === giftCard.id) {
             <tr class="details-row">
               <td colspan="9">
                 <div class="details-content">
@@ -221,39 +221,39 @@
                     <div class="detail-grid">
                       <div class="detail-item">
                         <label>Code:</label>
-                        <span>{{ maskGiftCardCode(selectedGiftCard!.code) }}</span>
+                        <span>{{ maskGiftCardCode(selectedGiftCard()!.code) }}</span>
                       </div>
                       <div class="detail-item">
                         <label>Original Amount:</label>
-                        <span>{{ formatCurrency(selectedGiftCard!.originalAmount) }}</span>
+                        <span>{{ formatCurrency(selectedGiftCard()!.originalAmount) }}</span>
                       </div>
                       <div class="detail-item">
                         <label>Current Balance:</label>
-                        <span>{{ formatCurrency(selectedGiftCard!.currentBalance) }}</span>
+                        <span>{{ formatCurrency(selectedGiftCard()!.currentBalance) }}</span>
                       </div>
                       <div class="detail-item">
                         <label>Amount Used:</label>
-                        <span>{{ formatCurrency(selectedGiftCard!.totalAmountUsed) }}</span>
+                        <span>{{ formatCurrency(selectedGiftCard()!.totalAmountUsed) }}</span>
                       </div>
                       <div class="detail-item">
                         <label>Created:</label>
-                        <span>{{ formatDateTime(selectedGiftCard!.createdAt) }}</span>
+                        <span>{{ formatDateTime(selectedGiftCard()!.createdAt) }}</span>
                       </div>
-                      @if (selectedGiftCard!.paidAt) {
+                      @if (selectedGiftCard()!.paidAt) {
                       <div class="detail-item">
                         <label>Paid At:</label>
-                        <span>{{ formatDateTime(selectedGiftCard!.paidAt) }}</span>
+                        <span>{{ formatDateTime(selectedGiftCard()!.paidAt) }}</span>
                       </div>
                       }
                       <div class="detail-item">
                         <label>Delivery:</label>
-                        @if (selectedGiftCard!.isPendingSend) {
+                        @if (selectedGiftCard()!.isPendingSend) {
                         <span>Not sent yet (bought to send later)</span>
                         }
-                        @if (!selectedGiftCard!.isPendingSend && selectedGiftCard!.sentAt) {
-                        <span>Sent from profile {{ formatDateTime(selectedGiftCard!.sentAt) }}</span>
+                        @if (!selectedGiftCard()!.isPendingSend && selectedGiftCard()!.sentAt) {
+                        <span>Sent from profile {{ formatDateTime(selectedGiftCard()!.sentAt) }}</span>
                         }
-                        @if (!selectedGiftCard!.isPendingSend && !selectedGiftCard!.sentAt) {
+                        @if (!selectedGiftCard()!.isPendingSend && !selectedGiftCard()!.sentAt) {
                         <span>Sent at purchase</span>
                         }
                       </div>
@@ -265,13 +265,13 @@
                     <div class="detail-grid">
                       <div class="detail-item">
                         <label>Recipient:</label>
-                        @if (!selectedGiftCard!.isPendingSend) {
+                        @if (!selectedGiftCard()!.isPendingSend) {
                         <div class="user-details">
-                          <div>{{ selectedGiftCard!.recipientName }}</div>
-                          <small>{{ selectedGiftCard!.recipientEmail }}</small>
+                          <div>{{ selectedGiftCard()!.recipientName }}</div>
+                          <small>{{ selectedGiftCard()!.recipientEmail }}</small>
                         </div>
                         }
-                        @if (selectedGiftCard!.isPendingSend) {
+                        @if (selectedGiftCard()!.isPendingSend) {
                         <div class="user-details">
                           <div>Not sent yet</div>
                         </div>
@@ -280,30 +280,30 @@
                       <div class="detail-item">
                         <label>Sender:</label>
                         <div class="user-details">
-                          <div>{{ selectedGiftCard!.senderName }}</div>
-                          <small>{{ selectedGiftCard!.senderEmail }}</small>
+                          <div>{{ selectedGiftCard()!.senderName }}</div>
+                          <small>{{ selectedGiftCard()!.senderEmail }}</small>
                         </div>
                       </div>
                       <div class="detail-item">
                         <label>Purchased By:</label>
                         <div class="user-details">
-                          <div>{{ selectedGiftCard!.purchasedByUserName || 'Guest (no account)' }}</div>
-                          @if (selectedGiftCard!.purchasedByUserEmail) {
-                          <small>{{ selectedGiftCard!.purchasedByUserEmail }}</small>
+                          <div>{{ selectedGiftCard()!.purchasedByUserName || 'Guest (no account)' }}</div>
+                          @if (selectedGiftCard()!.purchasedByUserEmail) {
+                          <small>{{ selectedGiftCard()!.purchasedByUserEmail }}</small>
                           }
                         </div>
                       </div>
                     </div>
                   </div>
 
-                  @if (selectedGiftCard!.message) {
+                  @if (selectedGiftCard()!.message) {
                   <div class="detail-section">
                     <h3>Message</h3>
-                    <p class="gift-message">{{ selectedGiftCard!.message }}</p>
+                    <p class="gift-message">{{ selectedGiftCard()!.message }}</p>
                   </div>
                   }
 
-                  @if (selectedGiftCard!.usages.length > 0) {
+                  @if (selectedGiftCard()!.usages.length > 0) {
                   <div class="detail-section">
                     <h3>Usage History</h3>
                     <table class="usage-table">
@@ -317,7 +317,7 @@
                         </tr>
                       </thead>
                       <tbody>
-                        @for (usage of selectedGiftCard!.usages; track $index) {
+                        @for (usage of selectedGiftCard()!.usages; track $index) {
                         <tr>
                           <td>{{ formatDateTime(usage.usedAt) }}</td>
                           <td>
@@ -351,13 +351,13 @@
       </div>
 
       <!-- Pagination (matches audit-history) -->
-      @if (totalPages > 1) {
+      @if (totalPages() > 1) {
       <div class="pagination">
-        <button class="page-btn" (click)="previousPage()" [disabled]="currentPage === 1">‹ Previous</button>
+        <button class="page-btn" (click)="previousPage()" [disabled]="currentPage() === 1">‹ Previous</button>
         
-        <button class="page-btn" (click)="goToPage(1)" [class.active]="currentPage === 1">1</button>
+        <button class="page-btn" (click)="goToPage(1)" [class.active]="currentPage() === 1">1</button>
         
-        @if (totalPages > 5 && currentPage > 3) {
+        @if (totalPages() > 5 && currentPage() > 3) {
         <span class="page-ellipsis">...</span>
         }
         
@@ -365,39 +365,39 @@
         <button 
                 class="page-btn" 
                 (click)="goToPage(page)"
-                [class.active]="currentPage === page">
+                [class.active]="currentPage() === page">
           {{ page }}
         </button>
         }
         
-        @if (totalPages > 5 && currentPage < totalPages - 2) {
+        @if (totalPages() > 5 && currentPage() < totalPages() - 2) {
         <span class="page-ellipsis">...</span>
         }
         
-        @if (totalPages > 1) {
+        @if (totalPages() > 1) {
         <button 
                 class="page-btn" 
-                (click)="goToPage(totalPages)"
-                [class.active]="currentPage === totalPages">
-          {{ totalPages }}
+                (click)="goToPage(totalPages())"
+                [class.active]="currentPage() === totalPages()">
+          {{ totalPages() }}
         </button>
         }
         
-        <button class="page-btn" (click)="nextPage()" [disabled]="currentPage === totalPages">Next ›</button>
+        <button class="page-btn" (click)="nextPage()" [disabled]="currentPage() === totalPages()">Next ›</button>
       </div>
       }
     </div>
     }
   
-    @if (loading) {
+    @if (loading()) {
     <div class="loading">
       Loading gift cards...
     </div>
     }
   
-    @if (errorMessage) {
+    @if (errorMessage()) {
     <div class="error-message">
-      {{ errorMessage }}
+      {{ errorMessage() }}
     </div>
     }
   </div>

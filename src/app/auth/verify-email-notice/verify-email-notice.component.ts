@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject, signal } from '@angular/core';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { RouterLink, Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
@@ -8,7 +8,7 @@ import { AuthService } from '../../services/auth.service';
   standalone: true,
   imports: [FormsModule, ReactiveFormsModule, RouterLink],
   templateUrl: './verify-email-notice.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./verify-email-notice.component.scss']
 })
 export class VerifyEmailNoticeComponent {
@@ -17,10 +17,10 @@ export class VerifyEmailNoticeComponent {
   private router = inject(Router);
 
   otpForm: FormGroup;
-  isVerifying = false;
-  isResending = false;
-  successMessage = '';
-  errorMessage = '';
+  readonly isVerifying = signal(false);
+  readonly isResending = signal(false);
+  readonly successMessage = signal('');
+  readonly errorMessage = signal('');
   userEmail: string = '';
 
   constructor() {
@@ -35,45 +35,45 @@ export class VerifyEmailNoticeComponent {
   onOtpSubmit() {
     if (!this.otpForm.valid) return;
     if (!this.userEmail) {
-      this.errorMessage = 'Email address not found. Please go back and register again.';
+      this.errorMessage.set('Email address not found. Please go back and register again.');
       return;
     }
 
-    this.isVerifying = true;
-    this.errorMessage = '';
-    this.successMessage = '';
+    this.isVerifying.set(true);
+    this.errorMessage.set('');
+    this.successMessage.set('');
 
     this.authService.verifyLoginOtp(this.userEmail, this.otpForm.value.code).subscribe({
       next: (response) => {
-        this.isVerifying = false;
+        this.isVerifying.set(false);
         // After verification, RequiresPasswordSetup is false (local user has a password)
         this.router.navigate(['/']);
       },
       error: (error) => {
-        this.isVerifying = false;
-        this.errorMessage = error.error?.message || 'Invalid code. Please try again.';
+        this.isVerifying.set(false);
+        this.errorMessage.set(error.error?.message || 'Invalid code. Please try again.');
       }
     });
   }
 
   resendCode() {
     if (!this.userEmail) {
-      this.errorMessage = 'Email address not found. Please go back and register again.';
+      this.errorMessage.set('Email address not found. Please go back and register again.');
       return;
     }
 
-    this.isResending = true;
-    this.successMessage = '';
-    this.errorMessage = '';
+    this.isResending.set(true);
+    this.successMessage.set('');
+    this.errorMessage.set('');
 
     this.authService.resendVerification(this.userEmail).subscribe({
       next: () => {
-        this.successMessage = 'A new code has been sent to your email.';
-        this.isResending = false;
+        this.successMessage.set('A new code has been sent to your email.');
+        this.isResending.set(false);
       },
       error: () => {
-        this.errorMessage = 'Failed to send a new code. Please try again.';
-        this.isResending = false;
+        this.errorMessage.set('Failed to send a new code. Please try again.');
+        this.isResending.set(false);
       }
     });
   }

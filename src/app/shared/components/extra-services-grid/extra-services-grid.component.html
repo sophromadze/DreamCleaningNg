@@ -3,26 +3,26 @@
   @if (hasMore) {
   <div class="extra-services-toggle">
     <button type="button" class="toggle-btn" (click)="toggleShowAll()">
-      <span>{{ showAll ? 'See less' : 'See all' }}</span>
-      <i [appIcon]="icons.faChevronDown" [class.rotated]="showAll"></i>
+      <span>{{ showAll() ? 'See less' : 'See all' }}</span>
+      <i [appIcon]="icons.faChevronDown" [class.rotated]="showAll()"></i>
     </button>
   </div>
   }
 </div>
 
-<div class="extra-services-container" [class.collapsed]="!showAll" [style.max-width.px]="containerMaxWidth"
+<div class="extra-services-container" [class.collapsed]="!showAll()" [style.max-width.px]="containerMaxWidth()"
      tabindex="0" role="region" aria-label="Extra services">
   <!-- Shimmer row when loading (matches real card layout) -->
-  @if (loading) {
+  @if (loading()) {
   <div class="extra-services extra-services-shimmer-row">
     @for (i of shimmerCards; track i) {
     <div class="extra-service-card-shimmer" [shimmer]="true"></div>
     }
   </div>
   }
-  @if (!loading) {
+  @if (!loading()) {
   <div class="extra-services">
-    @for (extra of extras; track extra.id) {
+    @for (extra of extras(); track extra.id) {
     <div class="extra-service-wrapper">
       <div class="extra-service-card"
             [class.selected]="isSelected(extra)"
@@ -44,7 +44,7 @@
               <img [src]="imageFor(extra)" [alt]="extra.name">
             </div>
             <h3>{{ extra.name }}</h3>
-            @if (showPrices) {
+            @if (showPrices()) {
             <div class="extra-details">
               <span class="extra-price">{{ priceLabelFor(extra) }}</span>
             </div>

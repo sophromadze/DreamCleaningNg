@@ -1,6 +1,6 @@
 <div class="verify-container">
     <div class="verify-card">
-      @if (isVerifying) {
+      @if (isVerifying()) {
       <div class="verifying">
         <div class="spinner"></div>
         <h2>Verifying your email...</h2>
@@ -8,7 +8,7 @@
       </div>
       }
 
-      @if (!isVerifying && isSuccess) {
+      @if (!isVerifying() && isSuccess()) {
       <div class="success">
         <div class="success-icon">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -21,7 +21,7 @@
       </div>
       }
 
-      @if (!isVerifying && !isSuccess) {
+      @if (!isVerifying() && !isSuccess()) {
       <div class="error">
         <div class="error-icon">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -31,7 +31,7 @@
           </svg>
         </div>
         <h2>Verification Failed</h2>
-        <p>{{ errorMessage }}</p>
+        <p>{{ errorMessage() }}</p>
         <a routerLink="/login" class="btn-brand">Back to Login</a>
       </div>
       }

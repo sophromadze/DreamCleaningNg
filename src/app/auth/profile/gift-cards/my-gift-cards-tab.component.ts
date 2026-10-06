@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, OnDestroy, OnInit, ChangeDetectionStrategy, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterModule } from '@angular/router';
@@ -19,7 +19,7 @@ import { describeEmailProblem } from '../../../utils/email.utils';
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule, RouterModule],
   templateUrl: './my-gift-cards-tab.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./my-gift-cards-tab.component.scss']
 })
 export class MyGiftCardsTabComponent implements OnInit, OnDestroy {
@@ -27,22 +27,22 @@ export class MyGiftCardsTabComponent implements OnInit, OnDestroy {
   private authService = inject(AuthService);
   private fb = inject(FormBuilder);
 
-  cards: MyGiftCard[] = [];
-  loading = true;
-  error = '';
+  readonly cards = signal<MyGiftCard[]>([]);
+  readonly loading = signal(true);
+  readonly error = signal('');
 
   /** Card whose "Send to someone" form is open (one at a time). */
-  sendingCardId: number | null = null;
+  readonly sendingCardId = signal<number | null>(null);
   sendForm: FormGroup;
-  isSubmitting = false;
-  sendError = '';
+  readonly isSubmitting = signal(false);
+  readonly sendError = signal('');
 
-  resendingCardId: number | null = null;
+  readonly resendingCardId = signal<number | null>(null);
   /** Per-card in-app confirmation / error shown under the card after an action. */
-  notices: Record<number, { kind: 'success' | 'error'; text: string }> = {};
+  readonly notices = signal<Record<number, { kind: 'success' | 'error'; text: string }>>({}, { equal: () => false });
 
   /** Card whose usage history is expanded. */
-  expandedUsageId: number | null = null;
+  readonly expandedUsageId = signal<number | null>(null);
 
   private defaultSenderName = '';
   private userSub?: Subscription;
@@ -72,18 +72,18 @@ export class MyGiftCardsTabComponent implements OnInit, OnDestroy {
   }
 
   load(): void {
-    this.loading = true;
-    this.error = '';
+    this.loading.set(true);
+    this.error.set('');
     this.giftCardService.getMyGiftCards()
-      .pipe(finalize(() => this.loading = false))
+      .pipe(finalize(() => this.loading.set(false)))
       .subscribe({
-        next: list => this.cards = list,
-        error: err => this.error = extractApiErrorMessage(err, 'Your gift cards could not be loaded.')
+        next: list => this.cards.set(list),
+        error: err => this.error.set(extractApiErrorMessage(err, 'Your gift cards could not be loaded.'))
       });
   }
 
   get unsentCount(): number {
-    return this.cards.filter(c => c.status === 'NotSent').length;
+    return this.cards().filter(c => c.status === 'NotSent').length;
   }
 
   statusLabel(card: MyGiftCard): string {
@@ -93,9 +93,10 @@ export class MyGiftCardsTabComponent implements OnInit, OnDestroy {
   }
 
   openSendForm(card: MyGiftCard): void {
-    this.sendingCardId = card.id;
-    this.sendError = '';
-    delete this.notices[card.id];
+    this.sendingCardId.set(card.id);
+    this.sendError.set('');
+    delete this.notices()[card.id];
+    this.notices.set(this.notices());
     this.sendForm.reset({
       recipientName: '',
       recipientEmail: '',
@@ -105,8 +106,8 @@ export class MyGiftCardsTabComponent implements OnInit, OnDestroy {
   }
 
   cancelSend(): void {
-    this.sendingCardId = null;
-    this.sendError = '';
+    this.sendingCardId.set(null);
+    this.sendError.set('');
   }
 
   /** The first thing wrong with the typed email, worded for the customer (null when fine). */
@@ -117,42 +118,44 @@ export class MyGiftCardsTabComponent implements OnInit, OnDestroy {
   }
 
   submitSend(card: MyGiftCard): void {
-    if (this.isSubmitting) return;
+    if (this.isSubmitting()) return;
     this.sendForm.markAllAsTouched();
     if (this.sendForm.invalid || this.recipientEmailProblem) {
       // The email problem is already shown under its field - don't repeat it in the banner.
-      this.sendError = this.recipientEmailProblem ? '' : 'Please fill in all required fields correctly.';
+      this.sendError.set(this.recipientEmailProblem ? '' : 'Please fill in all required fields correctly.');
       return;
     }
 
     const value = this.sendForm.getRawValue();
-    this.isSubmitting = true;
-    this.sendError = '';
+    this.isSubmitting.set(true);
+    this.sendError.set('');
     this.giftCardService.sendMyGiftCard(card.id, {
       recipientName: value.recipientName.trim(),
       recipientEmail: value.recipientEmail.trim(),
       senderName: value.senderName.trim(),
       message: value.message.trim()
     })
-      .pipe(finalize(() => this.isSubmitting = false))
+      .pipe(finalize(() => this.isSubmitting.set(false)))
       .subscribe({
         next: updated => {
           this.replaceCard(updated);
-          this.sendingCardId = null;
-          this.notices[updated.id] = {
+          this.sendingCardId.set(null);
+          this.notices()[updated.id] = {
             kind: 'success',
             text: `Your gift card has been sent to ${updated.recipientName} (${updated.recipientEmail}). We've emailed you a confirmation.`
           };
+          this.notices.set(this.notices());
         },
         error: err => {
           // 502: the card IS assigned to the recipient, only the email failed — show its new state.
           if (err?.status === 502 && err.error?.card) {
             this.replaceCard(err.error.card as MyGiftCard);
-            this.sendingCardId = null;
-            this.notices[card.id] = { kind: 'error', text: extractApiErrorMessage(err, 'The email could not be delivered.') };
+            this.sendingCardId.set(null);
+            this.notices()[card.id] = { kind: 'error', text: extractApiErrorMessage(err, 'The email could not be delivered.') };
+            this.notices.set(this.notices());
             return;
           }
-          this.sendError = extractApiErrorMessage(err, 'The gift card could not be sent. Please try again.');
+          this.sendError.set(extractApiErrorMessage(err, 'The gift card could not be sent. Please try again.'));
           // Already sent elsewhere (another tab): refresh so the card shows its real state.
           if (err?.status === 400 || err?.status === 404) this.load();
         }
@@ -160,34 +163,37 @@ export class MyGiftCardsTabComponent implements OnInit, OnDestroy {
   }
 
   resend(card: MyGiftCard): void {
-    if (this.resendingCardId !== null) return;
-    this.resendingCardId = card.id;
-    delete this.notices[card.id];
+    if (this.resendingCardId() !== null) return;
+    this.resendingCardId.set(card.id);
+    delete this.notices()[card.id];
+    this.notices.set(this.notices());
     this.giftCardService.resendMyGiftCard(card.id)
-      .pipe(finalize(() => this.resendingCardId = null))
+      .pipe(finalize(() => this.resendingCardId.set(null)))
       .subscribe({
         next: updated => {
           this.replaceCard(updated);
-          this.notices[updated.id] = {
+          this.notices()[updated.id] = {
             kind: 'success',
             text: `The gift card email has been sent again to ${updated.recipientEmail}.`
           };
+          this.notices.set(this.notices());
         },
         error: err => {
-          this.notices[card.id] = {
+          this.notices()[card.id] = {
             kind: 'error',
             text: extractApiErrorMessage(err, 'The email could not be resent. Please try again later.')
           };
+          this.notices.set(this.notices());
         }
       });
   }
 
   toggleUsage(card: MyGiftCard): void {
-    this.expandedUsageId = this.expandedUsageId === card.id ? null : card.id;
+    this.expandedUsageId.set(this.expandedUsageId() === card.id ? null : card.id);
   }
 
   private replaceCard(updated: MyGiftCard): void {
-    this.cards = this.cards.map(c => c.id === updated.id ? updated : c);
+    this.cards.set(this.cards().map(c => c.id === updated.id ? updated : c));
   }
 
   trackById(_: number, card: MyGiftCard): number {

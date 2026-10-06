@@ -6,7 +6,7 @@
       <p class="contact-intro">We'd love to hear from you! Send us a message and we'll respond as soon as possible.</p>
   
       <!-- Success Message -->
-      @if (showSuccess) {
+      @if (showSuccess()) {
       <div class="alert alert-success">
         <i [appIcon]="icons.faCircleCheck" class="success-icon"></i>
         <span>Your message has been sent successfully! We'll get back to you soon.</span>
@@ -14,10 +14,10 @@
       }
   
       <!-- Error Message -->
-      @if (showError) {
+      @if (showError()) {
       <div class="alert alert-error">
         <i [appIcon]="icons.faCircleXmark" class="error-icon"></i>
-        <span>{{ errorMessage }}</span>
+        <span>{{ errorMessage() }}</span>
       </div>
       }
   
@@ -54,7 +54,7 @@
             {{ getErrorMessage('email') }}
           </span>
           }
-          @if (currentUser) {
+          @if (currentUser()) {
           <small class="field-hint">
             Using your account email address
           </small>
@@ -124,11 +124,11 @@
           <button 
             type="submit" 
             class="btn btn-primary"
-            [disabled]="isSubmitting">
-            @if (!isSubmitting) {
+            [disabled]="isSubmitting()">
+            @if (!isSubmitting()) {
             <span>Send Message</span>
             }
-            @if (isSubmitting) {
+            @if (isSubmitting()) {
             <span class="loading">
               <i class="spinner"></i> Sending...
             </span>

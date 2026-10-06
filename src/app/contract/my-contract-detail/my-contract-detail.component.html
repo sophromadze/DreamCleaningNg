@@ -1,40 +1,40 @@
 <div class="contract-page">
 
-  @if (loading) {
+  @if (loading()) {
   <div class="contract-shell">
     <div class="contract-card contract-status-card">Loading your agreement…</div>
   </div>
   }
 
-  @if (!loading && loadError) {
+  @if (!loading() && loadError()) {
   <div class="contract-shell">
     <div class="contract-card contract-status-card error">
       <h1>We could not open this agreement</h1>
-      <p>{{ loadError }}</p>
+      <p>{{ loadError() }}</p>
       <button type="button" class="btn-ghost" (click)="back()">Back to My Contracts</button>
     </div>
   </div>
   }
 
-  @if (!loading && page) {
+  @if (!loading() && page()) {
   <div class="contract-shell">
 
     <header class="contract-card contract-header">
       <button type="button" class="btn-ghost back-link" (click)="back()">← My Contracts</button>
-      <div class="contract-eyebrow">{{ page.contractNumber }} · Version {{ page.versionNumber }}</div>
-      <h1>{{ page.documentTitle }}</h1>
+      <div class="contract-eyebrow">{{ page()!.contractNumber }} · Version {{ page()!.versionNumber }}</div>
+      <h1>{{ page()!.documentTitle }}</h1>
       <p class="contract-parties">
-        Between <strong>{{ page.contractorDisplayName }}</strong>
-        and <strong>{{ page.clientLegalName }}</strong>
+        Between <strong>{{ page()!.contractorDisplayName }}</strong>
+        and <strong>{{ page()!.clientLegalName }}</strong>
       </p>
-      <span class="contract-status-pill">{{ page.statusLabel }}</span>
+      <span class="contract-status-pill">{{ page()!.statusLabel }}</span>
     </header>
 
-    @if (page.message) {
-    <div class="contract-card notice">{{ page.message }}</div>
+    @if (page()!.message) {
+    <div class="contract-card notice">{{ page()!.message }}</div>
     }
 
-    @if (revisionNotice) {
+    @if (revisionNotice(); as revisionNotice) {
     <div class="contract-card notice revision">
       <strong>Thank you — we are preparing a revised version.</strong>
       <p>{{ revisionNotice.message }}</p>
@@ -44,13 +44,13 @@
     </div>
     }
 
-    @if (successMessage) {
-    <div class="contract-card notice success">{{ successMessage }}</div>
+    @if (successMessage()) {
+    <div class="contract-card notice success">{{ successMessage() }}</div>
     }
 
-    @if (signed) {
+    @if (signed()) {
     <div class="contract-card notice success">
-      <strong>{{ signedMessage }}</strong>
+      <strong>{{ signedMessage() }}</strong>
     </div>
     }
 
@@ -58,76 +58,76 @@
     <section class="contract-card">
       <div class="section-head">
         <h2>Your information</h2>
-        @if (page.canEdit && !editing) {
+        @if (page()!.canEdit && !editing()) {
         <button type="button" class="btn-ghost"
                 (click)="startEditing()">Edit</button>
         }
       </div>
 
-      @if (page.canEdit && !editing) {
+      @if (page()!.canEdit && !editing()) {
       <p class="muted">
         Please check these details before signing. Correcting a name, title, email or phone is
         applied straight away.
       </p>
       }
 
-      @if (!editing) {
+      @if (!editing()) {
       <dl class="info-grid">
-        <div><dt>Company</dt><dd>{{ page.yourInformation.companyLegalName }}</dd></div>
+        <div><dt>Company</dt><dd>{{ page()!.yourInformation.companyLegalName }}</dd></div>
         <div><dt>Name</dt>
-          <dd>{{ page.yourInformation.firstName }} {{ page.yourInformation.lastName }}</dd></div>
-        <div><dt>Title</dt><dd>{{ page.yourInformation.title || '—' }}</dd></div>
-        <div><dt>Email</dt><dd>{{ page.yourInformation.email || '—' }}</dd></div>
-        <div><dt>Phone</dt><dd>{{ page.yourInformation.phone || '—' }}</dd></div>
+          <dd>{{ page()!.yourInformation.firstName }} {{ page()!.yourInformation.lastName }}</dd></div>
+        <div><dt>Title</dt><dd>{{ page()!.yourInformation.title || '—' }}</dd></div>
+        <div><dt>Email</dt><dd>{{ page()!.yourInformation.email || '—' }}</dd></div>
+        <div><dt>Phone</dt><dd>{{ page()!.yourInformation.phone || '—' }}</dd></div>
         <div class="wide"><dt>Company address</dt>
-          <dd>{{ page.yourInformation.companyAddress }}, {{ page.yourInformation.city }},
-              {{ page.yourInformation.state }} {{ page.yourInformation.zip }}</dd></div>
+          <dd>{{ page()!.yourInformation.companyAddress }}, {{ page()!.yourInformation.city }},
+              {{ page()!.yourInformation.state }} {{ page()!.yourInformation.zip }}</dd></div>
       </dl>
       }
 
-      @if (editing) {
+      @if (editing()) {
       <form class="info-form" (ngSubmit)="save()">
         <div class="field wide">
           <label for="myCompanyLegalName">Company legal name</label>
           <input id="myCompanyLegalName" name="companyLegalName" type="text"
-                 [(ngModel)]="form.companyLegalName" required />
+                 [(ngModel)]="form().companyLegalName" required />
         </div>
         <div class="field">
           <label for="myFirstName">First name</label>
-          <input id="myFirstName" name="firstName" type="text" [(ngModel)]="form.firstName" required />
+          <input id="myFirstName" name="firstName" type="text" [(ngModel)]="form().firstName" required />
         </div>
         <div class="field">
           <label for="myLastName">Last name</label>
-          <input id="myLastName" name="lastName" type="text" [(ngModel)]="form.lastName" required />
+          <input id="myLastName" name="lastName" type="text" [(ngModel)]="form().lastName" required />
         </div>
         <div class="field">
           <label for="myTitle">Title</label>
-          <input id="myTitle" name="title" type="text" [(ngModel)]="form.title" />
+          <input id="myTitle" name="title" type="text" [(ngModel)]="form().title" />
         </div>
         <div class="field">
           <label for="myEmail">Email</label>
-          <input id="myEmail" name="email" type="email" [(ngModel)]="form.email" />
+          <input id="myEmail" name="email" type="email" [(ngModel)]="form().email" />
         </div>
         <div class="field">
           <label for="myPhone">Phone</label>
-          <input id="myPhone" name="phone" type="tel" [(ngModel)]="form.phone" />
+          <input id="myPhone" name="phone" type="tel" [(ngModel)]="form().phone" />
         </div>
         <div class="field wide">
           <label for="myCompanyAddress">Company address</label>
           <input id="myCompanyAddress" name="companyAddress" type="text"
-                 [(ngModel)]="form.companyAddress" required />
+                 [(ngModel)]="form().companyAddress" required />
         </div>
         <div class="field">
           <label for="myCity">City</label>
-          <input id="myCity" name="city" type="text" [(ngModel)]="form.city" />
+          <input id="myCity" name="city" type="text" [(ngModel)]="form().city" />
         </div>
         <div class="field">
           <label for="myState">State</label>
-          <input id="myState" name="state" type="text" [(ngModel)]="form.state" />
+          <input id="myState" name="state" type="text" [(ngModel)]="form().state" />
         </div>
         <div class="field">
           <label for="myZip">ZIP</label>
-          <input id="myZip" name="zip" type="text" [(ngModel)]="form.zip" />
+          <input id="myZip" name="zip" type="text" [(ngModel)]="form().zip" />
         </div>
 
         @if (willCreateRevision) {
@@ -137,15 +137,15 @@
         </div>
         }
 
-        @if (saveError) {
-        <div class="field wide error-text">{{ saveError }}</div>
+        @if (saveError()) {
+        <div class="field wide error-text">{{ saveError() }}</div>
         }
 
         <div class="field wide form-actions">
-          <button type="submit" class="btn-primary" [disabled]="saving">
-            {{ saving ? 'Saving…' : 'Save changes' }}
+          <button type="submit" class="btn-primary" [disabled]="saving()">
+            {{ saving() ? 'Saving…' : 'Save changes' }}
           </button>
-          <button type="button" class="btn-ghost" (click)="cancelEditing()" [disabled]="saving">
+          <button type="button" class="btn-ghost" (click)="cancelEditing()" [disabled]="saving()">
             Cancel
           </button>
         </div>
@@ -156,8 +156,8 @@
     <!-- The complete agreement -->
     <section class="contract-card document-card">
       <h2>The agreement</h2>
-      <app-contract-document [documentHtml]="page.documentHtml"
-                            [signatureBlock]="page.signatureBlock"></app-contract-document>
+      <app-contract-document [documentHtml]="page()!.documentHtml"
+                            [signatureBlock]="page()!.signatureBlock"></app-contract-document>
     </section>
 
     <!-- Signing, in the same capture UI the emailed link uses -->
@@ -165,12 +165,12 @@
     <section class="contract-card signing-card">
       <h2>Sign this agreement</h2>
       <app-signature-capture
-        [signerName]="page.yourInformation.firstName + ' ' + page.yourInformation.lastName"
-        [signerTitle]="page.yourInformation.title || ''"
-        [signerEmail]="page.yourInformation.email || ''"
+        [signerName]="page()!.yourInformation.firstName + ' ' + page()!.yourInformation.lastName"
+        [signerTitle]="page()!.yourInformation.title || ''"
+        [signerEmail]="page()!.yourInformation.email || ''"
         [showEmailField]="false"
-        [submitting]="signing"
-        [errorMessage]="signError"
+        [submitting]="signing()"
+        [errorMessage]="signError()"
         (signed)="onSigned($event)"></app-signature-capture>
     </section>
     }

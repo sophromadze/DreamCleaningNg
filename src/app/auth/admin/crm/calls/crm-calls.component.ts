@@ -1,4 +1,4 @@
-import { Component, EventEmitter, OnInit, Output, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy, inject, output, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { CrmCallService, CallRecord, CallSummary } from '../../../../services/crm-call.service';
@@ -8,41 +8,41 @@ import { CrmCallService, CallRecord, CallSummary } from '../../../../services/cr
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './crm-calls.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./crm-calls.component.scss']
 })
 export class CrmCallsComponent implements OnInit {
   private callService = inject(CrmCallService);
 
   /** Emits a leadId when a linked lead is clicked, so the parent can open it in the Leads tab. */
-  @Output() openLead = new EventEmitter<number>();
+  readonly openLead = output<number>();
 
-  calls: CallRecord[] = [];
-  summary: CallSummary | null = null;
-  loading = false;
-  exporting = false;
-  errorMessage = '';
+  readonly calls = signal<CallRecord[]>([]);
+  readonly summary = signal<CallSummary | null>(null);
+  readonly loading = signal(false);
+  readonly exporting = signal(false);
+  readonly errorMessage = signal('');
 
   // Filters (date inputs are yyyy-MM-dd)
-  fromDate = '';
-  toDate = '';
-  directionFilter = '';
-  categoryFilter = '';            // '' = All
-  hideNonCustomer = true;         // "Hide cleaners & spam" — default ON
+  readonly fromDate = signal('');
+  readonly toDate = signal('');
+  readonly directionFilter = signal('');
+  readonly categoryFilter = signal('');            // '' = All
+  readonly hideNonCustomer = signal(true);         // "Hide cleaners & spam" — default ON
 
-  reclassifying = false;
+  readonly reclassifying = signal(false);
 
   // Paging
-  page = 1;
+  readonly page = signal(1);
   pageSize = 20;
-  totalCount = 0;
-  totalPages = 0;
+  readonly totalCount = signal(0);
+  readonly totalPages = signal(0);
 
   ngOnInit(): void {
     const now = new Date();
     const first = new Date(now.getFullYear(), now.getMonth(), 1);
-    this.fromDate = this.toInputDate(first);
-    this.toDate = this.toInputDate(now);
+    this.fromDate.set(this.toInputDate(first));
+    this.toDate.set(this.toInputDate(now));
     this.load();
   }
 
@@ -54,26 +54,26 @@ export class CrmCallsComponent implements OnInit {
   }
 
   loadCalls(): void {
-    this.loading = true;
-    this.errorMessage = '';
+    this.loading.set(true);
+    this.errorMessage.set('');
     // A specific category selection overrides the hide toggle (no contradiction).
-    const hasCategory = !!this.categoryFilter;
+    const hasCategory = !!this.categoryFilter();
     this.callService.getCalls({
       from: this.fromIso(),
       to: this.toIso(),
-      direction: this.directionFilter || undefined,
-      category: this.categoryFilter || undefined,
-      excludeNonCustomer: !hasCategory && this.hideNonCustomer,
-      page: this.page,
+      direction: this.directionFilter() || undefined,
+      category: this.categoryFilter() || undefined,
+      excludeNonCustomer: !hasCategory && this.hideNonCustomer(),
+      page: this.page(),
       pageSize: this.pageSize
     }).subscribe({
       next: res => {
-        this.calls = res.items;
-        this.totalCount = res.totalCount;
-        this.totalPages = res.totalPages;
-        this.loading = false;
+        this.calls.set(res.items);
+        this.totalCount.set(res.totalCount);
+        this.totalPages.set(res.totalPages);
+        this.loading.set(false);
       },
-      error: () => { this.errorMessage = 'Failed to load calls.'; this.loading = false; }
+      error: () => { this.errorMessage.set('Failed to load calls.'); this.loading.set(false); }
     });
   }
 
@@ -82,75 +82,75 @@ export class CrmCallsComponent implements OnInit {
     this.callService.getSummary({
       from: this.fromIso(),
       to: this.toIso(),
-      direction: this.directionFilter || undefined
+      direction: this.directionFilter() || undefined
     }).subscribe({
-      next: s => this.summary = s,
+      next: s => this.summary.set(s),
       error: () => { /* summary is non-critical */ }
     });
   }
 
   applyFilters(): void {
-    this.page = 1;
+    this.page.set(1);
     this.load();
   }
 
   onHideToggle(): void {
-    this.page = 1;
+    this.page.set(1);
     this.loadCalls();
   }
 
   /** Calls hidden by the "hide cleaners & spam" toggle (from the full-scope summary). */
   get hiddenCount(): number {
-    if (!this.summary) return 0;
-    return this.summary.cleaner + this.summary.spam;
+    if (!this.summary()) return 0;
+    return this.summary()!.cleaner + this.summary()!.spam;
   }
 
   // ── Paging ──
 
   nextPage(): void {
-    if (this.page < this.totalPages) { this.page++; this.loadCalls(); }
+    if (this.page() < this.totalPages()) { this.page.update(v => v + 1); this.loadCalls(); }
   }
 
   prevPage(): void {
-    if (this.page > 1) { this.page--; this.loadCalls(); }
+    if (this.page() > 1) { this.page.update(v => v - 1); this.loadCalls(); }
   }
 
   // ── Export ──
 
   downloadExcel(): void {
-    this.exporting = true;
-    const hasCategory = !!this.categoryFilter;
+    this.exporting.set(true);
+    const hasCategory = !!this.categoryFilter();
     this.callService.exportExcel({
       from: this.fromIso(),
       to: this.toIso(),
-      direction: this.directionFilter || undefined,
-      category: this.categoryFilter || undefined,
-      excludeNonCustomer: !hasCategory && this.hideNonCustomer
+      direction: this.directionFilter() || undefined,
+      category: this.categoryFilter() || undefined,
+      excludeNonCustomer: !hasCategory && this.hideNonCustomer()
     }).subscribe({
       next: blob => {
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `dream-cleaning-calls_${this.fromDate}_${this.toDate}.xlsx`;
+        a.download = `dream-cleaning-calls_${this.fromDate()}_${this.toDate()}.xlsx`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         window.URL.revokeObjectURL(url);
-        this.exporting = false;
+        this.exporting.set(false);
       },
-      error: () => { this.errorMessage = 'Failed to export calls.'; this.exporting = false; }
+      error: () => { this.errorMessage.set('Failed to export calls.'); this.exporting.set(false); }
     });
   }
 
   // ── Reclassify backfill ──
 
   reclassify(): void {
-    if (this.reclassifying) return;
-    this.reclassifying = true;
-    this.errorMessage = '';
+    if (this.reclassifying()) return;
+    this.reclassifying.set(true);
+    this.errorMessage.set('');
     this.callService.reclassify().subscribe({
-      next: () => { this.reclassifying = false; this.load(); },
-      error: () => { this.errorMessage = 'Failed to reclassify calls.'; this.reclassifying = false; }
+      next: () => { this.reclassifying.set(false); this.load(); },
+      error: () => { this.errorMessage.set('Failed to reclassify calls.'); this.reclassifying.set(false); }
     });
   }
 
@@ -195,11 +195,11 @@ export class CrmCallsComponent implements OnInit {
 
   /** Start of the from-day in UTC. */
   private fromIso(): string | undefined {
-    return this.fromDate ? `${this.fromDate}T00:00:00Z` : undefined;
+    return this.fromDate() ? `${this.fromDate()}T00:00:00Z` : undefined;
   }
 
   /** End of the to-day in UTC. */
   private toIso(): string | undefined {
-    return this.toDate ? `${this.toDate}T23:59:59Z` : undefined;
+    return this.toDate() ? `${this.toDate()}T23:59:59Z` : undefined;
   }
 }

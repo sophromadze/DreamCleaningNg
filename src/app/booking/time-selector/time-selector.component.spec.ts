@@ -1,3 +1,4 @@
+import { TestBed } from '@angular/core/testing';
 import { TimeSelectorComponent } from './time-selector.component';
 import { buildServiceTimeSlots } from '../../shared/booking/service-time-slots';
 
@@ -14,10 +15,12 @@ describe('TimeSelectorComponent', () => {
   const monday = new Date(2026, 8, 14);
   const saturday = new Date(2026, 8, 19);
 
-  function selectorFor(slots: string[], value = slots[0]): TimeSelectorComponent {
-    const component = new TimeSelectorComponent();
-    component.availableTimeSlots = slots;
-    component.value = value;
+  function selectorFor(slots: string[], value = slots[0], blockedHours: string[] = []): TimeSelectorComponent {
+    const fixture = TestBed.createComponent(TimeSelectorComponent);
+    const component = fixture.componentInstance;
+    fixture.componentRef.setInput('availableTimeSlots', slots);
+    fixture.componentRef.setInput('value', value);
+    fixture.componentRef.setInput('blockedHours', blockedHours);
     component.ngOnInit();
     return component;
   }
@@ -27,34 +30,34 @@ describe('TimeSelectorComponent', () => {
   it('offers only :00 in the last hour of a customer window', () => {
     const component = selectorFor(buildServiceTimeSlots(monday, false));
 
-    component.selectedHour = 18;
+    component.selectedHour.set(18);
     expect(component.getAvailableMinutes()).toEqual([0]);
 
-    component.selectedHour = 17;
+    component.selectedHour.set(17);
     expect(component.getAvailableMinutes()).toEqual([0, 30]);
   });
 
   it('offers both halves of 6 PM to an admin, and only :00 at 8 PM', () => {
     const component = selectorFor(buildServiceTimeSlots(monday, true));
 
-    component.selectedHour = 18;
+    component.selectedHour.set(18);
     expect(component.getAvailableMinutes()).toEqual([0, 30]);
 
-    component.selectedHour = 19;
+    component.selectedHour.set(19);
     expect(component.getAvailableMinutes()).toEqual([0, 30]);
 
-    component.selectedHour = 20;
+    component.selectedHour.set(20);
     expect(component.getAvailableMinutes()).toEqual([0]);
 
-    expect(component.hours).toContain(20);
-    expect(component.hours).not.toContain(21);
+    expect(component.hours()).toContain(20);
+    expect(component.hours()).not.toContain(21);
   });
 
   it('offers only :30 in the first hour of a customer weekend', () => {
     const component = selectorFor(buildServiceTimeSlots(saturday, false), '09:30');
 
-    expect(component.hours[0]).toBe(9);
-    component.selectedHour = 9;
+    expect(component.hours()[0]).toBe(9);
+    component.selectedHour.set(9);
     expect(component.getAvailableMinutes()).toEqual([30]);
   });
 
@@ -63,11 +66,11 @@ describe('TimeSelectorComponent', () => {
     // must land on 6:00, not on a 6:30 the window does not contain.
     const component = selectorFor(buildServiceTimeSlots(monday, false), '17:30');
     const emitted: string[] = [];
-    component.valueChange.subscribe(v => emitted.push(v));
+    component.value.subscribe(v => emitted.push(v)); // model() is its own valueChange output
 
     component.selectHour(18, clickEvent());
 
-    expect(component.selectedMinute).toBe(0);
+    expect(component.selectedMinute()).toBe(0);
     expect(emitted).toEqual(['18:00']);
   });
 
@@ -76,14 +79,13 @@ describe('TimeSelectorComponent', () => {
 
     component.selectHour(18, clickEvent());
 
-    expect(component.selectedMinute).toBe(30); // 18:30 is a real admin slot
-    expect(component.value).toBe('18:30');
+    expect(component.selectedMinute()).toBe(30); // 18:30 is a real admin slot
+    expect(component.value()).toBe('18:30');
   });
 
   describe('busy hours', () => {
     it('marks an hour busy only when every half-hour it offers is blocked', () => {
-      const component = selectorFor(buildServiceTimeSlots(monday, true));
-      component.blockedHours = ['10:00', '18:00', '20:00'];
+      const component = selectorFor(buildServiceTimeSlots(monday, true), undefined, ['10:00', '18:00', '20:00']);
 
       // 10:00 is blocked but 10:30 is free, so the hour is still selectable.
       expect(component.isHourBlocked(10)).toBe(false);
@@ -94,8 +96,7 @@ describe('TimeSelectorComponent', () => {
     });
 
     it('treats a customer 6 PM as busy from its single blocked half-hour', () => {
-      const component = selectorFor(buildServiceTimeSlots(monday, false));
-      component.blockedHours = ['18:00'];
+      const component = selectorFor(buildServiceTimeSlots(monday, false), undefined, ['18:00']);
 
       expect(component.isHourBlocked(18)).toBe(true);
     });

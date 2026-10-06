@@ -1,4 +1,4 @@
-import { Component, Input, OnChanges, OnInit, SimpleChanges, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnChanges, OnInit, SimpleChanges, ChangeDetectionStrategy, input, signal } from '@angular/core';
 
 import { UserManagementComponent } from '../user-management/user-management.component';
 import { CleanerAccountsComponent } from '../cleaner-accounts/cleaner-accounts.component';
@@ -47,14 +47,14 @@ export type AdminUsersTab = 'customers' | 'cleaners' | 'business-clients' | 'sta
  */
 export class AdminUsersComponent implements OnInit, OnChanges {
   /** Forwarded to the Customers tab — the ?userId= deep link from the orders panel. */
-  @Input() openUserId: number | null = null;
+  readonly openUserId = input<number | null>(null);
 
   /**
    * Forwarded to the Business Clients tab — the ?clientId= deep link, which is how the orders
    * panel's "View User" lands on the COMMERCIAL record for an invoice-billed order rather than
    * on the customer list.
    */
-  @Input() openClientId: number | null = null;
+  readonly openClientId = input<number | null>(null);
 
   /**
    * Which sub-tab to open. Set by the panel when a legacy deep link asked for the old top-level
@@ -65,9 +65,9 @@ export class AdminUsersComponent implements OnInit, OnChanges {
    * already up (Business Clients → "Open the full customer record" navigates to /admin from
    * inside /admin), and reading it once left that link changing the URL and nothing else.
    */
-  @Input() initialTab: AdminUsersTab | null = null;
+  readonly initialTab = input<AdminUsersTab | null>(null);
 
-  activeTab: AdminUsersTab = 'customers';
+  readonly activeTab = signal<AdminUsersTab>('customers');
 
   /** EXACTLY this order — the requirement is specific about it. */
   readonly tabs: { key: AdminUsersTab; label: string }[] = [
@@ -85,8 +85,9 @@ export class AdminUsersComponent implements OnInit, OnChanges {
   ngOnInit(): void {
     this.initialized = true;
 
-    if (this.initialTab) {
-      this.activeTab = this.initialTab;
+    const initialTab = this.initialTab();
+    if (initialTab) {
+      this.activeTab.set(initialTab);
       return;
     }
 
@@ -95,7 +96,7 @@ export class AdminUsersComponent implements OnInit, OnChanges {
     // rather than rendering nothing.
     try {
       const saved = sessionStorage.getItem(AdminUsersComponent.STORAGE_KEY) as AdminUsersTab | null;
-      if (saved && this.tabs.some(t => t.key === saved)) this.activeTab = saved;
+      if (saved && this.tabs.some(t => t.key === saved)) this.activeTab.set(saved);
     } catch {
       // Private browsing, or storage disabled. The default is perfectly usable.
     }
@@ -120,7 +121,7 @@ export class AdminUsersComponent implements OnInit, OnChanges {
   }
 
   setActiveTab(tab: AdminUsersTab): void {
-    this.activeTab = tab;
+    this.activeTab.set(tab);
     try {
       sessionStorage.setItem(AdminUsersComponent.STORAGE_KEY, tab);
     } catch {

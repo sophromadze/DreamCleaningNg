@@ -1,6 +1,6 @@
 <div class="blog-post-page">
   <!-- Loading: keep structure stable, shimmer the values -->
-  @if (loading) {
+  @if (loading()) {
   <div class="container">
     <div class="post-skeleton">
       <div class="skeleton-line title shimmer-loading"></div>
@@ -11,7 +11,7 @@
   }
 
   <!-- Coming soon (blog master switch is OFF) -->
-  @if (!loading && comingSoon) {
+  @if (!loading() && comingSoon()) {
   <div class="container">
     <div class="not-found">
       <h1>Our blog is coming soon</h1>
@@ -22,7 +22,7 @@
   }
 
   <!-- Not found -->
-  @if (!loading && notFound) {
+  @if (!loading() && notFound()) {
   <div class="container">
     <div class="not-found">
       <h1>Article not found</h1>
@@ -33,39 +33,39 @@
   }
 
   <!-- Article -->
-  @if (!loading && post) {
+  @if (!loading() && post()) {
   <article class="post">
     <header class="post-hero">
       <div class="container narrow">
         <nav class="breadcrumb" aria-label="Breadcrumb">
           <a routerLink="/blog">Blog</a>
           <span aria-hidden="true">›</span>
-          <span class="current">{{ post.category }}</span>
+          <span class="current">{{ post()!.category }}</span>
         </nav>
-        <h1>{{ post.title }}</h1>
+        <h1>{{ post()!.title }}</h1>
         <div class="post-meta">
-          <span class="author">{{ post.authorName }}</span>
+          <span class="author">{{ post()!.authorName }}</span>
           <span class="dot" aria-hidden="true">·</span>
-          @if (post.publishedAt) {
-          <time [attr.datetime]="post.publishedAt">{{ formatDate(post.publishedAt) }}</time>
+          @if (post()!.publishedAt) {
+          <time [attr.datetime]="post()!.publishedAt">{{ formatDate(post()!.publishedAt) }}</time>
           }
         </div>
       </div>
     </header>
 
     <div class="container narrow">
-      @if (post.featuredImagePath) {
+      @if (post()!.featuredImagePath) {
       <figure class="featured-image">
-        <img [src]="post.featuredImagePath" [alt]="post.featuredImageAlt || post.title" />
+        <img [src]="post()!.featuredImagePath" [alt]="post()!.featuredImageAlt || post()!.title" />
       </figure>
       }
 
       <!-- Server-sanitized HTML (allowlist sanitizer runs on every save) -->
-      <div class="post-content" [innerHTML]="safeContent"></div>
+      <div class="post-content" [innerHTML]="safeContent()"></div>
 
-      @if (post.tags.length > 0) {
+      @if (post()!.tags.length > 0) {
       <div class="post-tags">
-        @for (tag of post.tags; track tag) {
+        @for (tag of post()!.tags; track tag) {
         <span class="tag">{{ tag }}</span>
         }
       </div>
@@ -77,11 +77,11 @@
         <a routerLink="/booking" class="btn btn-primary">Book a Cleaning</a>
       </div>
 
-      @if (post.relatedPosts.length > 0) {
+      @if (post()!.relatedPosts.length > 0) {
       <section class="related">
         <h2>Keep reading</h2>
         <div class="related-grid">
-          @for (related of post.relatedPosts; track related.slug) {
+          @for (related of post()!.relatedPosts; track related.slug) {
           <a class="related-card" [routerLink]="['/blog', related.slug]">
             @if (related.featuredImagePath) {
             <div class="related-image">

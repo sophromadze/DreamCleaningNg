@@ -1,4 +1,4 @@
-import { Component, EventEmitter, OnDestroy, OnInit, Output, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, OnDestroy, OnInit, ChangeDetectionStrategy, inject, output, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { finalize } from 'rxjs/operators';
@@ -22,7 +22,7 @@ export const PAY_ALL_UNCONFIRMED_MESSAGE =
   standalone: true,
   imports: [CommonModule, SaveCardModalComponent],
   templateUrl: './upcoming-recurring-orders.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./upcoming-recurring-orders.component.scss']
 })
 /**
@@ -53,23 +53,23 @@ export class UpcomingRecurringOrdersComponent implements OnInit, OnDestroy {
   private billing = inject(BillingService);
 
   /** Raised after a combined payment settles, so the host can reload its list. */
-  @Output() paid = new EventEmitter<void>();
+  readonly paid = output<void>();
 
-  data: UpcomingRecurringOrders | null = null;
-  loading = true;
-  errorMessage = '';
+  readonly data = signal<UpcomingRecurringOrders | null>(null);
+  readonly loading = signal(true);
+  readonly errorMessage = signal('');
 
   // ── Combined payment ────────────────────────────────────────────────────────────────────
-  showPayAll = false;
-  payingAll = false;
-  payAllError = '';
+  readonly showPayAll = signal(false);
+  readonly payingAll = signal(false);
+  readonly payAllError = signal('');
   private clientSecret: string | null = null;
   private paymentIntentId: string | null = null;
 
   // ── "Save your card?", asked before the charge (2026-09) ────────────────────────────────
   // The batch's PaymentIntent already exists (it was created when this form opened), so the
   // choice is applied to THAT intent at confirmation — no second payment is ever created.
-  showSaveCardModal = false;
+  readonly showSaveCardModal = signal(false);
   saveCardChoice: boolean | null = null;
   canSaveCard = false;
   private cardMounted = false;
@@ -83,21 +83,21 @@ export class UpcomingRecurringOrdersComponent implements OnInit, OnDestroy {
   }
 
   private load(): void {
-    this.loading = true;
+    this.loading.set(true);
     this.recurring.upcoming()
-      .pipe(finalize(() => { this.loading = false; }))
+      .pipe(finalize(() => { this.loading.set(false); }))
       .subscribe({
-        next: (data) => { this.data = data; },
+        next: (data) => { this.data.set(data); },
         error: (err) => {
           // A failure here must never take the ORDER LIST down with it — this is an extra
           // section on somebody's account page, not the page itself.
-          this.errorMessage = extractApiErrorMessage(err, 'Could not load your upcoming cleanings.');
+          this.errorMessage.set(extractApiErrorMessage(err, 'Could not load your upcoming cleanings.'));
         }
       });
   }
 
   get orders(): UpcomingRecurringOrder[] {
-    return this.data?.orders ?? [];
+    return this.data()?.orders ?? [];
   }
 
   get hasAny(): boolean {
@@ -112,14 +112,14 @@ export class UpcomingRecurringOrdersComponent implements OnInit, OnDestroy {
   // ── Pay all upcoming ────────────────────────────────────────────────────────────────────
 
   async openPayAll(): Promise<void> {
-    if (this.payingAll || !this.data?.canPayAll) return;
+    if (this.payingAll() || !this.data()?.canPayAll) return;
 
-    this.payAllError = '';
-    this.showPayAll = true;
-    this.payingAll = true;
+    this.payAllError.set('');
+    this.showPayAll.set(true);
+    this.payingAll.set(true);
 
     this.recurring.payAll()
-      .pipe(finalize(() => { this.payingAll = false; }))
+      .pipe(finalize(() => { this.payingAll.set(false); }))
       .subscribe({
         next: async (batch) => {
           this.clientSecret = batch.paymentClientSecret;
@@ -131,8 +131,8 @@ export class UpcomingRecurringOrdersComponent implements OnInit, OnDestroy {
           setTimeout(() => this.mountCard(), 0);
         },
         error: (err) => {
-          this.showPayAll = false;
-          this.payAllError = extractApiErrorMessage(err, 'Could not start the payment.');
+          this.showPayAll.set(false);
+          this.payAllError.set(extractApiErrorMessage(err, 'Could not start the payment.'));
         }
       });
   }
@@ -142,15 +142,15 @@ export class UpcomingRecurringOrdersComponent implements OnInit, OnDestroy {
       await this.stripe.initializeElements();
       const element = await this.stripe.createCardElementAsync('recurring-pay-all-card');
       this.cardMounted = !!element;
-      if (!element) this.payAllError = 'The card form could not be loaded. Please try again.';
+      if (!element) this.payAllError.set('The card form could not be loaded. Please try again.');
     } catch {
-      this.payAllError = 'The card form could not be loaded. Please try again.';
+      this.payAllError.set('The card form could not be loaded. Please try again.');
     }
   }
 
   closePayAll(): void {
     this.load();
-    this.showPayAll = false;
+    this.showPayAll.set(false);
     this.clientSecret = null;
     if (this.cardMounted) {
       this.stripe.destroyCardElement();
@@ -160,10 +160,10 @@ export class UpcomingRecurringOrdersComponent implements OnInit, OnDestroy {
 
   /** The Pay button: ask about saving first when there is something to ask. */
   async confirmPayAll(): Promise<void> {
-    if (this.payingAll || !this.clientSecret) return;
+    if (this.payingAll() || !this.clientSecret) return;
 
     if (this.canSaveCard && this.saveCardChoice === null) {
-      this.showSaveCardModal = true;
+      this.showSaveCardModal.set(true);
       return;
     }
     await this.chargeNow();
@@ -171,21 +171,21 @@ export class UpcomingRecurringOrdersComponent implements OnInit, OnDestroy {
 
   onSaveCardChoice(save: boolean): void {
     this.saveCardChoice = save;
-    this.showSaveCardModal = false;
+    this.showSaveCardModal.set(false);
     void this.chargeNow();
   }
 
   /** ✕ / Escape / backdrop: the card form is still filled in and nothing has been charged. The
    *  batch's PaymentIntent is untouched, so pressing Pay again uses that same one. */
   onSaveCardDismissed(): void {
-    this.showSaveCardModal = false;
+    this.showSaveCardModal.set(false);
   }
 
   private async chargeNow(): Promise<void> {
-    if (this.payingAll || !this.clientSecret) return;
+    if (this.payingAll() || !this.clientSecret) return;
 
-    this.payingAll = true;
-    this.payAllError = '';
+    this.payingAll.set(true);
+    this.payAllError.set('');
 
     try {
       const result = await this.stripe.confirmCardPayment(
@@ -196,7 +196,7 @@ export class UpcomingRecurringOrdersComponent implements OnInit, OnDestroy {
       );
 
       if (result?.error) {
-        this.payAllError = result.error.message || 'The card was declined.';
+        this.payAllError.set(result.error.message || 'The card was declined.');
         return;
       }
 
@@ -217,9 +217,9 @@ export class UpcomingRecurringOrdersComponent implements OnInit, OnDestroy {
       // must never read as one: the charge may well have gone through, and "could not be
       // completed" is an invitation to pay again. The server settles a succeeded charge on its
       // own and refuses a second one while it does.
-      this.payAllError = PAY_ALL_UNCONFIRMED_MESSAGE;
+      this.payAllError.set(PAY_ALL_UNCONFIRMED_MESSAGE);
     } finally {
-      this.payingAll = false;
+      this.payingAll.set(false);
     }
   }
 }

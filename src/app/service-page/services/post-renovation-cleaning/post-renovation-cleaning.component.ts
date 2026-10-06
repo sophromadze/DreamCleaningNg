@@ -9,7 +9,7 @@ import { StructuredDataService } from '../../../services/structured-data.service
   standalone: true,
   imports: [RouterModule, CardImageDirective],
   templateUrl: './post-renovation-cleaning.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './post-renovation-cleaning.component.scss'
 })
 export class PostRenovationCleaningComponent implements OnInit, OnDestroy {

@@ -11,19 +11,19 @@
 
     <!-- ── Stepper indicator ───────────────────────────────────────────── -->
     <div class="tf-steps">
-      <div class="tf-step" [class.is-active]="step === 'email'" [class.is-done]="step === 'pin'">
+      <div class="tf-step" [class.is-active]="step() === 'email'" [class.is-done]="step() === 'pin'">
         <span class="tf-step-bubble">1</span>
         <span class="tf-step-label">Email code</span>
       </div>
-      <div class="tf-step-line" [class.is-filled]="step === 'pin'"></div>
-      <div class="tf-step" [class.is-active]="step === 'pin'">
+      <div class="tf-step-line" [class.is-filled]="step() === 'pin'"></div>
+      <div class="tf-step" [class.is-active]="step() === 'pin'">
         <span class="tf-step-bubble">2</span>
         <span class="tf-step-label">PIN</span>
       </div>
     </div>
 
     <!-- ── Step 1: email code ─────────────────────────────────────────── -->
-    @if (step === 'email') {
+    @if (step() === 'email') {
     <div class="tf-step-panel">
       <p class="tf-hint">
         We sent a 6-digit code to <strong>{{ challenge.maskedEmail }}</strong>.
@@ -39,34 +39,34 @@
                class="tf-input tf-code"
                [(ngModel)]="code"
                (input)="onDigitInput('code', $event)"
-               [disabled]="isVerifying"
+               [disabled]="isVerifying()"
                placeholder="••••••"
                autofocus>
       </label>
 
       <button type="button"
               class="btn btn-primary tf-submit"
-              [disabled]="isVerifying || !code"
+              [disabled]="isVerifying() || !code()"
               (click)="verifyCode()">
-        <i [appIcon]="isVerifying ? icons.faSpinner : icons.faArrowRight" [class.fa-spin]="isVerifying"></i>
-        {{ isVerifying ? 'Verifying…' : 'Continue' }}
+        <i [appIcon]="isVerifying() ? icons.faSpinner : icons.faArrowRight" [class.fa-spin]="isVerifying()"></i>
+        {{ isVerifying() ? 'Verifying…' : 'Continue' }}
       </button>
 
       <div class="tf-resend-row">
         <button type="button"
                 class="tf-link"
-                [disabled]="isResending || resendCooldownSec > 0"
+                [disabled]="isResending() || resendCooldownSec() > 0"
                 (click)="resendCode()">
-          {{ resendCooldownSec > 0
-              ? 'Resend in ' + resendCooldownSec + 's'
-              : (isResending ? 'Sending…' : 'Resend code') }}
+          {{ resendCooldownSec() > 0
+              ? 'Resend in ' + resendCooldownSec() + 's'
+              : (isResending() ? 'Sending…' : 'Resend code') }}
         </button>
       </div>
     </div>
     }
 
     <!-- ── Step 2: PIN ────────────────────────────────────────────────── -->
-    @if (step === 'pin') {
+    @if (step() === 'pin') {
     <div class="tf-step-panel">
       <p class="tf-hint">Enter your security PIN to finish signing in.</p>
 
@@ -79,7 +79,7 @@
                class="tf-input tf-code"
                [(ngModel)]="pin"
                (input)="onDigitInput('pin', $event)"
-               [disabled]="isVerifying"
+               [disabled]="isVerifying()"
                placeholder="••••"
                autofocus>
       </label>
@@ -91,23 +91,23 @@
 
       <button type="button"
               class="btn btn-primary tf-submit"
-              [disabled]="isVerifying || !pin"
+              [disabled]="isVerifying() || !pin()"
               (click)="verifyPin()">
-        <i [appIcon]="isVerifying ? icons.faSpinner : icons.faCheck" [class.fa-spin]="isVerifying"></i>
-        {{ isVerifying ? 'Verifying…' : 'Sign in' }}
+        <i [appIcon]="isVerifying() ? icons.faSpinner : icons.faCheck" [class.fa-spin]="isVerifying()"></i>
+        {{ isVerifying() ? 'Verifying…' : 'Sign in' }}
       </button>
     </div>
     }
 
     <!-- ── Messages ───────────────────────────────────────────────────── -->
-    @if (error) {
+    @if (error()) {
     <div class="tf-message tf-error">
-      <i [appIcon]="icons.faCircleExclamation"></i> {{ error }}
+      <i [appIcon]="icons.faCircleExclamation"></i> {{ error() }}
     </div>
     }
-    @if (notice && !error) {
+    @if (notice() && !error()) {
     <div class="tf-message tf-notice">
-      <i [appIcon]="icons.faCircleInfo"></i> {{ notice }}
+      <i [appIcon]="icons.faCircleInfo"></i> {{ notice() }}
     </div>
     }
 

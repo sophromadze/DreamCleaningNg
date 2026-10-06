@@ -1,6 +1,9 @@
 import {
-  AfterViewInit, Component, ElementRef, EventEmitter, Input, OnDestroy, Output, ViewChild, inject,
-  ChangeDetectionStrategy
+  AfterViewInit, Component, ElementRef, OnDestroy, inject,
+  ChangeDetectionStrategy,
+  output,
+  viewChild, signal, computed,
+  input, model
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Subscription } from 'rxjs';
@@ -34,22 +37,22 @@ export interface CapturedSignature {
   standalone: true,
   imports: [FormsModule],
   templateUrl: './signature-capture.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./signature-capture.component.scss']
 })
 export class SignatureCaptureComponent implements AfterViewInit, OnDestroy {
-  @ViewChild('padCanvas') padCanvas?: ElementRef<HTMLCanvasElement>;
+  readonly padCanvas = viewChild<ElementRef<HTMLCanvasElement>>('padCanvas');
 
-  @Input() signerName = '';
-  @Input() signerTitle = '';
-  @Input() signerEmail = '';
+  readonly signerName = model('');
+  readonly signerTitle = model('');
+  readonly signerEmail = model('');
 
   /** Locked for a contractor signer: identity comes from the contractor profile, not the form. */
-  @Input() nameLocked = false;
-  @Input() titleLocked = false;
+  readonly nameLocked = input(false);
+  readonly titleLocked = input(false);
 
   /** Hidden where the host already knows the address (an authenticated session). */
-  @Input() showEmailField = true;
+  readonly showEmailField = input(true);
 
   /**
    * The consent a signer is agreeing to. Names the three things that make an electronic signature
@@ -57,23 +60,22 @@ export class SignatureCaptureComponent implements AfterViewInit, OnDestroy {
    * signature. The server sends the same wording on the token page; this default covers the two
    * authenticated hosts.
    */
-  @Input() consentText =
-    'I have reviewed this Agreement, agree to its terms, and adopt the signature above as my ' +
-    'electronic signature with the intent to be legally bound.';
+  readonly consentText = input('I have reviewed this Agreement, agree to its terms, and adopt the signature above as my ' +
+    'electronic signature with the intent to be legally bound.');
 
-  @Input() submitLabel = 'Sign agreement';
-  @Input() submitting = false;
+  readonly submitLabel = input('Sign agreement');
+  readonly submitting = input(false);
 
   /** Surfaced by the host after a failed POST, so errors render in one place. */
-  @Input() errorMessage = '';
+  readonly errorMessage = input('');
 
-  @Output() signed = new EventEmitter<CapturedSignature>();
+  readonly signed = output<CapturedSignature>();
 
-  method: ContractSignatureMethod = ContractSignatureMethod.Type;
-  consentAccepted = false;
-  validationError = '';
+  readonly method = signal<ContractSignatureMethod>(ContractSignatureMethod.Type);
+  readonly consentAccepted = signal(false);
+  readonly validationError = signal('');
 
-  private typedOverride: string | null = null;
+  private readonly typedOverride = signal<string | null>(null);
 
   /**
    * Defaults to the known signer name until the person types something, WITHOUT writing that
@@ -81,21 +83,19 @@ export class SignatureCaptureComponent implements AfterViewInit, OnDestroy {
    * value after the view had been checked and threw NG0100.
    */
   get typedSignature(): string {
-    return this.typedOverride ?? this.signerName ?? '';
+    return this.typedOverride() ?? this.signerName() ?? '';
   }
   set typedSignature(value: string) {
-    this.typedOverride = value;
+    this.typedOverride.set(value);
   }
 
   /**
    * Which mark the signer is adopting, said in the terms the consent checkbox below then refers
    * to. Switches with the toggle so the two never disagree about what "the signature above" is.
    */
-  get modeCaption(): string {
-    return this.method === ContractSignatureMethod.Draw
+  readonly modeCaption = computed<string>(() => this.method() === ContractSignatureMethod.Draw
       ? 'The signature drawn above will be adopted as your electronic signature.'
-      : 'The typed name above will be adopted as your electronic signature.';
-  }
+      : 'The typed name above will be adopted as your electronic signature.');
 
   readonly ContractSignatureMethod = ContractSignatureMethod;
 
@@ -146,7 +146,7 @@ export class SignatureCaptureComponent implements AfterViewInit, OnDestroy {
    * stored image would not.
    */
   private applyInk(): void {
-    const canvas = this.padCanvas?.nativeElement;
+    const canvas = this.padCanvas()?.nativeElement;
     const ctx = this.context;
     const ink = this.screenInk();
 
@@ -164,7 +164,7 @@ export class SignatureCaptureComponent implements AfterViewInit, OnDestroy {
    * whatever the screen was showing, and that is theme-dependent.
    */
   private exportMark(): string {
-    const canvas = this.padCanvas!.nativeElement;
+    const canvas = this.padCanvas()!.nativeElement;
     const out = document.createElement('canvas');
     out.width = canvas.width;
     out.height = canvas.height;
@@ -194,7 +194,7 @@ export class SignatureCaptureComponent implements AfterViewInit, OnDestroy {
    * increasingly so the further right you draw.
    */
   private prepareCanvas(): void {
-    const canvas = this.padCanvas?.nativeElement;
+    const canvas = this.padCanvas()?.nativeElement;
     if (!canvas) return;
 
     const rect = canvas.getBoundingClientRect();
@@ -256,7 +256,7 @@ export class SignatureCaptureComponent implements AfterViewInit, OnDestroy {
    * a trackpad or a touch, at any zoom or device pixel ratio, even mid-gesture.
    */
   private pointOf(event: PointerEvent): { x: number; y: number } {
-    const canvas = this.padCanvas!.nativeElement;
+    const canvas = this.padCanvas()!.nativeElement;
     const rect = canvas.getBoundingClientRect();
     const scaleX = rect.width === 0 ? 1 : canvas.width / rect.width;
     const scaleY = rect.height === 0 ? 1 : canvas.height / rect.height;
@@ -271,7 +271,7 @@ export class SignatureCaptureComponent implements AfterViewInit, OnDestroy {
     this.prepareCanvas();
     if (!this.context) return;
 
-    const canvas = this.padCanvas!.nativeElement;
+    const canvas = this.padCanvas()!.nativeElement;
     canvas.setPointerCapture(event.pointerId);
     this.drawing = true;
     this.hasDrawnStrokes = true;
@@ -296,11 +296,11 @@ export class SignatureCaptureComponent implements AfterViewInit, OnDestroy {
   endStroke(event: PointerEvent): void {
     if (!this.drawing) return;
     this.drawing = false;
-    this.padCanvas?.nativeElement.releasePointerCapture?.(event.pointerId);
+    this.padCanvas()?.nativeElement.releasePointerCapture?.(event.pointerId);
   }
 
   clearPad(): void {
-    const canvas = this.padCanvas?.nativeElement;
+    const canvas = this.padCanvas()?.nativeElement;
     if (!canvas || !this.context) return;
     // Bitmap units, and the context carries no transform, so these agree.
     this.context.clearRect(0, 0, canvas.width, canvas.height);
@@ -308,8 +308,8 @@ export class SignatureCaptureComponent implements AfterViewInit, OnDestroy {
   }
 
   setMethod(method: ContractSignatureMethod): void {
-    this.method = method;
-    this.validationError = '';
+    this.method.set(method);
+    this.validationError.set('');
     // The canvas only exists in the DOM in Draw mode, so it is measured after Angular has
     // rendered it rather than before.
     if (method === ContractSignatureMethod.Draw) {
@@ -320,39 +320,40 @@ export class SignatureCaptureComponent implements AfterViewInit, OnDestroy {
   // ── submit ─────────────────────────────────────────────────────────────────
 
   submit(): void {
-    if (this.submitting) return;
-    this.validationError = '';
+    if (this.submitting()) return;
+    this.validationError.set('');
 
-    if (!this.consentAccepted) {
-      this.validationError = 'Please tick the consent box before signing.';
+    if (!this.consentAccepted()) {
+      this.validationError.set('Please tick the consent box before signing.');
       return;
     }
 
     let signatureData: string;
-    if (this.method === ContractSignatureMethod.Draw) {
+    if (this.method() === ContractSignatureMethod.Draw) {
       if (!this.hasDrawnStrokes) {
-        this.validationError = 'Please draw your signature in the box.';
+        this.validationError.set('Please draw your signature in the box.');
         return;
       }
       signatureData = this.exportMark();
     } else {
       if (!this.typedSignature.trim()) {
-        this.validationError = 'Please type your name as your signature.';
+        this.validationError.set('Please type your name as your signature.');
         return;
       }
       signatureData = this.typedSignature.trim();
     }
 
-    if (!this.nameLocked && !this.signerName.trim()) {
-      this.validationError = 'Please enter your name.';
+    const signerName = this.signerName();
+    if (!this.nameLocked() && !signerName.trim()) {
+      this.validationError.set('Please enter your name.');
       return;
     }
 
     this.signed.emit({
-      signerName: this.signerName.trim(),
-      signerTitle: this.signerTitle?.trim(),
-      signerEmail: this.signerEmail?.trim(),
-      signatureMethod: this.method,
+      signerName: signerName.trim(),
+      signerTitle: this.signerTitle()?.trim(),
+      signerEmail: this.signerEmail()?.trim(),
+      signatureMethod: this.method(),
       signatureData,
       consentAccepted: true
     });

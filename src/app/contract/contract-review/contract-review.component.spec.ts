@@ -80,8 +80,8 @@ describe('ContractReviewComponent', () => {
     fixture.detectChanges();
     http.expectOne(r => r.url.endsWith(`/contracts/review/${TOKEN}`)).flush(page());
 
-    expect(component.page?.contractNumber).toBe('DC-2026-0001');
-    expect(component.loading).toBe(false);
+    expect(component.page()?.contractNumber).toBe('DC-2026-0001');
+    expect(component.loading()).toBe(false);
   });
 
   it('explains a bad link instead of rendering a blank page', () => {
@@ -92,7 +92,7 @@ describe('ContractReviewComponent', () => {
         { status: 400, statusText: 'Bad Request' });
     fixture.detectChanges();
 
-    expect(component.loadError).toContain('expired');
+    expect(component.loadError()).toContain('expired');
     expect((fixture.nativeElement as HTMLElement).textContent)
       .toContain('We could not open this agreement');
   });
@@ -114,8 +114,10 @@ describe('ContractReviewComponent', () => {
     http.expectOne(r => r.url.endsWith(`/contracts/review/${TOKEN}`)).flush(page());
 
     component.startEditing();
-    component.form.lastName = 'Finkelstein';
-    component.form.title = 'Owner';
+    component.form().lastName = 'Finkelstein';
+    component.form.set(component.form());
+    component.form().title = 'Owner';
+    component.form.set(component.form());
 
     expect(component.willCreateRevision).toBe(false);
   });
@@ -126,7 +128,8 @@ describe('ContractReviewComponent', () => {
     http.expectOne(r => r.url.endsWith(`/contracts/review/${TOKEN}`)).flush(page());
 
     component.startEditing();
-    component.form.companyLegalName = 'Chick Tastic Holdings LLC';
+    component.form().companyLegalName = 'Chick Tastic Holdings LLC';
+    component.form.set(component.form());
     fixture.detectChanges();
 
     expect(component.willCreateRevision).toBe(true);
@@ -140,7 +143,8 @@ describe('ContractReviewComponent', () => {
     http.expectOne(r => r.url.endsWith(`/contracts/review/${TOKEN}`)).flush(page());
 
     component.startEditing();
-    component.form.companyLegalName = '  chick tastic llc ';
+    component.form().companyLegalName = '  chick tastic llc ';
+    component.form.set(component.form());
 
     expect(component.willCreateRevision).toBe(false);
   });
@@ -151,7 +155,8 @@ describe('ContractReviewComponent', () => {
     http.expectOne(r => r.url.endsWith(`/contracts/review/${TOKEN}`)).flush(page());
 
     component.startEditing();
-    component.form.companyLegalName = 'Chick Tastic Holdings LLC';
+    component.form().companyLegalName = 'Chick Tastic Holdings LLC';
+    component.form.set(component.form());
     component.save();
 
     http.expectOne(r => r.url.endsWith(`/contracts/review/${TOKEN}/information`)).flush({
@@ -162,8 +167,8 @@ describe('ContractReviewComponent', () => {
     http.expectOne(r => r.url.endsWith(`/contracts/review/${TOKEN}`))
       .flush(page({ status: ContractStatus.NeedsRevision, statusLabel: 'Needs revision' }));
 
-    expect(component.revisionNotice?.fields).toEqual(['Legal entity name']);
-    expect(component.successMessage).toBe('');
+    expect(component.revisionNotice()?.fields).toEqual(['Legal entity name']);
+    expect(component.successMessage()).toBe('');
   });
 
   it('cancelling an edit leaves the displayed details untouched', () => {
@@ -172,11 +177,12 @@ describe('ContractReviewComponent', () => {
     http.expectOne(r => r.url.endsWith(`/contracts/review/${TOKEN}`)).flush(page());
 
     component.startEditing();
-    component.form.companyLegalName = 'Something Else LLC';
+    component.form().companyLegalName = 'Something Else LLC';
+    component.form.set(component.form());
     component.cancelEditing();
 
-    expect(component.form.companyLegalName).toBe('Chick Tastic LLC');
-    expect(component.editing).toBe(false);
+    expect(component.form().companyLegalName).toBe('Chick Tastic LLC');
+    expect(component.editing()).toBe(false);
   });
 
   it('requires a signer name before saving', () => {
@@ -185,10 +191,11 @@ describe('ContractReviewComponent', () => {
     http.expectOne(r => r.url.endsWith(`/contracts/review/${TOKEN}`)).flush(page());
 
     component.startEditing();
-    component.form.firstName = '';
+    component.form().firstName = '';
+    component.form.set(component.form());
     component.save();
 
-    expect(component.saveError).toContain('first and last name');
+    expect(component.saveError()).toContain('first and last name');
     http.expectNone(r => r.url.endsWith('/information'));
   });
 
@@ -221,7 +228,7 @@ describe('ContractReviewComponent', () => {
     setUp('');
     fixture.detectChanges();
 
-    expect(component.loadError).toContain('missing its reference');
+    expect(component.loadError()).toContain('missing its reference');
     http.expectNone(() => true);
   });
 });

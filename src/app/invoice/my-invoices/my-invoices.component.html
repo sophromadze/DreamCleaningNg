@@ -18,28 +18,28 @@
       }
     </header>
 
-    @if (loading) {
+    @if (loading()) {
     <div class="contract-card contract-status-card">Loading your invoices…</div>
     }
 
-    @if (!loading && errorMessage) {
+    @if (!loading() && errorMessage()) {
     <div class="contract-card contract-status-card error">
       <h1>We could not load your invoices</h1>
-      <p>{{ errorMessage }}</p>
+      <p>{{ errorMessage() }}</p>
     </div>
     }
 
-    @if (!loading && !errorMessage) {
+    @if (!loading() && !errorMessage()) {
     <div class="contract-card">
-      @if (!rows.length) {
+      @if (!rows().length) {
       <p class="muted">
         You do not have any invoices yet. When we issue one, it will appear here.
       </p>
       }
 
-      @if (rows.length) {
+      @if (rows().length) {
       <ul class="invoice-list">
-        @for (row of rows; track $index) {
+        @for (row of rows(); track $index) {
         <li class="invoice-row" (click)="open(row)" tabindex="0"
             (keyup.enter)="open(row)">
 
@@ -93,7 +93,7 @@
       </ul>
       }
 
-      @if (rows.length) {
+      @if (rows().length) {
       <p class="muted list-footnote">
         Open an invoice to see the full breakdown, pay it online or download the PDF.
       </p>

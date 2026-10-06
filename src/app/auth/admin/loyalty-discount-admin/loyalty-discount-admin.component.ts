@@ -1,4 +1,4 @@
-import { Component, OnInit, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
@@ -20,28 +20,28 @@ import { formatNyDateTime } from '../../../shared/ny-time.util';
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './loyalty-discount-admin.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./loyalty-discount-admin.component.scss'],
 })
 export class LoyaltyDiscountAdminComponent implements OnInit {
   private adminService = inject(AdminService);
 
   // ── Panel A: settings ──────────────────────────────────────────────────────────
-  settings: LoyaltyDiscountSettingsDto = this.defaultSettings();
-  loadingSettings = false;
-  savingSettings = false;
-  settingsError = '';
-  settingsSuccess = '';
+  readonly settings = signal<LoyaltyDiscountSettingsDto>(this.defaultSettings());
+  readonly loadingSettings = signal(false);
+  readonly savingSettings = signal(false);
+  readonly settingsError = signal('');
+  readonly settingsSuccess = signal('');
 
   // ── Panel B: recent audit activity ─────────────────────────────────────────────
   // Filtered client-side to entityType === 'UserLoyaltyDiscount'. The backend audit
   // endpoint is already permission-gated (View), so we don't need to re-check here.
-  auditLogs: AuditLog[] = [];
-  loadingAudit = false;
-  auditError = '';
+  readonly auditLogs = signal<AuditLog[]>([]);
+  readonly loadingAudit = signal(false);
+  readonly auditError = signal('');
 
   // Pagination
-  currentPage = 1;
+  readonly currentPage = signal(1);
   readonly pageSize = 10;
 
   // ── Permissions ────────────────────────────────────────────────────────────────
@@ -49,20 +49,20 @@ export class LoyaltyDiscountAdminComponent implements OnInit {
   // SuperAdmin only. Admin and Moderator never see Panel A at all — the settings decide who
   // gets a standing discount and how big it is. The audit panel below stays visible to them
   // (read-only by design).
-  canManageSettings = false;
+  readonly canManageSettings = signal(false);
 
   ngOnInit(): void {
     this.adminService.getUserPermissions().subscribe({
       next: (perms: UserPermissions) => {
         this.userRole = perms.role;
-        this.canManageSettings = perms.role === 'SuperAdmin';
+        this.canManageSettings.set(perms.role === 'SuperAdmin');
         // Only fetch settings for the role that can actually see Panel A. Admin and Moderator
         // only ever see the audit feed below — and the GET would 403 for them anyway.
-        if (this.canManageSettings) this.loadSettings();
+        if (this.canManageSettings()) this.loadSettings();
       },
       error: () => {
         this.userRole = '';
-        this.canManageSettings = false;
+        this.canManageSettings.set(false);
       },
     });
 
@@ -71,60 +71,60 @@ export class LoyaltyDiscountAdminComponent implements OnInit {
 
   // ── Settings ────────────────────────────────────────────────────────────────────
   loadSettings(): void {
-    this.loadingSettings = true;
-    this.settingsError = '';
+    this.loadingSettings.set(true);
+    this.settingsError.set('');
     this.adminService.getLoyaltyDiscountSettings().subscribe({
       next: (s) => {
-        this.settings = s;
-        this.loadingSettings = false;
+        this.settings.set(s);
+        this.loadingSettings.set(false);
       },
       error: (err) => {
-        this.settingsError = err?.error?.message || 'Failed to load settings';
-        this.loadingSettings = false;
+        this.settingsError.set(err?.error?.message || 'Failed to load settings');
+        this.loadingSettings.set(false);
       },
     });
   }
 
   saveSettings(): void {
-    if (!this.canManageSettings || this.savingSettings) return;
-    this.savingSettings = true;
-    this.settingsError = '';
-    this.settingsSuccess = '';
-    this.adminService.updateLoyaltyDiscountSettings(this.settings).subscribe({
+    if (!this.canManageSettings() || this.savingSettings()) return;
+    this.savingSettings.set(true);
+    this.settingsError.set('');
+    this.settingsSuccess.set('');
+    this.adminService.updateLoyaltyDiscountSettings(this.settings()).subscribe({
       next: (s) => {
-        this.settings = s;
-        this.savingSettings = false;
-        this.settingsSuccess = 'Settings saved.';
-        setTimeout(() => { this.settingsSuccess = ''; }, 4000);
+        this.settings.set(s);
+        this.savingSettings.set(false);
+        this.settingsSuccess.set('Settings saved.');
+        setTimeout(() => { this.settingsSuccess.set(''); }, 4000);
         // Saving may have changed action threshold copy in the audit feed (e.g. percent
         // mentioned in a future Auto* row), but existing rows are immutable — no refresh.
       },
       error: (err) => {
         // Backend 400s for cross-field invariants (day-90 < day-60, days not strictly
         // increasing) come through here with the explicit message.
-        this.settingsError = err?.error?.message || 'Failed to save settings.';
-        this.savingSettings = false;
+        this.settingsError.set(err?.error?.message || 'Failed to save settings.');
+        this.savingSettings.set(false);
       },
     });
   }
 
   // ── Audit feed ─────────────────────────────────────────────────────────────────
   loadAudit(): void {
-    this.loadingAudit = true;
-    this.auditError = '';
-    this.currentPage = 1;
+    this.loadingAudit.set(true);
+    this.auditError.set('');
+    this.currentPage.set(1);
     // Filtered and paged on the SERVER now. This page shows one narrow stream, so asking for it
     // by entity type is both cheaper and correct — the old call fetched every audit row from the
     // last 30 days and threw almost all of them away in the browser.
     this.adminService.getAuditLogs({ days: 30, entityType: 'UserLoyaltyDiscount', pageSize: 200 }).subscribe({
       next: (page) => {
-        this.auditLogs = (page?.items || [])
-          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-        this.loadingAudit = false;
+        this.auditLogs.set((page?.items || [])
+          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+        this.loadingAudit.set(false);
       },
       error: (err) => {
-        this.auditError = err?.error?.message || 'Failed to load audit history.';
-        this.loadingAudit = false;
+        this.auditError.set(err?.error?.message || 'Failed to load audit history.');
+        this.loadingAudit.set(false);
       },
     });
   }
@@ -184,17 +184,17 @@ export class LoyaltyDiscountAdminComponent implements OnInit {
 
   // ── Pagination ─────────────────────────────────────────────────────────────────
   get pagedLogs(): AuditLog[] {
-    const start = (this.currentPage - 1) * this.pageSize;
-    return this.auditLogs.slice(start, start + this.pageSize);
+    const start = (this.currentPage() - 1) * this.pageSize;
+    return this.auditLogs().slice(start, start + this.pageSize);
   }
 
   get totalPages(): number {
-    return Math.max(1, Math.ceil(this.auditLogs.length / this.pageSize));
+    return Math.max(1, Math.ceil(this.auditLogs().length / this.pageSize));
   }
 
   goToPage(p: number): void {
     if (p < 1 || p > this.totalPages) return;
-    this.currentPage = p;
+    this.currentPage.set(p);
   }
 
   // ── Formatting ─────────────────────────────────────────────────────────────────

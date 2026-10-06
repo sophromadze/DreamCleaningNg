@@ -1,3 +1,5 @@
+import { TestBed } from '@angular/core/testing';
+import { testProviders } from '../../../../testing/test-providers';
 import { AdminCustomerInvoicesComponent } from './admin-customer-invoices.component';
 import { CustomerInvoiceOrderOption } from '../../../services/customer-invoice.service';
 import { AdminBookingPaymentOptions, adminMethodIsSettled } from '../../../booking/booking.component';
@@ -5,7 +7,8 @@ import { CustomerInvoicePageComponent } from '../../../invoice/customer-invoice/
 
 /**
  * Regular customer invoices (Admin → Invoices, 2026-09). The server owns every rule; these pin the
- * form's own arithmetic and the choices it offers, built on the prototype so no DI is needed.
+ * form's own arithmetic and the choices it offers, on an instance built outside any template (its
+ * state lives in signals, which only exist once the field initializers have run).
  */
 describe('AdminCustomerInvoicesComponent (create form)', () => {
   const order = (over: Partial<CustomerInvoiceOrderOption> = {}): CustomerInvoiceOrderOption => ({
@@ -14,13 +17,15 @@ describe('AdminCustomerInvoicesComponent (create form)', () => {
     cannotInvoiceReason: null, openInvoiceNumbers: [], ...over
   });
 
+  beforeEach(() => TestBed.configureTestingModule({ providers: [...testProviders] }));
+
   const bare = (): AdminCustomerInvoicesComponent => {
-    const c = Object.create(AdminCustomerInvoicesComponent.prototype) as AdminCustomerInvoicesComponent;
-    c.orderOptions = [order()];
-    c.selectedOrderId = 7;
-    c.splitMode = false;
-    c.splitAmounts = [null, null];
-    c.creating = false;
+    const c = TestBed.runInInjectionContext(() => new AdminCustomerInvoicesComponent());
+    c.orderOptions.set([order()]);
+    c.selectedOrderId.set(7);
+    c.splitMode.set(false);
+    c.splitAmounts.set([null, null]);
+    c.creating.set(false);
     return c;
   };
 
@@ -32,10 +37,10 @@ describe('AdminCustomerInvoicesComponent (create form)', () => {
 
   it('fills the last split with whatever is not allocated yet', () => {
     const c = bare();
-    c.splitMode = true;
-    c.splitAmounts = [1000, null];
+    c.splitMode.set(true);
+    c.splitAmounts.set([1000, null]);
     c.fillRemainder(1);
-    expect(c.splitAmounts[1]).toBe(1743.65);
+    expect(c.splitAmounts()[1]).toBe(1743.65);
     expect(c.splitTotal).toBe(2743.65);
     expect(c.splitUnallocated).toBe(0);
     expect(c.canSubmitCreate).toBe(true);
@@ -43,25 +48,25 @@ describe('AdminCustomerInvoicesComponent (create form)', () => {
 
   it('refuses a split that asks for more than is owed, or a slice under the $0.50 card minimum', () => {
     const c = bare();
-    c.splitMode = true;
-    c.splitAmounts = [2000, 1000];
+    c.splitMode.set(true);
+    c.splitAmounts.set([2000, 1000]);
     expect(c.splitUnallocated).toBeLessThan(0);
     expect(c.canSubmitCreate).toBe(false);
 
-    c.splitAmounts = [2743.40, 0.25];
+    c.splitAmounts.set([2743.40, 0.25]);
     expect(c.canSubmitCreate).toBe(false);
   });
 
   it('keeps splitting an order that already carries a split invoice — never a whole-balance one beside it', () => {
     const c = bare();
-    c.orderOptions = [order({ openInvoiceNumbers: ['DCR-2026-12345678'], availableToInvoice: 1743.65 })];
-    c.splitMode = false;
+    c.orderOptions.set([order({ openInvoiceNumbers: ['DCR-2026-12345678'], availableToInvoice: 1743.65 })]);
+    c.splitMode.set(false);
     expect(c.isSplit).toBe(true);
   });
 
   it('cannot submit an order the server said cannot be invoiced', () => {
     const c = bare();
-    c.orderOptions = [order({ canInvoice: false, cannotInvoiceReason: 'Already invoiced in full.' })];
+    c.orderOptions.set([order({ canInvoice: false, cannotInvoiceReason: 'Already invoiced in full.' })]);
     expect(c.canSubmitCreate).toBe(false);
   });
 });
@@ -85,9 +90,11 @@ describe('booking page admin payment choices', () => {
 });
 
 describe('CustomerInvoicePageComponent', () => {
+  beforeEach(() => TestBed.configureTestingModule({ providers: [...testProviders] }));
+
   const page = (status: string, amountDue: number) => {
-    const c = Object.create(CustomerInvoicePageComponent.prototype) as CustomerInvoicePageComponent;
-    c.invoice = { status, amountDue, kind: 'Full' } as any;
+    const c = TestBed.runInInjectionContext(() => new CustomerInvoicePageComponent());
+    c.invoice.set({ status, amountDue, kind: 'Full' } as any);
     return c;
   };
 

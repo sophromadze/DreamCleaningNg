@@ -1,4 +1,4 @@
-import { Component, HostListener, ElementRef, PLATFORM_ID, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, HostListener, ElementRef, PLATFORM_ID, ChangeDetectionStrategy, inject, signal } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { PhoneClickTrackingService } from '../services/phone-click-tracking.service';
@@ -9,7 +9,7 @@ import { PhoneNumberService } from '../services/phone-number.service';
   standalone: true,
   imports: [RouterModule],
   templateUrl: './floating-action-buttons.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './floating-action-buttons.component.scss'
 })
 export class FloatingActionButtonsComponent {
@@ -19,7 +19,7 @@ export class FloatingActionButtonsComponent {
   private phoneNumber = inject(PhoneNumberService);
   private platformId = inject<Object>(PLATFORM_ID);
 
-  isExpanded = false;
+  readonly isExpanded = signal(false);
   contactLetters = 'CONTACT'.split('');
   private isBrowser: boolean;
   
@@ -30,16 +30,16 @@ export class FloatingActionButtonsComponent {
   @HostListener('document:click', ['$event'])
   onDocumentClick(event: Event) {
     if (!this.elementRef.nativeElement.contains(event.target)) {
-      this.isExpanded = false;
+      this.isExpanded.set(false);
     }
   }
   
   toggleExpanded() {
-    this.isExpanded = !this.isExpanded;
+    this.isExpanded.set(!this.isExpanded());
   }
 
   closeExpanded() {
-    this.isExpanded = false;
+    this.isExpanded.set(false);
   }
   
   callPhone() {

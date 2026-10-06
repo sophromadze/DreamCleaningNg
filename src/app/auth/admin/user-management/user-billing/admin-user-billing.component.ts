@@ -1,4 +1,4 @@
-import { Component, Input, OnChanges, OnDestroy, SimpleChanges, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, OnChanges, OnDestroy, SimpleChanges, ChangeDetectionStrategy, inject, signal, input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Subject, takeUntil } from 'rxjs';
 import { AdminUserBilling, BillingService, cardExpiry, cardLabel } from '../../../../services/billing.service';
@@ -18,26 +18,26 @@ import { extractApiErrorMessage } from '../../../../utils/http-error.utils';
   standalone: true,
   imports: [CommonModule],
   templateUrl: './admin-user-billing.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./admin-user-billing.component.scss']
 })
 export class AdminUserBillingComponent implements OnChanges, OnDestroy {
   private billing = inject(BillingService);
 
-  @Input({ required: true }) userId!: number;
+  readonly userId = input.required<number>();
 
   readonly cardLabel = cardLabel;
   readonly cardExpiry = cardExpiry;
 
-  data: AdminUserBilling | null = null;
-  loading = false;
-  error = '';
+  readonly data = signal<AdminUserBilling | null>(null);
+  readonly loading = signal(false);
+  readonly error = signal('');
 
   private destroy$ = new Subject<void>();
   private request$ = new Subject<void>();
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes['userId'] && this.userId) this.load();
+    if (changes['userId'] && this.userId()) this.load();
   }
 
   ngOnDestroy(): void {
@@ -47,18 +47,18 @@ export class AdminUserBillingComponent implements OnChanges, OnDestroy {
 
   load(): void {
     this.request$.next(); // a newer user's request supersedes an older one
-    this.loading = true;
-    this.error = '';
-    const forUser = this.userId;
+    this.loading.set(true);
+    this.error.set('');
+    const forUser = this.userId();
     this.billing.getAdminUserBilling(forUser).pipe(takeUntil(this.request$), takeUntil(this.destroy$)).subscribe({
       next: (data) => {
-        if (forUser !== this.userId) return;
-        this.data = data;
-        this.loading = false;
+        if (forUser !== this.userId()) return;
+        this.data.set(data);
+        this.loading.set(false);
       },
       error: (err) => {
-        this.loading = false;
-        this.error = extractApiErrorMessage(err, 'Could not load this customer\'s billing.');
+        this.loading.set(false);
+        this.error.set(extractApiErrorMessage(err, 'Could not load this customer\'s billing.'));
       }
     });
   }

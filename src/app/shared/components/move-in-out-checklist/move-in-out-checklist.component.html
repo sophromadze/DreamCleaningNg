@@ -3,12 +3,12 @@
     type="button"
     class="cleaning-type-details-toggle"
     (click)="toggle()"
-    [attr.aria-expanded]="expanded">
-    <span>{{ expanded ? "Hide what's included" : "What's included - Move in/out?" }}</span>
-    <i [appIcon]="icons.faChevronDown" [class.rotated]="expanded" aria-hidden="true"></i>
+    [attr.aria-expanded]="expanded()">
+    <span>{{ expanded() ? "Hide what's included" : "What's included - Move in/out?" }}</span>
+    <i [appIcon]="icons.faChevronDown" [class.rotated]="expanded()" aria-hidden="true"></i>
   </button>
 
-  @if (expanded) {
+  @if (expanded()) {
   <div
     class="cleaning-type-details-panel move-io-checklist__panel"
     role="region"

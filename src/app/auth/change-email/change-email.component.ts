@@ -1,4 +1,4 @@
-import { Component, OnInit, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy, inject, signal } from '@angular/core';
 
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
@@ -40,7 +40,7 @@ import { faPaperPlane } from '../../shared/icons/glyphs/faPaperPlane';
   standalone: true,
   imports: [FormsModule, RouterModule, IconComponent],
   templateUrl: './change-email.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['../account-form.scss', './change-email.component.scss']
 })
 export class ChangeEmailComponent implements OnInit {
@@ -51,20 +51,20 @@ export class ChangeEmailComponent implements OnInit {
   protected readonly icons = { faArrowLeft, faCircleExclamation, faPaperPlane };
 
   // Form step
-  newEmail: string = '';
-  currentPassword: string = '';
-  errorMessage: string = '';
-  successMessage: string = '';
-  isSubmitting: boolean = false;
+  readonly newEmail = signal<string>('');
+  readonly currentPassword = signal<string>('');
+  readonly errorMessage = signal<string>('');
+  readonly successMessage = signal<string>('');
+  readonly isSubmitting = signal<boolean>(false);
   currentUser: any = null;
-  showPassword = false;
+  readonly showPassword = signal(false);
 
   // Verification step
-  currentStep: 'form' | 'verification' = 'form';
-  isVerifying = false;
-  isSuccess = false;
-  isError = false;
-  verificationErrorMessage = '';
+  readonly currentStep = signal<'form' | 'verification'>('form');
+  readonly isVerifying = signal(false);
+  readonly isSuccess = signal(false);
+  readonly isError = signal(false);
+  readonly verificationErrorMessage = signal('');
 
   constructor() {
     this.currentUser = this.authService.currentUserValue;
@@ -75,7 +75,7 @@ export class ChangeEmailComponent implements OnInit {
     const token = this.route.snapshot.queryParams['token'];
 
     if (token) {
-      this.currentStep = 'verification';
+      this.currentStep.set('verification');
       this.confirmEmailChange(token);
     }
   }
@@ -85,77 +85,77 @@ export class ChangeEmailComponent implements OnInit {
    * before a request is made rather than coming back as a round trip. Null when it looks usable.
    */
   get emailProblem(): string | null {
-    if (!this.newEmail) return null;      // "required" is handled by the disabled submit button
-    return describeEmailProblem(this.newEmail);
+    if (!this.newEmail()) return null;      // "required" is handled by the disabled submit button
+    return describeEmailProblem(this.newEmail());
   }
 
   get canSubmit(): boolean {
-    return !this.isSubmitting
-      && !!this.newEmail.trim()
-      && !!this.currentPassword
+    return !this.isSubmitting()
+      && !!this.newEmail().trim()
+      && !!this.currentPassword()
       && this.emailProblem === null;
   }
 
   onSubmit() {
     if (!this.canSubmit) return;
 
-    this.isSubmitting = true;
-    this.errorMessage = '';
-    this.successMessage = '';
+    this.isSubmitting.set(true);
+    this.errorMessage.set('');
+    this.successMessage.set('');
 
-    this.authService.initiateEmailChange(this.newEmail.trim(), this.currentPassword)
+    this.authService.initiateEmailChange(this.newEmail().trim(), this.currentPassword())
       // `finalize`, not `complete`: RxJS never calls `complete` on an HTTP error, so a failed
       // attempt would leave the button stuck on "Sending…".
-      .pipe(finalize(() => this.isSubmitting = false))
+      .pipe(finalize(() => this.isSubmitting.set(false)))
       .subscribe({
         next: (response) => {
-          this.successMessage = response?.message
-            ?? 'Check your new inbox for the verification link.';
+          this.successMessage.set(response?.message
+            ?? 'Check your new inbox for the verification link.');
           // Clear the password but KEEP the address on screen: the next thing the customer does
           // is go and look for mail at it, and they may well want to check they typed it right.
-          this.currentPassword = '';
+          this.currentPassword.set('');
         },
         error: (error) => {
-          this.errorMessage = extractApiErrorMessage(
-            error, 'Failed to start the email change. Please try again.');
+          this.errorMessage.set(extractApiErrorMessage(
+            error, 'Failed to start the email change. Please try again.'));
         }
       });
   }
 
   confirmEmailChange(token: string) {
-    this.isVerifying = true;
-    this.isSuccess = false;
-    this.isError = false;
+    this.isVerifying.set(true);
+    this.isSuccess.set(false);
+    this.isError.set(false);
 
     this.authService.confirmEmailChange(token).subscribe({
       next: () => {
-        this.isVerifying = false;
-        this.isSuccess = true;
+        this.isVerifying.set(false);
+        this.isSuccess.set(true);
 
         // The address the account signs in with has changed, so this session is deliberately
         // ended — the customer signs in again with the new one.
         this.authService.logout();
       },
       error: (error) => {
-        this.isVerifying = false;
-        this.isError = true;
-        this.verificationErrorMessage = extractApiErrorMessage(
-          error, 'We could not verify that link.');
+        this.isVerifying.set(false);
+        this.isError.set(true);
+        this.verificationErrorMessage.set(extractApiErrorMessage(
+          error, 'We could not verify that link.'));
       }
     });
   }
 
   resetForm() {
-    this.currentStep = 'form';
-    this.newEmail = '';
-    this.currentPassword = '';
-    this.errorMessage = '';
-    this.successMessage = '';
-    this.isSubmitting = false;
-    this.isVerifying = false;
-    this.isSuccess = false;
-    this.isError = false;
-    this.verificationErrorMessage = '';
+    this.currentStep.set('form');
+    this.newEmail.set('');
+    this.currentPassword.set('');
+    this.errorMessage.set('');
+    this.successMessage.set('');
+    this.isSubmitting.set(false);
+    this.isVerifying.set(false);
+    this.isSuccess.set(false);
+    this.isError.set(false);
+    this.verificationErrorMessage.set('');
 
     this.router.navigate(['/change-email']);
   }

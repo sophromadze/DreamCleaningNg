@@ -2,13 +2,13 @@
   type="button"
   class="reorder-btn"
   (click)="toggleModal()"
-  [class.active]="showModal">
+  [class.active]="showModal()">
   <i [appIcon]="icons.faArrowRotateRight"></i>
   Reorder from Previous Orders
 </button>
 
 <!-- Reorder Modal -->
-@if (showModal) {
+@if (showModal()) {
 <div class="reorder-modal">
   <div class="reorder-modal-header">
     <h3>Select an Order to Reorder</h3>
@@ -17,23 +17,23 @@
     </button>
   </div>
   <div class="reorder-modal-body">
-    @if (isLoading) {
+    @if (isLoading()) {
     <div class="loading-orders">
       Loading orders...
     </div>
     }
-    @if (!isLoading && orders.length === 0) {
+    @if (!isLoading() && orders().length === 0) {
     <div class="no-orders">
       You don't have any previous orders to reorder.
     </div>
     }
-    @if (!isLoading && orders.length > 0) {
+    @if (!isLoading() && orders().length > 0) {
     <div class="orders-list">
-      @for (order of orders; track order.id) {
+      @for (order of orders(); track order.id) {
       <div
         class="order-item"
         (click)="selectOrder(order.id)"
-        [class.reordering]="reorderingOrderId === order.id">
+        [class.reordering]="reorderingOrderId() === order.id">
         <div class="order-item-header">
           <h4>{{ order.serviceTypeName }}</h4>
           <span class="order-total">${{ order.total.toFixed(2) }}</span>
@@ -42,7 +42,7 @@
           <p class="order-date">{{ formatOrderDate(order.serviceDate) }} at {{ formatTime(order.serviceTime) }}</p>
           <p class="order-address">{{ order.serviceAddress }}</p>
         </div>
-        @if (reorderingOrderId === order.id) {
+        @if (reorderingOrderId() === order.id) {
         <div class="order-item-status">
           <span class="loading-text">Loading...</span>
         </div>

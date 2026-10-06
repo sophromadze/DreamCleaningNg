@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, inject, ChangeDetectionStrategy, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ContractDocumentComponent } from '../../shared/components/contract-document/contract-document.component';
@@ -26,7 +26,7 @@ import { extractApiErrorMessage } from '../../utils/http-error.utils';
   standalone: true,
   imports: [FormsModule, ContractDocumentComponent, SignatureCaptureComponent],
   templateUrl: './my-contract-detail.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['../contract-review/contract-review.component.scss']
 })
 export class MyContractDetailComponent implements OnInit {
@@ -35,49 +35,49 @@ export class MyContractDetailComponent implements OnInit {
   private contracts = inject(ContractService);
 
   contractId = 0;
-  page: ContractReviewPage | null = null;
+  readonly page = signal<ContractReviewPage | null>(null);
 
-  loading = true;
-  loadError = '';
+  readonly loading = signal(true);
+  readonly loadError = signal('');
 
-  editing = false;
-  saving = false;
-  saveError = '';
-  successMessage = '';
-  revisionNotice: { message: string; fields: string[] } | null = null;
+  readonly editing = signal(false);
+  readonly saving = signal(false);
+  readonly saveError = signal('');
+  readonly successMessage = signal('');
+  readonly revisionNotice = signal<{ message: string; fields: string[] } | null>(null);
 
-  signing = false;
-  signError = '';
-  signed = false;
-  signedMessage = '';
+  readonly signing = signal(false);
+  readonly signError = signal('');
+  readonly signed = signal(false);
+  readonly signedMessage = signal('');
 
-  form: ClientReviewInfo = this.emptyInfo();
+  readonly form = signal<ClientReviewInfo>(this.emptyInfo());
 
   readonly ContractStatus = ContractStatus;
 
   ngOnInit(): void {
     this.contractId = Number(this.route.snapshot.paramMap.get('id'));
     if (!this.contractId) {
-      this.loading = false;
-      this.loadError = 'That contract could not be found.';
+      this.loading.set(false);
+      this.loadError.set('That contract could not be found.');
       return;
     }
     this.load();
   }
 
   private load(): void {
-    this.loading = true;
+    this.loading.set(true);
     this.contracts.getMyContract(this.contractId).subscribe({
       next: page => {
-        this.page = page;
-        this.form = { ...page.yourInformation };
-        this.loading = false;
+        this.page.set(page);
+        this.form.set({ ...page.yourInformation });
+        this.loading.set(false);
       },
       error: err => {
         // The server answers 404 for a contract this account does not own, so there is nothing
         // here to distinguish "missing" from "someone else's".
-        this.loadError = extractApiErrorMessage(err, 'That contract could not be found.');
-        this.loading = false;
+        this.loadError.set(extractApiErrorMessage(err, 'That contract could not be found.'));
+        this.loading.set(false);
       }
     });
   }
@@ -87,28 +87,28 @@ export class MyContractDetailComponent implements OnInit {
   // ── your information ───────────────────────────────────────────────────────
 
   startEditing(): void {
-    if (!this.page) return;
-    this.form = { ...this.page.yourInformation };
-    this.editing = true;
-    this.saveError = '';
-    this.successMessage = '';
+    if (!this.page()) return;
+    this.form.set({ ...this.page()!.yourInformation });
+    this.editing.set(true);
+    this.saveError.set('');
+    this.successMessage.set('');
   }
 
   cancelEditing(): void {
-    if (this.page) this.form = { ...this.page.yourInformation };
-    this.editing = false;
-    this.saveError = '';
+    if (this.page()) this.form.set({ ...this.page()!.yourInformation });
+    this.editing.set(false);
+    this.saveError.set('');
   }
 
   /** Warns before saving, so a revision is never a surprise. Mirrors the token page exactly. */
   get willCreateRevision(): boolean {
-    if (!this.page) return false;
-    const o = this.page.yourInformation;
-    return this.differs(o.companyLegalName, this.form.companyLegalName)
-      || this.differs(o.companyAddress, this.form.companyAddress)
-      || this.differs(o.city, this.form.city)
-      || this.differs(o.state, this.form.state)
-      || this.differs(o.zip, this.form.zip);
+    if (!this.page()) return false;
+    const o = this.page()!.yourInformation;
+    return this.differs(o.companyLegalName, this.form().companyLegalName)
+      || this.differs(o.companyAddress, this.form().companyAddress)
+      || this.differs(o.city, this.form().city)
+      || this.differs(o.state, this.form().state)
+      || this.differs(o.zip, this.form().zip);
   }
 
   private differs(a?: string, b?: string): boolean {
@@ -116,30 +116,30 @@ export class MyContractDetailComponent implements OnInit {
   }
 
   save(): void {
-    if (!this.page || this.saving) return;
-    if (!this.form.firstName?.trim() || !this.form.lastName?.trim()) {
-      this.saveError = 'Please enter the first and last name of the person who will sign.';
+    if (!this.page() || this.saving()) return;
+    if (!this.form().firstName?.trim() || !this.form().lastName?.trim()) {
+      this.saveError.set('Please enter the first and last name of the person who will sign.');
       return;
     }
 
-    this.saving = true;
-    this.saveError = '';
-    this.contracts.updateMyContractInformation(this.contractId, this.form).subscribe({
+    this.saving.set(true);
+    this.saveError.set('');
+    this.contracts.updateMyContractInformation(this.contractId, this.form()).subscribe({
       next: result => {
-        this.saving = false;
-        this.editing = false;
+        this.saving.set(false);
+        this.editing.set(false);
         if (result.createdRevision) {
-          this.revisionNotice = { message: result.message, fields: result.changedFields };
-          this.successMessage = '';
+          this.revisionNotice.set({ message: result.message, fields: result.changedFields });
+          this.successMessage.set('');
         } else {
-          this.successMessage = result.message;
-          this.revisionNotice = null;
+          this.successMessage.set(result.message);
+          this.revisionNotice.set(null);
         }
         this.load();
       },
       error: err => {
-        this.saving = false;
-        this.saveError = extractApiErrorMessage(err, 'We could not save your changes.');
+        this.saving.set(false);
+        this.saveError.set(extractApiErrorMessage(err, 'We could not save your changes.'));
       }
     });
   }
@@ -147,13 +147,13 @@ export class MyContractDetailComponent implements OnInit {
   // ── signing ────────────────────────────────────────────────────────────────
 
   get canSign(): boolean {
-    return !!this.page?.canContinueToSignature && !this.signed;
+    return !!this.page()?.canContinueToSignature && !this.signed();
   }
 
   onSigned(captured: CapturedSignature): void {
-    if (this.signing) return;
-    this.signing = true;
-    this.signError = '';
+    if (this.signing()) return;
+    this.signing.set(true);
+    this.signError.set('');
 
     this.contracts.signMyContract(this.contractId, {
       signerName: captured.signerName,
@@ -164,21 +164,21 @@ export class MyContractDetailComponent implements OnInit {
       consentAccepted: true
     }).subscribe({
       next: result => {
-        this.signing = false;
-        this.signed = true;
-        this.signedMessage = result.message;
+        this.signing.set(false);
+        this.signed.set(true);
+        this.signedMessage.set(result.message);
         this.load();
       },
       error: err => {
-        this.signing = false;
-        this.signError = extractApiErrorMessage(err, 'We could not record your signature.');
+        this.signing.set(false);
+        this.signError.set(extractApiErrorMessage(err, 'We could not record your signature.'));
       }
     });
   }
 
   get isExecuted(): boolean {
-    return this.page?.status === ContractStatus.Completed
-      || this.page?.status === ContractStatus.FullySigned;
+    return this.page()?.status === ContractStatus.Completed
+      || this.page()?.status === ContractStatus.FullySigned;
   }
 
   downloadExecuted(): void {
@@ -187,12 +187,12 @@ export class MyContractDetailComponent implements OnInit {
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = `${this.page?.contractNumber ?? 'agreement'}-Executed.pdf`;
+        link.download = `${this.page()?.contractNumber ?? 'agreement'}-Executed.pdf`;
         link.click();
         URL.revokeObjectURL(url);
       },
       error: err => {
-        this.signError = extractApiErrorMessage(err, 'The executed copy is not available yet.');
+        this.signError.set(extractApiErrorMessage(err, 'The executed copy is not available yet.'));
       }
     });
   }

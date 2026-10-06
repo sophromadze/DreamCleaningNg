@@ -13,21 +13,21 @@
       <option value="name">Name (A–Z)</option>
       <option value="oldest">Oldest</option>
     </select>
-    @if (segmentFilter) {
+    @if (segmentFilter()) {
     <span class="segment-chip">
-      {{ segmentLabel(segmentFilter) }}
+      {{ segmentLabel(segmentFilter()) }}
       <button (click)="clearSegmentFilter()">✕</button>
     </span>
     }
-    <span class="result-count">{{ total }} customer{{ total === 1 ? '' : 's' }}</span>
+    <span class="result-count">{{ total() }} customer{{ total() === 1 ? '' : 's' }}</span>
   </div>
 
-  @if (errorMessage) {
-  <div class="error-message">{{ errorMessage }}</div>
+  @if (errorMessage()) {
+  <div class="error-message">{{ errorMessage() }}</div>
   }
 
   <!-- Table -->
-  <div class="table-wrap" [class.loading]="loading">
+  <div class="table-wrap" [class.loading]="loading()">
     <table class="customers-table">
       <thead>
         <tr>
@@ -40,7 +40,7 @@
         </tr>
       </thead>
       <tbody>
-        @for (c of customers; track trackById($index, c)) {
+        @for (c of customers(); track trackById($index, c)) {
         <tr (click)="openCustomer(c)" class="row">
           <td>
             <div class="cust-name">{{ c.fullName || c.email }}</div>
@@ -67,7 +67,7 @@
           </td>
         </tr>
         }
-        @if (!loading && customers.length === 0) {
+        @if (!loading() && customers().length === 0) {
         <tr>
           <td colspan="6" class="empty">No customers found.</td>
         </tr>
@@ -77,37 +77,37 @@
   </div>
 
   <!-- Pagination (matches the admin Users tab) -->
-  @if (totalPages > 1) {
+  @if (totalPages() > 1) {
   <div class="pagination">
-    <button class="page-btn" (click)="goToPage(page - 1)" [disabled]="page === 1">‹ Previous</button>
-    <button class="page-btn" (click)="goToPage(1)" [class.active]="page === 1">1</button>
-    @if (totalPages > 5 && page > 3) {
+    <button class="page-btn" (click)="goToPage(page() - 1)" [disabled]="page() === 1">‹ Previous</button>
+    <button class="page-btn" (click)="goToPage(1)" [class.active]="page() === 1">1</button>
+    @if (totalPages() > 5 && page() > 3) {
     <span class="page-ellipsis">…</span>
     }
     @for (p of getVisiblePages(); track p) {
     <button
             class="page-btn"
             (click)="goToPage(p)"
-            [class.active]="page === p">{{ p }}</button>
+            [class.active]="page() === p">{{ p }}</button>
     }
-    @if (totalPages > 5 && page < totalPages - 2) {
+    @if (totalPages() > 5 && page() < totalPages() - 2) {
     <span class="page-ellipsis">…</span>
     }
-    @if (totalPages > 1) {
+    @if (totalPages() > 1) {
     <button
             class="page-btn"
-            (click)="goToPage(totalPages)"
-            [class.active]="page === totalPages">{{ totalPages }}</button>
+            (click)="goToPage(totalPages())"
+            [class.active]="page() === totalPages()">{{ totalPages() }}</button>
     }
-    <button class="page-btn" (click)="goToPage(page + 1)" [disabled]="page === totalPages">Next ›</button>
+    <button class="page-btn" (click)="goToPage(page() + 1)" [disabled]="page() === totalPages()">Next ›</button>
   </div>
   }
 
   <!-- ───────────── Customer 360 slide-in ───────────── -->
-  @if (selected) {
+  @if (selected()) {
   <div class="panel-overlay" (click)="closePanel()"></div>
   }
-  @if (selected) {
+  @if (selected(); as selected) {
   <aside class="detail-panel">
     <div class="panel-header">
       <div>
@@ -117,7 +117,7 @@
       <button class="close-btn" (click)="closePanel()">✕</button>
     </div>
 
-    @if (!panelLoading) {
+    @if (!panelLoading()) {
     <div class="panel-body">
       <!-- Contact -->
       <section class="contact-row">
@@ -180,11 +180,11 @@
           <input type="text" placeholder="Add a tag…" [(ngModel)]="newTagLabel"
                  list="tag-suggestions" (keyup.enter)="addTag()" />
           <datalist id="tag-suggestions">
-            @for (s of tagSuggestions; track s) {
+            @for (s of tagSuggestions(); track s) {
             <option [value]="s"></option>
             }
           </datalist>
-          <button class="btn-add-tag" (click)="addTag()" [disabled]="addingTag || !newTagLabel.trim()">Add</button>
+          <button class="btn-add-tag" (click)="addTag()" [disabled]="addingTag() || !newTagLabel().trim()">Add</button>
         </div>
       </section>
 
@@ -209,7 +209,7 @@
     </div>
     }
 
-    @if (panelLoading) {
+    @if (panelLoading()) {
     <div class="panel-loading">Loading…</div>
     }
   </aside>

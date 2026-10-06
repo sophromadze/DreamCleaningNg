@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, inject, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, ChangeDetectionStrategy, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { environment } from '../../environments/environment';
@@ -22,19 +22,19 @@ interface DisplayReview extends Review {
   standalone: true,
   imports: [CommonModule, RouterModule],
   templateUrl: './reviews.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './reviews.component.scss'
 })
 export class ReviewsComponent implements OnInit, OnDestroy {
   private googlePlacesService = inject(GooglePlacesService);
 
-  reviews: DisplayReview[] = [];
-  overallRating = 0;
-  totalReviews = 0;
+  readonly reviews = signal<DisplayReview[]>([]);
+  readonly overallRating = signal(0);
+  readonly totalReviews = signal(0);
   isLoading = false;
-  isLoadingMore = false;
-  hasLoaded = false;
-  hasMore = false;
+  readonly isLoadingMore = signal(false);
+  readonly hasLoaded = signal(false);
+  readonly hasMore = signal(false);
   protected readonly phoneNumber = inject(PhoneNumberService);
 
   /**
@@ -43,7 +43,7 @@ export class ReviewsComponent implements OnInit, OnDestroy {
    * To self-host instead, drop a file at /images/reviews-hero.webp and swap this URL.
    */
   readonly heroImage = 'https://images.unsplash.com/photo-1713947506367-b639b30230d5?auto=format&fit=crop&w=1200&q=70';
-  heroImageFailed = false;
+  readonly heroImageFailed = signal(false);
 
   private readonly pageSize = 9;
   private currentPage = 0;
@@ -94,9 +94,7 @@ export class ReviewsComponent implements OnInit, OnDestroy {
   }
 
   /** "153 Google reviews" — the shared wording for every review count on the site. */
-  get reviewCountLabel(): string {
-    return formatReviewCount(this.totalReviews);
-  }
+  readonly reviewCountLabel = computed<string>(() => formatReviewCount(this.totalReviews()));
 
   /** Headline count/rating: always Google's total from /stats, never the number of loaded reviews. */
   private loadStats(): void {
@@ -106,8 +104,8 @@ export class ReviewsComponent implements OnInit, OnDestroy {
     this.subscription.add(
       this.googlePlacesService.getStats().subscribe(stats => {
         if (stats) {
-          this.overallRating = stats.rating;
-          this.totalReviews = stats.total;
+          this.overallRating.set(stats.rating);
+          this.totalReviews.set(stats.total);
         }
         // The rating goes on the site-wide #business node (index.html's @graph), so the page
         // carries one LocalBusiness node with one rating - see StructuredDataService.
@@ -124,27 +122,27 @@ export class ReviewsComponent implements OnInit, OnDestroy {
   private loadReviews(): void {
     if (!this.showGoogleReviews) {
       // Dev preview seed (see DEV_PREVIEW_REVIEWS note above).
-      this.reviews = ReviewsComponent.DEV_PREVIEW_REVIEWS.map(r => this.toDisplay(r));
-      this.overallRating = 5;
-      this.totalReviews = this.reviews.length;
-      this.hasLoaded = true;
+      this.reviews.set(ReviewsComponent.DEV_PREVIEW_REVIEWS.map(r => this.toDisplay(r)));
+      this.overallRating.set(5);
+      this.totalReviews.set(this.reviews().length);
+      this.hasLoaded.set(true);
       return;
     }
 
     this.isLoading = true;
     this.loadPage(1, () => {
       this.isLoading = false;
-      this.hasLoaded = true;
+      this.hasLoaded.set(true);
     });
   }
 
   loadMore(): void {
-    if (this.isLoadingMore || !this.hasMore) {
+    if (this.isLoadingMore() || !this.hasMore()) {
       return;
     }
-    this.isLoadingMore = true;
+    this.isLoadingMore.set(true);
     this.loadPage(this.currentPage + 1, () => {
-      this.isLoadingMore = false;
+      this.isLoadingMore.set(false);
     });
   }
 
@@ -154,8 +152,8 @@ export class ReviewsComponent implements OnInit, OnDestroy {
       this.googlePlacesService.getAllReviewsPage(page, this.pageSize).subscribe({
         next: data => {
           const mapped = data.reviews.map(r => this.toDisplay(r));
-          this.reviews = page === 1 ? mapped : [...this.reviews, ...mapped];
-          this.hasMore = data.hasMore;
+          this.reviews.set(page === 1 ? mapped : [...this.reviews(), ...mapped]);
+          this.hasMore.set(data.hasMore);
           this.currentPage = page;
           done();
         },
@@ -180,7 +178,7 @@ export class ReviewsComponent implements OnInit, OnDestroy {
   }
 
   onHeroImageError(): void {
-    this.heroImageFailed = true;
+    this.heroImageFailed.set(true);
   }
 
   initials(name: string): string {

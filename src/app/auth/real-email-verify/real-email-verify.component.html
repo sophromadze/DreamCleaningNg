@@ -1,7 +1,7 @@
 <div class="real-email-page">
   <div class="card">
     <!-- Step 1: Enter email -->
-    @if (step === 'email') {
+    @if (step() === 'email') {
       <h1 class="title">We need your real email to continue</h1>
       <p class="subtitle">
         Dream Cleaning uses your email for booking confirmations, receipts, and important updates about your cleaning appointments. Please provide your real email address.
@@ -32,17 +32,17 @@
           </p>
           }
         </div>
-        <button type="submit" class="btn primary" [disabled]="emailForm.invalid || isLoading">
-          {{ isLoading ? 'Sending...' : 'Send Verification Code' }}
+        <button type="submit" class="btn primary" [disabled]="emailForm.invalid || isLoading()">
+          {{ isLoading() ? 'Sending...' : 'Send Verification Code' }}
         </button>
       </form>
     }
 
     <!-- Step 2: Enter code -->
-    @if (step === 'code') {
+    @if (step() === 'code') {
       <h1 class="title">Check your email</h1>
       <p class="subtitle">
-        We sent a 6-digit code to <strong>{{ submittedEmail }}</strong>. Enter it below to verify your email.
+        We sent a 6-digit code to <strong>{{ submittedEmail() }}</strong>. Enter it below to verify your email.
       </p>
       <form [formGroup]="codeForm" (ngSubmit)="verifyCode()">
         <div class="form-group">
@@ -62,19 +62,19 @@
           </p>
           }
         </div>
-        <button type="submit" class="btn primary" [disabled]="codeForm.invalid || isLoading">
-          {{ isLoading ? 'Verifying...' : 'Verify' }}
+        <button type="submit" class="btn primary" [disabled]="codeForm.invalid || isLoading()">
+          {{ isLoading() ? 'Verifying...' : 'Verify' }}
         </button>
         <div class="links">
-          <button type="button" class="link-btn" (click)="resendCode()" [disabled]="resendCooldown > 0 || isLoading">
-            @if (resendCooldown > 0) {
-            Resend code ({{ resendCooldown }}s)
+          <button type="button" class="link-btn" (click)="resendCode()" [disabled]="resendCooldown() > 0 || isLoading()">
+            @if (resendCooldown() > 0) {
+            Resend code ({{ resendCooldown() }}s)
             }
-            @if (resendCooldown === 0) {
+            @if (resendCooldown() === 0) {
             Resend code
             }
           </button>
-          <button type="button" class="link-btn" (click)="backToEmail()" [disabled]="isLoading">
+          <button type="button" class="link-btn" (click)="backToEmail()" [disabled]="isLoading()">
             Use a different email
           </button>
         </div>
@@ -82,32 +82,32 @@
     }
 
     <!-- Step 3: Account found — merge choice -->
-    @if (step === 'account-found') {
+    @if (step() === 'account-found') {
       <h1 class="title">Account Found</h1>
       <p class="subtitle">
-        An account with the email <strong>{{ existingAccountEmail }}</strong> already exists
-        @if (existingAccountName) {
-        <span> (registered as <strong>{{ existingAccountName }}</strong>)</span>
+        An account with the email <strong>{{ existingAccountEmail() }}</strong> already exists
+        @if (existingAccountName()) {
+        <span> (registered as <strong>{{ existingAccountName() }}</strong>)</span>
         }.
         Would you like to merge your accounts? All your orders, addresses, and data from both accounts will be combined.
       </p>
       <div class="merge-actions">
-        <button type="button" class="btn primary" (click)="goToMergeWithEmail()" [disabled]="isLoading">
+        <button type="button" class="btn primary" (click)="goToMergeWithEmail()" [disabled]="isLoading()">
           Merge with Email
         </button>
       </div>
       <div class="links">
-        <button type="button" class="link-btn" (click)="backToEmail()" [disabled]="isLoading">
+        <button type="button" class="link-btn" (click)="backToEmail()" [disabled]="isLoading()">
           Use a different email instead
         </button>
       </div>
     }
 
     <!-- Step 4: Merge with email — enter confirmation code -->
-    @if (step === 'merge-email') {
+    @if (step() === 'merge-email') {
       <h1 class="title">Confirm Account Merge</h1>
       <p class="subtitle">
-        We sent a confirmation code to <strong>{{ existingAccountEmail }}</strong>. Enter the code to merge your accounts.
+        We sent a confirmation code to <strong>{{ existingAccountEmail() }}</strong>. Enter the code to merge your accounts.
       </p>
       <form [formGroup]="mergeCodeForm" (ngSubmit)="verifyMergeCode()" class="merge-code-form">
         <div class="form-group">
@@ -127,19 +127,19 @@
           </p>
           }
         </div>
-        <button type="submit" class="btn primary" [disabled]="mergeCodeForm.invalid || isLoading">
-          {{ isLoading ? 'Verifying...' : 'Verify & Merge' }}
+        <button type="submit" class="btn primary" [disabled]="mergeCodeForm.invalid || isLoading()">
+          {{ isLoading() ? 'Verifying...' : 'Verify & Merge' }}
         </button>
         <div class="links">
-          <button type="button" class="link-btn" (click)="resendMergeCode()" [disabled]="mergeResendCooldown > 0 || isLoading">
-            @if (mergeResendCooldown > 0) {
-            Resend code ({{ mergeResendCooldown }}s)
+          <button type="button" class="link-btn" (click)="resendMergeCode()" [disabled]="mergeResendCooldown() > 0 || isLoading()">
+            @if (mergeResendCooldown() > 0) {
+            Resend code ({{ mergeResendCooldown() }}s)
             }
-            @if (mergeResendCooldown === 0) {
+            @if (mergeResendCooldown() === 0) {
             Resend code
             }
           </button>
-          <button type="button" class="link-btn" (click)="backFromMergeEmail()" [disabled]="isLoading">
+          <button type="button" class="link-btn" (click)="backFromMergeEmail()" [disabled]="isLoading()">
             Cancel
           </button>
         </div>
@@ -147,20 +147,20 @@
     }
 
     <!-- Step 5: Merge success -->
-    @if (step === 'merge-success' && mergeResult) {
+    @if (step() === 'merge-success' && mergeResult()) {
       <h1 class="title">Accounts Merged!</h1>
       <p class="subtitle">
         Your accounts have been successfully merged. All your orders and addresses are now in one place.
       </p>
-      @if (mergeResult.mergedData) {
+      @if (mergeResult()!.mergedData) {
       <div class="merge-summary">
-        @if (mergeResult.mergedData.ordersTransferred > 0) {
-        <p>{{ mergeResult.mergedData.ordersTransferred }} orders transferred</p>
+        @if (mergeResult()!.mergedData.ordersTransferred > 0) {
+        <p>{{ mergeResult()!.mergedData.ordersTransferred }} orders transferred</p>
         }
-        @if (mergeResult.mergedData.addressesTransferred > 0) {
-        <p>{{ mergeResult.mergedData.addressesTransferred }} addresses added</p>
+        @if (mergeResult()!.mergedData.addressesTransferred > 0) {
+        <p>{{ mergeResult()!.mergedData.addressesTransferred }} addresses added</p>
         }
-        @if (mergeResult.mergedData.subscriptionTransferred) {
+        @if (mergeResult()!.mergedData.subscriptionTransferred) {
         <p>Plan transferred</p>
         }
       </div>
@@ -170,8 +170,8 @@
       </button>
     }
 
-    @if (errorMessage) {
-    <p class="error-banner">{{ errorMessage }}</p>
+    @if (errorMessage()) {
+    <p class="error-banner">{{ errorMessage() }}</p>
     }
   </div>
 </div>

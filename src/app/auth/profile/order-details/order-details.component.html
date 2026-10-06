@@ -5,14 +5,14 @@
         <h1>Order Details</h1>
 
         <!-- Top-right pill: admin/superadmin only. Pre-formatted "F. LastName" from backend. -->
-        @if (!isLoading && order && canEditAssignedAdmin()) {
+        @if (!isLoading() && order() && canEditAssignedAdmin()) {
         <div class="assigned-admin-pill"
              [class.is-editable]="canEditAssignedAdmin()"
-             [class.is-empty]="!order.assignedAdminId">
+             [class.is-empty]="!order()!.assignedAdminId">
           <button type="button"
                   class="assigned-admin-trigger"
                   (click)="toggleAdminEditor()"
-                  [disabled]="!canEditAssignedAdmin() || isSavingAssignedAdmin"
+                  [disabled]="!canEditAssignedAdmin() || isSavingAssignedAdmin()"
                   [attr.title]="canEditAssignedAdmin() ? 'Change assigned admin' : null">
             <span class="assigned-admin-by">By:</span>
             <span class="assigned-admin-name">{{ assignedAdminLabel() }}</span>
@@ -21,23 +21,23 @@
             }
           </button>
 
-          @if (showAdminEditor && canEditAssignedAdmin()) {
+          @if (showAdminEditor() && canEditAssignedAdmin()) {
           <div class="assigned-admin-menu" role="listbox">
             <button type="button"
                     class="assigned-admin-option"
-                    [class.is-selected]="!order.assignedAdminId"
+                    [class.is-selected]="!order()!.assignedAdminId"
                     (click)="selectAssignedAdmin(null)">
               Unassigned
             </button>
-            @for (a of availableAdmins; track a.id) {
+            @for (a of availableAdmins(); track a.id) {
             <button type="button"
                     class="assigned-admin-option"
-                    [class.is-selected]="order.assignedAdminId === a.id"
+                    [class.is-selected]="order()!.assignedAdminId === a.id"
                     (click)="selectAssignedAdmin(a.id)">
               {{ a.firstName }} {{ a.lastName }}
             </button>
             }
-            @if (availableAdmins.length === 0) {
+            @if (availableAdmins().length === 0) {
             <div class="assigned-admin-empty">No admins available</div>
             }
           </div>
@@ -47,19 +47,19 @@
       </div>
     </div>
   
-    @if (isLoading) {
+    @if (isLoading()) {
     <div class="loading">Loading order details...</div>
     }
     
-    @if (errorMessage) {
-    <div class="error-message">{{ errorMessage }}</div>
+    @if (errorMessage()) {
+    <div class="error-message">{{ errorMessage() }}</div>
     }
   
   <!-- One list, built by the shared checklist so this page can never name different products
        from the confirmation email and SMS. It comes back empty when the customer bought
        Cleaning Supplies + Cleaning Essentials + Vacuum Cleaner, which is good news, not an
        empty box. -->
-  @if (!isLoading && order) {
+  @if (!isLoading() && order()) {
   <div class="prep-warning">
     @if (supplyChecklistItems.length > 0) {
       <div class="prep-title">Please provide the following items:</div>
@@ -75,29 +75,29 @@
   </div>
   }
 
-    @if (!isLoading && order) {
+    @if (!isLoading() && order()) {
     <div class="order-content">
       <!-- Order Summary -->
       <div class="order-summary">
         <div class="summary-header">
-          <h2>{{ order.serviceTypeName }}</h2>
-          <span class="status-badge" [ngClass]="getStatusClass(order.status)">
-            {{ order.status }}
+          <h2>{{ order()!.serviceTypeName }}</h2>
+          <span class="status-badge" [ngClass]="getStatusClass(order()!.status)">
+            {{ order()!.status }}
           </span>
         </div>
         
         <div class="summary-info">
           <div class="info-row">
             <span class="label">Order ID:</span>
-            <span class="value">#{{ order.id }}</span>
+            <span class="value">#{{ order()!.id }}</span>
           </div>
           <div class="info-row">
             <span class="label">Order Date:</span>
-            <span class="value">{{ formatOrderDate(order.orderDate) }}</span>
+            <span class="value">{{ formatOrderDate(order()!.orderDate) }}</span>
           </div>
           <div class="info-row">
             <span class="label">Service Date:</span>
-            <span class="value">{{ formatDate(order.serviceDate) }} at {{ formatTime(order.serviceTime) }}</span>
+            <span class="value">{{ formatDate(order()!.serviceDate) }} at {{ formatTime(order()!.serviceTime) }}</span>
           </div>
           <div class="info-row">
             <span class="label">Duration:</span>
@@ -107,12 +107,12 @@
           </div>
           <div class="info-row">
             <span class="label">Cleaning frequency:</span>
-            <span class="value">{{ order.subscriptionName }}</span>
+            <span class="value">{{ order()!.subscriptionName }}</span>
           </div>
           @if (shouldShowCleanersCount()) {
           <div class="info-row">
             <span class="label">Cleaners:</span>
-            <span class="value">{{ order.maidsCount }}</span>
+            <span class="value">{{ order()!.maidsCount }}</span>
           </div>
           }
         </div>
@@ -125,16 +125,16 @@
       <div class="section">
         <h3>Services</h3>
         <div class="services-list">
-          @if (order.bedroomsQuantity != null) {
+          @if (order()!.bedroomsQuantity != null) {
           <div class="service-item">
             <span class="service-name">Bedrooms</span>
-            <span class="service-quantity">{{ order.bedroomsQuantity === 0 ? 'Studio' : 'Qty: ' + order.bedroomsQuantity }}</span>
+            <span class="service-quantity">{{ order()!.bedroomsQuantity === 0 ? 'Studio' : 'Qty: ' + order()!.bedroomsQuantity }}</span>
           </div>
           }
-          @if (order.bathroomsQuantity != null) {
+          @if (order()!.bathroomsQuantity != null) {
           <div class="service-item">
             <span class="service-name">Bathrooms</span>
-            <span class="service-quantity">Qty: {{ order.bathroomsQuantity }}</span>
+            <span class="service-quantity">Qty: {{ order()!.bathroomsQuantity }}</span>
           </div>
           }
         </div>
@@ -144,7 +144,7 @@
       <div class="section">
         <h3>Services</h3>
         <div class="services-list">
-          @for (service of order.services; track $index) {
+          @for (service of order()!.services; track $index) {
           <div class="service-item">
             <span class="service-name">{{ service.serviceName }}</span>
             <span class="service-quantity">
@@ -170,7 +170,7 @@
       <!-- On a custom order the service type name at the top already says what kind of cleaning
            it is, and the Cleaning Type row read "Normal Cleaning" for a Deep job — so it is left
            out there, along with the whole section when nothing else is in it. -->
-      @if (order.extraServices.length > 0 && (!isCustomServiceType() || getDisplayExtraServices().length > 0)) {
+      @if (order()!.extraServices.length > 0 && (!isCustomServiceType() || getDisplayExtraServices().length > 0)) {
       <div class="section">
         <h3>Extra Services</h3>
         @if (!isCustomServiceType()) {
@@ -208,11 +208,11 @@
       }
   
       <!-- Floor Types -->
-      @if (order.floorTypes) {
+      @if (order()!.floorTypes) {
       <div class="section">
         <h3>Floor Types</h3>
         <div class="special-instructions">
-          <p>{{ formatFloorTypes(order.floorTypes, order.floorTypeOther) }}</p>
+          <p>{{ formatFloorTypes(order()!.floorTypes, order()!.floorTypeOther) }}</p>
         </div>
       </div>
       }
@@ -221,9 +221,9 @@
       <div class="section">
         <h3>Contact Information</h3>
         <div class="contact-info">
-          <p><strong>Name:</strong> {{ order.contactFirstName }} {{ order.contactLastName }}</p>
-          <p><strong>Email:</strong> {{ order.contactEmail }}</p>
-          <p><strong>Phone:</strong> {{ order.contactPhone }}</p>
+          <p><strong>Name:</strong> {{ order()!.contactFirstName }} {{ order()!.contactLastName }}</p>
+          <p><strong>Email:</strong> {{ order()!.contactEmail }}</p>
+          <p><strong>Phone:</strong> {{ order()!.contactPhone }}</p>
         </div>
       </div>
 
@@ -231,125 +231,125 @@
       <div class="section">
         <h3>Service Address</h3>
         <div class="address-info">
-          <p>{{ order.serviceAddress }}@if (order.aptSuite) {
-          <span>, {{ order.aptSuite }}</span>
+          <p>{{ order()!.serviceAddress }}@if (order()!.aptSuite) {
+          <span>, {{ order()!.aptSuite }}</span>
           }</p>
-          <p>{{ order.city }}, {{ order.state }} {{ order.zipCode }}</p>
+          <p>{{ order()!.city }}, {{ order()!.state }} {{ order()!.zipCode }}</p>
         </div>
       </div>
 
       <!-- Entry Method -->
-      @if (order.entryMethod) {
+      @if (order()!.entryMethod) {
       <div class="section">
         <h3>Entry Method</h3>
         <div class="special-instructions">
-          <p>{{ order.entryMethod }}</p>
+          <p>{{ order()!.entryMethod }}</p>
         </div>
       </div>
       }
 
       <!-- Special Instructions -->
-      @if (order.specialInstructions) {
+      @if (order()!.specialInstructions) {
       <div class="section">
         <h3>{{ isCustomServiceType() ? 'Service Description' : 'Special Instructions' }}</h3>
         <div class="special-instructions">
-          <p>{{ order.specialInstructions }}</p>
+          <p>{{ order()!.specialInstructions }}</p>
         </div>
       </div>
       }
 
       <!-- A weekly-flat-fee contract cleaning is billed by the contract's weekly invoice. -->
-      @if (order.billedByContractLabel) {
+      @if (order()!.billedByContractLabel) {
       <div class="section">
         <h3>Billing</h3>
-        <p class="billed-by-contract">{{ order.billedByContractLabel }}</p>
+        <p class="billed-by-contract">{{ order()!.billedByContractLabel }}</p>
       </div>
       }
 
       <!-- Price Breakdown -->
-      @if (!order.billedByContractLabel) {
+      @if (!order()!.billedByContractLabel) {
       <div class="section">
         <h3>Price Breakdown</h3>
         <div class="price-breakdown">
           <div class="price-row">
             <span>Subtotal:</span>
-            <span>${{ order.subTotal.toFixed(2) }}</span>
+            <span>${{ order()!.subTotal.toFixed(2) }}</span>
           </div>
           
           <!-- Subscription Discount -->
-          @if (order.subscriptionDiscountAmount && order.subscriptionDiscountAmount > 0) {
+          @if (order()!.subscriptionDiscountAmount && order()!.subscriptionDiscountAmount! > 0) {
           <div class="price-row">
-            <span>Plan discount ({{ order.subscriptionName }}):</span>
-            <span class="discount">-${{ order.subscriptionDiscountAmount.toFixed(2) }}</span>
+            <span>Plan discount ({{ order()!.subscriptionName }}):</span>
+            <span class="discount">-${{ order()!.subscriptionDiscountAmount!.toFixed(2) }}</span>
           </div>
           }
 
           <!-- Loyalty Discount — user-facing label only. Never mention inactivity / win-back
                / the trigger reason (spec section 2.6). -->
-          @if (order.loyaltyDiscountAmount && order.loyaltyDiscountAmount > 0) {
+          @if (order()!.loyaltyDiscountAmount && order()!.loyaltyDiscountAmount! > 0) {
           <div class="price-row">
             <span>Loyalty Discount:</span>
-            <span class="discount">-${{ order.loyaltyDiscountAmount.toFixed(2) }}</span>
+            <span class="discount">-${{ order()!.loyaltyDiscountAmount!.toFixed(2) }}</span>
           </div>
           }
 
           <!-- Special Offer Discount -->
-          @if (order.specialOfferName && order.discountAmount > 0) {
+          @if (order()!.specialOfferName && order()!.discountAmount > 0) {
           <div class="price-row">
-            <span>{{ order.specialOfferName }}:</span>
-            <span class="discount">-${{ order.discountAmount.toFixed(2) }}</span>
+            <span>{{ order()!.specialOfferName }}:</span>
+            <span class="discount">-${{ order()!.discountAmount.toFixed(2) }}</span>
           </div>
           }
           
           <!-- Promo Code Discount -->
-          @if (!order.specialOfferName && order.promoCodeDetails && order.discountAmount > 0) {
+          @if (!order()!.specialOfferName && order()!.promoCodeDetails && order()!.discountAmount > 0) {
           <div class="price-row">
-            <span>Promo Code {{ order.promoCodeDetails }}:</span>
-            <span class="discount">-${{ order.discountAmount.toFixed(2) }}</span>
+            <span>Promo Code {{ order()!.promoCodeDetails }}:</span>
+            <span class="discount">-${{ order()!.discountAmount.toFixed(2) }}</span>
           </div>
           }
           
           <!-- Legacy First-Time Discount -->
-          @if (!order.specialOfferName && order.promoCode === 'firstUse' && order.discountAmount > 0) {
+          @if (!order()!.specialOfferName && order()!.promoCode === 'firstUse' && order()!.discountAmount > 0) {
           <div class="price-row">
             <span>First-Time Discount:</span>
-            <span class="discount">-${{ order.discountAmount.toFixed(2) }}</span>
+            <span class="discount">-${{ order()!.discountAmount.toFixed(2) }}</span>
           </div>
           }
           
           <!-- Gift Card -->
-          @if (order.giftCardDetails && (order.giftCardAmountUsed || 0) > 0) {
+          @if (order()!.giftCardDetails && (order()!.giftCardAmountUsed || 0) > 0) {
           <div class="price-row">
-            <span>Gift Card {{ order.giftCardDetails }}:</span>
-            <span class="discount">-${{ (order.giftCardAmountUsed || 0).toFixed(2) }}</span>
+            <span>Gift Card {{ order()!.giftCardDetails }}:</span>
+            <span class="discount">-${{ (order()!.giftCardAmountUsed || 0).toFixed(2) }}</span>
           </div>
           }
 
           <!-- Bubble Points -->
-          @if ((order.pointsRedeemed || 0) > 0) {
+          @if ((order()!.pointsRedeemed || 0) > 0) {
           <div class="price-row">
-            <span>Bubble Points ({{ order.pointsRedeemed }} pts):</span>
-            <span class="discount">-${{ (order.pointsRedeemedDiscount || 0).toFixed(2) }}</span>
+            <span>Bubble Points ({{ order()!.pointsRedeemed }} pts):</span>
+            <span class="discount">-${{ (order()!.pointsRedeemedDiscount || 0).toFixed(2) }}</span>
           </div>
           }
 
           <!-- Reward Balance -->
-          @if ((order.rewardBalanceUsed || 0) > 0) {
+          @if ((order()!.rewardBalanceUsed || 0) > 0) {
           <div class="price-row">
             <span>Reward Balance:</span>
-            <span class="discount">-${{ (order.rewardBalanceUsed || 0).toFixed(2) }}</span>
+            <span class="discount">-${{ (order()!.rewardBalanceUsed || 0).toFixed(2) }}</span>
           </div>
           }
 
           <div class="price-row">
             <span>Tax (8.875%):</span>
-            <span>${{ order.tax.toFixed(2) }}</span>
+            <span>${{ order()!.tax.toFixed(2) }}</span>
           </div>
           
-          @if (order.tips > 0) {
+          @if (order()!.tips > 0) {
           <div class="price-row">
             <span>Tips for Cleaners:</span>
-            <span>${{ order.tips.toFixed(2) }}</span>
+            <span>${{ order()!.tips.toFixed(2) }}</span>
           </div>
           }
           
@@ -358,27 +358,27 @@
 
           <div class="price-row total">
             <span>Total:</span>
-            <span>${{ order.total.toFixed(2) }}</span>
+            <span>${{ order()!.total.toFixed(2) }}</span>
           </div>
 
           <!-- Part-payments: what has arrived and what is left. Shown only while the order is
                genuinely part-paid, so an ordinary order's totals are unchanged. -->
-          @if (order.isPartiallyPaid) {
+          @if (order()!.isPartiallyPaid) {
             <div class="price-row">
               <span>Paid so far:</span>
-              <span>${{ (order.amountPaid || 0).toFixed(2) }}</span>
+              <span>${{ (order()!.amountPaid || 0).toFixed(2) }}</span>
             </div>
             <div class="price-row balance-due-row">
               <span>Balance due:</span>
-              <span>${{ (order.amountDue || 0).toFixed(2) }}</span>
+              <span>${{ (order()!.amountDue || 0).toFixed(2) }}</span>
             </div>
           }
 
           <!-- Points earned on this order -->
-          @if ((order.pointsEarned || 0) > 0) {
+          @if ((order()!.pointsEarned || 0) > 0) {
           <div class="price-row pts-earned-row">
             <span>🫧 Points earned:</span>
-            <span class="pts-earned-val">+{{ order.pointsEarned | number }} pts</span>
+            <span class="pts-earned-val">+{{ order()!.pointsEarned | number }} pts</span>
           </div>
           }
         </div>
@@ -390,22 +390,22 @@
         <!-- Pay and Cancel buttons for unpaid orders (not cancelled) -->
         @if (showsUnpaidActions()) {
         <div class="unpaid-actions">
-          <a [routerLink]="['/order', order.id, 'pay']"
+          <a [routerLink]="['/order', order()!.id, 'pay']"
              class="pay-btn">
             <!-- Named amount once a deposit exists: "Pay Now" on an order already carrying
                  $1,000 reads as being asked for the whole total again. -->
-            {{ order.isPartiallyPaid
-                ? 'Pay balance $' + (order.amountDue || 0).toFixed(2)
+            {{ order()!.isPartiallyPaid
+                ? 'Pay balance $' + (order()!.amountDue || 0).toFixed(2)
                 : 'Pay Now' }}
           </a>
           <button 
             (click)="cancelUnpaidOrder()" 
             class="cancel-btn"
-            [disabled]="isCancelling">
-            @if (!isCancelling) {
+            [disabled]="isCancelling()">
+            @if (!isCancelling()) {
             <span>Cancel Order</span>
             }
-            @if (isCancelling) {
+            @if (isCancelling()) {
             <span>Cancelling...</span>
             }
           </button>
@@ -413,9 +413,9 @@
         }
 
         <!-- Pay button for pending additional payments (admin/customer updates). Amount shown excludes tips so customer pays the correct difference. -->
-        @if (order.isPaid && order.status !== 'Cancelled' && (order.pendingUpdateAmount || 0) > 0.01) {
+        @if (order()!.isPaid && order()!.status !== 'Cancelled' && (order()!.pendingUpdateAmount || 0) > 0.01) {
         <div class="unpaid-actions">
-          <a [routerLink]="['/order', order.id, 'pay']"
+          <a [routerLink]="['/order', order()!.id, 'pay']"
              class="pay-btn">
             Pay Additional ${{ getEffectivePendingUpdateAmount().toFixed(2) }}
           </a>
@@ -423,26 +423,26 @@
         }
 
         <!-- Only show edit button if not custom service type -->
-        @if (order.recurringSeriesId) {
+        @if (order()!.recurringSeriesId) {
         <p>To cancel or reschedule a recurring cleaning, please contact Dream Cleaning.</p>
         }
-        @if (!isCustomServiceType() && !order.recurringSeriesId) {
+        @if (!isCustomServiceType() && !order()!.recurringSeriesId) {
         <a
-           [routerLink]="canEditOrder() ? ['/order', order.id, 'edit'] : null" 
+           [routerLink]="canEditOrder() ? ['/order', order()!.id, 'edit'] : null" 
            class="edit-btn" 
            [class.disabled]="!canEditOrder()"
-           [attr.data-tooltip]="!canEditOrder() ? (order.status === 'Done' ? 'Order is completed' : order.status === 'Cancelled' ? 'Order is cancelled' : 'Orders must be edited at least 48 hours before service') : null">
+           [attr.data-tooltip]="!canEditOrder() ? (order()!.status === 'Done' ? 'Order is completed' : order()!.status === 'Cancelled' ? 'Order is cancelled' : 'Orders must be edited at least 48 hours before service') : null">
           Edit Order
         </a>
         }
         
         <!-- Hidden while the unpaid block above is showing: it carries its own Cancel Order next
              to Pay Now, and this one (disabled for a Pending order) rendered as a second copy. -->
-        @if (!order.recurringSeriesId && !showsUnpaidActions()) {
+        @if (!order()!.recurringSeriesId && !showsUnpaidActions()) {
         <button class="cancel-btn"
                 (click)="canCancelOrder() ? openCancelModal() : null"
                 [class.disabled]="!canCancelOrder()"
-                [attr.data-tooltip]="!canCancelOrder() ? (order.status === 'Done' ? 'Order is completed' : order.status === 'Cancelled' ? 'Order is already cancelled' : null) : null">
+                [attr.data-tooltip]="!canCancelOrder() ? (order()!.status === 'Done' ? 'Order is completed' : order()!.status === 'Cancelled' ? 'Order is already cancelled' : null) : null">
           Cancel Order
         </button>
         }
@@ -451,14 +451,14 @@
     }
   
     <!-- Cancel Modal -->
-    @if (showCancelModal) {
+    @if (showCancelModal()) {
     <div class="modal-backdrop" (click)="closeCancelModal()">
       <div class="modal" (click)="$event.stopPropagation()">
         <h2>Cancel Order</h2>
         <p>Are you sure you want to cancel this order?</p>
         <!-- Card (Stripe) payments only. Cash / Zelle / Check / Other money is collected at the
              door when the job starts, so a cancelled one has nothing to give back. -->
-        @if (order?.isPaid) {
+        @if (order()?.isPaid) {
         <p class="refund-notice">Your payment will be refunded within 7 working days.</p>
         }
 
@@ -474,7 +474,7 @@
         </div>
 
         <div class="modal-actions">
-          <button class="confirm-btn" (click)="confirmCancelOrder()" [disabled]="!cancelReason.trim()">
+          <button class="confirm-btn" (click)="confirmCancelOrder()" [disabled]="!cancelReason().trim()">
             Confirm Cancellation
           </button>
           <button class="close-btn" (click)="closeCancelModal()">Keep Order</button>

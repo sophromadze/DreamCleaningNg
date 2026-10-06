@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, PLATFORM_ID, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, PLATFORM_ID, ChangeDetectionStrategy, inject, signal } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 
 export interface BubbleConfig {
@@ -12,20 +12,20 @@ const MOBILE_BREAKPOINT_PX = 768;
   standalone: true,
   imports: [CommonModule],
   templateUrl: './bubble-field.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './bubble-field.component.scss'
 })
 export class BubbleFieldComponent implements OnInit, OnDestroy {
   private platformId = inject<Object>(PLATFORM_ID);
 
-  bubbles: BubbleConfig[] = [];
+  readonly bubbles = signal<BubbleConfig[]>([]);
   private resizeListener: (() => void) | null = null;
 
   ngOnInit(): void {
     if (!isPlatformBrowser(this.platformId)) {
       return;
     }
-    this.bubbles = this.buildBubbles();
+    this.bubbles.set(this.buildBubbles());
     this.resizeListener = () => this.onResize();
     window.addEventListener('resize', this.resizeListener);
   }
@@ -37,7 +37,7 @@ export class BubbleFieldComponent implements OnInit, OnDestroy {
   }
 
   private onResize(): void {
-    this.bubbles = this.buildBubbles();
+    this.bubbles.set(this.buildBubbles());
   }
 
   private isMobile(): boolean {

@@ -1,14 +1,14 @@
 <!-- Drawn whole from the first frame, on the server too (2026-10): frame, bubbles, "POINTS" and the
      progress track. Only the number fills in once the summary loads, into a reserved slot, so the
      badge never changes size. See BubbleBadgeComponent.placeholder. -->
-@if ((summary ?? placeholder); as shown) {
+@if ((summary() ?? placeholder); as shown) {
   @if (shown.pointsSystemEnabled) {
   <button
     class="bubble-badge"
     (click)="goToRewards()"
-    (mouseenter)="showTooltip = true"
-    (mouseleave)="showTooltip = false"
-    [attr.aria-label]="summary ? 'Bubble Rewards: ' + summary.points + ' points' : 'Bubble Rewards'"
+    (mouseenter)="showTooltip.set(true)"
+    (mouseleave)="showTooltip.set(false)"
+    [attr.aria-label]="summary() ? 'Bubble Rewards: ' + summary()!.points + ' points' : 'Bubble Rewards'"
   >
     <div class="bubble-badge__inner">
       <!-- CSS realistic bubble cluster -->
@@ -19,7 +19,7 @@
       </div>
 
       <div class="bubble-badge__info">
-        <span class="bubble-badge__points">{{ summary ? (summary.points | number) : '' }}</span>
+        <span class="bubble-badge__points">{{ summary() ? (summary()!.points | number) : '' }}</span>
         <span class="bubble-badge__tier">Points</span>
       </div>
     </div>
@@ -30,7 +30,7 @@
     </div>
 
     <!-- Tooltip (desktop only) -->
-    @if (showTooltip && summary) {
+    @if (showTooltip() && summary()) {
     <div class="bubble-badge__tooltip">
       <div class="tooltip-tier">{{ shown.tier === 'UltraBubble' ? 'Ultra Bubble' : shown.tier === 'SuperBubble' ? 'Super Bubble' : 'Bubble' }}</div>
       @if (shown.nextTierName) {

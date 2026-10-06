@@ -1,7 +1,7 @@
 <article class="dc-document">
-  <div class="dc-document-body" [innerHTML]="htmlBeforeSignatures"></div>
+  <div class="dc-document-body" [innerHTML]="htmlBeforeSignatures()"></div>
 
-  @if (showSignatureBlock && parties.length) {
+  @if (showSignatureBlock() && parties.length) {
   <div class="dc-signature-grid">
     @for (party of parties; track $index) {
     <div class="dc-signature-party">
@@ -41,5 +41,5 @@
   </div>
   }
 
-  <div class="dc-document-body" [innerHTML]="htmlAfterSignatures"></div>
+  <div class="dc-document-body" [innerHTML]="htmlAfterSignatures()"></div>
 </article>

@@ -1,6 +1,6 @@
 <div class="crm-ads">
   <!-- Totals strip — sticky, stays pinned at the top while the table scrolls. Ad-only KPIs. -->
-  @if (totals) {
+  @if (totals(); as totals) {
   <div class="stats-section">
     <div class="stats-strip">
       <div class="stat">
@@ -39,23 +39,23 @@
 
   <!-- Toolbar -->
   <div class="ads-toolbar">
-    <div class="preset-dropdown" [class.open]="dropdownOpen">
+    <div class="preset-dropdown" [class.open]="dropdownOpen()">
       <button type="button"
               class="dropdown-trigger"
               (click)="toggleDropdown()"
-              [attr.aria-expanded]="dropdownOpen">
+              [attr.aria-expanded]="dropdownOpen()">
         <span>{{ rangeLabel }}</span>
         <span class="caret" aria-hidden="true">▾</span>
       </button>
 
-      @if (dropdownOpen) {
+      @if (dropdownOpen()) {
       <ul class="dropdown-menu" role="listbox">
         @for (p of presets; track p.key) {
         <li
             class="dropdown-item"
-            [class.active]="period === p.key"
+            [class.active]="period() === p.key"
             role="option"
-            [attr.aria-selected]="period === p.key"
+            [attr.aria-selected]="period() === p.key"
             (click)="selectPreset(p.key)">
           {{ p.label }}
         </li>
@@ -73,26 +73,26 @@
         <label for="ads-to">To</label>
         <input id="ads-to" type="date" [(ngModel)]="toDate" />
       </div>
-      <button class="btn-light" (click)="applyCustom()" [disabled]="loading">Apply</button>
+      <button class="btn-light" (click)="applyCustom()" [disabled]="loading()">Apply</button>
     </div>
 
     <div class="toolbar-spacer"></div>
 
-    <button class="btn-brand" (click)="downloadExcel()" [disabled]="exporting || loading">
-      {{ exporting ? 'Exporting…' : 'Export Excel' }}
+    <button class="btn-brand" (click)="downloadExcel()" [disabled]="exporting() || loading()">
+      {{ exporting() ? 'Exporting…' : 'Export Excel' }}
     </button>
   </div>
 
-  @if (errorMessage) {
-  <div class="error-banner">{{ errorMessage }}</div>
+  @if (errorMessage()) {
+  <div class="error-banner">{{ errorMessage() }}</div>
   }
 
   <!-- Daily detail (primary content) — Google Ads performance vs real booked orders, day by day -->
-  @if (!loading && rows.length > 0) {
+  @if (!loading() && rows().length > 0) {
   <div class="daily-section">
     <div class="daily-head">
       <h2>Daily detail</h2>
-      <span class="daily-sub">{{ totalCount }} day{{ totalCount === 1 ? '' : 's' }} · Google Ads vs real booked orders</span>
+      <span class="daily-sub">{{ totalCount() }} day{{ totalCount() === 1 ? '' : 's' }} · Google Ads vs real booked orders</span>
     </div>
 
     <div class="ads-table-wrap">
@@ -107,7 +107,7 @@
           </tr>
         </thead>
         <tbody>
-          @for (row of rows; track trackByDate($index, row)) {
+          @for (row of rows(); track trackByDate($index, row)) {
           <tr>
             <td>{{ row.date | date: 'EEE, MMM d, y' }}</td>
             <td>{{ row.adSpend | currency }}</td>
@@ -139,21 +139,21 @@
       </table>
 
       <!-- Paging -->
-      @if (totalPages > 1) {
+      @if (totalPages() > 1) {
       <div class="paging">
-        <button class="btn-light" (click)="prevPage()" [disabled]="page <= 1">← Prev</button>
-        <span class="page-info">Page {{ page }} of {{ totalPages }} · {{ totalCount }} days</span>
-        <button class="btn-light" (click)="nextPage()" [disabled]="page >= totalPages">Next →</button>
+        <button class="btn-light" (click)="prevPage()" [disabled]="page() <= 1">← Prev</button>
+        <span class="page-info">Page {{ page() }} of {{ totalPages() }} · {{ totalCount() }} days</span>
+        <button class="btn-light" (click)="nextPage()" [disabled]="page() >= totalPages()">Next →</button>
       </div>
       }
     </div>
   </div>
   }
 
-  @if (loading) {
+  @if (loading()) {
   <div class="state-msg">Loading…</div>
   }
-  @if (!loading && rows.length === 0 && !errorMessage) {
+  @if (!loading() && rows().length === 0 && !errorMessage()) {
   <div class="state-msg">
     No ad activity in this range.
   </div>

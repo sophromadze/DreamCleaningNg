@@ -28,7 +28,7 @@ declare const AppleID: any;
     </div>
     }
   `,
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styles: [`
     .callback-container {
       display: flex;

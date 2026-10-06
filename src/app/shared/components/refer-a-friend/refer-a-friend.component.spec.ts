@@ -12,8 +12,8 @@ describe('ReferAFriendComponent', () => {
 
   const mount = (code: string | null, shareUrl = '') => {
     const f = TestBed.createComponent(ReferAFriendComponent);
-    f.componentInstance.code = code;
-    f.componentInstance.shareUrl = shareUrl;
+    f.componentRef.setInput('code', code);
+    f.componentRef.setInput('shareUrl', shareUrl);
     f.detectChanges();
     return f;
   };

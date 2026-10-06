@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, PLATFORM_ID, ChangeDetectorRef, ViewChild, ElementRef, inject, NgZone, afterNextRender, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, OnDestroy, PLATFORM_ID, ChangeDetectorRef, ElementRef, inject, NgZone, afterNextRender, ChangeDetectionStrategy, viewChild, signal } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { NavigationStart, Router, RouterLink } from '@angular/router';
 import { GooglePlacesService, aggregateRatingSchema } from '../services/google-reviews.service';
@@ -85,8 +85,8 @@ export class MainComponent implements OnInit, OnDestroy {
   protected readonly aboutPhoto = responsiveImage('/images/dream-cleaning-maids-in-nyc.webp', ABOUT_PHOTO_SIZES);
   protected readonly beforeAfterHalfSizes = BEFORE_AFTER_HALF_SIZES;
 
-  specialOffers: PublicSpecialOffer[] = [];
-  isLoggedIn: boolean = false;
+  readonly specialOffers = signal<PublicSpecialOffer[]>([]);
+  readonly isLoggedIn = signal<boolean>(false);
   private readonly zone = inject(NgZone);
   protected readonly phoneNumber = inject(PhoneNumberService);
   private readonly googlePlacesService = inject(GooglePlacesService);
@@ -108,19 +108,19 @@ export class MainComponent implements OnInit, OnDestroy {
 
   /** Photos rendered in the "See the difference" gallery. Empty until the
    *  admin uploads pairs in Admin → Before & After. */
-  beforeAfterPhotos: BeforeAfterPhoto[] = [];
+  readonly beforeAfterPhotos = signal<BeforeAfterPhoto[]>([]);
 
   /** Padded to at least 3 items so the 3-across track math is stable. */
   beforeAfterBasePhotos: BeforeAfterPhoto[] = [];
   /** Triple of {@link beforeAfterBasePhotos} for seamless infinite scrolling. */
-  beforeAfterCarouselSlides: BeforeAfterPhoto[] = [];
+  readonly beforeAfterCarouselSlides = signal<BeforeAfterPhoto[]>([]);
   /** Length of {@link beforeAfterBasePhotos}. */
-  beforeAfterBaseLength = 0;
+  readonly beforeAfterBaseLength = signal(0);
   /** Index in {@link beforeAfterCarouselSlides} of the leftmost visible slide (middle copy at init). */
   beforeAfterOffset = 0;
-  beforeAfterTranslatePx = 0;
-  beforeAfterStepPx = 0;
-  beforeAfterSkipTransition = false;
+  readonly beforeAfterTranslatePx = signal(0);
+  readonly beforeAfterStepPx = signal(0);
+  readonly beforeAfterSkipTransition = signal(false);
   /** How many before/after cards fit across — driven by window width (see breakpoints below). */
   beforeAfterVisibleCount: 1 | 2 | 3 = 3;
   /**
@@ -129,10 +129,10 @@ export class MainComponent implements OnInit, OnDestroy {
    * empty, so only these cards' photos load. Held per BASE index, so all three copies of a photo
    * are rendered together and the instant recenter jump lands on cards that are already drawn.
    */
-  private beforeAfterRenderedBase = new Set<number>();
+  private readonly beforeAfterRenderedBase = signal(new Set<number>());
   private beforeAfterPruneTimer: ReturnType<typeof setTimeout> | null = null;
 
-  @ViewChild('beforeAfterViewport') beforeAfterViewport?: ElementRef<HTMLElement>;
+  readonly beforeAfterViewport = viewChild<ElementRef<HTMLElement>>('beforeAfterViewport');
 
   private beforeAfterViewDisposed = false;
   private beforeAfterLayoutRaf = 0;
@@ -224,7 +224,7 @@ export class MainComponent implements OnInit, OnDestroy {
     this.subscription.add(
       this.beforeAfterPhotoService.getPublic().subscribe({
         next: (photos) => {
-          this.beforeAfterPhotos = (photos || []).map(p => ({
+          this.beforeAfterPhotos.set((photos || []).map(p => ({
             id: p.id,
             title: p.title,
             subtitle: p.subtitle,
@@ -234,7 +234,7 @@ export class MainComponent implements OnInit, OnDestroy {
             afterSrcset: p.afterSrcset ?? null,
             linkUrl: p.linkUrl,
             displayOrder: p.displayOrder
-          }));
+          })));
           this.rebuildBeforeAfterCarousel();
           this.cdr.detectChanges();
           setTimeout(() => {
@@ -247,7 +247,7 @@ export class MainComponent implements OnInit, OnDestroy {
         },
         error: () => {
           // Endpoint not available yet (backend not deployed) — section just stays hidden.
-          this.beforeAfterPhotos = [];
+          this.beforeAfterPhotos.set([]);
           this.rebuildBeforeAfterCarousel();
           this.teardownBeforeAfterCarousel();
           this.cdr.detectChanges();
@@ -261,7 +261,7 @@ export class MainComponent implements OnInit, OnDestroy {
   }
 
   isBeforeAfterSlideRendered(index: number): boolean {
-    return this.beforeAfterBaseLength > 0 && this.beforeAfterRenderedBase.has(index % this.beforeAfterBaseLength);
+    return this.beforeAfterBaseLength() > 0 && this.beforeAfterRenderedBase().has(index % this.beforeAfterBaseLength());
   }
 
   /** A variant that fails to load (e.g. deleted from disk) falls back to the original URL. */
@@ -282,24 +282,24 @@ export class MainComponent implements OnInit, OnDestroy {
 
   private rebuildBeforeAfterCarousel(): void {
     this.teardownBeforeAfterCarouselTimersOnly();
-    const src = this.beforeAfterPhotos;
+    const src = this.beforeAfterPhotos();
     if (src.length === 0) {
       this.beforeAfterBasePhotos = [];
-      this.beforeAfterCarouselSlides = [];
-      this.beforeAfterBaseLength = 0;
+      this.beforeAfterCarouselSlides.set([]);
+      this.beforeAfterBaseLength.set(0);
       this.beforeAfterOffset = 0;
-      this.beforeAfterTranslatePx = 0;
-      this.beforeAfterStepPx = 0;
+      this.beforeAfterTranslatePx.set(0);
+      this.beforeAfterStepPx.set(0);
       return;
     }
     const base = this.buildBeforeAfterBase(src);
     this.beforeAfterBasePhotos = base;
-    this.beforeAfterBaseLength = base.length;
-    this.beforeAfterStepPx = 0;
-    this.beforeAfterCarouselSlides = [...base, ...base, ...base];
-    this.beforeAfterOffset = this.beforeAfterBaseLength;
-    this.beforeAfterRenderedBase = new Set<number>();
-    this.beforeAfterSkipTransition = true;
+    this.beforeAfterBaseLength.set(base.length);
+    this.beforeAfterStepPx.set(0);
+    this.beforeAfterCarouselSlides.set([...base, ...base, ...base]);
+    this.beforeAfterOffset = this.beforeAfterBaseLength();
+    this.beforeAfterRenderedBase.set(new Set<number>());
+    this.beforeAfterSkipTransition.set(true);
     this.syncBeforeAfterTranslate();
   }
 
@@ -315,8 +315,8 @@ export class MainComponent implements OnInit, OnDestroy {
 
   private attachBeforeAfterResizeObserver(): void {
     if (!this.isBrowser) return;
-    const el = this.beforeAfterViewport?.nativeElement;
-    if (!el || this.beforeAfterCarouselSlides.length === 0) return;
+    const el = this.beforeAfterViewport()?.nativeElement;
+    if (!el || this.beforeAfterCarouselSlides().length === 0) return;
     this.beforeAfterResizeObserver?.disconnect();
     this.beforeAfterResizeObserver = new ResizeObserver(() => {
       // Read now (layout is clean inside the callback), write on the next frame.
@@ -352,8 +352,8 @@ export class MainComponent implements OnInit, OnDestroy {
   /** Layout READS only, so callers can take them where layout is already clean. */
   private measureBeforeAfterLayout(): BeforeAfterLayoutMeasure | null {
     if (this.beforeAfterViewDisposed) return null;
-    const vp = this.beforeAfterViewport?.nativeElement;
-    if (!vp || this.beforeAfterCarouselSlides.length === 0) return null;
+    const vp = this.beforeAfterViewport()?.nativeElement;
+    if (!vp || this.beforeAfterCarouselSlides().length === 0) return null;
     const track = vp.querySelector('.before-after-carousel__track') as HTMLElement | null;
     if (!track) return null;
 
@@ -390,30 +390,30 @@ export class MainComponent implements OnInit, OnDestroy {
     const nextStep = slideW + gapPx;
     if (!Number.isFinite(nextStep) || nextStep <= 0) return;
 
-    const stepChanged = Math.abs(nextStep - this.beforeAfterStepPx) > 0.25;
+    const stepChanged = Math.abs(nextStep - this.beforeAfterStepPx()) > 0.25;
     if (stepChanged || visibleChanged) {
-      this.beforeAfterStepPx = nextStep;
-      this.beforeAfterSkipTransition = true;
+      this.beforeAfterStepPx.set(nextStep);
+      this.beforeAfterSkipTransition.set(true);
       this.syncBeforeAfterTranslate();
       requestAnimationFrame(() => {
         if (this.beforeAfterViewDisposed) return;
-        this.beforeAfterSkipTransition = false;
+        this.beforeAfterSkipTransition.set(false);
         this.cdr.detectChanges();
       });
     } else {
-      this.beforeAfterStepPx = nextStep;
+      this.beforeAfterStepPx.set(nextStep);
       this.syncBeforeAfterTranslate();
     }
   }
 
   private syncBeforeAfterTranslate(): void {
-    const t = this.beforeAfterOffset * this.beforeAfterStepPx;
-    this.beforeAfterTranslatePx = Number.isFinite(t) ? t : 0;
+    const t = this.beforeAfterOffset * this.beforeAfterStepPx();
+    this.beforeAfterTranslatePx.set(Number.isFinite(t) ? t : 0);
     this.updateBeforeAfterRenderedWindow();
   }
 
   private beforeAfterWindow(): Set<number> {
-    const m = this.beforeAfterBaseLength;
+    const m = this.beforeAfterBaseLength();
     const window = new Set<number>();
     if (m === 0) return window;
     for (let k = this.beforeAfterOffset - 1; k <= this.beforeAfterOffset + this.beforeAfterVisibleCount; k++) {
@@ -429,27 +429,27 @@ export class MainComponent implements OnInit, OnDestroy {
    */
   private updateBeforeAfterRenderedWindow(): void {
     const next = this.beforeAfterWindow();
-    this.beforeAfterRenderedBase.forEach(i => next.add(i));
-    this.beforeAfterRenderedBase = next;
+    this.beforeAfterRenderedBase().forEach(i => next.add(i));
+    this.beforeAfterRenderedBase.set(next);
     if (!this.isBrowser) return;
     if (this.beforeAfterPruneTimer) clearTimeout(this.beforeAfterPruneTimer);
     this.beforeAfterPruneTimer = setTimeout(() => {
       this.beforeAfterPruneTimer = null;
       if (this.beforeAfterViewDisposed) return;
-      this.beforeAfterRenderedBase = this.beforeAfterWindow();
+      this.beforeAfterRenderedBase.set(this.beforeAfterWindow());
       this.cdr.detectChanges();
     }, MainComponent.BEFORE_AFTER_TRANSITION_MS + 50);
   }
 
   private advanceBeforeAfter(delta: 1 | -1): void {
-    if (!this.isBrowser || this.beforeAfterBaseLength === 0) return;
-    if (this.beforeAfterStepPx <= 0) {
+    if (!this.isBrowser || this.beforeAfterBaseLength() === 0) return;
+    if (this.beforeAfterStepPx() <= 0) {
       this.updateBeforeAfterLayoutMetrics();
     }
-    if (this.beforeAfterStepPx <= 0) return;
+    if (this.beforeAfterStepPx() <= 0) return;
 
-    this.beforeAfterSkipTransition = false;
-    const m = this.beforeAfterBaseLength;
+    this.beforeAfterSkipTransition.set(false);
+    const m = this.beforeAfterBaseLength();
     this.beforeAfterOffset += delta;
     this.syncBeforeAfterTranslate();
     this.cdr.detectChanges();
@@ -460,11 +460,11 @@ export class MainComponent implements OnInit, OnDestroy {
         // offset at 2m+k. Snapping to a hardcoded `m` would rewind the visible content by
         // k positions (offset 2m+k shows the same slides as m+k, but resetting to m shows
         // m). Subtracting one base length keeps the visual position stable.
-        this.beforeAfterSkipTransition = true;
+        this.beforeAfterSkipTransition.set(true);
         this.beforeAfterOffset = this.beforeAfterOffset - m;
         this.syncBeforeAfterTranslate();
         requestAnimationFrame(() => {
-          this.beforeAfterSkipTransition = false;
+          this.beforeAfterSkipTransition.set(false);
           this.cdr.detectChanges();
         });
       });
@@ -472,11 +472,11 @@ export class MainComponent implements OnInit, OnDestroy {
       this.scheduleBeforeAfterRecenter(() => {
         // Symmetric overshoot preservation for the back-button path: offset m-1-k maps to
         // 2m-1-k (same content), not the hardcoded 2m-1.
-        this.beforeAfterSkipTransition = true;
+        this.beforeAfterSkipTransition.set(true);
         this.beforeAfterOffset = this.beforeAfterOffset + m;
         this.syncBeforeAfterTranslate();
         requestAnimationFrame(() => {
-          this.beforeAfterSkipTransition = false;
+          this.beforeAfterSkipTransition.set(false);
           this.cdr.detectChanges();
         });
       });
@@ -498,7 +498,7 @@ export class MainComponent implements OnInit, OnDestroy {
   private startBeforeAfterAutoplay(): void {
     this.stopBeforeAfterAutoplay();
     if (!this.isBrowser || !this.beforeAfterMotionOk) return;
-    if (this.beforeAfterBaseLength === 0) return;
+    if (this.beforeAfterBaseLength() === 0) return;
     if (debugTimersPaused()) return;
     this.beforeAfterAutoplayTimer = setIntervalOutsideZone(this.zone, () => {
       this.advanceBeforeAfter(1);
@@ -553,7 +553,7 @@ export class MainComponent implements OnInit, OnDestroy {
     this.subscription.add(
       this.specialOfferService.getPublicSpecialOffers().subscribe({
         next: (offers) => {
-          this.specialOffers = offers;
+          this.specialOffers.set(offers);
         },
         error: (error) => {
           console.error('Error loading special offers:', error);
@@ -564,12 +564,12 @@ export class MainComponent implements OnInit, OnDestroy {
 
   private checkAuthStatus() {
     // Set initial auth state
-    this.isLoggedIn = this.authService.isLoggedIn();
+    this.isLoggedIn.set(this.authService.isLoggedIn());
 
     // Subscribe to authentication state changes
     this.subscription.add(
       this.authService.currentUser.subscribe(user => {
-        this.isLoggedIn = !!user;
+        this.isLoggedIn.set(!!user);
         // Force change detection
         this.cdr.detectChanges();
       })
@@ -578,7 +578,7 @@ export class MainComponent implements OnInit, OnDestroy {
 
   /** First-time customer offer from the public special offers (percentage is admin-configurable, never hardcoded). */
   get firstTimeOffer(): PublicSpecialOffer | undefined {
-    return findAdvertisedFirstTimeOffer(this.specialOffers);
+    return findAdvertisedFirstTimeOffer(this.specialOffers());
   }
 
   /** Display label for the first-time discount, e.g. "10%" or "$20". Empty when no offer is loaded. */

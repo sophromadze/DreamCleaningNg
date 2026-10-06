@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, OnInit, OnChanges, HostListener, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, OnChanges, HostListener, ChangeDetectionStrategy, signal, input, model } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { getAllServiceTimeSlots } from '../../shared/booking/service-time-slots';
 @Component({
@@ -6,22 +6,21 @@ import { getAllServiceTimeSlots } from '../../shared/booking/service-time-slots'
   standalone: true,
   imports: [FormsModule],
   templateUrl: './time-selector.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./time-selector.component.scss'],
 })
 export class TimeSelectorComponent implements OnInit, OnChanges {
   /** Only used when the host passes no slots at all — the plain customer weekday window. */
   private static readonly DEFAULT_TIME_SLOTS = getAllServiceTimeSlots(false);
 
-  @Input() value: string = '08:00';
-  @Input() availableTimeSlots: string[] = [];
-  @Input() blockedHours: string[] = [];  // Hours to show as "Busy" (disabled but visible)
-  @Output() valueChange = new EventEmitter<string>();
+  readonly value = model<string>('08:00');
+  readonly availableTimeSlots = input<string[]>([]);
+  readonly blockedHours = input<string[]>([]);  // Hours to show as "Busy" (disabled but visible)
 
-  selectedHour: number = 8;
-  selectedMinute: number = 0;
+  readonly selectedHour = signal<number>(8);
+  readonly selectedMinute = signal<number>(0);
   
-  hours: number[] = [];
+  readonly hours = signal<number[]>([]);
   minutes: number[] = [0, 30]; // 00 and 30 minutes
 
   /**
@@ -33,10 +32,10 @@ export class TimeSelectorComponent implements OnInit, OnChanges {
    * admin runs to 8:00 PM (so 6 PM offers BOTH and 8 PM offers :00 only). Hard-coding hour 18
    * got two of those three wrong the moment admin hours existed.
    */
-  private minutesByHour = new Map<number, number[]>();
+  private readonly minutesByHour = signal(new Map<number, number[]>());
 
-  isHoursDropdownOpen = false;
-  isMinutesDropdownOpen = false;
+  readonly isHoursDropdownOpen = signal(false);
+  readonly isMinutesDropdownOpen = signal(false);
 
   ngOnInit() {
     this.updateFromValue();
@@ -51,8 +50,8 @@ export class TimeSelectorComponent implements OnInit, OnChanges {
   }
 
   updateAvailableHours() {
-    const slots = this.availableTimeSlots.length > 0
-      ? this.availableTimeSlots
+    const slots = this.availableTimeSlots().length > 0
+      ? this.availableTimeSlots()
       : TimeSelectorComponent.DEFAULT_TIME_SLOTS;
 
     const byHour = new Map<number, number[]>();
@@ -65,8 +64,8 @@ export class TimeSelectorComponent implements OnInit, OnChanges {
     }
     for (const minutes of byHour.values()) minutes.sort((a, b) => a - b);
 
-    this.minutesByHour = byHour;
-    this.hours = [...byHour.keys()].sort((a, b) => a - b);
+    this.minutesByHour.set(byHour);
+    this.hours.set([...byHour.keys()].sort((a, b) => a - b));
 
     // Don't automatically change the selected time to avoid Angular change detection errors —
     // the hosting page owns that, and picks a valid slot itself.
@@ -76,57 +75,57 @@ export class TimeSelectorComponent implements OnInit, OnChanges {
   onDocumentClick(event: Event) {
     const target = event.target as HTMLElement;
     if (!target.closest('.selector-container')) {
-      this.isHoursDropdownOpen = false;
-      this.isMinutesDropdownOpen = false;
+      this.isHoursDropdownOpen.set(false);
+      this.isMinutesDropdownOpen.set(false);
     }
   }
 
   updateFromValue() {
-    if (this.value) {
-      const [hour, minute] = this.value.split(':').map(Number);
-      this.selectedHour = hour;
-      this.selectedMinute = minute;
+    const value = this.value();
+    if (value) {
+      const [hour, minute] = value.split(':').map(Number);
+      this.selectedHour.set(hour);
+      this.selectedMinute.set(minute);
     }
   }
 
   toggleHoursDropdown(event: Event) {
     event.stopPropagation();
-    this.isHoursDropdownOpen = !this.isHoursDropdownOpen;
-    this.isMinutesDropdownOpen = false;
+    this.isHoursDropdownOpen.set(!this.isHoursDropdownOpen());
+    this.isMinutesDropdownOpen.set(false);
   }
 
   toggleMinutesDropdown(event: Event) {
     event.stopPropagation();
-    this.isMinutesDropdownOpen = !this.isMinutesDropdownOpen;
-    this.isHoursDropdownOpen = false;
+    this.isMinutesDropdownOpen.set(!this.isMinutesDropdownOpen());
+    this.isHoursDropdownOpen.set(false);
   }
 
   selectHour(hour: number, event: Event) {
     event.stopPropagation();
-    this.selectedHour = hour;
+    this.selectedHour.set(hour);
 
     // Snap the minute onto one this hour actually offers (the last hour of the window has :00
     // only, the first hour of a weekend has :30 only).
     const available = this.getAvailableMinutes();
-    if (available.length > 0 && !available.includes(this.selectedMinute)) {
-      this.selectedMinute = available[0];
+    if (available.length > 0 && !available.includes(this.selectedMinute())) {
+      this.selectedMinute.set(available[0]);
     }
 
-    this.isHoursDropdownOpen = false;
+    this.isHoursDropdownOpen.set(false);
     this.updateValue();
   }
 
   selectMinute(minute: number, event: Event) {
     event.stopPropagation();
-    this.selectedMinute = minute;
-    this.isMinutesDropdownOpen = false;
+    this.selectedMinute.set(minute);
+    this.isMinutesDropdownOpen.set(false);
     this.updateValue();
   }
 
   updateValue() {
-    const newValue = `${this.selectedHour.toString().padStart(2, '0')}:${this.selectedMinute.toString().padStart(2, '0')}`;
-    this.value = newValue;
-    this.valueChange.emit(newValue);
+    const newValue = `${this.selectedHour().toString().padStart(2, '0')}:${this.selectedMinute().toString().padStart(2, '0')}`;
+    this.value.set(newValue); // model.set() also emits valueChange
   }
 
   formatHour(hour: number): string {
@@ -140,23 +139,23 @@ export class TimeSelectorComponent implements OnInit, OnChanges {
   }
 
   getAvailableMinutes(): number[] {
-    return this.minutesByHour.get(this.selectedHour) ?? this.minutes;
+    return this.minutesByHour().get(this.selectedHour()) ?? this.minutes;
   }
 
   isHourBlocked(hour: number): boolean {
     // An hour is busy only when EVERY half-hour it offers is busy. Which ones it offers varies
     // by hour (the last hour of the window has :00 only), so ask the map, never assume both.
     const h = hour.toString().padStart(2, '0');
-    const minutes = this.minutesByHour.get(hour) ?? this.minutes;
+    const minutes = this.minutesByHour().get(hour) ?? this.minutes;
     return minutes.every(minute =>
-      this.blockedHours.includes(`${h}:${minute.toString().padStart(2, '0')}`)
+      this.blockedHours().includes(`${h}:${minute.toString().padStart(2, '0')}`)
     );
   }
 
   isMinuteBlocked(minute: number): boolean {
-    const h = this.selectedHour.toString().padStart(2, '0');
+    const h = this.selectedHour().toString().padStart(2, '0');
     const m = minute.toString().padStart(2, '0');
-    return this.blockedHours.includes(`${h}:${m}`);
+    return this.blockedHours().includes(`${h}:${m}`);
   }
 
   selectHourIfNotBlocked(hour: number, event: Event) {
@@ -176,6 +175,6 @@ export class TimeSelectorComponent implements OnInit, OnChanges {
   }
 
   getDisplayTime(): string {
-    return `${this.formatHour(this.selectedHour)}:${this.formatMinute(this.selectedMinute)}`;
+    return `${this.formatHour(this.selectedHour())}:${this.formatMinute(this.selectedMinute())}`;
   }
 } 

@@ -7,32 +7,32 @@
   Expanding a row used to open an accordion; clicking now opens the shared right-side detail panel
   so this tab does not look like a different product from Customers / Cleaners / Staff.
 -->
-<div class="user-management-section" [class.detail-open]="selectedClientId !== null">
+<div class="user-management-section" [class.detail-open]="selectedClientId() !== null">
   <div class="section-header">
     <div class="header-left">
       <h2>Business Clients</h2>
-      @if (!loading) {
-      <span class="user-count">{{ clients.length }} total</span>
+      @if (!loading()) {
+      <span class="user-count">{{ clients().length }} total</span>
       }
     </div>
     <div class="header-right">
-      @if (canCreate) {
+      @if (canCreate()) {
       <button type="button" class="action-btn register-customer" (click)="openCreate()">
         + New Client
       </button>
       }
-      <button type="button" class="action-btn refresh" (click)="load()" [disabled]="loading">
-        {{ loading ? 'Loading…' : 'Refresh' }}
+      <button type="button" class="action-btn refresh" (click)="load()" [disabled]="loading()">
+        {{ loading() ? 'Loading…' : 'Refresh' }}
       </button>
     </div>
   </div>
 
   <div class="messages">
-    @if (error) {
-    <div class="error-message">{{ error }}</div>
+    @if (error()) {
+    <div class="error-message">{{ error() }}</div>
     }
-    @if (notice) {
-    <div class="success-message">{{ notice }}</div>
+    @if (notice()) {
+    <div class="success-message">{{ notice() }}</div>
     }
   </div>
 
@@ -69,7 +69,7 @@
             @for (c of filtered; track trackByClientId($index, c)) {
             <tr
                 class="user-row"
-                [class.row-selected]="selectedClientId === c.id"
+                [class.row-selected]="selectedClientId() === c.id"
                 [class.row-blocked]="!c.isActive"
                 (click)="openClientDetails(c)">
 
@@ -118,12 +118,12 @@
             </tr>
             }
 
-            @if (!loading && filtered.length === 0) {
+            @if (!loading() && filtered.length === 0) {
             <tr>
               <td colspan="5" class="empty-row">
-                {{ search
+                {{ search()
                     ? 'No clients match that search.'
-                    : (canCreate
+                    : (canCreate()
                         ? 'No business clients yet. Add one with “New Client”, or flag a customer as a business on the Customers tab.'
                         : 'No business clients yet.') }}
               </td>
@@ -145,7 +145,7 @@
      They are SIBLINGS sharing the slot, never nested: `.detail-panel` is transformed and
      overflow-hidden, so it would become the containing block for the customer panel's
      fixed-position photo lightbox and recreate-order modal and clip both away. -->
-@if (selectedClientId !== null) {
+@if (selectedClientId() !== null) {
 <div class="detail-overlay"
      (click)="closeDetailPanel()"></div>
 }
@@ -155,17 +155,17 @@
 <ng-template #clientPanelTabs>
   <div class="detail-tabs">
     <button type="button" class="tab"
-            [class.active]="panelTab === 'business'"
+            [class.active]="panelTab() === 'business'"
             (click)="setPanelTab('business')">Business client</button>
     <button type="button" class="tab"
-            [class.active]="panelTab === 'customer'"
+            [class.active]="panelTab() === 'customer'"
             (click)="setPanelTab('customer')">Customer account</button>
   </div>
 </ng-template>
 
 @if (!showsCustomerPanel) {
 <aside class="detail-panel"
-       [class.open]="selectedClientId !== null">
+       [class.open]="selectedClientId() !== null">
   @if (selectedClient; as c) {
     <!-- ABOVE the header, in both panels. The strip switches between two whole records, so it
          belongs over the identity it is switching — and the customer panel projects it into the
@@ -204,7 +204,7 @@
       </div>
       <div class="detail-header__actions">
         <div class="actions-row">
-          @if (c.isActive && canUpdate) {
+          @if (c.isActive && canUpdate()) {
           <button type="button" class="action-btn small"
                   (click)="openEdit(c)">Edit</button>
           }
@@ -220,19 +220,19 @@
         <!-- Same endpoint, two different acts. For a LINKED client this takes the business
              designation off the customer's account, which lists them under Customers again and
              nothing else — so it is offered in those words, and not painted as a deletion. -->
-        @if (c.isActive && canDeactivate && isLinked(c)) {
+        @if (c.isActive && canDeactivate() && isLinked(c)) {
         <button type="button" class="action-btn small"
                 (click)="askDelete(c)">
           Move to Customers
         </button>
         }
-        @if (c.isActive && canDeactivate && !isLinked(c)) {
+        @if (c.isActive && canDeactivate() && !isLinked(c)) {
         <button type="button" class="action-btn small danger"
                 (click)="askDelete(c)">
           Delete
         </button>
         }
-        @if (!c.isActive && canDeactivate && !isLinked(c)) {
+        @if (!c.isActive && canDeactivate() && !isLinked(c)) {
         <button type="button" class="action-btn small"
                 (click)="restore(c)">
           Restore
@@ -244,7 +244,7 @@
     <!-- The customer half with no customer behind it. The tab is still offered rather than hidden
          (owner's call): a standalone client is a company we invoice that has never booked through
          the site, and that is worth saying once, where somebody looked for it. -->
-    @if (panelTab === 'customer') {
+    @if (panelTab() === 'customer') {
     <div class="detail-body">
       <div class="overview-details">
         <div class="info-card">
@@ -261,7 +261,7 @@
     </div>
     }
 
-    @if (panelTab === 'business') {
+    @if (panelTab() === 'business') {
     <div class="stats-row">
       <div class="stat">
         <span class="stat-label">Origin</span>
@@ -282,7 +282,7 @@
     </div>
     }
 
-    @if (panelTab === 'business') {
+    @if (panelTab() === 'business') {
     <div class="detail-body">
       <div class="overview-details">
 
@@ -333,7 +333,7 @@
               <strong>{{ c.linkedAccountEmail || 'no account email' }}</strong>
             </div>
 
-            @if (linkedAccount; as u) {
+            @if (linkedAccount(); as u) {
               <div><span>User ID</span><strong>{{ u.id }}</strong></div>
               <div><span>Phone</span><strong>{{ u.phone || '—' }}</strong></div>
               <div>
@@ -351,7 +351,7 @@
             }
           </div>
 
-          @if (loadingLinkedAccount) {
+          @if (loadingLinkedAccount()) {
           <p class="muted">Loading the customer account…</p>
           }
         </div>
@@ -430,7 +430,7 @@
 <!-- ── Delete confirmation ────────────────────────────────────────────────────────────────
      The linked wording is the important half: staff have to know the customer loses their
      business designation, because that is what stops the client reappearing. -->
-@if (pendingDelete) {
+@if (pendingDelete(); as pendingDelete) {
 <div class="cc-confirm-overlay" (click)="cancelDelete()">
   <div class="cc-confirm" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
     @if (isLinked(pendingDelete)) {
@@ -468,19 +468,19 @@
     }
 
     <div class="cc-confirm-actions">
-      <button type="button" class="action-btn ghost" (click)="cancelDelete()" [disabled]="deleting">
+      <button type="button" class="action-btn ghost" (click)="cancelDelete()" [disabled]="deleting()">
         Cancel
       </button>
       @if (isLinked(pendingDelete)) {
       <button type="button" class="action-btn"
-              (click)="confirmDelete()" [disabled]="deleting">
-        {{ deleting ? 'Moving…' : 'Move to Customers' }}
+              (click)="confirmDelete()" [disabled]="deleting()">
+        {{ deleting() ? 'Moving…' : 'Move to Customers' }}
       </button>
       }
       @if (!isLinked(pendingDelete)) {
       <button type="button" class="action-btn danger"
-              (click)="confirmDelete()" [disabled]="deleting">
-        {{ deleting ? 'Removing…' : 'Remove client' }}
+              (click)="confirmDelete()" [disabled]="deleting()">
+        {{ deleting() ? 'Removing…' : 'Remove client' }}
       </button>
       }
     </div>
@@ -494,9 +494,9 @@
      over a half-finished invoice. -->
 <app-commercial-client-modal
   [panel]="true"
-  [open]="modalOpen"
-  [client]="editing"
-  (closed)="modalOpen = false"
+  [open]="modalOpen()"
+  [client]="editing()"
+  (closed)="modalOpen.set(false)"
   (created)="onClientCreated($event.id)"
   (saved)="onClientSaved($event)">
 </app-commercial-client-modal>

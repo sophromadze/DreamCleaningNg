@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, Output, ChangeDetectionStrategy } from '@angular/core';
+import { Component, ChangeDetectionStrategy, output, input } from '@angular/core';
 import { ShimmerDirective } from '../../directives/shimmer.directive';
 import { IconComponent } from '../../icons/icon.component';
 import { faReceipt } from '../../icons/glyphs/faReceipt';
@@ -35,34 +35,34 @@ export interface SummaryLine {
   standalone: true,
   imports: [ShimmerDirective, IconComponent],
   templateUrl: './order-summary-card.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./order-summary-card.component.scss']
 })
 export class OrderSummaryCardComponent {
   protected readonly icons = { faReceipt, faTag };
 
   /** Card heading; empty string renders no h3 (booking's mobile card). */
-  @Input() title = '';
+  readonly title = input('');
   /** 'mobile' renders booking's .summary-card-mobile look (no toggle). */
-  @Input() variant: 'desktop' | 'mobile' = 'desktop';
-  @Input() collapsed = false;
-  @Input() showToggle = true;
-  @Input() showSavingsBanner = false;
-  @Input() details: SummaryLine[] = [];
-  @Input() priceLines: SummaryLine[] = [];
-  @Input() totalLabel = 'Total:';
-  @Input() totalValue = '';
-  @Input() totalShimmer = false;
+  readonly variant = input<'desktop' | 'mobile'>('desktop');
+  readonly collapsed = input(false);
+  readonly showToggle = input(true);
+  readonly showSavingsBanner = input(false);
+  readonly details = input<SummaryLine[]>([]);
+  readonly priceLines = input<SummaryLine[]>([]);
+  readonly totalLabel = input('Total:');
+  readonly totalValue = input('');
+  readonly totalShimmer = input(false);
   /** Bubble-points earn preview; hidden when null. */
-  @Input() estimatedPoints: string | null = null;
+  readonly estimatedPoints = input<string | null>(null);
 
-  @Output() toggleCollapsed = new EventEmitter<void>();
+  readonly toggleCollapsed = output<void>();
 
   /** Tapping anywhere on the total section toggles the summary (mobile). The
    * toggle button stops propagation so it doesn't double-fire. No-op when the
    * card isn't collapsible (e.g. the always-expanded mobile inline variant). */
   onTotalSectionClick(): void {
-    if (this.showToggle) {
+    if (this.showToggle()) {
       this.toggleCollapsed.emit();
     }
   }

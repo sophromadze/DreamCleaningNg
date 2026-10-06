@@ -47,8 +47,8 @@ describe('AdminComponent', () => {
     });
 
     it('does not render the Services button for a regular Admin who can view', () => {
-      component.userRole = 'Admin';
-      component.userPermissions = viewPermissions('Admin');
+      component.userRole.set('Admin');
+      component.userPermissions.set(viewPermissions('Admin'));
       fixture.detectChanges();
 
       const labels = Array.from(
@@ -60,8 +60,8 @@ describe('AdminComponent', () => {
     });
 
     it('renders the Services button for a SuperAdmin', () => {
-      component.userRole = 'SuperAdmin';
-      component.userPermissions = viewPermissions('SuperAdmin');
+      component.userRole.set('SuperAdmin');
+      component.userPermissions.set(viewPermissions('SuperAdmin'));
       fixture.detectChanges();
 
       const labels = Array.from(
@@ -72,40 +72,40 @@ describe('AdminComponent', () => {
     });
 
     it('falls back to Orders when a non-SuperAdmin asks for the Services tab', () => {
-      component.userRole = 'Admin';
+      component.userRole.set('Admin');
 
       component.setActiveTab('booking-services');
 
-      expect(component.activeTab).toBe('orders');
+      expect(component.activeTab()).toBe('orders');
       expect(sessionStorage.getItem('adminActiveTab')).toBe('orders');
     });
 
     it('lets a SuperAdmin open it', () => {
-      component.userRole = 'SuperAdmin';
+      component.userRole.set('SuperAdmin');
 
       component.setActiveTab('booking-services');
 
-      expect(component.activeTab).toBe('booking-services');
+      expect(component.activeTab()).toBe('booking-services');
     });
 
     // The tab is restored from sessionStorage before the role is known, so an admin demoted
     // since their last visit would otherwise land straight back on it.
     it('drops a restored Services tab once the role turns out not to be SuperAdmin', () => {
-      component.activeTab = 'booking-services';
-      component.userRole = '';
+      component.activeTab.set('booking-services');
+      component.userRole.set('');
 
       expect(component.canOpenTab('booking-services')).toBe(false);
 
-      component.userRole = 'Admin';
-      if (!component.canOpenTab(component.activeTab)) {
+      component.userRole.set('Admin');
+      if (!component.canOpenTab(component.activeTab())) {
         component.setActiveTab('orders');
       }
 
-      expect(component.activeTab).toBe('orders');
+      expect(component.activeTab()).toBe('orders');
     });
 
     it('leaves every other tab alone', () => {
-      component.userRole = 'Admin';
+      component.userRole.set('Admin');
 
       for (const tab of ['orders', 'users', 'discounts', 'scheduling', 'audit-history']) {
         expect(component.canOpenTab(tab)).toBe(true);
@@ -138,36 +138,36 @@ describe('AdminComponent', () => {
     });
 
     it('does not render the Rewards button for a regular Admin who can view', () => {
-      component.userRole = 'Admin';
-      component.userPermissions = viewPermissions('Admin');
+      component.userRole.set('Admin');
+      component.userPermissions.set(viewPermissions('Admin'));
       fixture.detectChanges();
 
       expect(tabLabels()).not.toContain('Rewards');
     });
 
     it('renders it for a SuperAdmin', () => {
-      component.userRole = 'SuperAdmin';
-      component.userPermissions = viewPermissions('SuperAdmin');
+      component.userRole.set('SuperAdmin');
+      component.userPermissions.set(viewPermissions('SuperAdmin'));
       fixture.detectChanges();
 
       expect(tabLabels()).toContain('Rewards');
     });
 
     it('falls back to Orders when a non-SuperAdmin asks for it', () => {
-      component.userRole = 'Admin';
+      component.userRole.set('Admin');
 
       component.setActiveTab('rewards');
 
-      expect(component.activeTab).toBe('orders');
+      expect(component.activeTab()).toBe('orders');
       expect(sessionStorage.getItem('adminActiveTab')).toBe('orders');
     });
 
     it('lets a SuperAdmin open it', () => {
-      component.userRole = 'SuperAdmin';
+      component.userRole.set('SuperAdmin');
 
       component.setActiveTab('rewards');
 
-      expect(component.activeTab).toBe('rewards');
+      expect(component.activeTab()).toBe('rewards');
       expect(component.canOpenTab('rewards')).toBe(true);
     });
 
@@ -200,11 +200,11 @@ describe('AdminComponent', () => {
     };
 
     it('opens the tab named by ?tab=', async () => {
-      expect((await openWithTab('rewards')).activeTab).toBe('rewards');
+      expect((await openWithTab('rewards')).activeTab()).toBe('rewards');
     });
 
     it('ignores a ?tab= naming something that is not a tab', async () => {
-      expect((await openWithTab('not-a-tab')).activeTab).toBe('orders');
+      expect((await openWithTab('not-a-tab')).activeTab()).toBe('orders');
     });
   });
 
@@ -242,17 +242,17 @@ describe('AdminComponent', () => {
       const c = await openWith({ clientId: '7' });
 
       // A client id can only mean Business Clients, so the link does not have to say so twice.
-      expect(c.activeTab).toBe('users');
-      expect(c.initialUsersTab).toBe('business-clients');
-      expect(c.pendingClientId).toBe(7);
+      expect(c.activeTab()).toBe('users');
+      expect(c.initialUsersTab()).toBe('business-clients');
+      expect(c.pendingClientId()).toBe(7);
     });
 
     it('opens Users → Customers with the account a link names', async () => {
       const c = await openWith({ userId: '42', usersTab: 'customers' });
 
-      expect(c.activeTab).toBe('users');
-      expect(c.pendingUserId).toBe(42);
-      expect(c.initialUsersTab).toBe('customers');
+      expect(c.activeTab()).toBe('users');
+      expect(c.pendingUserId()).toBe(42);
+      expect(c.initialUsersTab()).toBe('customers');
     });
 
     it('lands on Users even when only the sub-tab is named', async () => {
@@ -261,8 +261,8 @@ describe('AdminComponent', () => {
       sessionStorage.setItem('adminActiveTab', 'discounts');
       const c = await openWith({ usersTab: 'cleaners' });
 
-      expect(c.activeTab).toBe('users');
-      expect(c.initialUsersTab).toBe('cleaners');
+      expect(c.activeTab()).toBe('users');
+      expect(c.initialUsersTab()).toBe('cleaners');
       sessionStorage.removeItem('adminActiveTab');
     });
 
@@ -271,8 +271,8 @@ describe('AdminComponent', () => {
       // to its remembered sub-tab and open the account's panel behind Business Clients.
       const c = await openWith({ userId: '42', usersTab: 'nonsense' });
 
-      expect(c.activeTab).toBe('users');
-      expect(c.initialUsersTab).toBe('customers');
+      expect(c.activeTab()).toBe('users');
+      expect(c.initialUsersTab()).toBe('customers');
     });
   });
 
@@ -314,13 +314,13 @@ describe('AdminComponent', () => {
 
     it('opens Users → Customers on the account a later link names', async () => {
       const c = await mountWith({ usersTab: 'business-clients' });
-      expect(c.activeTab).toBe('users');
+      expect(c.activeTab()).toBe('users');
 
       params.next(convertToParamMap({ userId: '2', usersTab: 'customers' }));
 
-      expect(c.pendingUserId).toBe(2);
-      expect(c.initialUsersTab).toBe('customers');
-      expect(c.activeTab).toBe('users');
+      expect(c.pendingUserId()).toBe(2);
+      expect(c.initialUsersTab()).toBe('customers');
+      expect(c.activeTab()).toBe('users');
     });
 
     it('does not re-apply the link the subscription replays on arrival', async () => {
@@ -329,7 +329,7 @@ describe('AdminComponent', () => {
       // admin had moved to in between.
       const c = await mountWith({ tab: 'discounts' });
 
-      expect(c.activeTab).toBe('discounts');
+      expect(c.activeTab()).toBe('discounts');
     });
 
     it('leaves the admin where they are when a navigation names none of them', async () => {
@@ -338,7 +338,7 @@ describe('AdminComponent', () => {
 
       params.next(convertToParamMap({}));
 
-      expect(c.activeTab).toBe('scheduling');
+      expect(c.activeTab()).toBe('scheduling');
     });
   });
 });

@@ -1,28 +1,28 @@
 <div class="gift-card-payment-container">
-    @if (!paymentCompleted) {
+    @if (!paymentCompleted()) {
     <div class="payment-content">
       <h1>Complete Gift Card Purchase</h1>
-      <p class="amount-info">Amount: {{ amount | currency }}</p>
+      <p class="amount-info">Amount: {{ amount() | currency }}</p>
       
-      @if (clientSecret) {
+      @if (clientSecret()) {
       <app-payment
-        [amount]="amount"
-        [clientSecret]="clientSecret"
+        [amount]="amount()"
+        [clientSecret]="clientSecret()"
         [billingDetails]="billingDetails"
         (paymentComplete)="onPaymentComplete($event)"
         (paymentError)="onPaymentError($event)">
       </app-payment>
       }
       
-      @if (errorMessage) {
+      @if (errorMessage()) {
       <div class="error-message">
-        {{ errorMessage }}
+        {{ errorMessage() }}
       </div>
       }
     </div>
     }
     
-    @if (paymentCompleted) {
+    @if (paymentCompleted()) {
     <div class="success-content">
       <i [appIcon]="icons.faCircleCheck" class="success-icon"></i>
       <h1>Payment Successful!</h1>

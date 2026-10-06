@@ -1,26 +1,26 @@
-@if (loading || hasAny || errorMessage) {
+@if (loading() || hasAny || errorMessage()) {
 <section class="uro">
   <div class="uro-head">
     <h3>Your upcoming cleanings</h3>
-    @if (data?.canPayAll) {
+    @if (data()?.canPayAll) {
     <button
             type="button"
             class="uro-payall-btn"
             (click)="openPayAll()"
-            [disabled]="payingAll">
-      Pay all upcoming — {{ data!.payAllTotal | currency:'USD' }}
+            [disabled]="payingAll()">
+      Pay all upcoming — {{ data()!.payAllTotal | currency:'USD' }}
     </button>
     }
   </div>
 
-  @if (loading) {
+  @if (loading()) {
   <p class="uro-loading">Loading your schedule…</p>
   }
-  @if (errorMessage) {
-  <p class="uro-error">{{ errorMessage }}</p>
+  @if (errorMessage()) {
+  <p class="uro-error">{{ errorMessage() }}</p>
   }
 
-  @if (!loading && hasAny) {
+  @if (!loading() && hasAny) {
   <p class="uro-intro">
     These are the cleanings already booked on your recurring plan. You can pay them one at a time
     as they come up, or settle them all at once — there is no rush.
@@ -28,7 +28,7 @@
   }
 
   <!-- NEAREST FIRST. The server returns them in this order; the page does not re-sort. -->
-  @if (!loading && hasAny) {
+  @if (!loading() && hasAny) {
   <ul class="uro-list">
     @for (o of orders; track $index) {
     <li class="uro-item" [class.uro-item--paid]="o.isPaid">
@@ -74,17 +74,17 @@
 }
 
 <!-- ── Pay all upcoming ─────────────────────────────────────────────────────────────────── -->
-@if (showPayAll) {
+@if (showPayAll()) {
 <div class="uro-modal-backdrop" (click)="closePayAll()">
   <div class="uro-modal" (click)="$event.stopPropagation()">
     <h4>Pay all upcoming cleanings</h4>
 
-    @if (data) {
+    @if (data(); as data) {
     <p class="uro-modal-summary">
       {{ data.payAllCount }} cleaning(s) — <strong>{{ data.payAllTotal | currency:'USD' }}</strong>
     </p>
     }
-    @if (data) {
+    @if (data()) {
     <ul class="uro-modal-list">
       @for (o of orders; track $index) {
       <li>
@@ -104,15 +104,15 @@
          is what it returned. -->
     <div id="recurring-pay-all-card" class="uro-card-element"></div>
 
-    @if (payAllError) {
-    <p class="uro-error">{{ payAllError }}</p>
+    @if (payAllError()) {
+    <p class="uro-error">{{ payAllError() }}</p>
     }
 
     <div class="uro-modal-actions">
-      <button type="button" class="uro-pay-btn" (click)="confirmPayAll()" [disabled]="payingAll">
-        {{ payingAll ? 'Processing…' : 'Pay ' + ($safeNavigationMigration(data?.payAllTotal) | currency:'USD') }}
+      <button type="button" class="uro-pay-btn" (click)="confirmPayAll()" [disabled]="payingAll()">
+        {{ payingAll() ? 'Processing…' : 'Pay ' + ($safeNavigationMigration(data()?.payAllTotal) | currency:'USD') }}
       </button>
-      <button type="button" class="uro-cancel-btn" (click)="closePayAll()" [disabled]="payingAll">
+      <button type="button" class="uro-cancel-btn" (click)="closePayAll()" [disabled]="payingAll()">
         Cancel
       </button>
     </div>
@@ -122,9 +122,9 @@
 
 <!-- Asked between the Pay click and the charge; the batch intent is untouched by it. -->
 <app-save-card-modal
-  [open]="showSaveCardModal"
-  [busy]="payingAll"
-  [amountLabel]="(data?.payAllTotal ?? 0) | currency:'USD'"
+  [open]="showSaveCardModal()"
+  [busy]="payingAll()"
+  [amountLabel]="(data()?.payAllTotal ?? 0) | currency:'USD'"
   (choose)="onSaveCardChoice($event)"
   (dismissed)="onSaveCardDismissed()">
 </app-save-card-modal>

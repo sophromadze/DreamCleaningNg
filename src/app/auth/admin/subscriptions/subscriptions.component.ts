@@ -1,4 +1,4 @@
-import { Component, OnInit, AfterViewInit, OnDestroy, ViewChild, ElementRef, HostListener, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, OnInit, AfterViewInit, OnDestroy, ElementRef, HostListener, ChangeDetectionStrategy, inject, viewChild, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { AdminService, CreateSubscription, UpdateSubscription, UserPermissions } from '../../../services/admin.service';
 import { Subscription } from '../../../services/booking.service';
@@ -8,26 +8,26 @@ import { Subscription } from '../../../services/booking.service';
   standalone: true,
   imports: [FormsModule],
   templateUrl: './subscriptions.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./subscriptions.component.scss']
 })
 export class SubscriptionsComponent implements OnInit, AfterViewInit, OnDestroy {
   private adminService = inject(AdminService);
 
-  @ViewChild('tableWrapper', { static: false }) tableWrapper!: ElementRef<HTMLDivElement>;
-  @ViewChild('tableHeader', { static: false }) tableHeader!: ElementRef<HTMLTableSectionElement>;
+  readonly tableWrapper = viewChild<ElementRef<HTMLDivElement>>('tableWrapper');
+  readonly tableHeader = viewChild<ElementRef<HTMLTableSectionElement>>('tableHeader');
   
-  subscriptions: Subscription[] = [];
-  isAddingSubscription = false;
-  editingSubscriptionId: number | null = null;
-  newSubscription: CreateSubscription = {
+  readonly subscriptions = signal<Subscription[]>([], { equal: () => false });
+  readonly isAddingSubscription = signal(false);
+  readonly editingSubscriptionId = signal<number | null>(null);
+  readonly newSubscription = signal<CreateSubscription>({
     name: '',
     description: '',
     discountPercentage: 0,
     subscriptionDays: 30,
     displayOrder: 0,
     isMostPopular: false
-  };
+  });
 
   // Sticky header management
   private scrollListener?: () => void;
@@ -44,8 +44,8 @@ export class SubscriptionsComponent implements OnInit, AfterViewInit, OnDestroy 
   }
 
   // Permissions
-  userRole: string = '';
-  userPermissions: UserPermissions = {
+  readonly userRole = signal<string>('');
+  readonly userPermissions = signal<UserPermissions>({
     role: '',
     permissions: {
       canView: false,
@@ -55,11 +55,11 @@ export class SubscriptionsComponent implements OnInit, AfterViewInit, OnDestroy 
       canActivate: false,
       canDeactivate: false
     }
-  };
+  });
 
   // UI State
-  errorMessage = '';
-  successMessage = '';
+  readonly errorMessage = signal('');
+  readonly successMessage = signal('');
 
   ngOnInit() {
     this.loadUserPermissions();
@@ -71,7 +71,9 @@ export class SubscriptionsComponent implements OnInit, AfterViewInit, OnDestroy 
   }
 
   private initializeStickyHeader() {
-    if (!this.tableWrapper || !this.tableHeader) {
+    const tableWrapper = this.tableWrapper();
+    const tableHeader = this.tableHeader();
+    if (!tableWrapper || !tableHeader) {
       if (this.initializationRetries < this.maxRetries) {
         this.initializationRetries++;
         setTimeout(() => {
@@ -81,7 +83,7 @@ export class SubscriptionsComponent implements OnInit, AfterViewInit, OnDestroy 
       return;
     }
     
-    if (!this.tableWrapper.nativeElement || !this.tableHeader.nativeElement) {
+    if (!tableWrapper.nativeElement || !tableHeader.nativeElement) {
       if (this.initializationRetries < this.maxRetries) {
         this.initializationRetries++;
         setTimeout(() => {
@@ -99,8 +101,9 @@ export class SubscriptionsComponent implements OnInit, AfterViewInit, OnDestroy 
     if (this.scrollListener) {
       window.removeEventListener('scroll', this.scrollListener, true);
     }
-    if (this.horizontalScrollListener && this.tableWrapper) {
-      const wrapperEl = this.tableWrapper.nativeElement;
+    const tableWrapper = this.tableWrapper();
+    if (this.horizontalScrollListener && tableWrapper) {
+      const wrapperEl = tableWrapper.nativeElement;
       wrapperEl.removeEventListener('scroll', this.horizontalScrollListener);
       wrapperEl.removeEventListener('touchmove', this.horizontalScrollListener);
       wrapperEl.removeEventListener('wheel', this.horizontalScrollListener);
@@ -117,7 +120,8 @@ export class SubscriptionsComponent implements OnInit, AfterViewInit, OnDestroy 
   }
 
   private setupStickyHeader() {
-    if (!this.tableWrapper || !this.tableHeader) {
+    const tableWrapper = this.tableWrapper();
+    if (!tableWrapper || !this.tableHeader()) {
       return;
     }
 
@@ -134,19 +138,21 @@ export class SubscriptionsComponent implements OnInit, AfterViewInit, OnDestroy 
     this.horizontalScrollListener = () => {
       this.syncHorizontalScroll();
     };
-    this.tableWrapper.nativeElement.addEventListener('scroll', this.horizontalScrollListener);
+    tableWrapper.nativeElement.addEventListener('scroll', this.horizontalScrollListener);
 
     this.stickyHeaderInitialized = true;
     this.updateStickyHeader();
   }
 
   private updateStickyHeader() {
-    if (!this.tableWrapper || !this.tableHeader) {
+    const tableWrapper = this.tableWrapper();
+    const tableHeader = this.tableHeader();
+    if (!tableWrapper || !tableHeader) {
       return;
     }
 
-    const wrapper = this.tableWrapper.nativeElement;
-    const header = this.tableHeader.nativeElement;
+    const wrapper = tableWrapper.nativeElement;
+    const header = tableHeader.nativeElement;
     const rect = wrapper.getBoundingClientRect();
     const offset = this.headerStickyOffset;
     
@@ -288,12 +294,14 @@ export class SubscriptionsComponent implements OnInit, AfterViewInit, OnDestroy 
   }
 
   private syncHorizontalScroll() {
-    if (!this.tableWrapper || !this.tableHeader) {
+    const tableWrapper = this.tableWrapper();
+    const tableHeader = this.tableHeader();
+    if (!tableWrapper || !tableHeader) {
       return;
     }
 
-    const wrapper = this.tableWrapper.nativeElement;
-    const header = this.tableHeader.nativeElement;
+    const wrapper = tableWrapper.nativeElement;
+    const header = tableHeader.nativeElement;
     
     // Sync horizontal scroll position by translating the header
     // Only sync if header is currently fixed/sticky
@@ -321,12 +329,12 @@ export class SubscriptionsComponent implements OnInit, AfterViewInit, OnDestroy 
   loadUserPermissions() {
     this.adminService.getUserPermissions().subscribe({
       next: (response) => {
-        this.userRole = response.role;
-        this.userPermissions = response;
+        this.userRole.set(response.role);
+        this.userPermissions.set(response);
       },
       error: (error) => {
         console.error('Error loading permissions:', error);
-        this.errorMessage = 'Failed to load permissions. Please try again.';
+        this.errorMessage.set('Failed to load permissions. Please try again.');
       }
     });
   }
@@ -335,9 +343,9 @@ export class SubscriptionsComponent implements OnInit, AfterViewInit, OnDestroy 
     this.adminService.getSubscriptions().subscribe({
       next: (subscriptions) => {
         // Sort by displayOrder
-        this.subscriptions = subscriptions.sort((a, b) => 
+        this.subscriptions.set(subscriptions.sort((a, b) => 
           (a.displayOrder || 0) - (b.displayOrder || 0)
-        );
+        ));
         setTimeout(() => {
           if (!this.stickyHeaderInitialized) {
             this.initializeStickyHeader();
@@ -348,64 +356,64 @@ export class SubscriptionsComponent implements OnInit, AfterViewInit, OnDestroy 
       },
       error: (error) => {
         console.error('Error loading subscriptions:', error);
-        this.errorMessage = 'Failed to load subscriptions. Please try again.';
+        this.errorMessage.set('Failed to load subscriptions. Please try again.');
       }
     });
   }
 
   startAddingSubscription() {
-    this.isAddingSubscription = true;
-    this.editingSubscriptionId = null;
-    this.newSubscription = {
+    this.isAddingSubscription.set(true);
+    this.editingSubscriptionId.set(null);
+    this.newSubscription.set({
       name: '',
       description: '',
       discountPercentage: 0,
       subscriptionDays: 30,
       displayOrder: 0,
       isMostPopular: false
-    };
+    });
   }
 
   cancelAddSubscription() {
-    this.isAddingSubscription = false;
-    this.newSubscription = {
+    this.isAddingSubscription.set(false);
+    this.newSubscription.set({
       name: '',
       description: '',
       discountPercentage: 0,
       subscriptionDays: 30,
       displayOrder: 0,
       isMostPopular: false
-    };
+    });
   }
 
   addSubscription() {
-    this.adminService.createSubscription(this.newSubscription).subscribe({
+    this.adminService.createSubscription(this.newSubscription()).subscribe({
       next: (response) => {
         this.loadSubscriptions(); // Change from push to reload
-        this.isAddingSubscription = false;
-        this.newSubscription = {
+        this.isAddingSubscription.set(false);
+        this.newSubscription.set({
           name: '',
           description: '',
           discountPercentage: 0,
           subscriptionDays: 30,
           displayOrder: 0,
           isMostPopular: false
-        };
-        this.successMessage = 'Subscription added successfully.';
+        });
+        this.successMessage.set('Subscription added successfully.');
       },
       error: (error) => {
         console.error('Error creating subscription:', error);
-        this.errorMessage = 'Failed to create subscription. Please try again.';
+        this.errorMessage.set('Failed to create subscription. Please try again.');
       }
     });
   }
 
   editSubscription(subscription: Subscription) {
-    this.editingSubscriptionId = subscription.id;
+    this.editingSubscriptionId.set(subscription.id);
   }
 
   cancelEditSubscription() {
-    this.editingSubscriptionId = null;
+    this.editingSubscriptionId.set(null);
   }
 
   saveSubscription(subscription: Subscription) {
@@ -421,12 +429,12 @@ export class SubscriptionsComponent implements OnInit, AfterViewInit, OnDestroy 
     this.adminService.updateSubscription(subscription.id, updateData).subscribe({
       next: (response) => {
         this.loadSubscriptions(); // Add this line to reload and re-sort
-        this.editingSubscriptionId = null;
-        this.successMessage = 'Subscription updated successfully.';
+        this.editingSubscriptionId.set(null);
+        this.successMessage.set('Subscription updated successfully.');
       },
       error: (error) => {
         console.error('Error updating subscription:', error);
-        this.errorMessage = 'Failed to update subscription. Please try again.';
+        this.errorMessage.set('Failed to update subscription. Please try again.');
       }
     });
   }
@@ -435,12 +443,12 @@ export class SubscriptionsComponent implements OnInit, AfterViewInit, OnDestroy 
     if (confirm('Are you sure you want to delete this subscription?')) {
       this.adminService.deleteSubscription(subscription.id).subscribe({
         next: () => {
-          this.subscriptions = this.subscriptions.filter(s => s.id !== subscription.id);
-          this.successMessage = 'Subscription deleted successfully.';
+          this.subscriptions.set(this.subscriptions().filter(s => s.id !== subscription.id));
+          this.successMessage.set('Subscription deleted successfully.');
         },
         error: (error) => {
           console.error('Error deleting subscription:', error);
-          this.errorMessage = 'Failed to delete subscription. Please try again.';
+          this.errorMessage.set('Failed to delete subscription. Please try again.');
         }
       });
     }
@@ -449,15 +457,16 @@ export class SubscriptionsComponent implements OnInit, AfterViewInit, OnDestroy 
   deactivateSubscription(subscription: Subscription) {
     this.adminService.deactivateSubscription(subscription.id).subscribe({
       next: (response) => {
-        const index = this.subscriptions.findIndex(s => s.id === subscription.id);
+        const index = this.subscriptions().findIndex(s => s.id === subscription.id);
         if (index !== -1) {
-          this.subscriptions[index] = { ...this.subscriptions[index], isActive: false };
+          this.subscriptions()[index] = { ...this.subscriptions()[index], isActive: false };
+          this.subscriptions.set(this.subscriptions());
         }
-        this.successMessage = 'Subscription deactivated successfully.';
+        this.successMessage.set('Subscription deactivated successfully.');
       },
       error: (error) => {
         console.error('Error deactivating subscription:', error);
-        this.errorMessage = 'Failed to deactivate subscription. Please try again.';
+        this.errorMessage.set('Failed to deactivate subscription. Please try again.');
       }
     });
   }
@@ -465,15 +474,16 @@ export class SubscriptionsComponent implements OnInit, AfterViewInit, OnDestroy 
   activateSubscription(subscription: Subscription) {
     this.adminService.activateSubscription(subscription.id).subscribe({
       next: (response) => {
-        const index = this.subscriptions.findIndex(s => s.id === subscription.id);
+        const index = this.subscriptions().findIndex(s => s.id === subscription.id);
         if (index !== -1) {
-          this.subscriptions[index] = { ...this.subscriptions[index], isActive: true };
+          this.subscriptions()[index] = { ...this.subscriptions()[index], isActive: true };
+          this.subscriptions.set(this.subscriptions());
         }
-        this.successMessage = 'Subscription activated successfully.';
+        this.successMessage.set('Subscription activated successfully.');
       },
       error: (error) => {
         console.error('Error activating subscription:', error);
-        this.errorMessage = 'Failed to activate subscription. Please try again.';
+        this.errorMessage.set('Failed to activate subscription. Please try again.');
       }
     });
   }

@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit, inject, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnDestroy, OnInit, inject, ChangeDetectionStrategy, signal } from '@angular/core';
 import { RouterModule, ActivatedRoute } from '@angular/router';
 import { Meta, Title, DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { Subscription, take } from 'rxjs';
@@ -21,7 +21,7 @@ const BASE_URL = 'https://dreamcleaningnyc.com';
   standalone: true,
   imports: [RouterModule],
   templateUrl: './blog-post.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './blog-post.component.scss'
 })
 export class BlogPostComponent implements OnInit, OnDestroy {
@@ -33,13 +33,13 @@ export class BlogPostComponent implements OnInit, OnDestroy {
   private sanitizer = inject(DomSanitizer);
   private ssrResponse = inject<SsrResponseContext | null>(SSR_RESPONSE_CONTEXT, { optional: true });
 
-  post: BlogPostDetail | null = null;
-  safeContent: SafeHtml | null = null;
-  loading = true;
-  notFound = false;
+  readonly post = signal<BlogPostDetail | null>(null);
+  readonly safeContent = signal<SafeHtml | null>(null);
+  readonly loading = signal(true);
+  readonly notFound = signal(false);
   /** Blog master switch is OFF — show coming-soon instead of a broken-looking 404
    *  (kinder to stray traffic/backlinks while the blog is pre-launch). */
-  comingSoon = false;
+  readonly comingSoon = signal(false);
 
   private subscription = new Subscription();
   private readonly structuredData = inject(StructuredDataService);
@@ -66,9 +66,9 @@ export class BlogPostComponent implements OnInit, OnDestroy {
   }
 
   private loadPost(slug: string): void {
-    this.loading = true;
-    this.notFound = false;
-    this.comingSoon = false;
+    this.loading.set(true);
+    this.notFound.set(false);
+    this.comingSoon.set(false);
 
     this.subscription.add(
       this.blogService.getPost(slug).subscribe({
@@ -79,10 +79,10 @@ export class BlogPostComponent implements OnInit, OnDestroy {
             this.handleMissingPost();
             return;
           }
-          this.post = post;
+          this.post.set(post);
           // ContentHtml is allowlist-sanitized server-side on every save.
-          this.safeContent = this.sanitizer.bypassSecurityTrustHtml(post.contentHtml);
-          this.loading = false;
+          this.safeContent.set(this.sanitizer.bypassSecurityTrustHtml(post.contentHtml));
+          this.loading.set(false);
           this.applySeo(post);
         },
         error: () => this.handleMissingPost()
@@ -105,8 +105,8 @@ export class BlogPostComponent implements OnInit, OnDestroy {
   }
 
   private markNotFound(): void {
-    this.loading = false;
-    this.notFound = true;
+    this.loading.set(false);
+    this.notFound.set(true);
     if (this.ssrResponse) {
       this.ssrResponse.statusCode = 404;
     }
@@ -116,8 +116,8 @@ export class BlogPostComponent implements OnInit, OnDestroy {
   }
 
   private markComingSoon(): void {
-    this.loading = false;
-    this.comingSoon = true;
+    this.loading.set(false);
+    this.comingSoon.set(true);
     // Deliberately HTTP 200 (friendlier to stray backlinks) but noindexed.
     this.titleService.setTitle('Blog Coming Soon | Dream Cleaning');
     this.metaService.updateTag({ name: 'robots', content: 'noindex' });

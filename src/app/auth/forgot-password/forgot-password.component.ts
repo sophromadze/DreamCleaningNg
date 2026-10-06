@@ -1,5 +1,5 @@
 // src/app/auth/forgot-password/forgot-password.component.ts
-import { Component, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject, signal } from '@angular/core';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
@@ -9,7 +9,7 @@ import { AuthService } from '../../services/auth.service';
   standalone: true,
   imports: [ReactiveFormsModule, RouterLink],
   templateUrl: './forgot-password.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./forgot-password.component.scss']
 })
 export class ForgotPasswordComponent {
@@ -17,9 +17,9 @@ export class ForgotPasswordComponent {
   private authService = inject(AuthService);
 
   forgotForm: FormGroup;
-  isLoading = false;
-  isSuccess = false;
-  errorMessage = '';
+  readonly isLoading = signal(false);
+  readonly isSuccess = signal(false);
+  readonly errorMessage = signal('');
 
   constructor() {
     this.forgotForm = this.fb.group({
@@ -29,17 +29,17 @@ export class ForgotPasswordComponent {
 
   onSubmit() {
     if (this.forgotForm.valid) {
-      this.isLoading = true;
-      this.errorMessage = '';
+      this.isLoading.set(true);
+      this.errorMessage.set('');
       
       this.authService.forgotPassword(this.forgotForm.value.email).subscribe({
         next: () => {
-          this.isSuccess = true;
-          this.isLoading = false;
+          this.isSuccess.set(true);
+          this.isLoading.set(false);
         },
         error: (error) => {
-          this.errorMessage = error.error?.message || 'Failed to send reset email. Please try again.';
-          this.isLoading = false;
+          this.errorMessage.set(error.error?.message || 'Failed to send reset email. Please try again.');
+          this.isLoading.set(false);
         }
       });
     }

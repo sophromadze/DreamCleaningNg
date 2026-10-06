@@ -15,7 +15,7 @@ import { StructuredDataService } from '../../../services/structured-data.service
   standalone: true,
   imports: [RouterModule, IconComponent, CardImageDirective],
   templateUrl: './move-in-out-cleaning.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './move-in-out-cleaning.component.scss'
 })
 export class MoveInOutCleaningComponent implements OnInit, OnDestroy {

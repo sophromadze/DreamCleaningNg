@@ -1,4 +1,4 @@
-import { Component, OnInit, HostListener, ElementRef, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, OnInit, HostListener, ElementRef, ChangeDetectionStrategy, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
@@ -17,7 +17,7 @@ import {
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './keywords.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./keywords.component.scss']
 })
 export class KeywordsComponent implements OnInit {
@@ -25,30 +25,30 @@ export class KeywordsComponent implements OnInit {
   private host = inject(ElementRef);
 
   // Organic (Search Console)
-  organic: OrganicKeywordRow[] = [];
-  organicTotals: OrganicTotals | null = null;
-  organicPage = 1;
+  readonly organic = signal<OrganicKeywordRow[]>([]);
+  readonly organicTotals = signal<OrganicTotals | null>(null);
+  readonly organicPage = signal(1);
   organicPageSize = 25;
-  organicTotalCount = 0;
-  organicTotalPages = 0;
-  loadingOrganic = false;
+  readonly organicTotalCount = signal(0);
+  readonly organicTotalPages = signal(0);
+  readonly loadingOrganic = signal(false);
 
   // Paid (Google Ads search terms)
-  paid: PaidKeywordRow[] = [];
-  paidTotals: PaidTotals | null = null;
-  paidPage = 1;
+  readonly paid = signal<PaidKeywordRow[]>([]);
+  readonly paidTotals = signal<PaidTotals | null>(null);
+  readonly paidPage = signal(1);
   paidPageSize = 25;
-  paidTotalCount = 0;
-  paidTotalPages = 0;
-  loadingPaid = false;
+  readonly paidTotalCount = signal(0);
+  readonly paidTotalPages = signal(0);
+  readonly loadingPaid = signal(false);
 
-  exporting = false;
-  errorMessage = '';
+  readonly exporting = signal(false);
+  readonly errorMessage = signal('');
 
-  period: KeywordsPeriod = 'last30';
-  dropdownOpen = false;
-  fromDate = '';
-  toDate = '';
+  readonly period = signal<KeywordsPeriod>('last30');
+  readonly dropdownOpen = signal(false);
+  readonly fromDate = signal('');
+  readonly toDate = signal('');
 
   readonly presets: { key: KeywordsPeriod; label: string }[] = [
     { key: 'last30', label: 'Last 30 days' },
@@ -65,35 +65,35 @@ export class KeywordsComponent implements OnInit {
   // ── Range ──
 
   get rangeLabel(): string {
-    if (this.period === 'custom') return 'Custom range';
-    return this.presets.find(p => p.key === this.period)?.label ?? 'Select range';
+    if (this.period() === 'custom') return 'Custom range';
+    return this.presets.find(p => p.key === this.period())?.label ?? 'Select range';
   }
 
-  toggleDropdown(): void { this.dropdownOpen = !this.dropdownOpen; }
+  toggleDropdown(): void { this.dropdownOpen.set(!this.dropdownOpen()); }
 
   selectPreset(p: KeywordsPeriod): void {
-    this.dropdownOpen = false;
-    this.period = p;
+    this.dropdownOpen.set(false);
+    this.period.set(p);
     this.resetPages();
     this.loadAll();
   }
 
   applyCustom(): void {
-    this.period = 'custom';
+    this.period.set('custom');
     this.resetPages();
     this.loadAll();
   }
 
   @HostListener('document:click', ['$event'])
   onDocumentClick(event: MouseEvent): void {
-    if (this.dropdownOpen && !this.host.nativeElement.contains(event.target)) {
-      this.dropdownOpen = false;
+    if (this.dropdownOpen() && !this.host.nativeElement.contains(event.target)) {
+      this.dropdownOpen.set(false);
     }
   }
 
   private resetPages(): void {
-    this.organicPage = 1;
-    this.paidPage = 1;
+    this.organicPage.set(1);
+    this.paidPage.set(1);
   }
 
   // ── Loading ──
@@ -104,64 +104,64 @@ export class KeywordsComponent implements OnInit {
   }
 
   loadOrganic(): void {
-    this.loadingOrganic = true;
-    this.keywordsService.getOrganic(this.buildQuery(this.organicPage, this.organicPageSize)).subscribe({
+    this.loadingOrganic.set(true);
+    this.keywordsService.getOrganic(this.buildQuery(this.organicPage(), this.organicPageSize)).subscribe({
       next: res => {
-        this.organic = res.items;
-        this.organicTotals = res.totals;
-        this.organicPage = res.page;
+        this.organic.set(res.items);
+        this.organicTotals.set(res.totals);
+        this.organicPage.set(res.page);
         this.organicPageSize = res.pageSize;
-        this.organicTotalCount = res.totalCount;
-        this.organicTotalPages = res.totalPages;
+        this.organicTotalCount.set(res.totalCount);
+        this.organicTotalPages.set(res.totalPages);
         // Reflect the resolved range into the date inputs once (organic returns first).
-        this.fromDate = (res.from || '').slice(0, 10);
-        this.toDate = (res.to || '').slice(0, 10);
-        this.loadingOrganic = false;
+        this.fromDate.set((res.from || '').slice(0, 10));
+        this.toDate.set((res.to || '').slice(0, 10));
+        this.loadingOrganic.set(false);
       },
-      error: () => { this.errorMessage = 'Failed to load organic keywords.'; this.loadingOrganic = false; }
+      error: () => { this.errorMessage.set('Failed to load organic keywords.'); this.loadingOrganic.set(false); }
     });
   }
 
   loadPaid(): void {
-    this.loadingPaid = true;
-    this.keywordsService.getPaid(this.buildQuery(this.paidPage, this.paidPageSize)).subscribe({
+    this.loadingPaid.set(true);
+    this.keywordsService.getPaid(this.buildQuery(this.paidPage(), this.paidPageSize)).subscribe({
       next: res => {
-        this.paid = res.items;
-        this.paidTotals = res.totals;
-        this.paidPage = res.page;
+        this.paid.set(res.items);
+        this.paidTotals.set(res.totals);
+        this.paidPage.set(res.page);
         this.paidPageSize = res.pageSize;
-        this.paidTotalCount = res.totalCount;
-        this.paidTotalPages = res.totalPages;
-        this.loadingPaid = false;
+        this.paidTotalCount.set(res.totalCount);
+        this.paidTotalPages.set(res.totalPages);
+        this.loadingPaid.set(false);
       },
-      error: () => { this.errorMessage = 'Failed to load paid keywords.'; this.loadingPaid = false; }
+      error: () => { this.errorMessage.set('Failed to load paid keywords.'); this.loadingPaid.set(false); }
     });
   }
 
   // ── Paging (independent per table) ──
 
-  organicNext(): void { if (this.organicPage < this.organicTotalPages) { this.organicPage++; this.loadOrganic(); } }
-  organicPrev(): void { if (this.organicPage > 1) { this.organicPage--; this.loadOrganic(); } }
-  paidNext(): void { if (this.paidPage < this.paidTotalPages) { this.paidPage++; this.loadPaid(); } }
-  paidPrev(): void { if (this.paidPage > 1) { this.paidPage--; this.loadPaid(); } }
+  organicNext(): void { if (this.organicPage() < this.organicTotalPages()) { this.organicPage.update(v => v + 1); this.loadOrganic(); } }
+  organicPrev(): void { if (this.organicPage() > 1) { this.organicPage.update(v => v - 1); this.loadOrganic(); } }
+  paidNext(): void { if (this.paidPage() < this.paidTotalPages()) { this.paidPage.update(v => v + 1); this.loadPaid(); } }
+  paidPrev(): void { if (this.paidPage() > 1) { this.paidPage.update(v => v - 1); this.loadPaid(); } }
 
   // ── Export ──
 
   downloadExcel(): void {
-    this.exporting = true;
+    this.exporting.set(true);
     this.keywordsService.exportExcel(this.buildQuery()).subscribe({
       next: blob => {
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `dream-cleaning-keywords_${this.fromDate}_${this.toDate}.xlsx`;
+        a.download = `dream-cleaning-keywords_${this.fromDate()}_${this.toDate()}.xlsx`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         window.URL.revokeObjectURL(url);
-        this.exporting = false;
+        this.exporting.set(false);
       },
-      error: () => { this.errorMessage = 'Failed to export keywords.'; this.exporting = false; }
+      error: () => { this.errorMessage.set('Failed to export keywords.'); this.exporting.set(false); }
     });
   }
 
@@ -169,9 +169,9 @@ export class KeywordsComponent implements OnInit {
   trackByTerm(_: number, row: PaidKeywordRow): string { return row.searchTerm; }
 
   private buildQuery(page?: number, pageSize?: number): KeywordsQuery {
-    const q: KeywordsQuery = this.period === 'custom'
-      ? { from: this.fromDate || undefined, to: this.toDate || undefined }
-      : { period: this.period };
+    const q: KeywordsQuery = this.period() === 'custom'
+      ? { from: this.fromDate() || undefined, to: this.toDate() || undefined }
+      : { period: this.period() };
     if (page != null) { q.page = page; q.pageSize = pageSize; }
     return q;
   }

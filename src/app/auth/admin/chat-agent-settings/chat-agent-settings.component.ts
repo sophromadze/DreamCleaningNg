@@ -1,4 +1,4 @@
-import { Component, ElementRef, HostListener, OnDestroy, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, ElementRef, HostListener, OnDestroy, ChangeDetectionStrategy, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
   ChatAgentAdminService,
@@ -24,7 +24,7 @@ interface VisibilityOption {
   standalone: true,
   imports: [CommonModule],
   templateUrl: './chat-agent-settings.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './chat-agent-settings.component.scss'
 })
 export class ChatAgentSettingsComponent implements OnDestroy {
@@ -37,12 +37,12 @@ export class ChatAgentSettingsComponent implements OnDestroy {
     { mode: 'Public', label: 'Public', description: 'Visible to all website visitors.' }
   ];
 
-  isOpen = false;
-  loading = false;
-  saving = false;
-  settings: ChatAgentSettings | null = null;
-  successMessage: string | null = null;
-  errorMessage: string | null = null;
+  readonly isOpen = signal(false);
+  readonly loading = signal(false);
+  readonly saving = signal(false);
+  readonly settings = signal<ChatAgentSettings | null>(null);
+  readonly successMessage = signal<string | null>(null);
+  readonly errorMessage = signal<string | null>(null);
 
   private successTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -52,18 +52,18 @@ export class ChatAgentSettingsComponent implements OnDestroy {
 
   @HostListener('document:click', ['$event'])
   onDocumentClick(event: MouseEvent): void {
-    if (this.isOpen && !this.host.nativeElement.contains(event.target as Node)) {
-      this.isOpen = false;
+    if (this.isOpen() && !this.host.nativeElement.contains(event.target as Node)) {
+      this.isOpen.set(false);
     }
   }
 
   togglePanel(): void {
-    this.isOpen = !this.isOpen;
-    if (this.isOpen) this.loadSettings(); // fresh values on every open
+    this.isOpen.set(!this.isOpen());
+    if (this.isOpen()) this.loadSettings(); // fresh values on every open
   }
 
   get widgetStatusLabel(): string {
-    switch (this.settings?.visibilityMode) {
+    switch (this.settings()?.visibilityMode) {
       case 'Public': return 'Public';
       case 'AdminOnly': return 'Admin Only';
       case 'Disabled': return 'Disabled';
@@ -74,76 +74,76 @@ export class ChatAgentSettingsComponent implements OnDestroy {
   /** Backend DateTime serializes without a UTC marker once round-tripped through
    * MySQL — normalize so the date pipe renders correct local time. */
   get updatedAtLocal(): Date | null {
-    const raw = this.settings?.updatedAt;
+    const raw = this.settings()?.updatedAt;
     if (!raw) return null;
     return new Date(/Z|[+-]\d\d:\d\d$/.test(raw) ? raw : raw + 'Z');
   }
 
   onVisibilitySelected(mode: ChatVisibilityMode): void {
-    if (this.saving || !this.settings || this.settings.visibilityMode === mode) return;
+    if (this.saving() || !this.settings() || this.settings()!.visibilityMode === mode) return;
 
     if (mode === 'Public' &&
         !confirm('Are you sure? This will make the chat visible to ALL website visitors.')) {
       return; // radio [checked] binds to settings.visibilityMode, so it stays put
     }
 
-    this.saving = true;
+    this.saving.set(true);
     this.clearMessages();
     this.adminService.setVisibility(mode).subscribe({
       next: updated => {
-        this.saving = false;
-        this.settings = updated;
+        this.saving.set(false);
+        this.settings.set(updated);
         this.showSuccess(`Chat visibility set to ${this.widgetStatusLabel}.`);
       },
       error: () => {
-        this.saving = false;
+        this.saving.set(false);
         // settings untouched → radios revert to the real server value
-        this.errorMessage = 'Could not save visibility — nothing was changed. Please try again.';
+        this.errorMessage.set('Could not save visibility — nothing was changed. Please try again.');
       }
     });
   }
 
   onToggleEscalationEmail(): void {
-    if (this.saving || !this.settings) return;
+    if (this.saving() || !this.settings()) return;
 
-    this.saving = true;
+    this.saving.set(true);
     this.clearMessages();
     this.adminService.toggleEscalationEmail().subscribe({
       next: updated => {
-        this.saving = false;
-        this.settings = updated;
+        this.saving.set(false);
+        this.settings.set(updated);
         this.showSuccess(`Escalation email ${updated.escalationEmailEnabled ? 'enabled' : 'disabled'}.`);
       },
       error: () => {
-        this.saving = false;
-        this.errorMessage = 'Could not save the email setting — nothing was changed. Please try again.';
+        this.saving.set(false);
+        this.errorMessage.set('Could not save the email setting — nothing was changed. Please try again.');
       }
     });
   }
 
   private loadSettings(): void {
-    this.loading = true;
+    this.loading.set(true);
     this.clearMessages();
     this.adminService.getSettings().subscribe({
       next: settings => {
-        this.loading = false;
-        this.settings = settings;
+        this.loading.set(false);
+        this.settings.set(settings);
       },
       error: () => {
-        this.loading = false;
-        this.errorMessage = 'Could not load chat agent settings.';
+        this.loading.set(false);
+        this.errorMessage.set('Could not load chat agent settings.');
       }
     });
   }
 
   private showSuccess(message: string): void {
-    this.successMessage = message;
+    this.successMessage.set(message);
     if (this.successTimer) clearTimeout(this.successTimer);
-    this.successTimer = setTimeout(() => (this.successMessage = null), 3000);
+    this.successTimer = setTimeout(() => (this.successMessage.set(null)), 3000);
   }
 
   private clearMessages(): void {
-    this.successMessage = null;
-    this.errorMessage = null;
+    this.successMessage.set(null);
+    this.errorMessage.set(null);
   }
 }

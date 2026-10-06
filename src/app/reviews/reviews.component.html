@@ -1,6 +1,6 @@
 <div class="info-page">
   <section class="reviews-hero">
-    <div class="container reviews-hero__inner" [class.reviews-hero__inner--no-media]="heroImageFailed">
+    <div class="container reviews-hero__inner" [class.reviews-hero__inner--no-media]="heroImageFailed()">
       <div class="reviews-hero__content">
         <span class="reviews-hero__eyebrow">
           <svg class="google-g-icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -15,22 +15,22 @@
         <p class="reviews-hero__subtitle">
           Real, verified reviews from homeowners and businesses across Brooklyn, Manhattan, and Queens.
         </p>
-        @if (hasLoaded && totalReviews > 0) {
+        @if (hasLoaded() && totalReviews() > 0) {
         <div class="reviews-hero__rating">
-          <span class="reviews-hero__score">{{ overallRating | number:'1.1-1' }}</span>
+          <span class="reviews-hero__score">{{ overallRating() | number:'1.1-1' }}</span>
           <span class="rating-stars" aria-hidden="true">
             @for (star of [1,2,3,4,5]; track star) {
             <svg viewBox="0 0 24 24" fill="currentColor"
-                 [class.filled]="star <= overallRating">
+                 [class.filled]="star <= overallRating()">
               <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14l-5-4.87 6.91-1.01L12 2z"/>
             </svg>
             }
           </span>
-          <span class="reviews-hero__count">Based on {{ reviewCountLabel }}</span>
+          <span class="reviews-hero__count">Based on {{ reviewCountLabel() }}</span>
         </div>
         }
       </div>
-      @if (!heroImageFailed) {
+      @if (!heroImageFailed()) {
       <div class="reviews-hero__media">
         <img class="reviews-hero__img" [src]="heroImage"
              alt="A happy customer leaving a Google review on her smartphone"
@@ -42,10 +42,10 @@
 
   <div class="container">
     <!-- Reviews grid (sourced from the Google Reviews backend endpoint) -->
-    @if (hasLoaded && reviews.length > 0) {
+    @if (hasLoaded() && reviews().length > 0) {
     <section class="reviews-block">
       <div class="reviews-grid">
-        @for (r of reviews; track $index) {
+        @for (r of reviews(); track $index) {
         <article class="review-card">
           <div class="review-card__head">
             <div class="review-card__avatar">
@@ -93,17 +93,17 @@
         }
       </div>
 
-      @if (hasMore) {
+      @if (hasMore()) {
       <div class="reviews-more">
-        <button type="button" class="btn-load-more" (click)="loadMore()" [disabled]="isLoadingMore">
-          {{ isLoadingMore ? 'Loading…' : 'Load More Reviews' }}
+        <button type="button" class="btn-load-more" (click)="loadMore()" [disabled]="isLoadingMore()">
+          {{ isLoadingMore() ? 'Loading…' : 'Load More Reviews' }}
         </button>
       </div>
       }
     </section>
     }
 
-    @if (hasLoaded && reviews.length === 0) {
+    @if (hasLoaded() && reviews().length === 0) {
     <p class="reviews-empty">
       Reviews are loading from Google. Please check back shortly.
     </p>

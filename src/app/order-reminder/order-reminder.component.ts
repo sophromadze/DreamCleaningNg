@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, PLATFORM_ID, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, PLATFORM_ID, ChangeDetectionStrategy, inject, signal } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { Subscription } from 'rxjs';
 import { OrderReminderService, OrderReminder } from '../services/order-reminder.service';
@@ -14,7 +14,7 @@ import { faCircleStop } from '../shared/icons/glyphs/faCircleStop';
   standalone: true,
   imports: [IconComponent],
   templateUrl: './order-reminder.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./order-reminder.component.scss']
 })
 export class OrderReminderComponent implements OnInit, OnDestroy {
@@ -24,9 +24,9 @@ export class OrderReminderComponent implements OnInit, OnDestroy {
 
   protected readonly icons = { faCheck };
 
-  activeReminders: OrderReminder[] = [];
-  modalReminder: OrderReminder | null = null;
-  isAdmin = false;
+  readonly activeReminders = signal<OrderReminder[]>([]);
+  readonly modalReminder = signal<OrderReminder | null>(null);
+  readonly isAdmin = signal(false);
   isBrowser: boolean;
 
   private subscriptions: Subscription[] = [];
@@ -40,19 +40,19 @@ export class OrderReminderComponent implements OnInit, OnDestroy {
 
     this.subscriptions.push(
       this.authService.currentUser.subscribe(user => {
-        this.isAdmin = user?.role === 'Admin';
+        this.isAdmin.set(user?.role === 'Admin');
       })
     );
 
     this.subscriptions.push(
       this.reminderService.activeReminders$.subscribe(reminders => {
-        this.activeReminders = reminders;
+        this.activeReminders.set(reminders);
       })
     );
 
     this.subscriptions.push(
       this.reminderService.modalReminder$.subscribe(reminder => {
-        this.modalReminder = reminder;
+        this.modalReminder.set(reminder);
       })
     );
   }
@@ -62,8 +62,8 @@ export class OrderReminderComponent implements OnInit, OnDestroy {
   }
 
   onModalOk(): void {
-    if (this.modalReminder) {
-      this.reminderService.acknowledgeReminder(this.modalReminder.orderId, this.modalReminder.type);
+    if (this.modalReminder()) {
+      this.reminderService.acknowledgeReminder(this.modalReminder()!.orderId, this.modalReminder()!.type);
     }
   }
 

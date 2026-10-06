@@ -1,14 +1,14 @@
 import {
   Component,
-  Input,
   AfterViewInit,
   OnDestroy,
   PLATFORM_ID,
   inject,
   ChangeDetectorRef,
-  ViewChild,
   ElementRef,
-  ChangeDetectionStrategy
+  ChangeDetectionStrategy,
+  viewChild, signal,
+  input
 } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
@@ -56,24 +56,27 @@ const TILE_LAYER_OPTIONS = {
   standalone: true,
   imports: [FormsModule],
   templateUrl: './service-area-map.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./service-area-map.component.scss'],
 })
 export class ServiceAreaMapComponent implements AfterViewInit, OnDestroy {
-  @Input() borough: BoroughType = 'brooklyn';
-  @Input() serviceZipCodes: string[] = [];
-  @Input() mapCenter: [number, number] = [40.6502, -73.9496];
-  @Input() zoomLevel = 12;
+  readonly borough = input<BoroughType>('brooklyn');
+  readonly serviceZipCodes = input<string[]>([]);
+  readonly mapCenter = input<[
+    number,
+    number
+]>([40.6502, -73.9496]);
+  readonly zoomLevel = input(12);
   /**
    * `inline` (default) renders the search box above a full always-loaded map (hero usage).
    * `sticky` renders a centered bar fixed to the viewport bottom; the map lazy-loads and
    * expands as a bottom sheet on first focus, and the bar hides once `dockSelector` is in view.
    */
-  @Input() variant: 'inline' | 'sticky' = 'inline';
+  readonly variant = input<'inline' | 'sticky'>('inline');
   /** In `sticky` mode, the bar docks (hides) while this element is on screen so it never duplicates the hero. */
-  @Input() dockSelector = '.hero-section';
+  readonly dockSelector = input('.hero-section');
 
-  @ViewChild('mapContainer') private mapContainerRef?: ElementRef<HTMLElement>;
+  private readonly mapContainerRef = viewChild<ElementRef<HTMLElement>>('mapContainer');
 
   private platformId = inject(PLATFORM_ID);
   private http = inject(HttpClient);
@@ -81,14 +84,14 @@ export class ServiceAreaMapComponent implements AfterViewInit, OnDestroy {
   private themeService = inject(ThemeService);
   private themeSub?: Subscription;
 
-  searchZip = '';
-  searchMessage = '';
-  searchSuccess: boolean | null = null;
+  readonly searchZip = signal('');
+  readonly searchMessage = signal('');
+  readonly searchSuccess = signal<boolean | null>(null);
   highlightedZipCode: string | null = null;
 
   /** sticky-only UI state */
-  isExpanded = false;
-  isDocked = false;
+  readonly isExpanded = signal(false);
+  readonly isDocked = signal(false);
   private mapInitialized = false;
   private pendingFlyZip: string | null = null;
   private dockObserver?: IntersectionObserver;
@@ -105,10 +108,10 @@ export class ServiceAreaMapComponent implements AfterViewInit, OnDestroy {
 
   ngAfterViewInit(): void {
     if (!isPlatformBrowser(this.platformId)) return;
-    this.zipToNeighborhood = getZipToNeighborhood(this.borough);
-    this.boroughZips = getAllZipsForBorough(this.borough);
+    this.zipToNeighborhood = getZipToNeighborhood(this.borough());
+    this.boroughZips = getAllZipsForBorough(this.borough());
     this.themeSub = this.themeService.theme$.pipe(skip(1)).subscribe(() => this.updateMapTileLayer());
-    if (this.variant === 'sticky') {
+    if (this.variant() === 'sticky') {
       // Map is lazy-loaded on first focus; just wire up the dock/hide behavior now.
       this.setupDockObserver();
       // Signal to global widgets (social banners, chat FAB) to lift above the coverage bar.
@@ -121,7 +124,7 @@ export class ServiceAreaMapComponent implements AfterViewInit, OnDestroy {
   ngOnDestroy(): void {
     this.themeSub?.unsubscribe();
     this.dockObserver?.disconnect();
-    if (this.variant === 'sticky' && isPlatformBrowser(this.platformId)) {
+    if (this.variant() === 'sticky' && isPlatformBrowser(this.platformId)) {
       document.body.classList.remove('has-coverage-bar');
     }
     this.clearMap();
@@ -130,13 +133,13 @@ export class ServiceAreaMapComponent implements AfterViewInit, OnDestroy {
   /** Hide the sticky bar while the hero (which has its own map + search) is on screen. */
   private setupDockObserver(): void {
     if (typeof IntersectionObserver === 'undefined') return;
-    const target = document.querySelector(this.dockSelector);
+    const target = document.querySelector(this.dockSelector());
     if (!target) return;
     this.dockObserver = new IntersectionObserver(
       (entries) => {
         const docked = entries.some((e) => e.isIntersecting);
-        this.isDocked = docked;
-        if (docked && this.isExpanded) this.isExpanded = false;
+        this.isDocked.set(docked);
+        if (docked && this.isExpanded()) this.isExpanded.set(false);
         this.cdr.markForCheck();
       },
       { root: null, threshold: 0 }
@@ -146,8 +149,8 @@ export class ServiceAreaMapComponent implements AfterViewInit, OnDestroy {
 
   /** Open the bottom-sheet map; lazy-init leaflet on the first open. */
   expand(): void {
-    if (this.isDocked || this.isExpanded) return;
-    this.isExpanded = true;
+    if (this.isDocked() || this.isExpanded()) return;
+    this.isExpanded.set(true);
     this.cdr.markForCheck();
     if (!this.mapInitialized) {
       this.mapInitialized = true;
@@ -158,7 +161,7 @@ export class ServiceAreaMapComponent implements AfterViewInit, OnDestroy {
   }
 
   collapse(): void {
-    this.isExpanded = false;
+    this.isExpanded.set(false);
     this.cdr.markForCheck();
   }
 
@@ -375,7 +378,7 @@ export class ServiceAreaMapComponent implements AfterViewInit, OnDestroy {
     import('leaflet').then((leafletModule: any) => {
       const L = leafletModule.default || leafletModule;
       this.clearMap();
-      const mapEl = this.mapContainerRef?.nativeElement;
+      const mapEl = this.mapContainerRef()?.nativeElement;
       if (!mapEl) return;
       (mapEl as unknown as { _leaflet_id?: number })._leaflet_id = undefined;
 
@@ -397,15 +400,15 @@ export class ServiceAreaMapComponent implements AfterViewInit, OnDestroy {
       }
 
       this.map = L.map(mapEl, {
-        center: this.mapCenter,
-        zoom: this.zoomLevel,
+        center: this.mapCenter(),
+        zoom: this.zoomLevel(),
         zoomControl: false,
       });
       L.control.zoom({ position: 'topright' }).addTo(this.map);
 
       this.tileLayer = this.createTileLayer(L).addTo(this.map!);
 
-      const serviceSet = new Set(this.serviceZipCodes);
+      const serviceSet = new Set(this.serviceZipCodes());
 
       this.geoJsonLayer = L.geoJSON(undefined, {
         style: (feature: Feature | undefined) => this.getStyle(feature, serviceSet, L),
@@ -543,7 +546,7 @@ export class ServiceAreaMapComponent implements AfterViewInit, OnDestroy {
 
   private reapplyStyles(): void {
     if (!this.geoJsonLayer) return;
-    const serviceSet = new Set(this.serviceZipCodes);
+    const serviceSet = new Set(this.serviceZipCodes());
     this.zipToLayer.forEach((layer, zip) => {
       const isService = this.isServiceZip(zip, serviceSet);
       const isHighlighted = zip === this.highlightedZipCode;
@@ -572,16 +575,16 @@ export class ServiceAreaMapComponent implements AfterViewInit, OnDestroy {
 
   onSearch(): void {
     // In sticky mode a search should also reveal (and lazy-load) the map.
-    if (this.variant === 'sticky') this.expand();
-    const raw = this.searchZip.trim().replace(/\D/g, '');
-    this.searchMessage = '';
-    this.searchSuccess = null;
+    if (this.variant() === 'sticky') this.expand();
+    const raw = this.searchZip().trim().replace(/\D/g, '');
+    this.searchMessage.set('');
+    this.searchSuccess.set(null);
     this.highlightedZipCode = null;
     this.reapplyStyles();
 
     if (raw.length !== 5) {
-      this.searchMessage = 'Please enter a valid ZIP code';
-      this.searchSuccess = false;
+      this.searchMessage.set('Please enter a valid ZIP code');
+      this.searchSuccess.set(false);
       this.cdr.markForCheck();
       return;
     }
@@ -589,20 +592,20 @@ export class ServiceAreaMapComponent implements AfterViewInit, OnDestroy {
     // Coverage is company-wide: a ZIP from any borough we service counts here, not just this page's.
     const borough = findBoroughForZip(raw);
     if (!borough) {
-      this.searchMessage = `Sorry, we don't currently service ${raw}. Contact us to request service in your area.`;
-      this.searchSuccess = false;
+      this.searchMessage.set(`Sorry, we don't currently service ${raw}. Contact us to request service in your area.`);
+      this.searchSuccess.set(false);
       this.cdr.markForCheck();
       return;
     }
 
     const neighborhood = this.neighborhoodFor(raw);
     // Name the borough when it isn't this page's, so the answer doesn't look like a mistake.
-    const where = [neighborhood, borough === this.borough ? '' : BOROUGH_LABELS[borough]]
+    const where = [neighborhood, borough === this.borough() ? '' : BOROUGH_LABELS[borough]]
       .filter(Boolean)
       .join(', ');
 
-    this.searchMessage = `Great news! We service ${raw}${where ? ` — ${where}` : ''}! Book your cleaning today.`;
-    this.searchSuccess = true;
+    this.searchMessage.set(`Great news! We service ${raw}${where ? ` — ${where}` : ''}! Book your cleaning today.`);
+    this.searchSuccess.set(true);
     this.highlightedZipCode = raw;
     this.ensureZipOnMap(raw);
     this.reapplyStyles();
@@ -611,8 +614,8 @@ export class ServiceAreaMapComponent implements AfterViewInit, OnDestroy {
   }
 
   get messageClass(): string {
-    if (this.searchSuccess === true) return 'message success';
-    if (this.searchSuccess === false) return 'message error';
+    if (this.searchSuccess() === true) return 'message success';
+    if (this.searchSuccess() === false) return 'message error';
     return 'message';
   }
 }

@@ -1,4 +1,4 @@
-import { Component, EventEmitter, OnInit, Output, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy, inject, output, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { CrmCustomerService, CrmSegment } from '../../../../services/crm-customer.service';
 
@@ -7,24 +7,24 @@ import { CrmCustomerService, CrmSegment } from '../../../../services/crm-custome
   standalone: true,
   imports: [CommonModule],
   templateUrl: './crm-segments.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./crm-segments.component.scss']
 })
 export class CrmSegmentsComponent implements OnInit {
   private customerService = inject(CrmCustomerService);
 
   /** Emits the segment key when a card is opened, so the shell can switch to the filtered list. */
-  @Output() selectSegment = new EventEmitter<string>();
+  readonly selectSegment = output<string>();
 
-  segments: CrmSegment[] = [];
-  loading = false;
-  errorMessage = '';
+  readonly segments = signal<CrmSegment[]>([]);
+  readonly loading = signal(false);
+  readonly errorMessage = signal('');
 
   ngOnInit(): void {
-    this.loading = true;
+    this.loading.set(true);
     this.customerService.getSegments().subscribe({
-      next: s => { this.segments = s; this.loading = false; },
-      error: () => { this.errorMessage = 'Failed to load segments.'; this.loading = false; }
+      next: s => { this.segments.set(s); this.loading.set(false); },
+      error: () => { this.errorMessage.set('Failed to load segments.'); this.loading.set(false); }
     });
   }
 

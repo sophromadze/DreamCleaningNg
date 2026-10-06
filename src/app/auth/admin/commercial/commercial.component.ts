@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, OnDestroy, OnInit, ChangeDetectionStrategy, inject, signal } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { AuthService } from '../../../services/auth.service';
@@ -26,11 +26,11 @@ import { AuthService } from '../../../services/auth.service';
 export class CommercialComponent implements OnInit, OnDestroy {
   private auth = inject(AuthService);
 
-  currentUser: any = null;
+  readonly currentUser = signal<any>(null);
   private sub?: Subscription;
 
   ngOnInit(): void {
-    this.sub = this.auth.currentUser.subscribe(u => this.currentUser = u);
+    this.sub = this.auth.currentUser.subscribe(u => this.currentUser.set(u));
   }
 
   ngOnDestroy(): void {
@@ -43,6 +43,6 @@ export class CommercialComponent implements OnInit, OnDestroy {
    * instructions their client receives; they see them on the invoice itself.
    */
   get canManageBilling(): boolean {
-    return this.currentUser?.role === 'SuperAdmin';
+    return this.currentUser()?.role === 'SuperAdmin';
   }
 }

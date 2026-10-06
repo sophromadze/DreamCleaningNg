@@ -12,11 +12,11 @@
     scope they were built with.
   </p>
 
-  @if (error) {
-  <div class="alert alert-danger">{{ error }}</div>
+  @if (error()) {
+  <div class="alert alert-danger">{{ error() }}</div>
   }
-  @if (notice) {
-  <div class="alert alert-success">{{ notice }}</div>
+  @if (notice()) {
+  <div class="alert alert-success">{{ notice() }}</div>
   }
 
   <div class="bt-layout">
@@ -25,16 +25,16 @@
     <aside class="bt-list">
       <h2>Business types</h2>
 
-      @if (loading) {
+      @if (loading()) {
       <p class="loading">Loading…</p>
       }
 
-      @if (!loading) {
+      @if (!loading()) {
       <ul class="type-list">
-        @for (t of templates; track t.id) {
+        @for (t of templates(); track t.id) {
         <li>
           <button type="button" class="type-row"
-                  [class.active]="selected?.id === t.id"
+                  [class.active]="selected()?.id === t.id"
                   [class.archived]="t.isActive === false"
                   (click)="open(t.id)">
             <span class="type-name">{{ t.name }}</span>
@@ -61,13 +61,13 @@
       <div class="add-type">
         <input type="text" [(ngModel)]="newTypeName" name="newTypeName"
                placeholder="e.g. Gym / Fitness Studio" (keyup.enter)="createType()">
-        <button type="button" class="btn-secondary" [disabled]="!newTypeName.trim() || saving"
+        <button type="button" class="btn-secondary" [disabled]="!newTypeName().trim() || saving()"
                 (click)="createType()">Add business type</button>
       </div>
     </aside>
 
     <!-- ── The selected type's checklist ───────────────────────────────────────── -->
-    @if (selected; as t) {
+    @if (selected(); as t) {
     <section class="bt-editor">
 
       <div class="editor-head">
@@ -162,10 +162,10 @@
 
         @if (!g.archived) {
         <div class="add-item">
-          <input type="text" [(ngModel)]="newItemLabels[gi]" [name]="'newItem' + gi"
+          <input type="text" [(ngModel)]="newItemLabels()[gi]" [name]="'newItem' + gi"
                  placeholder="Add an item…" (keyup.enter)="addItem(gi)">
           <button type="button" class="btn-ghost small" (click)="addItem(gi)"
-                  [disabled]="!newItemLabels[gi]">Add</button>
+                  [disabled]="!newItemLabels()[gi]">Add</button>
         </div>
         }
       </div>
@@ -174,7 +174,7 @@
       <div class="add-category">
         <input type="text" [(ngModel)]="newCategoryTitle" name="newCategoryTitle"
                placeholder="Add a category, e.g. “Restroom Cleaning”" (keyup.enter)="addCategory()">
-        <button type="button" class="btn-ghost" [disabled]="!newCategoryTitle.trim()"
+        <button type="button" class="btn-ghost" [disabled]="!newCategoryTitle().trim()"
                 (click)="addCategory()">Add category</button>
       </div>
 
@@ -183,14 +183,14 @@
         <button type="button" class="btn-danger" (click)="archiveType()"
                >Archive business type</button>
         }
-        <button type="button" class="btn-primary" (click)="save()" [disabled]="saving">
-          {{ saving ? 'Saving…' : 'Save changes' }}
+        <button type="button" class="btn-primary" (click)="save()" [disabled]="saving()">
+          {{ saving() ? 'Saving…' : 'Save changes' }}
         </button>
       </div>
     </section>
     }
 
-    @if (!selected && !loading) {
+    @if (!selected() && !loading()) {
     <section class="bt-editor empty">
       <p class="muted">Select a business type on the left, or add a new one.</p>
     </section>

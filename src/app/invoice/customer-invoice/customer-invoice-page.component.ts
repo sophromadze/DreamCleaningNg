@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, OnDestroy, OnInit, ChangeDetectionStrategy, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { finalize } from 'rxjs';
@@ -30,7 +30,7 @@ import { faSpinner } from '../../shared/icons/glyphs/faSpinner';
   standalone: true,
   imports: [CommonModule, RouterModule, IconComponent],
   templateUrl: './customer-invoice-page.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./customer-invoice-page.component.scss']
 })
 export class CustomerInvoicePageComponent implements OnInit, OnDestroy {
@@ -40,21 +40,21 @@ export class CustomerInvoicePageComponent implements OnInit, OnDestroy {
 
   protected readonly icons = { faBuildingColumns, faCircleCheck, faCreditCard, faFilePdf, faHourglassHalf, faMoneyBillTransfer, faSpinner };
 
-  invoice: PublicCustomerInvoice | null = null;
-  loading = true;
-  notFound = false;
-  copied = '';
-  downloading = false;
-  downloadError = '';
+  readonly invoice = signal<PublicCustomerInvoice | null>(null);
+  readonly loading = signal(true);
+  readonly notFound = signal(false);
+  readonly copied = signal('');
+  readonly downloading = signal(false);
+  readonly downloadError = signal('');
   private token = '';
 
   /** Online bank (ACH) payment: the redirect in flight and its error. */
-  startingAch = false;
+  readonly startingAch = signal(false);
   /** Back from Stripe and the server has not seen the payment yet — re-reading every few seconds. */
-  checkingPayment = false;
+  readonly checkingPayment = signal(false);
   private pollTimer: ReturnType<typeof setTimeout> | null = null;
   private pollsLeft = 0;
-  achError = '';
+  readonly achError = signal('');
   /** ?payment=processing|cancelled from Stripe's redirect — a hint for the message only; the
    *  invoice itself is always re-read from the server. */
   paymentHint: 'processing' | 'cancelled' | null = null;
@@ -68,17 +68,17 @@ export class CustomerInvoicePageComponent implements OnInit, OnDestroy {
     this.paymentHint = hint === 'processing' || hint === 'cancelled' ? hint : null;
     this.invoiceService.getPublic(token).subscribe({
       next: invoice => {
-        this.invoice = invoice;
-        this.loading = false;
+        this.invoice.set(invoice);
+        this.loading.set(false);
         // Stripe sends the customer back the moment they authorize. The server re-checks the
         // payment with Stripe on every read, so keep re-reading for a minute until it shows up.
         if (this.paymentHint === 'processing' && this.needsPaymentCheck(invoice)) {
-          this.checkingPayment = true;
+          this.checkingPayment.set(true);
           this.pollsLeft = 15;
           this.schedulePoll();
         }
       },
-      error: () => { this.notFound = true; this.loading = false; }
+      error: () => { this.notFound.set(true); this.loading.set(false); }
     });
   }
 
@@ -95,26 +95,26 @@ export class CustomerInvoicePageComponent implements OnInit, OnDestroy {
     this.pollTimer = setTimeout(() => {
       this.invoiceService.getPublic(this.token).subscribe({
         next: invoice => {
-          this.invoice = invoice;
+          this.invoice.set(invoice);
           if (this.needsPaymentCheck(invoice) && --this.pollsLeft > 0) this.schedulePoll();
-          else this.checkingPayment = false;
+          else this.checkingPayment.set(false);
         },
-        error: () => { this.checkingPayment = false; }
+        error: () => { this.checkingPayment.set(false); }
       });
     }, 4000);
   }
 
   get isPayable(): boolean {
-    return !!this.invoice && (this.invoice.status === 'Sent' || this.invoice.status === 'NotSent')
-      && this.invoice.amountDue > 0;
+    return !!this.invoice() && (this.invoice()!.status === 'Sent' || this.invoice()!.status === 'NotSent')
+      && this.invoice()!.amountDue > 0;
   }
 
   get isSplit(): boolean {
-    return this.invoice?.kind === 'Split';
+    return this.invoice()?.kind === 'Split';
   }
 
   get isAdditional(): boolean {
-    return this.invoice?.kind === 'Additional';
+    return this.invoice()?.kind === 'Additional';
   }
 
   /**
@@ -122,23 +122,23 @@ export class CustomerInvoicePageComponent implements OnInit, OnDestroy {
    * the server from the invoice itself; this page only showed the quote.
    */
   startAch(): void {
-    if (!this.invoice?.achAvailable || this.startingAch) return;
-    this.startingAch = true;
-    this.achError = '';
+    if (!this.invoice()?.achAvailable || this.startingAch()) return;
+    this.startingAch.set(true);
+    this.achError.set('');
     this.invoiceService.startAchCheckout(this.token).subscribe({
       next: res => {
         if (typeof window !== 'undefined' && res.checkoutUrl) window.location.href = res.checkoutUrl;
-        else this.startingAch = false;
+        else this.startingAch.set(false);
       },
       error: err => {
-        this.startingAch = false;
-        this.achError = err?.error?.message || 'Online bank payment is not available right now. Please pay by card or bank transfer.';
+        this.startingAch.set(false);
+        this.achError.set(err?.error?.message || 'Online bank payment is not available right now. Please pay by card or bank transfer.');
       }
     });
   }
 
   payByCard(): void {
-    if (this.invoice?.cardPaymentPath) this.router.navigateByUrl(this.invoice.cardPaymentPath);
+    if (this.invoice()?.cardPaymentPath) this.router.navigateByUrl(this.invoice()!.cardPaymentPath!);
   }
 
   formatTime(hhmm: string): string {
@@ -151,8 +151,8 @@ export class CustomerInvoicePageComponent implements OnInit, OnDestroy {
   copy(value: string | null | undefined, label: string): void {
     if (!value || typeof navigator === 'undefined' || !navigator.clipboard) return;
     navigator.clipboard.writeText(value).then(() => {
-      this.copied = label;
-      setTimeout(() => { if (this.copied === label) this.copied = ''; }, 2000);
+      this.copied.set(label);
+      setTimeout(() => { if (this.copied() === label) this.copied.set(''); }, 2000);
     });
   }
 
@@ -163,12 +163,12 @@ export class CustomerInvoicePageComponent implements OnInit, OnDestroy {
    * than navigating the customer away to a broken page.
    */
   downloadPdf(): void {
-    if (!this.invoice || this.downloading || typeof document === 'undefined') return;
-    this.downloading = true;
-    this.downloadError = '';
-    const fileName = `Dream-Cleaning-Invoice-${this.invoice.invoiceNumber}.pdf`;
+    if (!this.invoice() || this.downloading() || typeof document === 'undefined') return;
+    this.downloading.set(true);
+    this.downloadError.set('');
+    const fileName = `Dream-Cleaning-Invoice-${this.invoice()!.invoiceNumber}.pdf`;
     this.invoiceService.downloadPublicPdf(this.token)
-      .pipe(finalize(() => this.downloading = false))
+      .pipe(finalize(() => this.downloading.set(false)))
       .subscribe({
         next: blob => {
           const url = URL.createObjectURL(blob);
@@ -178,7 +178,7 @@ export class CustomerInvoicePageComponent implements OnInit, OnDestroy {
           anchor.click();
           setTimeout(() => URL.revokeObjectURL(url), 1000);
         },
-        error: () => this.downloadError = 'The PDF could not be downloaded. Please try again.'
+        error: () => this.downloadError.set('The PDF could not be downloaded. Please try again.')
       });
   }
 }

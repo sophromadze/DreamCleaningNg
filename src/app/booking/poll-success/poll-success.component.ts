@@ -30,7 +30,7 @@ import { faCircleCheck } from '../../shared/icons/glyphs/faCircleCheck';
       </div>
     </div>
   `,
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styles: [`
     .poll-success-container {
       min-height: 80vh;

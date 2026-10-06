@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, inject, ChangeDetectionStrategy, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import {
@@ -36,7 +36,7 @@ import { extractApiErrorMessage } from '../../utils/http-error.utils';
   templateUrl: './my-invoices.component.html',
   // The contract review sheet is the single source for the client-facing chrome, exactly as
   // My Contracts does it; this component's own sheet adds only the list.
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: [
     '../../contract/contract-review/contract-review.component.scss',
     './my-invoices.component.scss'
@@ -48,16 +48,16 @@ export class MyInvoicesComponent implements OnInit {
 
   readonly InvoiceStatus = InvoiceStatus;
 
-  rows: MyInvoiceListItem[] = [];
-  loading = true;
-  errorMessage = '';
+  readonly rows = signal<MyInvoiceListItem[]>([]);
+  readonly loading = signal(true);
+  readonly errorMessage = signal('');
 
   ngOnInit(): void {
     this.invoices.myInvoices().subscribe({
-      next: rows => { this.rows = rows; this.loading = false; },
+      next: rows => { this.rows.set(rows); this.loading.set(false); },
       error: err => {
-        this.errorMessage = extractApiErrorMessage(err, 'We could not load your invoices.');
-        this.loading = false;
+        this.errorMessage.set(extractApiErrorMessage(err, 'We could not load your invoices.'));
+        this.loading.set(false);
       }
     });
   }
@@ -75,13 +75,13 @@ export class MyInvoicesComponent implements OnInit {
    * read as a demand for money already sent.
    */
   get totalOutstanding(): number {
-    return this.rows
+    return this.rows()
       .filter(r => r.balanceDue > 0 && !r.paymentInProgress && r.status !== InvoiceStatus.Void)
       .reduce((sum, r) => sum + r.balanceDue, 0);
   }
 
   get overdueCount(): number {
-    return this.rows.filter(r => r.status === InvoiceStatus.Overdue && !r.paymentInProgress).length;
+    return this.rows().filter(r => r.status === InvoiceStatus.Overdue && !r.paymentInProgress).length;
   }
 
   /**

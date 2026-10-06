@@ -78,16 +78,17 @@ describe('ExpensesComponent — salaries are paid to a named person', () => {
 
     expect(component.isSalaryForm).toBe(true);
     // '' is "not answered", which is not the same claim as "nobody" — saving must be refused.
-    expect(component.staffChoice).toBe('');
+    expect(component.staffChoice()).toBe('');
     component.save();
-    expect(component.error).toBe('Pick who this salary is for');
+    expect(component.error()).toBe('Pick who this salary is for');
     httpMock.expectNone(r => r.method === 'POST');
   });
 
   it('names the row from the picked staff member and sends the link', () => {
     component.openAddForm(SALARIES_CATEGORY_ID);
-    component.staffChoice = 7;
-    component.form.amount = 900;
+    component.staffChoice.set(7);
+    component.form().amount = 900;
+    component.form.set(component.form());
 
     // The name field gives way to the account's own name — there is nothing left to type.
     expect(component.showsNameField).toBe(false);
@@ -104,11 +105,13 @@ describe('ExpensesComponent — salaries are paid to a named person', () => {
 
   it('still allows a salary for somebody with no account', () => {
     component.openAddForm(SALARIES_CATEGORY_ID);
-    component.staffChoice = 'custom';
+    component.staffChoice.set('custom');
 
     expect(component.showsNameField).toBe(true);
-    component.form.name = 'Weekend receptionist';
-    component.form.amount = 200;
+    component.form().name = 'Weekend receptionist';
+    component.form.set(component.form());
+    component.form().amount = 200;
+    component.form.set(component.form());
     component.save();
 
     const req = httpMock.expectOne(r => r.method === 'POST' && r.url.endsWith('/expenses'));
@@ -123,9 +126,9 @@ describe('ExpensesComponent — salaries are paid to a named person', () => {
     // Every salary written before this feature has no link. Editing one must not lose its name.
     component.openEditForm(salaryRow({ staffUserId: null, name: 'Old payroll line' }));
 
-    expect(component.staffChoice).toBe('custom');
+    expect(component.staffChoice()).toBe('custom');
     expect(component.showsNameField).toBe(true);
-    expect(component.form.name).toBe('Old payroll line');
+    expect(component.form().name).toBe('Old payroll line');
   });
 
   it('keeps a departed staff member pickable, so their last payment can still be entered', () => {
@@ -142,14 +145,15 @@ describe('ExpensesComponent — salaries are paid to a named person', () => {
 
   it('drops the staff link when the row is moved out of Salaries', () => {
     component.openEditForm(salaryRow());
-    expect(component.staffChoice).toBe(7);
+    expect(component.staffChoice()).toBe(7);
 
-    component.form.categoryId = 1; // Supplies
+    component.form().categoryId = 1;
+    component.form.set(component.form()); // Supplies
     component.onCategoryChange();
 
     // The server refuses to store a link on any other category; the form must agree with it.
-    expect(component.staffChoice).toBe('');
-    expect(component.form.staffUserId).toBeNull();
+    expect(component.staffChoice()).toBe('');
+    expect(component.form().staffUserId).toBeNull();
     expect(component.showsNameField).toBe(true);
   });
 
@@ -176,8 +180,9 @@ describe('ExpensesComponent — salaries are paid to a named person', () => {
     component.openAddForm(SALARIES_CATEGORY_ID);
     expect(component.formCurrency).toBe('USD');
 
-    component.staffChoice = 7;
-    component.form.amount = 1800;
+    component.staffChoice.set(7);
+    component.form().amount = 1800;
+    component.form.set(component.form());
     component.setCurrency('GEL');
     component.save();
 
@@ -194,7 +199,8 @@ describe('ExpensesComponent — salaries are paid to a named person', () => {
     component.openEditForm(salaryRow({ currency: 'GEL' }));
     expect(component.formCurrency).toBe('GEL');
 
-    component.form.categoryId = 1; // Supplies
+    component.form().categoryId = 1;
+    component.form.set(component.form()); // Supplies
     component.onCategoryChange();
 
     // The server forces USD on every other category; the form must agree rather than showing a
@@ -206,15 +212,18 @@ describe('ExpensesComponent — salaries are paid to a named person', () => {
   it('reopens a saved salary in the currency it was entered in', () => {
     component.openEditForm(salaryRow({ currency: 'GEL', amount: 1800 }));
     expect(component.formCurrency).toBe('GEL');
-    expect(component.form.amount).toBe(1800);
+    expect(component.form().amount).toBe(1800);
     expect(component.symbolFor(component.formCurrency)).toBe('₾');
   });
 
   it('forces USD on a non-salary expense even if the form somehow holds GEL', () => {
     component.openAddForm(1);
-    component.form.currency = 'GEL';   // not reachable through the UI, but the DTO must not carry it
-    component.form.name = 'Vacuum bags';
-    component.form.amount = 40;
+    component.form().currency = 'GEL';
+    component.form.set(component.form());   // not reachable through the UI, but the DTO must not carry it
+    component.form().name = 'Vacuum bags';
+    component.form.set(component.form());
+    component.form().amount = 40;
+    component.form.set(component.form());
     component.save();
 
     const req = httpMock.expectOne(r => r.method === 'POST' && r.url.endsWith('/expenses'));

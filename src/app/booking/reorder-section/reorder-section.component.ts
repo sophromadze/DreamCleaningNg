@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, Output, ChangeDetectionStrategy } from '@angular/core';
+import { Component, ChangeDetectionStrategy, output, input, signal } from '@angular/core';
 import { OrderList } from '../../services/order.service';
 import { formatTime12h } from '../../shared/booking/extra-service-display.utils';
 import { IconComponent } from '../../shared/icons/icon.component';
@@ -18,30 +18,30 @@ import { faXmark } from '../../shared/icons/glyphs/faXmark';
   // layout rules (.reorder-section, .booking-form-top .reorder-section) keep applying.
   host: { class: 'reorder-section' },
   templateUrl: './reorder-section.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./reorder-section.component.scss']
 })
 export class ReorderSectionComponent {
   protected readonly icons = { faArrowRotateRight, faXmark };
 
-  @Input() orders: OrderList[] = [];
-  @Input() isLoading = false;
-  @Input() reorderingOrderId: number | null = null;
+  readonly orders = input<OrderList[]>([]);
+  readonly isLoading = input(false);
+  readonly reorderingOrderId = input<number | null>(null);
   /** Fires when the modal opens — the booking page lazy-loads orders if needed. */
-  @Output() opened = new EventEmitter<void>();
-  @Output() orderSelected = new EventEmitter<number>();
+  readonly opened = output<void>();
+  readonly orderSelected = output<number>();
 
-  showModal = false;
+  readonly showModal = signal(false);
 
   toggleModal(): void {
-    this.showModal = !this.showModal;
-    if (this.showModal) {
+    this.showModal.set(!this.showModal());
+    if (this.showModal()) {
       this.opened.emit();
     }
   }
 
   selectOrder(orderId: number): void {
-    this.showModal = false;
+    this.showModal.set(false);
     this.orderSelected.emit(orderId);
   }
 

@@ -1,6 +1,5 @@
 import type { MockedObject } from 'vitest';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { SimpleChange } from '@angular/core';
 import { of } from 'rxjs';
 
 import { AdminUserBillingComponent } from './admin-user-billing.component';
@@ -40,8 +39,8 @@ describe('AdminUserBillingComponent', () => {
     }).compileComponents();
 
     fixture = TestBed.createComponent(AdminUserBillingComponent);
-    fixture.componentInstance.userId = 77;
-    fixture.componentInstance.ngOnChanges({ userId: new SimpleChange(undefined, 77, true) });
+    // setInput goes through the host path, so the first detectChanges runs ngOnChanges itself.
+    fixture.componentRef.setInput('userId', 77);
     fixture.detectChanges();
   });
 

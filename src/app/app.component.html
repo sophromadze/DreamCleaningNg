@@ -3,7 +3,7 @@
      not add a <main> of their own (a second one is an accessibility failure). -->
 <main class="main-content">
   <!-- Same flow as header auth slot: show shimmer until auth ready, then show content (outlet) -->
-  @if (showRouteLoading) {
+  @if (showRouteLoading()) {
   <div class="route-loading-overlay">
     <div class="route-loading-animation">
       <div class="loader-rings">
@@ -14,7 +14,7 @@
     </div>
   </div>
   }
-  @if (!showRouteLoading) {
+  @if (!showRouteLoading()) {
     <router-outlet></router-outlet>
   }
 </main>
@@ -27,23 +27,23 @@
 
 <!-- Account notices (SignalR) and admin order reminders only ever show to a signed-in user, so
      their code - SignalR included - loads once there is one. -->
-@defer (when hasSessionUser) {
+@defer (when hasSessionUser()) {
   <app-notification-modal></app-notification-modal>
   <app-order-reminder></app-order-reminder>
 }
 
 <!-- Auth modal: loaded once the page is idle, so the first Log In click opens it at once; a click
      before then (authModalRequested) loads it immediately and it opens as soon as it arrives. -->
-@defer (on idle; when authModalRequested) {
+@defer (on idle; when authModalRequested()) {
   <app-auth-modal></app-auth-modal>
 }
 
 <!-- Floating contact buttons (Call / Email / Book / Quote). Customer-facing, so they stay off the
      cleaner portal - see isCleanerPortalRoute. -->
-@if (showFloatingActions) {
+@if (showFloatingActions()) {
 <app-floating-action-buttons></app-floating-action-buttons>
 }
-@if (showSocialStickyBanners) {
+@if (showSocialStickyBanners()) {
 <div class="social-sticky-banners" role="complementary" aria-label="Social media links">
   <a href="https://www.facebook.com/profile.php?id=61563387757936" target="_blank" rel="noopener noreferrer" aria-label="Facebook" class="social-sticky-banner social-sticky-banner-facebook">
     <i [appIcon]="icons.faFacebookF"></i>

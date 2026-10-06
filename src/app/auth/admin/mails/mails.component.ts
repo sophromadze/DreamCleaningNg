@@ -1,4 +1,4 @@
-import { Component, OnInit, AfterViewInit, OnDestroy, ViewChild, ElementRef, HostListener, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, OnInit, AfterViewInit, OnDestroy, ElementRef, HostListener, ChangeDetectionStrategy, inject, viewChild, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MailService, ROLES, ScheduledMailDto, CreateScheduledMailDto, UpdateScheduledMailDto, MailUserCountDto, MailStatsDto } from '../../../services/mail.service';
 import { AdminService, UserPermissions } from '../../../services/admin.service';
@@ -13,21 +13,21 @@ const STATUS_SENT = 2;
   standalone: true,
   imports: [FormsModule, NyDatePipe],
   templateUrl: './mails.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./mails.component.scss']
 })
 export class MailsComponent implements OnInit, AfterViewInit, OnDestroy {
   private mailService = inject(MailService);
   private adminService = inject(AdminService);
 
-  @ViewChild('tableWrapper', { static: false }) tableWrapper!: ElementRef<HTMLDivElement>;
-  @ViewChild('tableHeader', { static: false }) tableHeader!: ElementRef<HTMLTableSectionElement>;
+  readonly tableWrapper = viewChild<ElementRef<HTMLDivElement>>('tableWrapper');
+  readonly tableHeader = viewChild<ElementRef<HTMLTableSectionElement>>('tableHeader');
   
   ROLES = ROLES;
-  mails: ScheduledMailDto[] = [];
-  stats: MailStatsDto | null = null;
-  userCounts: MailUserCountDto[] = [];
-  userPermissions: UserPermissions | null = null;
+  readonly mails = signal<ScheduledMailDto[]>([]);
+  readonly stats = signal<MailStatsDto | null>(null);
+  readonly userCounts = signal<MailUserCountDto[]>([]);
+  readonly userPermissions = signal<UserPermissions | null>(null);
 
   // Sticky header management
   private scrollListener?: () => void;
@@ -43,34 +43,35 @@ export class MailsComponent implements OnInit, AfterViewInit, OnDestroy {
     return 80;
   }
 
-  filterStatus: number | null = null; // null = all
-  isComposing = false;
-  editingId: number | null = null;
+  readonly filterStatus = signal<number | null>(null); // null = all
+  readonly isComposing = signal(false);
+  readonly editingId = signal<number | null>(null);
 
-  subject = '';
-  content = '';
-  selectedRoles: Record<string, boolean> = {};
-  sendNow = true;
+  readonly subject = signal('');
+  readonly content = signal('');
+  readonly selectedRoles = signal<Record<string, boolean>>({}, { equal: () => false });
+  readonly sendNow = signal(true);
   scheduleType = 0; // 0=Immediate, 1=Scheduled
-  scheduledDate = '';
-  scheduledTime = '09:00';
-  frequency: number | null = null; // null=Once, 1=Weekly, 2=Monthly
-  dayOfWeek: number | null = 1; // 0=Sunday..6=Saturday for Weekly
-  dayOfMonth: number | null = 1; // 1-31 for Monthly
+  readonly scheduledDate = signal('');
+  readonly scheduledTime = signal('09:00');
+  readonly frequency = signal<number | null>(null); // null=Once, 1=Weekly, 2=Monthly
+  readonly dayOfWeek = signal<number | null>(1); // 0=Sunday..6=Saturday for Weekly
+  readonly dayOfMonth = signal<number | null>(1); // 1-31 for Monthly
   /** All scheduling uses New York (NY) time. */
   readonly scheduleTimezone = 'America/New_York';
   readonly daysOfMonth = Array.from({ length: 31 }, (_, i) => i + 1);
 
-  error = '';
-  success = '';
+  readonly error = signal('');
+  readonly success = signal('');
 
   constructor() {
-    ROLES.forEach(r => this.selectedRoles[r] = false);
+    ROLES.forEach(r => this.selectedRoles()[r] = false);
+    this.selectedRoles.set(this.selectedRoles());
   }
 
   ngOnInit() {
     this.adminService.getUserPermissions().subscribe({
-      next: p => { this.userPermissions = p; },
+      next: p => { this.userPermissions.set(p); },
       error: () => {}
     });
     this.load();
@@ -81,7 +82,9 @@ export class MailsComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private initializeStickyHeader() {
-    if (!this.tableWrapper || !this.tableHeader) {
+    const tableWrapper = this.tableWrapper();
+    const tableHeader = this.tableHeader();
+    if (!tableWrapper || !tableHeader) {
       if (this.initializationRetries < this.maxRetries) {
         this.initializationRetries++;
         setTimeout(() => {
@@ -91,7 +94,7 @@ export class MailsComponent implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
     
-    if (!this.tableWrapper.nativeElement || !this.tableHeader.nativeElement) {
+    if (!tableWrapper.nativeElement || !tableHeader.nativeElement) {
       if (this.initializationRetries < this.maxRetries) {
         this.initializationRetries++;
         setTimeout(() => {
@@ -109,8 +112,9 @@ export class MailsComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this.scrollListener) {
       window.removeEventListener('scroll', this.scrollListener, true);
     }
-    if (this.horizontalScrollListener && this.tableWrapper) {
-      const wrapperEl = this.tableWrapper.nativeElement;
+    const tableWrapper = this.tableWrapper();
+    if (this.horizontalScrollListener && tableWrapper) {
+      const wrapperEl = tableWrapper.nativeElement;
       wrapperEl.removeEventListener('scroll', this.horizontalScrollListener);
       wrapperEl.removeEventListener('touchmove', this.horizontalScrollListener);
       wrapperEl.removeEventListener('wheel', this.horizontalScrollListener);
@@ -127,7 +131,8 @@ export class MailsComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private setupStickyHeader() {
-    if (!this.tableWrapper || !this.tableHeader) {
+    const tableWrapper = this.tableWrapper();
+    if (!tableWrapper || !this.tableHeader()) {
       return;
     }
 
@@ -144,19 +149,21 @@ export class MailsComponent implements OnInit, AfterViewInit, OnDestroy {
     this.horizontalScrollListener = () => {
       this.syncHorizontalScroll();
     };
-    this.tableWrapper.nativeElement.addEventListener('scroll', this.horizontalScrollListener);
+    tableWrapper.nativeElement.addEventListener('scroll', this.horizontalScrollListener);
 
     this.stickyHeaderInitialized = true;
     this.updateStickyHeader();
   }
 
   private updateStickyHeader() {
-    if (!this.tableWrapper || !this.tableHeader) {
+    const tableWrapper = this.tableWrapper();
+    const tableHeader = this.tableHeader();
+    if (!tableWrapper || !tableHeader) {
       return;
     }
 
-    const wrapper = this.tableWrapper.nativeElement;
-    const header = this.tableHeader.nativeElement;
+    const wrapper = tableWrapper.nativeElement;
+    const header = tableHeader.nativeElement;
     const rect = wrapper.getBoundingClientRect();
     const offset = this.headerStickyOffset;
     
@@ -298,12 +305,14 @@ export class MailsComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private syncHorizontalScroll() {
-    if (!this.tableWrapper || !this.tableHeader) {
+    const tableWrapper = this.tableWrapper();
+    const tableHeader = this.tableHeader();
+    if (!tableWrapper || !tableHeader) {
       return;
     }
 
-    const wrapper = this.tableWrapper.nativeElement;
-    const header = this.tableHeader.nativeElement;
+    const wrapper = tableWrapper.nativeElement;
+    const header = tableHeader.nativeElement;
     
     // Sync horizontal scroll position by translating the header
     // Only sync if header is currently fixed/sticky
@@ -329,9 +338,9 @@ export class MailsComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   load() {
-    this.mailService.getMails(this.filterStatus ?? undefined).subscribe({
+    this.mailService.getMails(this.filterStatus() ?? undefined).subscribe({
       next: list => {
-        this.mails = list;
+        this.mails.set(list);
         setTimeout(() => {
           if (!this.stickyHeaderInitialized) {
             this.initializeStickyHeader();
@@ -340,183 +349,186 @@ export class MailsComponent implements OnInit, AfterViewInit, OnDestroy {
           }
         }, 150);
       },
-      error: e => this.error = e?.error?.message || 'Failed to load mails.'
+      error: e => this.error.set(e?.error?.message || 'Failed to load mails.')
     });
     this.mailService.getStats().subscribe({
-      next: s => this.stats = s,
+      next: s => this.stats.set(s),
       error: () => {}
     });
     this.mailService.getUserCounts().subscribe({
-      next: c => this.userCounts = c,
+      next: c => this.userCounts.set(c),
       error: () => {}
     });
   }
 
   setFilter(s: number | null) {
-    this.filterStatus = s;
+    this.filterStatus.set(s);
     this.load();
   }
 
   targetRolesJson(): string {
-    const arr = ROLES.filter(r => this.selectedRoles[r]);
+    const arr = ROLES.filter(r => this.selectedRoles()[r]);
     return JSON.stringify(arr);
   }
 
   canReceiveCount(): number {
-    return this.userCounts
-      .filter(c => ROLES.includes(c.role as any) && this.selectedRoles[c.role])
+    return this.userCounts()
+      .filter(c => ROLES.includes(c.role as any) && this.selectedRoles()[c.role])
       .reduce((n, c) => n + c.canReceive, 0);
   }
 
   startCompose() {
-    this.isComposing = true;
-    this.editingId = null;
-    this.subject = '';
-    this.content = '';
-    ROLES.forEach(r => this.selectedRoles[r] = false);
-    this.sendNow = true;
+    this.isComposing.set(true);
+    this.editingId.set(null);
+    this.subject.set('');
+    this.content.set('');
+    ROLES.forEach(r => this.selectedRoles()[r] = false);
+    this.selectedRoles.set(this.selectedRoles());
+    this.sendNow.set(true);
     this.scheduleType = 0;
-    this.scheduledDate = '';
-    this.scheduledTime = '09:00';
-    this.frequency = null;
-    this.dayOfWeek = 1;
-    this.dayOfMonth = 1;
-    this.error = '';
-    this.success = '';
+    this.scheduledDate.set('');
+    this.scheduledTime.set('09:00');
+    this.frequency.set(null);
+    this.dayOfWeek.set(1);
+    this.dayOfMonth.set(1);
+    this.error.set('');
+    this.success.set('');
   }
 
   cancelCompose() {
-    this.isComposing = false;
-    this.editingId = null;
+    this.isComposing.set(false);
+    this.editingId.set(null);
   }
 
   edit(m: ScheduledMailDto) {
     if (m.status !== STATUS_DRAFT && m.status !== STATUS_SCHEDULED) return;
-    this.editingId = m.id;
-    this.isComposing = true;
-    this.subject = m.subject;
-    this.content = m.content;
+    this.editingId.set(m.id);
+    this.isComposing.set(true);
+    this.subject.set(m.subject);
+    this.content.set(m.content);
     try {
       const arr: string[] = JSON.parse(m.targetRoles || '[]');
-      ROLES.forEach(r => this.selectedRoles[r] = arr.includes(r));
-    } catch { ROLES.forEach(r => this.selectedRoles[r] = false); }
-    this.sendNow = false;
+      ROLES.forEach(r => this.selectedRoles()[r] = arr.includes(r));
+      this.selectedRoles.set(this.selectedRoles());
+    } catch { ROLES.forEach(r => this.selectedRoles()[r] = false);
+    this.selectedRoles.set(this.selectedRoles()); }
+    this.sendNow.set(false);
     this.scheduleType = m.scheduleType;
-    this.scheduledDate = m.scheduledDate ? m.scheduledDate.toString().slice(0, 10) : '';
-    this.scheduledTime = m.scheduledTime ? String(m.scheduledTime).slice(0, 5) : '09:00';
-    this.frequency = m.frequency ?? null;
-    this.dayOfWeek = m.dayOfWeek ?? 1;
-    this.dayOfMonth = m.dayOfMonth ?? 1;
-    this.error = '';
-    this.success = '';
+    this.scheduledDate.set(m.scheduledDate ? m.scheduledDate.toString().slice(0, 10) : '');
+    this.scheduledTime.set(m.scheduledTime ? String(m.scheduledTime).slice(0, 5) : '09:00');
+    this.frequency.set(m.frequency ?? null);
+    this.dayOfWeek.set(m.dayOfWeek ?? 1);
+    this.dayOfMonth.set(m.dayOfMonth ?? 1);
+    this.error.set('');
+    this.success.set('');
   }
 
   doSendNow() {
-    this.error = '';
-    this.success = '';
-    if (!this.subject.trim()) { this.error = 'Subject is required.'; return; }
+    this.error.set('');
+    this.success.set('');
+    if (!this.subject().trim()) { this.error.set('Subject is required.'); return; }
     const dto: CreateScheduledMailDto = {
-      subject: this.subject.trim(),
-      content: this.content,
+      subject: this.subject().trim(),
+      content: this.content(),
       targetRoles: this.targetRolesJson(),
       scheduleType: 0,
       scheduleTimezone: this.scheduleTimezone,
       sendNow: true
     };
     this.mailService.createMail(dto).subscribe({
-      next: () => { this.cancelCompose(); this.success = 'Mail sent.'; this.load(); },
-      error: e => this.error = e?.error?.message || 'Failed to send.'
+      next: () => { this.cancelCompose(); this.success.set('Mail sent.'); this.load(); },
+      error: e => this.error.set(e?.error?.message || 'Failed to send.')
     });
   }
 
   doSaveDraft() {
-    this.error = '';
-    this.success = '';
-    if (!this.subject.trim()) { this.error = 'Subject is required.'; return; }
-    if (this.editingId != null) {
-      const dto: UpdateScheduledMailDto = { subject: this.subject.trim(), content: this.content, targetRoles: this.targetRolesJson() };
-      this.mailService.updateMail(this.editingId, dto).subscribe({
-        next: () => { this.cancelCompose(); this.success = 'Draft updated.'; this.load(); },
-        error: e => this.error = e?.error?.message || 'Failed to update.'
+    this.error.set('');
+    this.success.set('');
+    if (!this.subject().trim()) { this.error.set('Subject is required.'); return; }
+    if (this.editingId() != null) {
+      const dto: UpdateScheduledMailDto = { subject: this.subject().trim(), content: this.content(), targetRoles: this.targetRolesJson() };
+      this.mailService.updateMail(this.editingId()!, dto).subscribe({
+        next: () => { this.cancelCompose(); this.success.set('Draft updated.'); this.load(); },
+        error: e => this.error.set(e?.error?.message || 'Failed to update.')
       });
       return;
     }
     const dto: CreateScheduledMailDto = {
-      subject: this.subject.trim(),
-      content: this.content,
+      subject: this.subject().trim(),
+      content: this.content(),
       targetRoles: this.targetRolesJson(),
       scheduleType: 0,
       scheduleTimezone: this.scheduleTimezone,
       sendNow: false
     };
     this.mailService.createMail(dto).subscribe({
-      next: () => { this.cancelCompose(); this.success = 'Draft saved.'; this.load(); },
-      error: e => this.error = e?.error?.message || 'Failed to save.'
+      next: () => { this.cancelCompose(); this.success.set('Draft saved.'); this.load(); },
+      error: e => this.error.set(e?.error?.message || 'Failed to save.')
     });
   }
 
   doSchedule() {
-    this.error = '';
-    this.success = '';
-    if (!this.subject.trim()) { this.error = 'Subject is required.'; return; }
-    if (!this.scheduledTime) { this.error = 'Time is required for scheduling.'; return; }
-    if (this.frequency === null && !this.scheduledDate) { this.error = 'Date is required for one-time scheduling.'; return; }
-    if (this.frequency === 1 && this.dayOfWeek == null) { this.error = 'Day of week is required for weekly scheduling.'; return; }
-    if (this.frequency === 2 && this.dayOfMonth == null) { this.error = 'Day of month is required for monthly scheduling.'; return; }
-    const time = this.scheduledTime.length === 5 ? `${this.scheduledTime}:00` : this.scheduledTime;
-    const scheduledDateIso = this.scheduledDate ? `${this.scheduledDate}T00:00:00` : undefined;
+    this.error.set('');
+    this.success.set('');
+    if (!this.subject().trim()) { this.error.set('Subject is required.'); return; }
+    if (!this.scheduledTime()) { this.error.set('Time is required for scheduling.'); return; }
+    if (this.frequency() === null && !this.scheduledDate()) { this.error.set('Date is required for one-time scheduling.'); return; }
+    if (this.frequency() === 1 && this.dayOfWeek() == null) { this.error.set('Day of week is required for weekly scheduling.'); return; }
+    if (this.frequency() === 2 && this.dayOfMonth() == null) { this.error.set('Day of month is required for monthly scheduling.'); return; }
+    const time = this.scheduledTime().length === 5 ? `${this.scheduledTime()}:00` : this.scheduledTime();
+    const scheduledDateIso = this.scheduledDate() ? `${this.scheduledDate()}T00:00:00` : undefined;
     const payload = {
-      subject: this.subject.trim(),
-      content: this.content,
+      subject: this.subject().trim(),
+      content: this.content(),
       targetRoles: this.targetRolesJson(),
       scheduleType: 1,
       scheduledDate: scheduledDateIso,
       scheduledTime: time,
-      frequency: this.frequency ?? undefined,
-      dayOfWeek: this.frequency === 1 ? this.dayOfWeek ?? undefined : undefined,
-      dayOfMonth: this.frequency === 2 ? this.dayOfMonth ?? undefined : undefined,
+      frequency: this.frequency() ?? undefined,
+      dayOfWeek: this.frequency() === 1 ? this.dayOfWeek() ?? undefined : undefined,
+      dayOfMonth: this.frequency() === 2 ? this.dayOfMonth() ?? undefined : undefined,
       scheduleTimezone: this.scheduleTimezone
     };
-    if (this.editingId != null) {
-      this.mailService.updateMail(this.editingId, payload as UpdateScheduledMailDto).subscribe({
-        next: () => { this.cancelCompose(); this.success = 'Schedule updated.'; this.load(); },
-        error: e => this.error = e?.error?.message || 'Failed to update.'
+    if (this.editingId() != null) {
+      this.mailService.updateMail(this.editingId()!, payload as UpdateScheduledMailDto).subscribe({
+        next: () => { this.cancelCompose(); this.success.set('Schedule updated.'); this.load(); },
+        error: e => this.error.set(e?.error?.message || 'Failed to update.')
       });
       return;
     }
     this.mailService.createMail({ ...payload, sendNow: false } as CreateScheduledMailDto).subscribe({
-      next: () => { this.cancelCompose(); this.success = 'Mail scheduled.'; this.load(); },
-      error: e => this.error = e?.error?.message || 'Failed to schedule.'
+      next: () => { this.cancelCompose(); this.success.set('Mail scheduled.'); this.load(); },
+      error: e => this.error.set(e?.error?.message || 'Failed to schedule.')
     });
   }
 
   sendNowFor(id: number) {
     this.mailService.sendNow(id).subscribe({
-      next: () => { this.success = 'Mail sent.'; this.load(); },
-      error: e => this.error = e?.error?.message || 'Failed to send.'
+      next: () => { this.success.set('Mail sent.'); this.load(); },
+      error: e => this.error.set(e?.error?.message || 'Failed to send.')
     });
   }
 
   disable(id: number) {
     if (!confirm('Disable this scheduled mail? It will not be sent until you enable it again.')) return;
     this.mailService.disableMail(id).subscribe({
-      next: () => { this.success = 'Disabled.'; this.load(); },
-      error: e => this.error = e?.error?.message || 'Failed to disable.'
+      next: () => { this.success.set('Disabled.'); this.load(); },
+      error: e => this.error.set(e?.error?.message || 'Failed to disable.')
     });
   }
 
   enable(id: number) {
     this.mailService.enableMail(id).subscribe({
-      next: () => { this.success = 'Enabled.'; this.load(); },
-      error: e => this.error = e?.error?.message || 'Failed to enable.'
+      next: () => { this.success.set('Enabled.'); this.load(); },
+      error: e => this.error.set(e?.error?.message || 'Failed to enable.')
     });
   }
 
   delete(id: number) {
     if (!confirm('Delete this mail?')) return;
     this.mailService.deleteMail(id).subscribe({
-      next: () => { this.success = 'Deleted.'; this.load(); },
-      error: e => this.error = e?.error?.message || 'Failed to delete.'
+      next: () => { this.success.set('Deleted.'); this.load(); },
+      error: e => this.error.set(e?.error?.message || 'Failed to delete.')
     });
   }
 

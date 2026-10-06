@@ -3,17 +3,17 @@
     🔒 Automation never messages customers. Rules create review alerts for your team to action manually.
   </div>
 
-  @if (errorMessage) {
-  <div class="error-message">{{ errorMessage }}</div>
+  @if (errorMessage()) {
+  <div class="error-message">{{ errorMessage() }}</div>
   }
-  @if (infoMessage) {
-  <div class="info-message">{{ infoMessage }}</div>
+  @if (infoMessage()) {
+  <div class="info-message">{{ infoMessage() }}</div>
   }
 
   <!-- Rules -->
   <section class="rules">
     <h2>Rules</h2>
-    @for (rule of rules; track trackByRuleId($index, rule)) {
+    @for (rule of rules(); track trackByRuleId($index, rule)) {
     <div class="rule-card">
       <div class="rule-head">
         <div class="rule-title">
@@ -25,7 +25,7 @@
         </div>
         <label class="switch">
           <input type="checkbox" [checked]="rule.isEnabled" [attr.aria-label]="rule.name"
-                 [disabled]="savingRuleId === rule.id"
+                 [disabled]="savingRuleId() === rule.id"
                  (change)="toggleRule(rule)" />
           <span class="slider"></span>
         </label>
@@ -44,9 +44,9 @@
           <input type="number" min="1" max="1000" [(ngModel)]="rule.cooldownDays" />
           days
         </label>
-        <button class="btn-save" (click)="saveThresholds(rule)" [disabled]="savingRuleId === rule.id">Save</button>
-        <button class="btn-run" (click)="runNow(rule)" [disabled]="runningRuleId === rule.id">
-          {{ runningRuleId === rule.id ? 'Running…' : 'Run now' }}
+        <button class="btn-save" (click)="saveThresholds(rule)" [disabled]="savingRuleId() === rule.id">Save</button>
+        <button class="btn-run" (click)="runNow(rule)" [disabled]="runningRuleId() === rule.id">
+          {{ runningRuleId() === rule.id ? 'Running…' : 'Run now' }}
         </button>
       </div>
 
@@ -59,7 +59,7 @@
     </div>
     }
 
-    @if (loading) {
+    @if (loading()) {
     <div class="loading-state">Loading rules…</div>
     }
   </section>
@@ -77,8 +77,8 @@
       </select>
     </div>
 
-    <div class="alert-list" [class.loading]="alertsLoading">
-      @for (a of alerts; track trackByAlertId($index, a)) {
+    <div class="alert-list" [class.loading]="alertsLoading()">
+      @for (a of alerts(); track trackByAlertId($index, a)) {
       <div class="alert-row">
         <div class="alert-main">
           <a [routerLink]="['/admin/crm']" class="cust-name">{{ a.customerName }}</a>
@@ -107,7 +107,7 @@
         </div>
 
         <!-- Open: action buttons or the inline snooze picker -->
-        @if (a.status === 'Open' && snoozingAlertId !== a.id) {
+        @if (a.status === 'Open' && snoozingAlertId() !== a.id) {
         <div class="alert-actions">
           <button class="btn-done" (click)="resolveAlert(a, 'Done')">Mark done</button>
           <button class="btn-noanswer" (click)="noAnswer(a)">No answer</button>
@@ -116,11 +116,11 @@
         </div>
         }
 
-        @if (a.status === 'Open' && snoozingAlertId === a.id) {
+        @if (a.status === 'Open' && snoozingAlertId() === a.id) {
         <div class="snooze-picker">
           <label>Remind me on:</label>
           <input aria-label="Remind me on:" type="date" [(ngModel)]="snoozeDate" [min]="minSnoozeDate" />
-          <button class="btn-done" (click)="confirmSnooze(a)" [disabled]="!snoozeDate">Set</button>
+          <button class="btn-done" (click)="confirmSnooze(a)" [disabled]="!snoozeDate()">Set</button>
           <button class="btn-dismiss" (click)="cancelSnooze()">Cancel</button>
         </div>
         }
@@ -128,15 +128,15 @@
         <!-- Snoozed: change date or reopen now -->
         @if (a.status === 'Snoozed') {
         <div class="alert-resolved">
-          @if (snoozingAlertId !== a.id) {
+          @if (snoozingAlertId() !== a.id) {
           <button class="btn-snooze" (click)="startSnooze(a)">Change date</button>
           }
-          @if (snoozingAlertId !== a.id) {
+          @if (snoozingAlertId() !== a.id) {
           <button class="btn-reopen" (click)="reopenAlert(a)">Reopen now</button>
           }
-          @if (snoozingAlertId === a.id) {
+          @if (snoozingAlertId() === a.id) {
             <input aria-label="Remind me on" type="date" [(ngModel)]="snoozeDate" [min]="minSnoozeDate" />
-            <button class="btn-done" (click)="confirmSnooze(a)" [disabled]="!snoozeDate">Set</button>
+            <button class="btn-done" (click)="confirmSnooze(a)" [disabled]="!snoozeDate()">Set</button>
             <button class="btn-dismiss" (click)="cancelSnooze()">Cancel</button>
           }
         </div>
@@ -152,9 +152,9 @@
       </div>
       }
 
-      @if (!alertsLoading && alerts.length === 0) {
+      @if (!alertsLoading() && alerts().length === 0) {
       <div class="empty">
-        No {{ alertStatusFilter === 'all' ? '' : alertStatusFilter.toLowerCase() }} alerts.
+        No {{ alertStatusFilter() === 'all' ? '' : alertStatusFilter().toLowerCase() }} alerts.
       </div>
       }
     </div>

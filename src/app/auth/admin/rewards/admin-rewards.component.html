@@ -12,33 +12,33 @@
     <div class="master-switch-row">
       <label class="switch-label">Rewards System:</label>
       <label class="toggle-switch">
-        <input type="checkbox" [checked]="masterSwitch" [disabled]="!canEdit" (change)="toggleMasterSwitch($any($event.target).checked)">
+        <input type="checkbox" [checked]="masterSwitch()" [disabled]="!canEdit" (change)="toggleMasterSwitch($any($event.target).checked)">
         <span class="toggle-slider"></span>
       </label>
-      <span class="master-status" [class.on]="masterSwitch" [class.off]="!masterSwitch">
-        {{ masterSwitch ? 'ENABLED' : 'DISABLED' }}
+      <span class="master-status" [class.on]="masterSwitch()" [class.off]="!masterSwitch()">
+        {{ masterSwitch() ? 'ENABLED' : 'DISABLED' }}
       </span>
     </div>
   </div>
 
-  @if (settingsSaveMessage) {
-  <div class="save-message">{{ settingsSaveMessage }}</div>
+  @if (settingsSaveMessage()) {
+  <div class="save-message">{{ settingsSaveMessage() }}</div>
   }
 
   <!-- Tabs -->
   <div class="rewards-tabs">
-    <button [class.active]="activeTab === 'settings'" (click)="switchTab('settings')">Settings</button>
-    <button [class.active]="activeTab === 'stats'" (click)="switchTab('stats')">Stats</button>
+    <button [class.active]="activeTab() === 'settings'" (click)="switchTab('settings')">Settings</button>
+    <button [class.active]="activeTab() === 'stats'" (click)="switchTab('stats')">Stats</button>
   </div>
 
   <!-- ─── Settings Tab ─────────────────────────────────────────── -->
-  @if (activeTab === 'settings') {
+  @if (activeTab() === 'settings') {
   <div>
-    @if (settingsLoading) {
+    @if (settingsLoading()) {
     <div class="loading-text">Loading settings...</div>
     }
 
-    @for (group of categoryGroups; track $index) {
+    @for (group of categoryGroups(); track $index) {
     <div class="settings-category">
       <div class="category-header" (click)="group.open = !group.open">
         <h3>{{ group.category }}</h3>
@@ -95,47 +95,47 @@
   }
 
   <!-- ─── Stats Tab ────────────────────────────────────────────── -->
-  @if (activeTab === 'stats') {
+  @if (activeTab() === 'stats') {
   <div>
-    @if (statsLoading) {
+    @if (statsLoading()) {
     <div class="loading-text">Loading stats...</div>
     }
-    @if (stats && !statsLoading) {
+    @if (stats() && !statsLoading()) {
     <div class="stats-grid">
       <div class="stat-card">
-        <div class="stat-value">{{ stats.totalPointsIssued | number }}</div>
+        <div class="stat-value">{{ stats()!.totalPointsIssued | number }}</div>
         <div class="stat-label">Total Points Issued</div>
       </div>
       <div class="stat-card">
-        <div class="stat-value">{{ stats.totalPointsRedeemed | number }}</div>
+        <div class="stat-value">{{ stats()!.totalPointsRedeemed | number }}</div>
         <div class="stat-label">Total Points Redeemed</div>
       </div>
       <div class="stat-card">
-        <div class="stat-value">${{ stats.totalCreditsIssued | number:'1.2-2' }}</div>
+        <div class="stat-value">${{ stats()!.totalCreditsIssued | number:'1.2-2' }}</div>
         <div class="stat-label">Total Credits Issued</div>
       </div>
       <div class="stat-card">
-        <div class="stat-value">{{ stats.activeUsersWithPoints | number }}</div>
+        <div class="stat-value">{{ stats()!.activeUsersWithPoints | number }}</div>
         <div class="stat-label">Users With Points</div>
       </div>
       <div class="stat-card tier-bubble-card">
-        <div class="stat-value">🫧 {{ stats.bubbleTierCount | number }}</div>
+        <div class="stat-value">🫧 {{ stats()!.bubbleTierCount | number }}</div>
         <div class="stat-label">Bubble Tier</div>
       </div>
       <div class="stat-card tier-super-card">
-        <div class="stat-value">🫧🫧 {{ stats.superBubbleTierCount | number }}</div>
+        <div class="stat-value">🫧🫧 {{ stats()!.superBubbleTierCount | number }}</div>
         <div class="stat-label">Super Bubble Tier</div>
       </div>
       <div class="stat-card tier-ultra-card">
-        <div class="stat-value">🫧🫧🫧 {{ stats.ultraBubbleTierCount | number }}</div>
+        <div class="stat-value">🫧🫧🫧 {{ stats()!.ultraBubbleTierCount | number }}</div>
         <div class="stat-label">Ultra Bubble Tier</div>
       </div>
       <div class="stat-card">
-        <div class="stat-value">{{ stats.totalReferrals | number }}</div>
+        <div class="stat-value">{{ stats()!.totalReferrals | number }}</div>
         <div class="stat-label">Total Referrals</div>
       </div>
       <div class="stat-card">
-        <div class="stat-value">{{ stats.completedReferrals | number }}</div>
+        <div class="stat-value">{{ stats()!.completedReferrals | number }}</div>
         <div class="stat-label">Completed Referrals</div>
       </div>
     </div>
@@ -145,7 +145,7 @@
 </div>
 
 <!-- ─── Reset Modal ───────────────────────────────────────────── -->
-@if (showResetModal) {
+@if (showResetModal()) {
 <div class="reset-modal-backdrop" (click)="closeResetModal()">
   <div class="reset-modal" (click)="$event.stopPropagation()">
     <h2>Reset Bubble Points</h2>
@@ -162,7 +162,7 @@
       </label>
     </div>
 
-    @if (resetTarget === 'specific') {
+    @if (resetTarget() === 'specific') {
     <div class="reset-user-search">
       <input
         type="text"
@@ -170,9 +170,9 @@
         [(ngModel)]="resetUserSearch"
         (input)="onUserSearchChange()"
         class="reset-search-input">
-      @if (filteredUsers.length > 0 && !resetUserId && resetUserSearch.length > 0) {
+      @if (filteredUsers().length > 0 && !resetUserId() && resetUserSearch().length > 0) {
       <div class="reset-user-dropdown">
-        @for (u of filteredUsers | slice:0:10; track $index) {
+        @for (u of filteredUsers() | slice:0:10; track $index) {
         <div
           class="reset-user-option"
           (click)="selectResetUser(u)">
@@ -184,27 +184,27 @@
     </div>
     }
 
-    @if (resetMessage) {
-    <div class="reset-feedback success">{{ resetMessage }}</div>
+    @if (resetMessage()) {
+    <div class="reset-feedback success">{{ resetMessage() }}</div>
     }
-    @if (resetError) {
-    <div class="reset-feedback error">{{ resetError }}</div>
+    @if (resetError()) {
+    <div class="reset-feedback error">{{ resetError() }}</div>
     }
-    @if (undoAvailable && !resetLoading && !undoLoading) {
+    @if (undoAvailable() && !resetLoading() && !undoLoading()) {
     <div class="reset-feedback">
-      Undo available for latest {{ undoScope === 'all' ? 'all-clients' : 'specific-client' }} reset.
-      @if (undoCreatedAt) {
-      <span> Snapshot: {{ undoCreatedAt | nyDate:'datetime' }}</span>
+      Undo available for latest {{ undoScope() === 'all' ? 'all-clients' : 'specific-client' }} reset.
+      @if (undoCreatedAt()) {
+      <span> Snapshot: {{ undoCreatedAt() | nyDate:'datetime' }}</span>
       }
     </div>
     }
 
     <div class="reset-modal-actions">
-      <button class="reset-confirm-btn" (click)="confirmReset()" [disabled]="resetLoading">
-        {{ resetLoading ? 'Clearing...' : 'Clear' }}
+      <button class="reset-confirm-btn" (click)="confirmReset()" [disabled]="resetLoading()">
+        {{ resetLoading() ? 'Clearing...' : 'Clear' }}
       </button>
-      <button class="reset-cancel-btn" (click)="undoLastReset()" [disabled]="undoLoading || !undoAvailable">
-        {{ undoLoading ? 'Restoring...' : 'Undo Last Reset' }}
+      <button class="reset-cancel-btn" (click)="undoLastReset()" [disabled]="undoLoading() || !undoAvailable()">
+        {{ undoLoading() ? 'Restoring...' : 'Undo Last Reset' }}
       </button>
       <button class="reset-cancel-btn" (click)="closeResetModal()">Cancel</button>
     </div>

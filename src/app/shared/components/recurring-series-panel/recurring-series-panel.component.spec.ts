@@ -88,14 +88,14 @@ describe('RecurringSeriesPanelComponent', () => {
     expect(fixture.nativeElement.textContent).toContain('no automatic payment requests are sent for this stopped plan');
     button.click();
     httpMock.expectOne(CREATE(41) + '/preview').flush({ sourceDiscounts: [], baseCleaning: 100, loyaltyPercent: 0, loyaltySource: 'None', loyaltyAmount: 0, tax: 8.88, tips: 0, total: 108.88 });
-    expect(component.startingNew).toBe(true); expect(component.isActive).toBe(true);
-    expect(component.anchorDate).toBe('2026-10-18'); // suggested: the next fortnightly Sunday after the source expect(component.needsFutureOrdersChoice).toBeFalse();
+    expect(component.startingNew()).toBe(true); expect(component.isActive()).toBe(true);
+    expect(component.anchorDate()).toBe('2026-10-18'); // suggested: the next fortnightly Sunday after the source expect(component.needsFutureOrdersChoice).toBeFalse();
     vi.spyOn(component.ordersGenerated, 'emit').mockReturnValue(undefined);
     component.save();
     const request = httpMock.expectOne(CREATE(41));
     expect(request.request.method).toBe('POST'); expect(request.request.body.isActive).toBe(true);
     request.flush(series({ id: 4 }));
-    expect(component.series?.id).toBe(4); expect(component.startingNew).toBe(false);
+    expect(component.series()?.id).toBe(4); expect(component.startingNew()).toBe(false);
     expect(component.ordersGenerated.emit).toHaveBeenCalled();
     expect(stopped.stoppedAt).toBeTruthy();
   });
@@ -105,8 +105,8 @@ describe('RecurringSeriesPanelComponent', () => {
     component.startSetup(true);
     httpMock.expectOne(CREATE(41) + '/preview').flush({ sourceDiscounts: [] });
     component.cancelEdit();
-    expect(component.editing).toBe(false); expect(component.startingNew).toBe(false);
-    expect(component.series?.id).toBe(3); expect(component.isActive).toBe(false);
+    expect(component.editing()).toBe(false); expect(component.startingNew()).toBe(false);
+    expect(component.series()?.id).toBe(3); expect(component.isActive()).toBe(false);
     httpMock.expectNone(CREATE(41));
   });
 
@@ -114,16 +114,17 @@ describe('RecurringSeriesPanelComponent', () => {
     open(series({ stoppedAt: '2026-09-10T00:00:00', isActive: false }));
     fixture.componentRef.setInput('canCreate', false); fixture.detectChanges();
     expect(fixture.nativeElement.textContent).not.toContain('Start new recurring plan');
-    component.startSetup(true); expect(component.editing).toBe(false);
-    component.canCreate = true; component.series!.templateOrderId = 99; fixture.detectChanges();
+    component.startSetup(true); expect(component.editing()).toBe(false);
+    fixture.componentRef.setInput('canCreate', true); component.series()!.templateOrderId = 99;
+    component.series.set(component.series()); fixture.detectChanges();
     expect(fixture.nativeElement.textContent).not.toContain('Start new recurring plan');
-    component.startSetup(true); expect(component.editing).toBe(false);
+    component.startSetup(true); expect(component.editing()).toBe(false);
   });
 
   it('says a one-off cleaning is a one-off cleaning', () => {
     open(null);
 
-    expect(component.series).toBeNull();
+    expect(component.series()).toBeNull();
     expect(fixture.nativeElement.textContent).toContain('one-off cleaning');
   });
 
@@ -133,11 +134,11 @@ describe('RecurringSeriesPanelComponent', () => {
     open(null);
     component.startSetup();
     httpMock.expectOne(CREATE(41) + '/preview').flush({ sourceDiscounts: [], baseCleaning: 100, loyaltyPercent: 0, loyaltySource: 'None', loyaltyAmount: 0, tax: 8.88, tips: 0, total: 108.88, commercialLoyaltyExcluded: false });
-    component.intervalValue = 1;
-    component.intervalUnit = RecurrenceIntervalUnit.Days;
+    component.intervalValue.set(1);
+    component.intervalUnit.set(RecurrenceIntervalUnit.Days);
     fixture.detectChanges();
 
-    expect(component.dailyNotSupported).toBe(true);
+    expect(component.dailyNotSupported()).toBe(true);
     expect(component.validationError).toContain('Daily recurrence is not supported');
     expect(fixture.nativeElement.textContent).toContain('Daily cleaning is not supported yet');
   });
@@ -146,23 +147,23 @@ describe('RecurringSeriesPanelComponent', () => {
     open(null);
     component.startSetup();
     httpMock.expectOne(CREATE(41) + '/preview').flush({ sourceDiscounts: [], baseCleaning: 100, loyaltyPercent: 0, loyaltySource: 'None', loyaltyAmount: 0, tax: 8.88, tips: 0, total: 108.88, commercialLoyaltyExcluded: false });
-    component.intervalValue = 1;
-    component.intervalUnit = RecurrenceIntervalUnit.Days;
+    component.intervalValue.set(1);
+    component.intervalUnit.set(RecurrenceIntervalUnit.Days);
 
     component.save();
 
     httpMock.expectNone(CREATE(41));
-    expect(component.errorMessage).toContain('Daily recurrence is not supported');
+    expect(component.errorMessage()).toContain('Daily recurrence is not supported');
   });
 
   it('allows two days and up', () => {
     open(null);
     component.startSetup();
     httpMock.expectOne(CREATE(41) + '/preview').flush({ sourceDiscounts: [], baseCleaning: 100, loyaltyPercent: 0, loyaltySource: 'None', loyaltyAmount: 0, tax: 8.88, tips: 0, total: 108.88, commercialLoyaltyExcluded: false });
-    component.intervalUnit = RecurrenceIntervalUnit.Days;
-    component.intervalValue = 3;
+    component.intervalUnit.set(RecurrenceIntervalUnit.Days);
+    component.intervalValue.set(3);
 
-    expect(component.dailyNotSupported).toBe(false);
+    expect(component.dailyNotSupported()).toBe(false);
     expect(component.validationError).toBeNull();
   });
 
@@ -170,8 +171,8 @@ describe('RecurringSeriesPanelComponent', () => {
     open(null);
     component.startSetup();
     httpMock.expectOne(CREATE(41) + '/preview').flush({ sourceDiscounts: [], baseCleaning: 100, loyaltyPercent: 0, loyaltySource: 'None', loyaltyAmount: 0, tax: 8.88, tips: 0, total: 108.88, commercialLoyaltyExcluded: false });
-    component.intervalUnit = RecurrenceIntervalUnit.Weeks;
-    component.intervalValue = 1;
+    component.intervalUnit.set(RecurrenceIntervalUnit.Weeks);
+    component.intervalValue.set(1);
 
     expect(component.validationError).toBeNull();
   });
@@ -218,7 +219,7 @@ describe('RecurringSeriesPanelComponent', () => {
     });
 
     // Pressing it twice must not read as a broken button — the skipped dates ARE the result.
-    expect(component.noticeMessage).toContain('already exists');
+    expect(component.noticeMessage()).toContain('already exists');
 
     httpMock.expectOne(`${environment.apiUrl}/admin/recurring-series/3`).flush(series());
   });
@@ -232,7 +233,7 @@ describe('RecurringSeriesPanelComponent', () => {
       skippedExistingDates: [], warnings: []
     });
 
-    expect(component.noticeMessage).toContain('2 cleaning(s) created');
+    expect(component.noticeMessage()).toContain('2 cleaning(s) created');
 
     httpMock.expectOne(`${environment.apiUrl}/admin/recurring-series/3`).flush(series());
   });
@@ -247,7 +248,7 @@ describe('RecurringSeriesPanelComponent', () => {
     initial.flush(preview); fixture.detectChanges();
     const text = fixture.nativeElement.textContent;
     for (const value of ['Promo Code ORIGINAL20', 'Bubble Points', 'One-time Loyalty', 'do not', 'carry over', '$108.88']) expect(text).toContain(value);
-    component.recurringLoyaltyDiscountPercent = 15; component.refreshPricePreview();
+    component.recurringLoyaltyDiscountPercent.set(15); component.refreshPricePreview();
     const request = httpMock.expectOne(CREATE(41) + '/preview');
     expect(request.request.body.recurringLoyaltyDiscountPercent).toBe(15);
     request.flush({ ...preview, loyaltyPercent: 15, loyaltySource: 'Recurring Series', loyaltyAmount: 15, tax: 7.54, total: 92.54 });
@@ -255,7 +256,7 @@ describe('RecurringSeriesPanelComponent', () => {
     component.save(); const save = httpMock.expectOne(CREATE(41));
     expect(save.request.body.recurringLoyaltyDiscountPercent).toBe(15);
     save.flush(series({ recurringLoyaltyDiscountPercent: 15, generationWarnings: ['Saved; retry generation.'] }));
-    expect(component.noticeMessage).toContain('retry generation');
+    expect(component.noticeMessage()).toContain('retry generation');
   });
 
   /**
@@ -265,20 +266,20 @@ describe('RecurringSeriesPanelComponent', () => {
    */
   it('defaults to a percentage and sends only the figure belonging to the chosen mode', () => {
     open(null); component.startSetup();
-    expect(component.loyaltyDiscountMode).toBe('percent');
+    expect(component.loyaltyDiscountMode()).toBe('percent');
     httpMock.expectOne(CREATE(41) + '/preview').flush({ sourceDiscounts: [], total: 100 });
 
-    component.recurringLoyaltyDiscountPercent = 15;
+    component.recurringLoyaltyDiscountPercent.set(15);
     component.setLoyaltyDiscountMode('fixed');
 
     // Switching clears the other figure rather than converting it — 15% is not $15.
-    expect(component.recurringLoyaltyDiscountPercent).toBeNull();
+    expect(component.recurringLoyaltyDiscountPercent()).toBeNull();
     const cleared = httpMock.expectOne(CREATE(41) + '/preview');
     expect(cleared.request.body.recurringLoyaltyDiscountPercent).toBeNull();
     expect(cleared.request.body.recurringLoyaltyDiscountAmount).toBeNull();
     cleared.flush({ sourceDiscounts: [], total: 100 });
 
-    component.recurringLoyaltyDiscountAmount = 50;
+    component.recurringLoyaltyDiscountAmount.set(50);
     component.refreshPricePreview();
     const priced = httpMock.expectOne(CREATE(41) + '/preview');
     expect(priced.request.body.recurringLoyaltyDiscountAmount).toBe(50);
@@ -301,25 +302,25 @@ describe('RecurringSeriesPanelComponent', () => {
     save.flush(series({ recurringLoyaltyDiscountAmount: 50, recurringLoyaltyDiscountPercent: null }));
 
     // Reopened, the form comes back in the mode the series was saved in.
-    expect(component.loyaltyDiscountMode).toBe('fixed');
-    expect(component.recurringLoyaltyDiscountAmount).toBe(50);
+    expect(component.loyaltyDiscountMode()).toBe('fixed');
+    expect(component.recurringLoyaltyDiscountAmount()).toBe(50);
   });
 
   it('treats switching a saved series from a percentage to a fixed amount as a rule change', () => {
     open(series({ recurringLoyaltyDiscountPercent: 10, recurringLoyaltyDiscountAmount: null }));
     component.startSetup();
-    expect(component.loyaltyDiscountMode).toBe('percent');
+    expect(component.loyaltyDiscountMode()).toBe('percent');
     httpMock.expectOne(CREATE(41) + '/preview').flush({ sourceDiscounts: [], total: 100 });
 
     component.setLoyaltyDiscountMode('fixed');
     httpMock.expectOne(CREATE(41) + '/preview').flush({ sourceDiscounts: [], total: 100 });
-    component.recurringLoyaltyDiscountAmount = 25;
+    component.recurringLoyaltyDiscountAmount.set(25);
 
     expect(component.needsFutureOrdersChoice).toBe(true);
     component.save();
     httpMock.expectNone(environment.apiUrl + '/admin/recurring-series/3');
 
-    component.futureOrdersAction = 'Regenerate'; component.save();
+    component.futureOrdersAction.set('Regenerate'); component.save();
     const request = httpMock.expectOne(environment.apiUrl + '/admin/recurring-series/3');
     expect(request.request.body.recurringLoyaltyDiscountAmount).toBe(25);
     expect(request.request.body.recurringLoyaltyDiscountPercent).toBeNull();
@@ -332,7 +333,7 @@ describe('RecurringSeriesPanelComponent', () => {
     component.setLoyaltyDiscountMode('fixed');
     httpMock.expectOne(CREATE(41) + '/preview').flush({ sourceDiscounts: [], total: 100 });
 
-    component.recurringLoyaltyDiscountAmount = -5;
+    component.recurringLoyaltyDiscountAmount.set(-5);
     expect(component.validationError).toContain('cannot be negative');
     component.save();
     httpMock.expectNone(CREATE(41));
@@ -341,10 +342,10 @@ describe('RecurringSeriesPanelComponent', () => {
   it('requires Keep or Regenerate for a discount edit and sends the chosen rule', () => {
     open(series({ recurringLoyaltyDiscountPercent: null })); component.startSetup();
     httpMock.expectOne(CREATE(41) + '/preview').flush({ sourceDiscounts: [], total: 100 });
-    component.recurringLoyaltyDiscountPercent = 15; component.save();
+    component.recurringLoyaltyDiscountPercent.set(15); component.save();
     expect(component.needsFutureOrdersChoice).toBe(true);
     httpMock.expectNone(environment.apiUrl + '/admin/recurring-series/3');
-    component.futureOrdersAction = 'Regenerate'; component.save();
+    component.futureOrdersAction.set('Regenerate'); component.save();
     const request = httpMock.expectOne(environment.apiUrl + '/admin/recurring-series/3');
     expect(request.request.method).toBe('PUT'); expect(request.request.body.futureOrdersAction).toBe('Regenerate');
     expect(request.request.body.recurringLoyaltyDiscountPercent).toBe(15);
@@ -353,7 +354,7 @@ describe('RecurringSeriesPanelComponent', () => {
 
   for (const state of ['pause', 'resume', 'stop'] as const) {
     it('sends ' + state + ' to the lifecycle route', () => {
-      open(); component.pendingAction = { kind: state }; component.confirmAction();
+      open(); component.pendingAction.set({ kind: state }); component.confirmAction();
       const request = httpMock.expectOne(environment.apiUrl + '/admin/recurring-series/3/state/' + state);
       expect(request.request.method).toBe('POST'); request.flush(series());
       httpMock.expectOne(environment.apiUrl + '/admin/recurring-series/3').flush(series());
@@ -380,8 +381,8 @@ describe('RecurringSeriesPanelComponent', () => {
 
   it('starts a new weekly plan on the order\'s own weekday and sends any combination of days', () => {
     startNew();
-    expect(component.serviceDaysOfWeek).toEqual([0]); // Sunday 4 October
-    expect(component.upcomingOccurrenceTarget).toBe(12);
+    expect(component.serviceDaysOfWeek()).toEqual([0]); // Sunday 4 October
+    expect(component.upcomingOccurrenceTarget()).toBe(12);
 
     for (const label of ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']) { chip(label).click(); }
     fixture.detectChanges();
@@ -398,9 +399,9 @@ describe('RecurringSeriesPanelComponent', () => {
     startNew();
     component.toggleWeekday(0);
     for (const day of [6, 2]) component.toggleWeekday(day);
-    expect(component.serviceDaysOfWeek).toEqual([2, 6]);
+    expect(component.serviceDaysOfWeek()).toEqual([2, 6]);
     for (const day of [0, 1, 3, 4, 5]) component.toggleWeekday(day);
-    expect(component.serviceDaysOfWeek).toEqual([0, 1, 2, 3, 4, 5, 6]);
+    expect(component.serviceDaysOfWeek()).toEqual([0, 1, 2, 3, 4, 5, 6]);
     expect(component.validationError).toBeNull();
   });
 
@@ -414,10 +415,10 @@ describe('RecurringSeriesPanelComponent', () => {
 
   it('switching to months seeds the first cleaning\'s day and sends the chosen days of the month', () => {
     startNew();
-    component.intervalUnit = RecurrenceIntervalUnit.Months;
+    component.intervalUnit.set(RecurrenceIntervalUnit.Months);
     component.onIntervalUnitChange();
     fixture.detectChanges();
-    expect(component.serviceDaysOfMonth).toEqual([4]);
+    expect(component.serviceDaysOfMonth()).toEqual([4]);
     expect(fixture.nativeElement.textContent).toContain('is skipped that month');
 
     component.toggleMonthDay(4); component.toggleMonthDay(31); component.toggleMonthDay(15); component.toggleMonthDay(1);
@@ -430,10 +431,10 @@ describe('RecurringSeriesPanelComponent', () => {
   it('validates the upcoming-cleanings count: required, whole, 1 to 60', () => {
     startNew();
     for (const bad of [null, 0, 61, 2.5]) {
-      component.upcomingOccurrenceTarget = bad;
+      component.upcomingOccurrenceTarget.set(bad);
       expect(component.validationError, String(bad)).toContain('upcoming cleanings');
     }
-    component.upcomingOccurrenceTarget = 6;
+    component.upcomingOccurrenceTarget.set(6);
     expect(component.validationError).toBeNull();
     expect(fixture.nativeElement.textContent).toContain('Keep this many future cleaning orders ready.');
   });
@@ -445,7 +446,7 @@ describe('RecurringSeriesPanelComponent', () => {
     httpMock.expectOne(CREATE(41) + '/preview').flush(PREVIEW);
     expect(component.isLegacyPattern).toBe(true);
     expect(component.validationError).toBeNull();
-    component.notes = 'just a note';
+    component.notes.set('just a note');
     component.save();
     const request = httpMock.expectOne(environment.apiUrl + '/admin/recurring-series/3');
     expect(request.request.body.serviceDaysOfWeek).toBeNull();
@@ -477,7 +478,7 @@ describe('RecurringSeriesPanelComponent', () => {
   it('a weekly flat fee contract controls billing: no per-cleaning estimate and no automatic requests', () => {
     startNew({ contractClientId: 7, contracts: [WEEKLY], suggestedContractId: 40 });
 
-    expect(component.contractId).toBe(40);
+    expect(component.contractId()).toBe(40);
     expect(component.billingControlledByContract).toBe(true);
     const text = (fixture.nativeElement.textContent as string).replace(/\s+/g, ' ');
     expect(text).toContain('Billing is controlled by the linked commercial contract');
@@ -485,7 +486,7 @@ describe('RecurringSeriesPanelComponent', () => {
     expect(text).not.toContain('Estimated recurring cleaning');
     expect(text).not.toContain('Request payment automatically');
 
-    component.autoRequestPayment = true;
+    component.autoRequestPayment.set(true);
     component.save();
     const body = httpMock.expectOne(CREATE(41)).request.body;
     expect(body.contractId).toBe(40);
@@ -512,9 +513,9 @@ describe('RecurringSeriesPanelComponent', () => {
 
   it('suggests the next scheduled day after the source order: Sunday Oct 4 + Sun–Fri → Monday Oct 5', () => {
     startNew();
-    component.intervalValue = 1; component.refreshSuggestedFirstCleaning();
+    component.intervalValue.set(1); component.refreshSuggestedFirstCleaning();
     for (const day of [1, 2, 3, 4, 5]) component.toggleWeekday(day);
-    expect(component.anchorDate).toBe('2026-10-05');
+    expect(component.anchorDate()).toBe('2026-10-05');
     fixture.detectChanges();
     expect(fixture.nativeElement.textContent).toContain('First recurring cleaning');
     expect(fixture.nativeElement.textContent).toContain('The source order already exists');
@@ -525,12 +526,12 @@ describe('RecurringSeriesPanelComponent', () => {
 
   it('never overwrites a date the admin chose, and a blank date stays blank', () => {
     startNew();
-    component.anchorDate = '2026-11-02'; component.onAnchorDateChange();
+    component.anchorDate.set('2026-11-02'); component.onAnchorDateChange();
     component.toggleWeekday(3);
-    expect(component.anchorDate).toBe('2026-11-02');
-    component.anchorDate = ''; component.onAnchorDateChange();
+    expect(component.anchorDate()).toBe('2026-11-02');
+    component.anchorDate.set(''); component.onAnchorDateChange();
     component.toggleWeekday(4);
-    expect(component.anchorDate).toBe('');
+    expect(component.anchorDate()).toBe('');
   });
 
   it('an existing plan keeps its stored first date exactly as it is', () => {
@@ -538,7 +539,7 @@ describe('RecurringSeriesPanelComponent', () => {
     component.startSetup();
     httpMock.expectOne(CREATE(41) + '/preview').flush(PREVIEW);
     component.toggleWeekday(1);
-    expect(component.anchorDate).toBe('2026-10-04');
+    expect(component.anchorDate()).toBe('2026-10-04');
   });
 
   it('the generate-upcoming count is a compact input with the short hint', () => {

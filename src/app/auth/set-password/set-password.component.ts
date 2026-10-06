@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
@@ -19,7 +19,7 @@ import { validatePassword } from '../../utils/password-validator';
             <label for="newPassword">New Password</label>
             <div class="password-input-wrap">
               <input
-                [type]="showPassword ? 'text' : 'password'"
+                [type]="showPassword() ? 'text' : 'password'"
                 id="newPassword"
                 name="newPassword"
                 [(ngModel)]="newPassword"
@@ -28,11 +28,11 @@ import { validatePassword } from '../../utils/password-validator';
                 minlength="8"
                 #newPasswordInput="ngModel"
               />
-              <button type="button" class="password-toggle" (click)="showPassword = !showPassword" [attr.aria-label]="showPassword ? 'Hide password' : 'Show password'" title="{{ showPassword ? 'Hide' : 'Show' }}">
-                @if (!showPassword) {
+              <button type="button" class="password-toggle" (click)="showPassword.set(!showPassword())" [attr.aria-label]="showPassword() ? 'Hide password' : 'Show password'" title="{{ showPassword() ? 'Hide' : 'Show' }}">
+                @if (!showPassword()) {
                 <svg class="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                 }
-                @if (showPassword) {
+                @if (showPassword()) {
                 <svg class="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
                 }
               </button>
@@ -59,9 +59,9 @@ import { validatePassword } from '../../utils/password-validator';
               </ul>
             </div>
             
-            @if (newPasswordInput.touched && passwordErrors.length > 0) {
+            @if (newPasswordInput.touched && passwordErrors().length > 0) {
             <div class="error">
-              @for (error of passwordErrors; track error) {
+              @for (error of passwordErrors(); track error) {
               <span>{{ error }}<br></span>
               }
             </div>
@@ -72,18 +72,18 @@ import { validatePassword } from '../../utils/password-validator';
             <label for="confirmPassword">Confirm Password</label>
             <div class="password-input-wrap">
               <input
-                [type]="showConfirmPassword ? 'text' : 'password'"
+                [type]="showConfirmPassword() ? 'text' : 'password'"
                 id="confirmPassword"
                 name="confirmPassword"
                 [(ngModel)]="confirmPassword"
                 required
                 #confirmPasswordInput="ngModel"
               />
-              <button type="button" class="password-toggle" (click)="showConfirmPassword = !showConfirmPassword" [attr.aria-label]="showConfirmPassword ? 'Hide password' : 'Show password'" title="{{ showConfirmPassword ? 'Hide' : 'Show' }}">
-                @if (!showConfirmPassword) {
+              <button type="button" class="password-toggle" (click)="showConfirmPassword.set(!showConfirmPassword())" [attr.aria-label]="showConfirmPassword() ? 'Hide password' : 'Show password'" title="{{ showConfirmPassword() ? 'Hide' : 'Show' }}">
+                @if (!showConfirmPassword()) {
                 <svg class="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                 }
-                @if (showConfirmPassword) {
+                @if (showConfirmPassword()) {
                 <svg class="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
                 }
               </button>
@@ -93,34 +93,34 @@ import { validatePassword } from '../../utils/password-validator';
               Please confirm your password
             </div>
             }
-            @if (confirmPassword !== newPassword && confirmPasswordInput.touched) {
+            @if (confirmPassword() !== newPassword() && confirmPasswordInput.touched) {
             <div class="error">
               Passwords do not match
             </div>
             }
           </div>
 
-          @if (successMessage) {
+          @if (successMessage()) {
           <div class="success">
-            {{ successMessage }}
+            {{ successMessage() }}
           </div>
           }
 
-          @if (errorMessage) {
+          @if (errorMessage()) {
           <div class="error">
-            {{ errorMessage }}
+            {{ errorMessage() }}
           </div>
           }
 
-          <button type="submit" [disabled]="!isFormValid() || isSubmitting">
-            {{ isSubmitting ? 'Setting Password...' : 'Set Password' }}
+          <button type="submit" [disabled]="!isFormValid() || isSubmitting()">
+            {{ isSubmitting() ? 'Setting Password...' : 'Set Password' }}
           </button>
         </form>
         </div>
       </div>
     </div>
   `,
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styles: [`
     .set-password-wrapper {
       padding: 2rem;
@@ -296,47 +296,47 @@ export class SetPasswordComponent {
   private authService = inject(AuthService);
   private router = inject(Router);
 
-  newPassword = '';
-  confirmPassword = '';
-  errorMessage = '';
-  successMessage = '';
-  isSubmitting = false;
-  passwordErrors: string[] = [];
-  showPassword = false;
-  showConfirmPassword = false;
+  readonly newPassword = signal('');
+  readonly confirmPassword = signal('');
+  readonly errorMessage = signal('');
+  readonly successMessage = signal('');
+  readonly isSubmitting = signal(false);
+  readonly passwordErrors = signal<string[]>([]);
+  readonly showPassword = signal(false);
+  readonly showConfirmPassword = signal(false);
 
   validateNewPassword() {
-    if (this.newPassword) {
-      const validation = validatePassword(this.newPassword);
-      this.passwordErrors = validation.errors;
+    if (this.newPassword()) {
+      const validation = validatePassword(this.newPassword());
+      this.passwordErrors.set(validation.errors);
     } else {
-      this.passwordErrors = [];
+      this.passwordErrors.set([]);
     }
   }
 
   isFormValid(): boolean {
-    const validation = validatePassword(this.newPassword);
-    return validation.isValid && this.newPassword === this.confirmPassword;
+    const validation = validatePassword(this.newPassword());
+    return validation.isValid && this.newPassword() === this.confirmPassword();
   }
 
   hasMinLength(): boolean {
-    return this.newPassword ? this.newPassword.length >= 8 : false;
+    return this.newPassword() ? this.newPassword().length >= 8 : false;
   }
 
   hasUppercase(): boolean {
-    return this.newPassword ? /[A-Z]/.test(this.newPassword) : false;
+    return this.newPassword() ? /[A-Z]/.test(this.newPassword()) : false;
   }
 
   hasLowercase(): boolean {
-    return this.newPassword ? /[a-z]/.test(this.newPassword) : false;
+    return this.newPassword() ? /[a-z]/.test(this.newPassword()) : false;
   }
 
   hasNumber(): boolean {
-    return this.newPassword ? /\d/.test(this.newPassword) : false;
+    return this.newPassword() ? /\d/.test(this.newPassword()) : false;
   }
 
   hasLatinOnly(): boolean {
-    return this.newPassword ? /^[\x20-\x7E]+$/.test(this.newPassword) : false;
+    return this.newPassword() ? /^[\x20-\x7E]+$/.test(this.newPassword()) : false;
   }
 
   private navigateAfterPasswordSet() {
@@ -354,24 +354,24 @@ export class SetPasswordComponent {
       return;
     }
 
-    this.isSubmitting = true;
-    this.errorMessage = '';
-    this.successMessage = '';
+    this.isSubmitting.set(true);
+    this.errorMessage.set('');
+    this.successMessage.set('');
 
-    this.authService.setPassword(this.newPassword).subscribe({
+    this.authService.setPassword(this.newPassword()).subscribe({
       next: () => {
-        this.successMessage = 'Password set successfully!';
+        this.successMessage.set('Password set successfully!');
         // Refresh user token so hasPassword becomes true in the stored user object
         this.authService.refreshUserToken().subscribe({
           next: () => {
-            this.isSubmitting = false;
+            this.isSubmitting.set(false);
             setTimeout(() => {
               this.navigateAfterPasswordSet();
             }, 1500);
           },
           error: () => {
             // Token refresh failed but password was set — navigate anyway
-            this.isSubmitting = false;
+            this.isSubmitting.set(false);
             setTimeout(() => {
               this.navigateAfterPasswordSet();
             }, 1500);
@@ -379,8 +379,8 @@ export class SetPasswordComponent {
         });
       },
       error: (error) => {
-        this.errorMessage = error.error?.message || 'Failed to set password';
-        this.isSubmitting = false;
+        this.errorMessage.set(error.error?.message || 'Failed to set password');
+        this.isSubmitting.set(false);
       }
     });
   }

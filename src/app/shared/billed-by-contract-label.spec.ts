@@ -46,13 +46,13 @@ describe('Billed weekly by contract label', () => {
     const fixture = TestBed.createComponent(OrderDetailsComponent);
     const component = fixture.componentInstance;
     fixture.detectChanges(); // ngOnInit starts its own load; the order is supplied after it
-    component.order = {
+    component.order.set({
       id: 9, status: 'Pending', serviceDate: '2026-10-04T00:00:00', serviceTime: '09:00:00',
       serviceTypeName: 'Commercial', services: [], extraServices: [], subTotal: 0, tax: 0, tips: 0,
       total: 0, discountAmount: 0, companyDevelopmentTips: 0, paymentMethod: 'Invoice',
       ...order
-    } as unknown as Order;
-    component.isLoading = false;
+    } as unknown as Order);
+    component.isLoading.set(false);
     fixture.detectChanges();
     return fixture.nativeElement.textContent as string;
   }

@@ -1,4 +1,4 @@
-@if (showModal) {
+@if (showModal()) {
 <div class="modal-overlay" (click)="closeModal()">
     <div class="modal-content" (click)="$event.stopPropagation()">
       <div class="modal-header" [ngClass]="getHeaderClass()">
@@ -9,9 +9,9 @@
         <div class="notification-icon" [ngClass]="getIconClass()">
           {{ getIcon() }}
         </div>
-        <p>{{ currentNotification?.message }}</p>
+        <p>{{ currentNotification()?.message }}</p>
         <small class="timestamp">
-          {{ $safeNavigationMigration(currentNotification?.timestamp) | date:'medium' }}
+          {{ $safeNavigationMigration(currentNotification()?.timestamp) | date:'medium' }}
         </small>
       </div>
       <div class="modal-footer">

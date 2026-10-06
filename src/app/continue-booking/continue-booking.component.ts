@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, PLATFORM_ID, HostListener, ElementRef, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, PLATFORM_ID, HostListener, ElementRef, ChangeDetectionStrategy, inject, signal } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { Router, RouterModule, NavigationEnd, ActivatedRoute } from '@angular/router';
 import { FormPersistenceService, BookingFormData } from '../services/form-persistence.service';
@@ -11,7 +11,7 @@ import { Subject, takeUntil, filter } from 'rxjs';
     RouterModule
 ],
   templateUrl: './continue-booking.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './continue-booking.component.scss'
 })
 export class ContinueBookingComponent implements OnInit, OnDestroy {
@@ -24,10 +24,10 @@ export class ContinueBookingComponent implements OnInit, OnDestroy {
   private destroy$ = new Subject<void>();
   public isBrowser: boolean;
   
-  showContinueBooking = false;
+  readonly showContinueBooking = signal(false);
   isOnBookingPage = false;
-  isExpanded = true; // Start expanded, can be collapsed
-  userDismissed = false; // User clicked X to fully hide
+  readonly isExpanded = signal(true); // Start expanded, can be collapsed
+  readonly userDismissed = signal(false); // User clicked X to fully hide
   private hasVisitedBookingPage = false; // Only true after user visits booking page in this session
 
   constructor() {
@@ -97,12 +97,12 @@ export class ContinueBookingComponent implements OnInit, OnDestroy {
                       !this.isOnExcludedRoute() &&
                       formData.bookingProgress !== 'completed';
     
-    this.showContinueBooking = shouldShow;
+    this.showContinueBooking.set(shouldShow);
     // Only reset dismissed state when user visits the booking page, so the card can show again
     // after they leave. Do not reset when on other pages (e.g. admin) so closing the card
     // keeps it hidden until they return to booking and navigate away again.
     if (this.isOnBookingPage) {
-      this.userDismissed = false;
+      this.userDismissed.set(false);
     }
   }
 
@@ -111,14 +111,14 @@ export class ContinueBookingComponent implements OnInit, OnDestroy {
   }
 
   onMinimize() {
-    this.isExpanded = false;
+    this.isExpanded.set(false);
   }
 
   onClose() {
-    this.userDismissed = true;
+    this.userDismissed.set(true);
   }
 
   toggleExpanded() {
-    this.isExpanded = !this.isExpanded;
+    this.isExpanded.set(!this.isExpanded());
   }
 }

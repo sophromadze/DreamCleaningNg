@@ -64,7 +64,7 @@ describe('GiftCardsComponent background', () => {
   it('shows the background the server says is in effect, with no preload link and no cache-buster', () => {
     answerConfig({ backgroundImagePath: '/uploads/gift-cards/gift-card-bg-abc.webp' });
 
-    expect(fixture.componentInstance.giftCardBackgroundPath).toBe('/uploads/gift-cards/gift-card-bg-abc.webp');
+    expect(fixture.componentInstance.giftCardBackgroundPath()).toBe('/uploads/gift-cards/gift-card-bg-abc.webp');
     expect(document.querySelector('link[rel="preload"][data-gift-card]')).toBeNull();
   });
 
@@ -72,8 +72,8 @@ describe('GiftCardsComponent background', () => {
     broken.add('/uploads/gift-cards/gone.webp');
     answerConfig({ backgroundImagePath: '/uploads/gift-cards/gone.webp' });
 
-    expect(fixture.componentInstance.giftCardBackgroundPath).toBe(GIFT_CARD_DEFAULT_BACKGROUND);
-    expect(fixture.componentInstance.isLoadingBackground).toBe(false);
+    expect(fixture.componentInstance.giftCardBackgroundPath()).toBe(GIFT_CARD_DEFAULT_BACKGROUND);
+    expect(fixture.componentInstance.isLoadingBackground()).toBe(false);
   });
 
   it('never paints a cached background that no longer loads', () => {
@@ -81,17 +81,15 @@ describe('GiftCardsComponent background', () => {
     broken.add('/images/gift-card-bg-20260227215142.webp');
     const painted: string[] = [];
     const component = fixture.componentInstance;
-    let current = '';
-    Object.defineProperty(component, 'giftCardBackgroundPath', {
-      get: () => current,
-      set: (v: string) => { current = v; painted.push(v); },
-      configurable: true,
-    });
+    // Every value the component paints goes through the signal's set().
+    const path = component.giftCardBackgroundPath;
+    const paint = path.set.bind(path);
+    vi.spyOn(path, 'set').mockImplementation((v: string) => { painted.push(v); paint(v); });
 
     answerConfig({ backgroundImagePath: '/uploads/gift-cards/gift-card-bg-new.webp' });
 
     expect(painted).not.toContain('/images/gift-card-bg-20260227215142.webp');
-    expect(current).toBe('/uploads/gift-cards/gift-card-bg-new.webp');
+    expect(path()).toBe('/uploads/gift-cards/gift-card-bg-new.webp');
     expect(localStorage.getItem('giftCardBackground')).toBe('/uploads/gift-cards/gift-card-bg-new.webp');
   });
 
@@ -100,6 +98,6 @@ describe('GiftCardsComponent background', () => {
     http.match(r => r.url.endsWith('/api/admin/gift-card-config'))
       .forEach(r => r.flush('nope', { status: 500, statusText: 'Server Error' }));
 
-    expect(fixture.componentInstance.giftCardBackgroundPath).toBe(GIFT_CARD_DEFAULT_BACKGROUND);
+    expect(fixture.componentInstance.giftCardBackgroundPath()).toBe(GIFT_CARD_DEFAULT_BACKGROUND);
   });
 });

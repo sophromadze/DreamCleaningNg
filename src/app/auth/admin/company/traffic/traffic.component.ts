@@ -1,4 +1,4 @@
-import { Component, OnInit, HostListener, ElementRef, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, OnInit, HostListener, ElementRef, ChangeDetectionStrategy, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
@@ -17,29 +17,29 @@ import {
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './traffic.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./traffic.component.scss']
 })
 export class TrafficComponent implements OnInit {
   private trafficService = inject(CrmTrafficService);
   private host = inject(ElementRef);
 
-  rows: TrafficDailyRow[] = [];
-  breakdown: TrafficChannelBreakdownRow[] = [];
-  totals: TrafficTotals | null = null;
-  loading = false;
-  exporting = false;
-  errorMessage = '';
+  readonly rows = signal<TrafficDailyRow[]>([]);
+  readonly breakdown = signal<TrafficChannelBreakdownRow[]>([]);
+  readonly totals = signal<TrafficTotals | null>(null);
+  readonly loading = signal(false);
+  readonly exporting = signal(false);
+  readonly errorMessage = signal('');
 
-  period: TrafficPeriod = 'last30';
-  dropdownOpen = false;
-  fromDate = '';
-  toDate = '';
+  readonly period = signal<TrafficPeriod>('last30');
+  readonly dropdownOpen = signal(false);
+  readonly fromDate = signal('');
+  readonly toDate = signal('');
 
-  page = 1;
+  readonly page = signal(1);
   pageSize = 20;
-  totalCount = 0;
-  totalPages = 0;
+  readonly totalCount = signal(0);
+  readonly totalPages = signal(0);
 
   readonly presets: { key: TrafficPeriod; label: string }[] = [
     { key: 'last30', label: 'Last 30 days' },
@@ -73,78 +73,78 @@ export class TrafficComponent implements OnInit {
   // ── Range ──
 
   get rangeLabel(): string {
-    if (this.period === 'custom') return 'Custom range';
-    return this.presets.find(p => p.key === this.period)?.label ?? 'Select range';
+    if (this.period() === 'custom') return 'Custom range';
+    return this.presets.find(p => p.key === this.period())?.label ?? 'Select range';
   }
 
-  toggleDropdown(): void { this.dropdownOpen = !this.dropdownOpen; }
+  toggleDropdown(): void { this.dropdownOpen.set(!this.dropdownOpen()); }
 
   selectPreset(p: TrafficPeriod): void {
-    this.dropdownOpen = false;
-    this.period = p;
-    this.page = 1;
+    this.dropdownOpen.set(false);
+    this.period.set(p);
+    this.page.set(1);
     this.load();
   }
 
   applyCustom(): void {
-    this.period = 'custom';
-    this.page = 1;
+    this.period.set('custom');
+    this.page.set(1);
     this.load();
   }
 
   @HostListener('document:click', ['$event'])
   onDocumentClick(event: MouseEvent): void {
-    if (this.dropdownOpen && !this.host.nativeElement.contains(event.target)) {
-      this.dropdownOpen = false;
+    if (this.dropdownOpen() && !this.host.nativeElement.contains(event.target)) {
+      this.dropdownOpen.set(false);
     }
   }
 
   // ── Loading ──
 
   load(): void {
-    this.loading = true;
-    this.errorMessage = '';
+    this.loading.set(true);
+    this.errorMessage.set('');
     this.trafficService.getDaily(this.buildQuery(true)).subscribe({
       next: res => {
-        this.rows = res.items;
-        this.breakdown = res.channelBreakdown || [];
-        this.totals = res.totals;
-        this.page = res.page;
+        this.rows.set(res.items);
+        this.breakdown.set(res.channelBreakdown || []);
+        this.totals.set(res.totals);
+        this.page.set(res.page);
         this.pageSize = res.pageSize;
-        this.totalCount = res.totalCount;
-        this.totalPages = res.totalPages;
-        this.fromDate = (res.from || '').slice(0, 10);
-        this.toDate = (res.to || '').slice(0, 10);
-        this.loading = false;
+        this.totalCount.set(res.totalCount);
+        this.totalPages.set(res.totalPages);
+        this.fromDate.set((res.from || '').slice(0, 10));
+        this.toDate.set((res.to || '').slice(0, 10));
+        this.loading.set(false);
       },
-      error: () => { this.errorMessage = 'Failed to load traffic data.'; this.loading = false; }
+      error: () => { this.errorMessage.set('Failed to load traffic data.'); this.loading.set(false); }
     });
   }
 
-  nextPage(): void { if (this.page < this.totalPages) { this.page++; this.load(); } }
-  prevPage(): void { if (this.page > 1) { this.page--; this.load(); } }
+  nextPage(): void { if (this.page() < this.totalPages()) { this.page.update(v => v + 1); this.load(); } }
+  prevPage(): void { if (this.page() > 1) { this.page.update(v => v - 1); this.load(); } }
 
   // ── Export ──
 
   downloadExcel(): void {
-    this.exporting = true;
+    this.exporting.set(true);
     const query = this.buildQuery(false);
     if (!this.allChannelsSelected) {
-      query.channels = this.legendChannels.filter(c => this.selectedChannels.has(c)).join(',');
+      query.channels = this.legendChannels.filter(c => this.selectedChannels().has(c)).join(',');
     }
     this.trafficService.exportExcel(query).subscribe({
       next: blob => {
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `dream-cleaning-traffic_${this.fromDate}_${this.toDate}.xlsx`;
+        a.download = `dream-cleaning-traffic_${this.fromDate()}_${this.toDate()}.xlsx`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         window.URL.revokeObjectURL(url);
-        this.exporting = false;
+        this.exporting.set(false);
       },
-      error: () => { this.errorMessage = 'Failed to export traffic data.'; this.exporting = false; }
+      error: () => { this.errorMessage.set('Failed to export traffic data.'); this.exporting.set(false); }
     });
   }
 
@@ -155,26 +155,26 @@ export class TrafficComponent implements OnInit {
   // ── Channel filter (plain checkboxes) — toggles which channel COLUMNS are shown ──
   // All getters here are PURE (no state writes) to avoid NG0100.
 
-  selectedChannels = new Set<string>(this.legendChannels);
+  readonly selectedChannels = signal(new Set<string>(this.legendChannels), { equal: () => false });
 
-  isChannelSelected(channel: string): boolean { return this.selectedChannels.has(channel); }
+  isChannelSelected(channel: string): boolean { return this.selectedChannels().has(channel); }
 
   toggleChannel(channel: string): void {
-    if (this.selectedChannels.has(channel)) this.selectedChannels.delete(channel);
-    else this.selectedChannels.add(channel);
+    if (this.selectedChannels().has(channel)) { this.selectedChannels().delete(channel); this.selectedChannels.set(this.selectedChannels()); }
+    else { this.selectedChannels().add(channel); this.selectedChannels.set(this.selectedChannels()); }
   }
 
   get allChannelsSelected(): boolean {
-    return this.selectedChannels.size >= this.legendChannels.length;
+    return this.selectedChannels().size >= this.legendChannels.length;
   }
 
   selectAllChannels(): void {
-    this.selectedChannels = new Set<string>(this.legendChannels);
+    this.selectedChannels.set(new Set<string>(this.legendChannels));
   }
 
   /** Ordered channel columns currently shown (canonical order, filtered by the checkboxes). */
   get visibleColumns(): string[] {
-    return this.legendChannels.filter(ch => this.selectedChannels.has(ch));
+    return this.legendChannels.filter(ch => this.selectedChannels().has(ch));
   }
 
   // ── Cell / row / footer values ──
@@ -187,26 +187,26 @@ export class TrafficComponent implements OnInit {
   /** A day's total across the currently-shown channels. */
   filteredSessions(row: TrafficDailyRow): number {
     if (this.allChannelsSelected) return row.sessions;
-    return row.channels.reduce((sum, c) => this.selectedChannels.has(c.channel) ? sum + c.count : sum, 0);
+    return row.channels.reduce((sum, c) => this.selectedChannels().has(c.channel) ? sum + c.count : sum, 0);
   }
 
   /** Range total for one channel (from the aggregate breakdown) — feeds the footer row. */
   channelRangeTotal(channel: string): number {
-    return this.breakdown.find(c => c.channel === channel)?.sessions ?? 0;
+    return this.breakdown().find(c => c.channel === channel)?.sessions ?? 0;
   }
 
   /** Range total across the currently-shown channels (footer grand total + hero card). */
   get filteredSessionsTotal(): number {
-    if (!this.totals) return 0;
-    if (this.allChannelsSelected) return this.totals.sessions;
-    return this.breakdown.reduce((sum, c) => this.selectedChannels.has(c.channel) ? sum + c.sessions : sum, 0);
+    if (!this.totals()) return 0;
+    if (this.allChannelsSelected) return this.totals()!.sessions;
+    return this.breakdown().reduce((sum, c) => this.selectedChannels().has(c.channel) ? sum + c.sessions : sum, 0);
   }
 
   // ── Summary table (Sessions by channel) ──
 
   get visibleBreakdown(): TrafficChannelBreakdownRow[] {
-    if (this.allChannelsSelected) return this.breakdown;
-    return this.breakdown.filter(c => this.selectedChannels.has(c.channel));
+    if (this.allChannelsSelected) return this.breakdown();
+    return this.breakdown().filter(c => this.selectedChannels().has(c.channel));
   }
 
   channelPercent(row: TrafficChannelBreakdownRow): number {
@@ -217,14 +217,14 @@ export class TrafficComponent implements OnInit {
 
   /** True when the range includes recent days still on raw first-party counts (drives the footnote). */
   get hasProvisional(): boolean {
-    return this.rows.some(r => r.provisional);
+    return this.rows().some(r => r.provisional);
   }
 
   private buildQuery(paged: boolean): TrafficQuery {
-    const q: TrafficQuery = this.period === 'custom'
-      ? { from: this.fromDate || undefined, to: this.toDate || undefined }
-      : { period: this.period };
-    if (paged) { q.page = this.page; q.pageSize = this.pageSize; }
+    const q: TrafficQuery = this.period() === 'custom'
+      ? { from: this.fromDate() || undefined, to: this.toDate() || undefined }
+      : { period: this.period() };
+    if (paged) { q.page = this.page(); q.pageSize = this.pageSize; }
     return q;
   }
 }

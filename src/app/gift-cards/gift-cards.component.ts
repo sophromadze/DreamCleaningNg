@@ -1,4 +1,4 @@
-import { Component, OnInit, PLATFORM_ID, afterNextRender, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, OnInit, PLATFORM_ID, afterNextRender, ChangeDetectionStrategy, inject, signal, computed } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
@@ -21,7 +21,7 @@ const GIFT_CARD_DRAFT_TTL_MS = 30 * 60 * 1000;
   standalone: true,
   imports: [FormsModule, ReactiveFormsModule, BubbleFieldComponent],
   templateUrl: './gift-cards.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./gift-cards.component.scss']
 })
 export class GiftCardsComponent implements OnInit {
@@ -35,17 +35,17 @@ export class GiftCardsComponent implements OnInit {
   private platformId = inject<Object>(PLATFORM_ID);
 
   giftCardForm: FormGroup;
-  previewGiftCard: any = null;
-  isLoading = false;
-  errorMessage = '';
+  readonly previewGiftCard = signal<any>(null);
+  readonly isLoading = signal(false);
+  readonly errorMessage = signal('');
   successMessage = '';
   isProcessingPayment = false;
-  currentUser: any = null;
-  giftCardBackgroundPath: string = '';
-  isLoadingBackground: boolean = true;
+  readonly currentUser = signal<any>(null);
+  readonly giftCardBackgroundPath = signal<string>('');
+  readonly isLoadingBackground = signal<boolean>(true);
   /** Set once the config endpoint has answered; a slower cache probe must not override it. */
   private backgroundFromServer = false;
-  deliveryMode: GiftCardDeliveryMode = 'now';
+  readonly deliveryMode = signal<GiftCardDeliveryMode>('now');
   private isBrowser: boolean;
 
   // Add billing details getter
@@ -88,14 +88,12 @@ export class GiftCardsComponent implements OnInit {
     this.updatePreview(this.giftCardForm.value);
   }
 
-  get isSendLater(): boolean {
-    return this.deliveryMode === 'later';
-  }
+  readonly isSendLater = computed<boolean>(() => this.deliveryMode() === 'later');
 
   setDeliveryMode(mode: GiftCardDeliveryMode) {
-    if (this.deliveryMode === mode) return;
-    this.deliveryMode = mode;
-    this.errorMessage = '';
+    if (this.deliveryMode() === mode) return;
+    this.deliveryMode.set(mode);
+    this.errorMessage.set('');
     // Recipient fields are not asked in "send later" mode - disabled controls don't validate.
     const recipientControls = ['recipientName', 'recipientEmail', 'message'];
     recipientControls.forEach(name => {
@@ -117,7 +115,7 @@ export class GiftCardsComponent implements OnInit {
     try {
       sessionStorage.setItem(GIFT_CARD_DRAFT_KEY, JSON.stringify({
         ...this.giftCardForm.getRawValue(),
-        deliveryMode: this.deliveryMode,
+        deliveryMode: this.deliveryMode(),
         savedAt: Date.now()
       }));
     } catch { /* storage unavailable - the form just isn't restored */ }
@@ -151,7 +149,7 @@ export class GiftCardsComponent implements OnInit {
         message: draft.message ?? ''
       });
       // Sender fields come from the signed-in profile when there is one.
-      if (!this.currentUser) {
+      if (!this.currentUser()) {
         this.giftCardForm.patchValue({
           senderName: draft.senderName ?? '',
           senderEmail: draft.senderEmail ?? ''
@@ -162,25 +160,25 @@ export class GiftCardsComponent implements OnInit {
   }
 
   updatePreview(formValue: any) {
-    this.previewGiftCard = {
+    this.previewGiftCard.set({
       ...formValue,
       code: 'XXXX-XXXX-XXXX', // Placeholder for preview
       createdDate: new Date()
-    };
+    });
   }
 
   loadCurrentUser() {
     this.authService.currentUser.subscribe(user => {
-      this.currentUser = user;
+      this.currentUser.set(user);
       this.prefillUserData();
     });
   }
 
   prefillUserData() {
-    if (this.currentUser) {
+    if (this.currentUser()) {
       this.giftCardForm.patchValue({
-        senderName: `${this.currentUser.firstName} ${this.currentUser.lastName}`,
-        senderEmail: this.currentUser.email
+        senderName: `${this.currentUser().firstName} ${this.currentUser().lastName}`,
+        senderEmail: this.currentUser().email
       });
     } else {
       // Clear any prefilled data if user logs out
@@ -198,23 +196,23 @@ export class GiftCardsComponent implements OnInit {
   }
 
   onCreateGiftCard() {
-    if (this.isSendLater && !this.currentUser) {
-      this.errorMessage = 'Please log in or create an account to buy a gift card for yourself.';
+    if (this.isSendLater() && !this.currentUser()) {
+      this.errorMessage.set('Please log in or create an account to buy a gift card for yourself.');
       return;
     }
 
     if (!this.giftCardForm.valid) {
       this.markFormGroupTouched();
-      this.errorMessage = 'Please fill in all required fields correctly.';
+      this.errorMessage.set('Please fill in all required fields correctly.');
       return;
     }
 
-    this.isLoading = true;
-    this.errorMessage = '';
+    this.isLoading.set(true);
+    this.errorMessage.set('');
 
     // Get gift card data
     const raw = this.giftCardForm.getRawValue();
-    const giftCardData: CreateGiftCard = this.isSendLater
+    const giftCardData: CreateGiftCard = this.isSendLater()
       ? {
           amount: raw.amount,
           senderName: raw.senderName,
@@ -229,12 +227,12 @@ export class GiftCardsComponent implements OnInit {
       state: { giftCardData: giftCardData }
     }).then(success => {
       if (!success) {
-        this.isLoading = false;
-        this.errorMessage = 'Failed to proceed to payment. Please try again.';
+        this.isLoading.set(false);
+        this.errorMessage.set('Failed to proceed to payment. Please try again.');
       }
     }).catch(() => {
-      this.isLoading = false;
-      this.errorMessage = 'Failed to proceed to payment. Please try again.';
+      this.isLoading.set(false);
+      this.errorMessage.set('Failed to proceed to payment. Please try again.');
     });
   }
 
@@ -279,7 +277,7 @@ export class GiftCardsComponent implements OnInit {
         this.showBackground(response?.backgroundImagePath || GIFT_CARD_DEFAULT_BACKGROUND);
       },
       error: () => {
-        if (!this.giftCardBackgroundPath) this.showBackground(GIFT_CARD_DEFAULT_BACKGROUND);
+        if (!this.giftCardBackgroundPath()) this.showBackground(GIFT_CARD_DEFAULT_BACKGROUND);
       }
     });
   }
@@ -296,8 +294,8 @@ export class GiftCardsComponent implements OnInit {
     const img = new Image();
     img.onload = () => {
       if (fromCache && this.backgroundFromServer) return; // the server's answer already won
-      this.giftCardBackgroundPath = imagePath;
-      this.isLoadingBackground = false;
+      this.giftCardBackgroundPath.set(imagePath);
+      this.isLoadingBackground.set(false);
       localStorage.setItem('giftCardBackground', imagePath);
     };
     img.onerror = () => {
@@ -306,14 +304,14 @@ export class GiftCardsComponent implements OnInit {
       if (imagePath !== GIFT_CARD_DEFAULT_BACKGROUND) {
         this.showBackground(GIFT_CARD_DEFAULT_BACKGROUND);
       } else {
-        this.isLoadingBackground = false;
+        this.isLoadingBackground.set(false);
       }
     };
     img.src = imagePath;
   }
 
   getGiftCardBackground(): string {
-    return this.giftCardBackgroundPath;
+    return this.giftCardBackgroundPath();
   }
 
 

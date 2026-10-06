@@ -47,7 +47,7 @@ export interface PolicyRenderItem {
   standalone: true,
   imports: [RouterLink],
   templateUrl: './commercial-cleaning-policies.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./commercial-cleaning-policies.component.scss']
 })
 export class CommercialCleaningPoliciesComponent {

@@ -8,7 +8,7 @@ import { CardImageDirective } from '../shared/images/card-image.directive';
   standalone: true,
   imports: [RouterModule, CardImageDirective],
   templateUrl: './service-page.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './service-page.component.scss'
 })
 export class ServicePageComponent {

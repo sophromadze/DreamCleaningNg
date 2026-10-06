@@ -1,18 +1,18 @@
 <div class="mgc-tab">
 
-  @if (loading) {
+  @if (loading()) {
   <div class="mgc-state">Loading your gift cards…</div>
   }
 
-  @if (!loading && error) {
+  @if (!loading() && error()) {
   <div class="mgc-state mgc-state--error">
-    {{ error }}
+    {{ error() }}
     <button type="button" class="mgc-link" (click)="load()">Try again</button>
   </div>
   }
 
-  @if (!loading && !error) {
-    @if (cards.length === 0) {
+  @if (!loading() && !error()) {
+    @if (cards().length === 0) {
     <div class="mgc-empty">
       <p class="mgc-state">You haven't bought any gift cards yet.</p>
       <a class="mgc-btn" routerLink="/gift-cards" [queryParams]="{ mode: 'later' }">Buy a gift card</a>
@@ -26,9 +26,9 @@
     </div>
     }
 
-    @if (cards.length > 0) {
+    @if (cards().length > 0) {
     <ul class="mgc-list">
-      @for (card of cards; track trackById($index, card)) {
+      @for (card of cards(); track trackById($index, card)) {
       <li class="mgc-card" [class.is-muted]="card.status === 'FullyUsed' || !card.isActive">
         <div class="mgc-card__main">
           <div class="mgc-card__title">
@@ -65,32 +65,32 @@
         }
 
         <div class="mgc-actions">
-          @if (card.canSend && sendingCardId !== card.id) {
+          @if (card.canSend && sendingCardId() !== card.id) {
           <button type="button" class="mgc-btn" (click)="openSendForm(card)">
             <i class="fas fa-paper-plane" aria-hidden="true"></i> Send to someone
           </button>
           }
           @if (card.canResend) {
           <button type="button" class="mgc-btn mgc-btn--secondary"
-                  [disabled]="resendingCardId === card.id" (click)="resend(card)">
-            {{ resendingCardId === card.id ? 'Sending…' : 'Resend email' }}
+                  [disabled]="resendingCardId() === card.id" (click)="resend(card)">
+            {{ resendingCardId() === card.id ? 'Sending…' : 'Resend email' }}
           </button>
           }
           @if (card.usages.length > 0) {
           <button type="button" class="mgc-link" (click)="toggleUsage(card)"
-                  [attr.aria-expanded]="expandedUsageId === card.id" [attr.aria-controls]="'mgc-usage-' + card.id">
-            {{ expandedUsageId === card.id ? 'Hide usage history' : 'Usage history (' + card.usages.length + ')' }}
+                  [attr.aria-expanded]="expandedUsageId() === card.id" [attr.aria-controls]="'mgc-usage-' + card.id">
+            {{ expandedUsageId() === card.id ? 'Hide usage history' : 'Usage history (' + card.usages.length + ')' }}
           </button>
           }
         </div>
 
-        @if (notices[card.id]; as notice) {
+        @if (notices()[card.id]; as notice) {
         <div class="mgc-notice" [ngClass]="'mgc-notice--' + notice.kind" role="status">
           {{ notice.text }}
         </div>
         }
 
-        @if (expandedUsageId === card.id) {
+        @if (expandedUsageId() === card.id) {
         <ul class="mgc-usage" [id]="'mgc-usage-' + card.id">
           @for (use of card.usages; track $index) {
           <li>
@@ -102,7 +102,7 @@
         }
 
         <!-- Send to someone -->
-        @if (sendingCardId === card.id) {
+        @if (sendingCardId() === card.id) {
         <form class="mgc-send" [formGroup]="sendForm" (ngSubmit)="submitSend(card)" novalidate>
           <h3 class="mgc-send__title">Send this gift card</h3>
           <p class="mgc-send__note">
@@ -147,13 +147,13 @@
             }
           </div>
 
-          @if (sendError) {
-          <div class="mgc-notice mgc-notice--error" role="alert">{{ sendError }}</div>
+          @if (sendError()) {
+          <div class="mgc-notice mgc-notice--error" role="alert">{{ sendError() }}</div>
           }
 
           <div class="mgc-actions">
-            <button type="submit" class="mgc-btn" [disabled]="isSubmitting">{{ isSubmitting ? 'Sending…' : 'Send gift card' }}</button>
-            <button type="button" class="mgc-btn mgc-btn--secondary" [disabled]="isSubmitting" (click)="cancelSend()">Cancel</button>
+            <button type="submit" class="mgc-btn" [disabled]="isSubmitting()">{{ isSubmitting() ? 'Sending…' : 'Send gift card' }}</button>
+            <button type="button" class="mgc-btn mgc-btn--secondary" [disabled]="isSubmitting()" (click)="cancelSend()">Cancel</button>
           </div>
         </form>
         }

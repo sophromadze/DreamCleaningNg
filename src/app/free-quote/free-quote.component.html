@@ -14,7 +14,7 @@
 
   <div class="free-quote-content">
     <!-- Success Message -->
-    @if (showSuccess) {
+    @if (showSuccess()) {
     <div class="alert alert-success">
       <i [appIcon]="icons.faCircleCheck" class="success-icon"></i>
       <span>Thank you! We've received your request and will call you back soon.</span>
@@ -22,10 +22,10 @@
     }
 
     <!-- Error Message -->
-    @if (showError) {
+    @if (showError()) {
     <div class="alert alert-error">
       <i [appIcon]="icons.faCircleXmark" class="error-icon"></i>
-      <span>{{ errorMessage }}</span>
+      <span>{{ errorMessage() }}</span>
     </div>
     }
 
@@ -161,11 +161,11 @@
         <button 
           type="submit" 
           class="submit-btn"
-          [disabled]="isSubmitting || quoteForm.invalid">
-          @if (!isSubmitting) {
+          [disabled]="isSubmitting() || quoteForm.invalid">
+          @if (!isSubmitting()) {
           <span>Request a Quote</span>
           }
-          @if (isSubmitting) {
+          @if (isSubmitting()) {
           <span>Sending...</span>
           }
         </button>

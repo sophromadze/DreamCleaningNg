@@ -1,5 +1,5 @@
 // src/app/auth/verify-email/verify-email.component.ts
-import { Component, OnInit, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 
@@ -8,7 +8,7 @@ import { AuthService } from '../../services/auth.service';
   standalone: true,
   imports: [RouterLink],
   templateUrl: './verify-email.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./verify-email.component.scss']
 })
 export class VerifyEmailComponent implements OnInit {
@@ -16,9 +16,9 @@ export class VerifyEmailComponent implements OnInit {
   private authService = inject(AuthService);
   private router = inject(Router);
 
-  isVerifying = true;
-  isSuccess = false;
-  errorMessage = '';
+  readonly isVerifying = signal(true);
+  readonly isSuccess = signal(false);
+  readonly errorMessage = signal('');
 
   ngOnInit() {
     const raw = this.route.snapshot.queryParams['token'];
@@ -26,23 +26,23 @@ export class VerifyEmailComponent implements OnInit {
     if (token) {
       this.verifyEmail(token);
     } else {
-      this.errorMessage = 'Invalid verification link';
-      this.isVerifying = false;
+      this.errorMessage.set('Invalid verification link');
+      this.isVerifying.set(false);
     }
   }
 
   verifyEmail(token: string) {
     this.authService.verifyEmail(token).subscribe({
       next: () => {
-        this.isSuccess = true;
-        this.isVerifying = false;
+        this.isSuccess.set(true);
+        this.isVerifying.set(false);
         setTimeout(() => {
           this.router.navigate(['/login']);
         }, 3000);
       },
       error: (error) => {
-        this.errorMessage = error.error?.message || 'Verification failed. The link may be expired or invalid.';
-        this.isVerifying = false;
+        this.errorMessage.set(error.error?.message || 'Verification failed. The link may be expired or invalid.');
+        this.isVerifying.set(false);
       }
     });
   }

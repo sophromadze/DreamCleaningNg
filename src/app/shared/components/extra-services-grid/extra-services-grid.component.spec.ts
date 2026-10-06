@@ -52,19 +52,19 @@ describe('ExtraServicesGridComponent', () => {
     }
 
     beforeEach(() => {
-      component.extras = [extra()];
-      component.selections = [];
+      fixture.componentRef.setInput('extras', [extra()]);
+      fixture.componentRef.setInput('selections', []);
     });
 
     it('renders no price by default', () => {
       fixture.detectChanges();
 
-      expect(component.showPrices).toBe(false);
+      expect(component.showPrices()).toBe(false);
       expect(renderedPrices()).toEqual([]);
     });
 
     it('renders the price once switched on', () => {
-      component.showPrices = true;
+      fixture.componentRef.setInput('showPrices', true);
       fixture.detectChanges();
 
       expect(renderedPrices()).toEqual(['$30.00']);

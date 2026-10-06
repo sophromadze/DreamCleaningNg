@@ -1,4 +1,4 @@
-import { Component, Input, PLATFORM_ID, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, PLATFORM_ID, ChangeDetectionStrategy, inject, input, signal } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 
 /**
@@ -17,30 +17,29 @@ import { isPlatformBrowser } from '@angular/common';
   standalone: true,
   imports: [],
   templateUrl: './refer-a-friend.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './refer-a-friend.component.scss'
 })
 export class ReferAFriendComponent {
   /** The customer's referral code. Empty/absent hides the whole card. */
-  @Input() code: string | null | undefined;
+  readonly code = input<string | null>();
 
   /**
    * The invite URL the API handed back. Only used when it is absolute — a relative or missing
    * value falls back to the current origin, which is what makes the card usable in local dev.
    */
-  @Input() shareUrl: string | null | undefined;
+  readonly shareUrl = input<string | null>();
 
   /**
    * Named `heading` rather than `title`: an input called `title` collides with the host
    * element's own title attribute, which is how a component ends up with a tooltip nobody
    * asked for.
    */
-  @Input() heading = 'Refer a Friend';
-  @Input() hint =
-    'Both of you get a reward — your friend gets bonus points when they sign up, and you earn a reward balance when they complete their first cleaning.';
+  readonly heading = input('Refer a Friend');
+  readonly hint = input('Both of you get a reward — your friend gets bonus points when they sign up, and you earn a reward balance when they complete their first cleaning.');
 
   /** Which control just copied: 'link' | 'code' — for button feedback */
-  copyFeedback: 'link' | 'code' | null = null;
+  readonly copyFeedback = signal<'link' | 'code' | null>(null);
 
   private readonly isBrowser: boolean;
 
@@ -51,14 +50,14 @@ export class ReferAFriendComponent {
   }
 
   get hasCode(): boolean {
-    return !!this.code?.trim();
+    return !!this.code()?.trim();
   }
 
   /** Full invite URL; uses the API value when it is absolute, otherwise the current origin. */
   getReferralShareUrl(): string {
-    const code = this.code?.trim();
+    const code = this.code()?.trim();
     if (!code) return '';
-    const fromApi = this.shareUrl?.trim() ?? '';
+    const fromApi = this.shareUrl()?.trim() ?? '';
     if (/^https?:\/\//i.test(fromApi)) {
       return fromApi;
     }
@@ -72,17 +71,17 @@ export class ReferAFriendComponent {
     const url = this.getReferralShareUrl();
     if (!url) return;
     navigator.clipboard.writeText(url).then(() => {
-      this.copyFeedback = 'link';
-      setTimeout(() => (this.copyFeedback = null), 2000);
+      this.copyFeedback.set('link');
+      setTimeout(() => (this.copyFeedback.set(null)), 2000);
     });
   }
 
   copyReferralCode(): void {
-    const code = this.code?.trim();
+    const code = this.code()?.trim();
     if (!code) return;
     navigator.clipboard.writeText(code).then(() => {
-      this.copyFeedback = 'code';
-      setTimeout(() => (this.copyFeedback = null), 2000);
+      this.copyFeedback.set('code');
+      setTimeout(() => (this.copyFeedback.set(null)), 2000);
     });
   }
 
@@ -101,7 +100,7 @@ export class ReferAFriendComponent {
   }
 
   shareReferralCode(): void {
-    const code = this.code?.trim();
+    const code = this.code()?.trim();
     if (!code) return;
     if (navigator.share) {
       navigator.share({ text: code });

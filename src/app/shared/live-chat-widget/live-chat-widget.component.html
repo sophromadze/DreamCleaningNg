@@ -1,22 +1,22 @@
 <!-- Chat Bubble Button — hidden when admin disables chat -->
-@if (chatEnabled) {
+@if (chatEnabled()) {
 <button
   class="chat-bubble"
-  [class.has-unread]="unreadCount > 0"
+  [class.has-unread]="unreadCount() > 0"
   (click)="toggleChat()"
   aria-label="Open live chat"
 >
-  @if (unreadCount > 0) {
-  <span class="unread-badge">{{ unreadCount }}</span>
+  @if (unreadCount() > 0) {
+  <span class="unread-badge">{{ unreadCount() }}</span>
   }
   <!-- Chat icon (open state: show X) -->
-  @if (!isOpen) {
+  @if (!isOpen()) {
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white" width="28" height="28">
     <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H5.17L4 17.17V4h16v12z"/>
     <path d="M7 9h10v2H7zm0-3h10v2H7zm0 6h7v2H7z"/>
   </svg>
   }
-  @if (isOpen) {
+  @if (isOpen()) {
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white" width="24" height="24">
     <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
   </svg>
@@ -25,8 +25,8 @@
 }
 
 <!-- Chat Window -->
-@if (chatEnabled) {
-<div class="chat-window" [class.chat-window--open]="isOpen">
+@if (chatEnabled()) {
+<div class="chat-window" [class.chat-window--open]="isOpen()">
 
   <!-- Header -->
   <div class="chat-header">
@@ -35,15 +35,15 @@
       <div class="chat-header__subtitle">
         Live Chat Support
         <span class="status-dot"
-          [class.status-dot--connected]="!isChatStarted || status === 'connected'"
-          [class.status-dot--connecting]="isChatStarted && status === 'connecting'"></span>
+          [class.status-dot--connected]="!isChatStarted() || status() === 'connected'"
+          [class.status-dot--connecting]="isChatStarted() && status() === 'connecting'"></span>
         <span class="status-label">
-          {{ !isChatStarted ? 'Online' : status === 'connected' ? 'Online' : status === 'connecting' ? 'Connecting...' : 'Offline' }}
+          {{ !isChatStarted() ? 'Online' : status() === 'connected' ? 'Online' : status() === 'connecting' ? 'Connecting...' : 'Offline' }}
         </span>
       </div>
     </div>
     <div class="chat-header__actions">
-      @if (isChatStarted) {
+      @if (isChatStarted()) {
       <button class="btn-end-chat" (click)="endChat()">End Chat</button>
       }
       <button class="btn-close" (click)="toggleChat()" aria-label="Close chat">
@@ -55,7 +55,7 @@
   </div>
 
   <!-- Pre-chat form -->
-  @if (!isChatStarted) {
+  @if (!isChatStarted()) {
   <div class="pre-chat-form">
     <div class="pre-chat-form__greeting">Hi there! 👋</div>
     <div class="pre-chat-form__subtitle">How can we help you today?</div>
@@ -68,7 +68,7 @@
       [(ngModel)]="visitorName"
       (keydown.enter)="startChat()"
       maxlength="50"
-      [disabled]="!!currentUser"
+      [disabled]="!!currentUser()"
     />
     <button class="btn-start-chat" (click)="startChat()">Start Chat</button>
     <p class="pre-chat-form__note">We typically reply within minutes</p>
@@ -76,7 +76,7 @@
   }
 
   <!-- Active chat -->
-  @if (isChatStarted) {
+  @if (isChatStarted()) {
 
     <!-- Messages area -->
     <div
@@ -87,12 +87,12 @@
       (drop)="onDrop($event)"
     >
       <!-- Error toast -->
-      @if (errorMessage) {
-      <div class="error-toast">{{ errorMessage }}</div>
+      @if (errorMessage()) {
+      <div class="error-toast">{{ errorMessage() }}</div>
       }
 
       <!-- Drag-drop overlay -->
-      @if (isDraggingFile) {
+      @if (isDraggingFile()) {
       <div class="drag-overlay">
         <div class="drag-overlay__content">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="40" height="40">
@@ -104,7 +104,7 @@
       }
 
       <!-- Connecting spinner -->
-      @if (status === 'connecting') {
+      @if (status() === 'connecting') {
       <div class="connecting-state">
         <div class="spinner"></div>
         <span>Connecting...</span>
@@ -112,14 +112,14 @@
       }
 
       <!-- Empty state -->
-      @if (status === 'connected' && messages.length === 0) {
+      @if (status() === 'connected' && messages().length === 0) {
       <div class="empty-state">
         Send us a message and we'll reply right away!
       </div>
       }
 
       <!-- Messages -->
-      @for (msg of messages; track $index) {
+      @for (msg of messages(); track $index) {
       <div class="message-wrapper" [class.message-wrapper--visitor]="msg.isFromVisitor">
         @if (!msg.isFromVisitor) {
         <div class="message-sender-label">{{ msg.agentName || 'Dream Cleaning' }}</div>
@@ -182,7 +182,7 @@
       ></textarea>
       <button
         class="btn-send"
-        [disabled]="!messageText.trim()"
+        [disabled]="!messageText().trim()"
         (click)="sendMessage()"
         aria-label="Send message"
       >

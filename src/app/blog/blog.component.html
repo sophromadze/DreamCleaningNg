@@ -8,7 +8,7 @@
 
   <div class="container">
     <!-- Coming soon (admin master switch is OFF) -->
-    @if (!loading && comingSoon) {
+    @if (!loading() && comingSoon()) {
     <div class="empty-state">
       <p>Our blog is on the way — soon you'll find cleaning tips, room-by-room guides, and advice for keeping your NYC home spotless.</p>
       <a routerLink="/booking" class="btn btn-primary">Book a Cleaning</a>
@@ -16,25 +16,25 @@
     }
 
     <!-- Category filter -->
-    @if (!comingSoon && categories.length > 1) {
+    @if (!comingSoon() && categories().length > 1) {
     <div class="category-filter">
       <button
         type="button"
         class="category-chip"
-        [class.active]="!selectedCategory"
+        [class.active]="!selectedCategory()"
         (click)="selectCategory(null)">All</button>
-      @for (cat of categories; track cat) {
+      @for (cat of categories(); track cat) {
       <button
         type="button"
         class="category-chip"
-        [class.active]="selectedCategory === cat"
+        [class.active]="selectedCategory() === cat"
         (click)="selectCategory(cat)">{{ cat }}</button>
       }
     </div>
     }
 
     <!-- Loading skeleton: shimmer the values, keep structure stable -->
-    @if (loading) {
+    @if (loading()) {
     <div class="posts-grid">
       @for (i of [1, 2, 3, 4, 5, 6]; track i) {
       <div class="post-card skeleton">
@@ -49,9 +49,9 @@
     }
 
     <!-- Posts -->
-    @if (!loading && posts.length > 0) {
+    @if (!loading() && posts().length > 0) {
     <div class="posts-grid">
-      @for (post of posts; track post.slug) {
+      @for (post of posts(); track post.slug) {
       <a class="post-card" [routerLink]="['/blog', post.slug]">
         <div class="card-image">
           @if (post.featuredImagePath) {
@@ -77,15 +77,15 @@
     }
 
     <!-- Empty / error -->
-    @if (!loading && !comingSoon && posts.length === 0) {
+    @if (!loading() && !comingSoon() && posts().length === 0) {
     <div class="empty-state">
-      @if (loadFailed) {
+      @if (loadFailed()) {
       <p>We couldn't load articles right now — please try again in a moment.</p>
       }
-      @if (!loadFailed && selectedCategory) {
-      <p>No articles in "{{ selectedCategory }}" yet.</p>
+      @if (!loadFailed() && selectedCategory()) {
+      <p>No articles in "{{ selectedCategory() }}" yet.</p>
       }
-      @if (!loadFailed && !selectedCategory) {
+      @if (!loadFailed() && !selectedCategory()) {
       <p>Articles are coming soon — check back shortly.</p>
       }
       <a routerLink="/booking" class="btn btn-primary">Book a Cleaning</a>
@@ -93,17 +93,17 @@
     }
 
     <!-- Pagination -->
-    @if (!loading && totalPages > 1) {
+    @if (!loading() && totalPages() > 1) {
     <nav class="pagination" aria-label="Blog pages">
-      <button type="button" class="page-btn" [disabled]="page === 1" (click)="goToPage(page - 1)">‹</button>
-      @for (p of pageNumbers; track p) {
+      <button type="button" class="page-btn" [disabled]="page() === 1" (click)="goToPage(page() - 1)">‹</button>
+      @for (p of pageNumbers(); track p) {
       <button
         type="button"
         class="page-btn"
-        [class.active]="p === page"
+        [class.active]="p === page()"
         (click)="goToPage(p)">{{ p }}</button>
       }
-      <button type="button" class="page-btn" [disabled]="page === totalPages" (click)="goToPage(page + 1)">›</button>
+      <button type="button" class="page-btn" [disabled]="page() === totalPages()" (click)="goToPage(page() + 1)">›</button>
     </nav>
     }
   </div>

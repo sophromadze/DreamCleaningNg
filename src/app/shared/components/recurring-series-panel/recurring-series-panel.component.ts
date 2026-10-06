@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, OnChanges, SimpleChanges, ChangeDetectionStrategy, inject, output, signal, computed, input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { finalize } from 'rxjs/operators';
@@ -81,7 +81,7 @@ import { extractApiErrorMessage } from '../../../utils/http-error.utils';
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './recurring-series-panel.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./recurring-series-panel.component.scss']
 })
 /**
@@ -103,62 +103,62 @@ import { extractApiErrorMessage } from '../../../utils/http-error.utils';
 export class RecurringSeriesPanelComponent implements OnChanges {
   private recurring = inject(RecurringOrderService);
 
-  @Input() orderId: number | null = null;
+  readonly orderId = input<number | null>(null);
 
   /** Whether the signed-in admin may set a series up (Permission.Create on the backend). */
-  @Input() canCreate = false;
+  readonly canCreate = input(false);
 
   /** Whether they may edit or generate (Permission.Update). */
-  @Input() canUpdate = false;
+  readonly canUpdate = input(false);
 
   /**
    * The order's own service date (yyyy-MM-dd…). Seeds the first service day of a NEW plan when
    * "First cleaning" is left blank, because blank means "this order's date".
    */
-  @Input() orderServiceDate: string | Date | null = null;
+  readonly orderServiceDate = input<string | Date | null>(null);
 
   /** Raised after a generation pass so the host can refresh its order list. */
-  @Output() ordersGenerated = new EventEmitter<number[]>();
+  readonly ordersGenerated = output<number[]>();
 
-  series: RecurringSeries | null = null;
-  loading = false;
-  saving = false;
-  generating = false;
-  errorMessage = '';
-  noticeMessage = '';
+  readonly series = signal<RecurringSeries | null>(null, { equal: () => false });
+  readonly loading = signal(false);
+  readonly saving = signal(false);
+  readonly generating = signal(false);
+  readonly errorMessage = signal('');
+  readonly noticeMessage = signal('');
 
   /** The setup / edit form is only rendered once opened, so the card stays quiet by default. */
-  editing = false;
-  startingNew = false;
+  readonly editing = signal(false);
+  readonly startingNew = signal(false);
 
   // ── Form ────────────────────────────────────────────────────────────────────────────────
-  intervalValue = 1;
-  intervalUnit: RecurrenceIntervalUnit = RecurrenceIntervalUnit.Weeks;
-  anchorDate = '';
-  endDate = '';
-  copyCleanerAssignments = false;
-  autoRequestPayment = true;
-  serviceTime = '';
-  futureOrdersAction: 'Keep' | 'Regenerate' | null = null;
-  pendingAction: { kind: 'pause' | 'resume' | 'stop' | 'skip'; orderId?: number } | null = null;
-  isActive = true;
-  notes = '';
+  readonly intervalValue = signal(1);
+  readonly intervalUnit = signal<RecurrenceIntervalUnit>(RecurrenceIntervalUnit.Weeks);
+  readonly anchorDate = signal('');
+  readonly endDate = signal('');
+  readonly copyCleanerAssignments = signal(false);
+  readonly autoRequestPayment = signal(true);
+  readonly serviceTime = signal('');
+  readonly futureOrdersAction = signal<'Keep' | 'Regenerate' | null>(null);
+  readonly pendingAction = signal<{ kind: 'pause' | 'resume' | 'stop' | 'skip'; orderId?: number } | null>(null);
+  readonly isActive = signal(true);
+  readonly notes = signal('');
 
   // ── Which days, and how many upcoming cleanings (2026-10) ──
   /** Weekly plans: the weekdays to clean on (0 = Sunday). Any combination; none is hard-coded away. */
-  serviceDaysOfWeek: number[] = [];
+  readonly serviceDaysOfWeek = signal<number[]>([]);
   /** Monthly plans: the calendar days to clean on. A day a month lacks is skipped that month. */
-  serviceDaysOfMonth: number[] = [];
+  readonly serviceDaysOfMonth = signal<number[]>([]);
   /** How many upcoming cleanings the plan keeps generated — a count of ORDERS, not of days. */
-  upcomingOccurrenceTarget: number | null = DEFAULT_UPCOMING_OCCURRENCE_TARGET;
+  readonly upcomingOccurrenceTarget = signal<number | null>(DEFAULT_UPCOMING_OCCURRENCE_TARGET);
 
   readonly weekdayChips = WEEKDAY_CHIPS;
   readonly monthDayChoices = Array.from({ length: 31 }, (_, i) => i + 1);
   readonly maxUpcoming = MAX_UPCOMING_OCCURRENCE_TARGET;
 
   // ── Commercial contract ──
-  contractOptions: RecurringContractOption[] = [];
-  contractId: number | null = null;
+  readonly contractOptions = signal<RecurringContractOption[]>([]);
+  readonly contractId = signal<number | null>(null);
 
   // ── Suggested "First recurring cleaning" (new plans only) ──
   //
@@ -178,16 +178,16 @@ export class RecurringSeriesPanelComponent implements OnChanges {
 
   /** Re-suggest after anything the suggestion depends on changes. */
   refreshSuggestedFirstCleaning(): void {
-    if (this.anchorTouched || (this.series && !this.startingNew)) return;
+    if (this.anchorTouched || (this.series() && !this.startingNew())) return;
     const source = this.sourceServiceDate;
     if (!source) return;
-    this.anchorDate = nextRecurrenceDateAfter(source, this.intervalUnit, Number(this.intervalValue) || 1,
-      this.serviceDaysOfWeek, this.serviceDaysOfMonth, this.cycleWeekStart) ?? '';
+    this.anchorDate.set(nextRecurrenceDateAfter(source, this.intervalUnit(), Number(this.intervalValue()) || 1,
+      this.serviceDaysOfWeek(), this.serviceDaysOfMonth(), this.cycleWeekStart) ?? '');
   }
 
   /** The source order's own service date, yyyy-MM-dd. */
   private get sourceServiceDate(): string {
-    const own = this.orderServiceDate;
+    const own = this.orderServiceDate();
     const text = own instanceof Date
       ? `${own.getFullYear()}-${String(own.getMonth() + 1).padStart(2, '0')}-${String(own.getDate()).padStart(2, '0')}`
       : (own || '');
@@ -222,12 +222,12 @@ export class RecurringSeriesPanelComponent implements OnChanges {
    * gets saved as the wrong one. Only the field belonging to the active mode is ever sent, and
    * switching mode clears the other — the server refuses both at once.
    */
-  loyaltyDiscountMode: 'percent' | 'fixed' = 'percent';
-  recurringLoyaltyDiscountPercent: number | null = null;
-  recurringLoyaltyDiscountAmount: number | null = null;
-  pricePreview: RecurringPricePreview | null = null;
-  previewLoading = false;
-  previewError = '';
+  readonly loyaltyDiscountMode = signal<'percent' | 'fixed'>('percent');
+  readonly recurringLoyaltyDiscountPercent = signal<number | null>(null);
+  readonly recurringLoyaltyDiscountAmount = signal<number | null>(null);
+  readonly pricePreview = signal<RecurringPricePreview | null>(null);
+  readonly previewLoading = signal(false);
+  readonly previewError = signal('');
   private previewRequest = 0;
 
   readonly units: { value: RecurrenceIntervalUnit; label: string }[] = [
@@ -243,24 +243,25 @@ export class RecurringSeriesPanelComponent implements OnChanges {
   }
 
   private load(): void {
-    this.series = null;
-    this.editing = false;
-    this.startingNew = false;
-    this.errorMessage = '';
-    this.noticeMessage = '';
+    this.series.set(null);
+    this.editing.set(false);
+    this.startingNew.set(false);
+    this.errorMessage.set('');
+    this.noticeMessage.set('');
 
-    if (!this.orderId) return;
+    const orderId = this.orderId();
+    if (!orderId) return;
 
-    this.loading = true;
-    this.recurring.forOrder(this.orderId)
-      .pipe(finalize(() => { this.loading = false; }))
+    this.loading.set(true);
+    this.recurring.forOrder(orderId)
+      .pipe(finalize(() => { this.loading.set(false); }))
       .subscribe({
         next: (series) => {
-          this.series = series;
+          this.series.set(series);
           if (series) this.seedFormFrom(series);
         },
         error: (err) => {
-          this.errorMessage = extractApiErrorMessage(err, 'Could not load the recurring schedule.');
+          this.errorMessage.set(extractApiErrorMessage(err, 'Could not load the recurring schedule.'));
         }
       });
   }
@@ -268,60 +269,60 @@ export class RecurringSeriesPanelComponent implements OnChanges {
   private seedFormFrom(series: RecurringSeries): void {
     // The stored column says which way the agreement was written. Percentage when neither is
     // set, so a series with no discount opens on the default rather than on whatever was last used.
-    this.recurringLoyaltyDiscountPercent = series.recurringLoyaltyDiscountPercent ?? null;
-    this.recurringLoyaltyDiscountAmount = series.recurringLoyaltyDiscountAmount ?? null;
-    this.loyaltyDiscountMode = series.recurringLoyaltyDiscountAmount != null ? 'fixed' : 'percent';
-    this.intervalValue = series.intervalValue;
-    this.intervalUnit = series.intervalUnit;
-    this.anchorDate = (series.anchorDate || '').slice(0, 10);
-    this.serviceTime = (series.serviceTime || '').slice(0, 5);
-    this.futureOrdersAction = null;
-    this.endDate = (series.endDate || '').slice(0, 10);
-    this.copyCleanerAssignments = series.copyCleanerAssignments;
-    this.autoRequestPayment = series.autoRequestPayment;
-    this.isActive = series.isActive;
-    this.notes = series.notes || '';
-    this.serviceDaysOfWeek = [...(series.serviceDaysOfWeek ?? [])];
-    this.serviceDaysOfMonth = [...(series.serviceDaysOfMonth ?? [])];
-    this.upcomingOccurrenceTarget = series.upcomingOccurrenceTarget ?? null;
-    this.contractId = series.contract?.id ?? null;
-    if (series.contract && !this.contractOptions.some(c => c.id === series.contract!.id)) {
-      this.contractOptions = [series.contract, ...this.contractOptions];
+    this.recurringLoyaltyDiscountPercent.set(series.recurringLoyaltyDiscountPercent ?? null);
+    this.recurringLoyaltyDiscountAmount.set(series.recurringLoyaltyDiscountAmount ?? null);
+    this.loyaltyDiscountMode.set(series.recurringLoyaltyDiscountAmount != null ? 'fixed' : 'percent');
+    this.intervalValue.set(series.intervalValue);
+    this.intervalUnit.set(series.intervalUnit);
+    this.anchorDate.set((series.anchorDate || '').slice(0, 10));
+    this.serviceTime.set((series.serviceTime || '').slice(0, 5));
+    this.futureOrdersAction.set(null);
+    this.endDate.set((series.endDate || '').slice(0, 10));
+    this.copyCleanerAssignments.set(series.copyCleanerAssignments);
+    this.autoRequestPayment.set(series.autoRequestPayment);
+    this.isActive.set(series.isActive);
+    this.notes.set(series.notes || '');
+    this.serviceDaysOfWeek.set([...(series.serviceDaysOfWeek ?? [])]);
+    this.serviceDaysOfMonth.set([...(series.serviceDaysOfMonth ?? [])]);
+    this.upcomingOccurrenceTarget.set(series.upcomingOccurrenceTarget ?? null);
+    this.contractId.set(series.contract?.id ?? null);
+    if (series.contract && !this.contractOptions().some(c => c.id === series.contract!.id)) {
+      this.contractOptions.set([series.contract, ...this.contractOptions()]);
     }
   }
 
   startSetup(startNew = false): void {
-    if (startNew && (!this.canCreate || !this.series?.stoppedAt || this.series.templateOrderId !== this.orderId)) return;
-    this.startingNew = startNew;
-    this.editing = true;
-    this.errorMessage = '';
-    this.noticeMessage = '';
+    if (startNew && (!this.canCreate() || !this.series()?.stoppedAt || this.series()!.templateOrderId !== this.orderId())) return;
+    this.startingNew.set(startNew);
+    this.editing.set(true);
+    this.errorMessage.set('');
+    this.noticeMessage.set('');
 
-    if (!this.series || startNew) {
+    if (!this.series() || startNew) {
       // A fortnightly clean is by far the commonest arrangement, and an empty anchor means
       // "the order's own service date" — which is what "repeat this one" means.
-      this.recurringLoyaltyDiscountPercent = null;
-      this.recurringLoyaltyDiscountAmount = null;
-      this.loyaltyDiscountMode = 'percent';
-      this.intervalValue = 2;
-      this.intervalUnit = RecurrenceIntervalUnit.Weeks;
-      this.anchorDate = '';
-      this.endDate = '';
-      this.copyCleanerAssignments = false;
-      this.autoRequestPayment = true;
-      this.serviceTime = '';
-      this.futureOrdersAction = null;
-      this.isActive = true;
-      this.notes = '';
-      this.serviceDaysOfWeek = [];
-      this.serviceDaysOfMonth = [];
-      this.upcomingOccurrenceTarget = DEFAULT_UPCOMING_OCCURRENCE_TARGET;
-      this.contractId = null;
+      this.recurringLoyaltyDiscountPercent.set(null);
+      this.recurringLoyaltyDiscountAmount.set(null);
+      this.loyaltyDiscountMode.set('percent');
+      this.intervalValue.set(2);
+      this.intervalUnit.set(RecurrenceIntervalUnit.Weeks);
+      this.anchorDate.set('');
+      this.endDate.set('');
+      this.copyCleanerAssignments.set(false);
+      this.autoRequestPayment.set(true);
+      this.serviceTime.set('');
+      this.futureOrdersAction.set(null);
+      this.isActive.set(true);
+      this.notes.set('');
+      this.serviceDaysOfWeek.set([]);
+      this.serviceDaysOfMonth.set([]);
+      this.upcomingOccurrenceTarget.set(DEFAULT_UPCOMING_OCCURRENCE_TARGET);
+      this.contractId.set(null);
       this.anchorTouched = false;
       this.seedDaysForUnit();
       this.refreshSuggestedFirstCleaning();
     }
-    this.loadContractOptions(!this.series || startNew);
+    this.loadContractOptions(!this.series() || startNew);
     this.refreshPricePreview();
   }
 
@@ -331,17 +332,18 @@ export class RecurringSeriesPanelComponent implements OnChanges {
    * saved before day selection keeps its empty list, which means its original single-date rule.
    */
   private seedDaysForUnit(): void {
-    const own = this.orderServiceDate instanceof Date
-      ? `${this.orderServiceDate.getFullYear()}-${String(this.orderServiceDate.getMonth() + 1).padStart(2, '0')}-${String(this.orderServiceDate.getDate()).padStart(2, '0')}`
-      : this.orderServiceDate;
-    const date = (own || this.anchorDate || '').slice(0, 10);
+    const orderServiceDate = this.orderServiceDate();
+    const own = orderServiceDate instanceof Date
+      ? `${orderServiceDate.getFullYear()}-${String(orderServiceDate.getMonth() + 1).padStart(2, '0')}-${String(orderServiceDate.getDate()).padStart(2, '0')}`
+      : orderServiceDate;
+    const date = (own || this.anchorDate() || '').slice(0, 10);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return;
     const [y, m, d] = date.split('-').map(Number);
-    if (this.intervalUnit === RecurrenceIntervalUnit.Weeks && this.serviceDaysOfWeek.length === 0) {
-      this.serviceDaysOfWeek = [new Date(y, m - 1, d).getDay()];
+    if (this.intervalUnit() === RecurrenceIntervalUnit.Weeks && this.serviceDaysOfWeek().length === 0) {
+      this.serviceDaysOfWeek.set([new Date(y, m - 1, d).getDay()]);
     }
-    if (this.intervalUnit === RecurrenceIntervalUnit.Months && this.serviceDaysOfMonth.length === 0) {
-      this.serviceDaysOfMonth = [d];
+    if (this.intervalUnit() === RecurrenceIntervalUnit.Months && this.serviceDaysOfMonth().length === 0) {
+      this.serviceDaysOfMonth.set([d]);
     }
   }
 
@@ -351,55 +353,55 @@ export class RecurringSeriesPanelComponent implements OnChanges {
   }
 
   private loadContractOptions(preselect: boolean): void {
-    const id = this.series?.templateOrderId ?? this.orderId;
+    const id = this.series()?.templateOrderId ?? this.orderId();
     if (!id) return;
     this.recurring.contractOptions(id).subscribe({
       next: options => {
-        const current = this.series?.contract;
-        this.contractOptions = current && !options.contracts.some(c => c.id === current.id)
-          ? [current, ...options.contracts] : options.contracts;
-        if (preselect && this.contractId == null && options.suggestedContractId != null) {
-          this.contractId = options.suggestedContractId;
+        const current = this.series()?.contract;
+        this.contractOptions.set(current && !options.contracts.some(c => c.id === current.id)
+          ? [current, ...options.contracts] : options.contracts);
+        if (preselect && this.contractId() == null && options.suggestedContractId != null) {
+          this.contractId.set(options.suggestedContractId);
           this.refreshSuggestedFirstCleaning();
         }
       },
       // Optional: a plan with no contract is the ordinary residential case.
-      error: () => { this.contractOptions = this.series?.contract ? [this.series.contract] : []; }
+      error: () => { const contract = this.series()?.contract; this.contractOptions.set(contract ? [contract] : []); }
     });
   }
 
   /** True while editing a plan saved BEFORE day selection existed, with no days chosen. */
   get isLegacyPattern(): boolean {
-    const s = this.series;
-    if (!s || this.startingNew || s.intervalUnit !== this.intervalUnit) return false;
-    if (this.intervalUnit === RecurrenceIntervalUnit.Weeks)
-      return !(s.serviceDaysOfWeek?.length) && this.serviceDaysOfWeek.length === 0;
-    if (this.intervalUnit === RecurrenceIntervalUnit.Months)
-      return !(s.serviceDaysOfMonth?.length) && this.serviceDaysOfMonth.length === 0;
+    const s = this.series();
+    if (!s || this.startingNew() || s.intervalUnit !== this.intervalUnit()) return false;
+    if (this.intervalUnit() === RecurrenceIntervalUnit.Weeks)
+      return !(s.serviceDaysOfWeek?.length) && this.serviceDaysOfWeek().length === 0;
+    if (this.intervalUnit() === RecurrenceIntervalUnit.Months)
+      return !(s.serviceDaysOfMonth?.length) && this.serviceDaysOfMonth().length === 0;
     return false;
   }
 
   /** A plan saved before the count existed may keep its 30-day window until a number is chosen. */
   get allowsLegacyWindow(): boolean {
-    return !!this.series && !this.startingNew && this.series.upcomingOccurrenceTarget == null;
+    return !!this.series() && !this.startingNew() && this.series()!.upcomingOccurrenceTarget == null;
   }
 
   toggleWeekday(day: number): void {
-    this.serviceDaysOfWeek = this.serviceDaysOfWeek.includes(day)
-      ? this.serviceDaysOfWeek.filter(d => d !== day)
-      : [...this.serviceDaysOfWeek, day].sort((a, b) => a - b);
+    this.serviceDaysOfWeek.set(this.serviceDaysOfWeek().includes(day)
+      ? this.serviceDaysOfWeek().filter(d => d !== day)
+      : [...this.serviceDaysOfWeek(), day].sort((a, b) => a - b));
     this.refreshSuggestedFirstCleaning();
   }
 
   toggleMonthDay(day: number): void {
-    this.serviceDaysOfMonth = this.serviceDaysOfMonth.includes(day)
-      ? this.serviceDaysOfMonth.filter(d => d !== day)
-      : [...this.serviceDaysOfMonth, day].sort((a, b) => a - b);
+    this.serviceDaysOfMonth.set(this.serviceDaysOfMonth().includes(day)
+      ? this.serviceDaysOfMonth().filter(d => d !== day)
+      : [...this.serviceDaysOfMonth(), day].sort((a, b) => a - b));
     this.refreshSuggestedFirstCleaning();
   }
 
   get selectedContract(): RecurringContractOption | null {
-    return this.contractOptions.find(c => c.id === this.contractId) ?? null;
+    return this.contractOptions().find(c => c.id === this.contractId()) ?? null;
   }
 
   /**
@@ -442,68 +444,62 @@ export class RecurringSeriesPanelComponent implements OnChanges {
    * into "$15 off" on a cleaning that happened to cost $100 today.
    */
   setLoyaltyDiscountMode(mode: 'percent' | 'fixed'): void {
-    if (this.loyaltyDiscountMode === mode) return;
-    this.loyaltyDiscountMode = mode;
-    this.recurringLoyaltyDiscountPercent = null;
-    this.recurringLoyaltyDiscountAmount = null;
+    if (this.loyaltyDiscountMode() === mode) return;
+    this.loyaltyDiscountMode.set(mode);
+    this.recurringLoyaltyDiscountPercent.set(null);
+    this.recurringLoyaltyDiscountAmount.set(null);
     this.refreshPricePreview();
   }
 
   /** The value actually sent, as the mode decides — never both, which the server refuses. */
-  private get loyaltyPercentToSend(): number | null {
-    return this.loyaltyDiscountMode === 'percent' ? this.recurringLoyaltyDiscountPercent : null;
-  }
+  private readonly loyaltyPercentToSend = computed<number | null>(() => this.loyaltyDiscountMode() === 'percent' ? this.recurringLoyaltyDiscountPercent() : null);
 
-  private get loyaltyAmountToSend(): number | null {
-    return this.loyaltyDiscountMode === 'fixed' ? this.recurringLoyaltyDiscountAmount : null;
-  }
+  private readonly loyaltyAmountToSend = computed<number | null>(() => this.loyaltyDiscountMode() === 'fixed' ? this.recurringLoyaltyDiscountAmount() : null);
 
   refreshPricePreview(): void {
-    const id = this.series?.templateOrderId ?? this.orderId;
+    const id = this.series()?.templateOrderId ?? this.orderId();
     const version = ++this.previewRequest;
-    this.pricePreview = null; this.previewError = '';
+    this.pricePreview.set(null); this.previewError.set('');
     if (!id) return;
-    this.previewLoading = true;
-    this.recurring.preview(id, this.loyaltyPercentToSend, this.loyaltyAmountToSend).subscribe({
-      next: preview => { if (version === this.previewRequest) { this.pricePreview = preview; this.previewLoading = false; } },
-      error: err => { if (version === this.previewRequest) { this.previewLoading = false; this.previewError = extractApiErrorMessage(err, 'Could not calculate the recurring estimate.'); } }
+    this.previewLoading.set(true);
+    this.recurring.preview(id, this.loyaltyPercentToSend(), this.loyaltyAmountToSend()).subscribe({
+      next: preview => { if (version === this.previewRequest) { this.pricePreview.set(preview); this.previewLoading.set(false); } },
+      error: err => { if (version === this.previewRequest) { this.previewLoading.set(false); this.previewError.set(extractApiErrorMessage(err, 'Could not calculate the recurring estimate.')); } }
     });
   }
 
   cancelEdit(): void {
-    this.editing = false;
-    this.startingNew = false;
-    if (this.series) this.seedFormFrom(this.series);
+    this.editing.set(false);
+    this.startingNew.set(false);
+    if (this.series()) this.seedFormFrom(this.series()!);
   }
 
   /**
    * The one configuration this system does not support yet, stated where the admin is choosing
    * it rather than after they press Save. The server refuses it too — this is the courtesy.
    */
-  get dailyNotSupported(): boolean {
-    return this.intervalUnit === RecurrenceIntervalUnit.Days && this.intervalValue === 1;
-  }
+  readonly dailyNotSupported = computed<boolean>(() => this.intervalUnit() === RecurrenceIntervalUnit.Days && this.intervalValue() === 1);
 
   get validationError(): string | null {
-    if (this.needsFutureOrdersChoice && !this.futureOrdersAction) return 'Choose whether to keep or regenerate the future schedule.';
-    if (this.loyaltyDiscountMode === 'percent' && this.recurringLoyaltyDiscountPercent != null
-      && (this.recurringLoyaltyDiscountPercent < 0 || this.recurringLoyaltyDiscountPercent > 100))
+    if (this.needsFutureOrdersChoice && !this.futureOrdersAction()) return 'Choose whether to keep or regenerate the future schedule.';
+    if (this.loyaltyDiscountMode() === 'percent' && this.recurringLoyaltyDiscountPercent() != null
+      && (this.recurringLoyaltyDiscountPercent()! < 0 || this.recurringLoyaltyDiscountPercent()! > 100))
       return 'Recurring loyalty must be between 0% and 100%.';
-    if (this.loyaltyDiscountMode === 'fixed' && this.recurringLoyaltyDiscountAmount != null
-      && this.recurringLoyaltyDiscountAmount < 0)
+    if (this.loyaltyDiscountMode() === 'fixed' && this.recurringLoyaltyDiscountAmount() != null
+      && this.recurringLoyaltyDiscountAmount()! < 0)
       return 'A fixed recurring discount cannot be negative.';
-    if (this.intervalValue < 1) return 'The interval must be at least 1.';
-    if (this.intervalUnit === RecurrenceIntervalUnit.Weeks && this.serviceDaysOfWeek.length === 0 && !this.isLegacyPattern)
+    if (this.intervalValue() < 1) return 'The interval must be at least 1.';
+    if (this.intervalUnit() === RecurrenceIntervalUnit.Weeks && this.serviceDaysOfWeek().length === 0 && !this.isLegacyPattern)
       return 'Choose at least one service day.';
-    if (this.intervalUnit === RecurrenceIntervalUnit.Months && this.serviceDaysOfMonth.length === 0 && !this.isLegacyPattern)
+    if (this.intervalUnit() === RecurrenceIntervalUnit.Months && this.serviceDaysOfMonth().length === 0 && !this.isLegacyPattern)
       return 'Choose at least one day of the month.';
-    const target = this.upcomingOccurrenceTarget as number | string | null;
+    const target = this.upcomingOccurrenceTarget() as number | string | null;
     if (target == null || target === '') {
       if (!this.allowsLegacyWindow) return 'Choose how many upcoming cleanings to generate.';
     } else if (!Number.isInteger(Number(target)) || Number(target) < 1 || Number(target) > this.maxUpcoming) {
       return `Generate between 1 and ${this.maxUpcoming} upcoming cleanings (a whole number).`;
     }
-    if (this.dailyNotSupported) {
+    if (this.dailyNotSupported()) {
       return 'Daily recurrence is not supported yet. Choose an interval of 2 days or more, '
            + 'or use weeks or months.';
     }
@@ -511,103 +507,104 @@ export class RecurringSeriesPanelComponent implements OnChanges {
   }
 
   save(): void {
-    if (this.saving || !this.orderId) return;
+    const orderId = this.orderId();
+    if (this.saving() || !orderId) return;
 
     const invalid = this.validationError;
-    if (invalid) { this.errorMessage = invalid; return; }
+    if (invalid) { this.errorMessage.set(invalid); return; }
 
-    this.errorMessage = '';
-    this.saving = true;
+    this.errorMessage.set('');
+    this.saving.set(true);
 
     const dto: SaveRecurringSeries = {
-      recurringLoyaltyDiscountPercent: this.loyaltyPercentToSend,
-      recurringLoyaltyDiscountAmount: this.loyaltyAmountToSend,
-      serviceTime: this.serviceTime ? `${this.serviceTime}:00` : null,
-      futureOrdersAction: this.futureOrdersAction,
-      intervalValue: this.intervalValue,
-      intervalUnit: this.intervalUnit,
-      serviceDaysOfWeek: this.intervalUnit === RecurrenceIntervalUnit.Weeks && this.serviceDaysOfWeek.length
-        ? [...this.serviceDaysOfWeek] : null,
-      serviceDaysOfMonth: this.intervalUnit === RecurrenceIntervalUnit.Months && this.serviceDaysOfMonth.length
-        ? [...this.serviceDaysOfMonth] : null,
+      recurringLoyaltyDiscountPercent: this.loyaltyPercentToSend(),
+      recurringLoyaltyDiscountAmount: this.loyaltyAmountToSend(),
+      serviceTime: this.serviceTime() ? `${this.serviceTime()}:00` : null,
+      futureOrdersAction: this.futureOrdersAction(),
+      intervalValue: this.intervalValue(),
+      intervalUnit: this.intervalUnit(),
+      serviceDaysOfWeek: this.intervalUnit() === RecurrenceIntervalUnit.Weeks && this.serviceDaysOfWeek().length
+        ? [...this.serviceDaysOfWeek()] : null,
+      serviceDaysOfMonth: this.intervalUnit() === RecurrenceIntervalUnit.Months && this.serviceDaysOfMonth().length
+        ? [...this.serviceDaysOfMonth()] : null,
       upcomingOccurrenceTarget: this.targetToSend,
-      contractId: this.contractId,
-      anchorDate: this.anchorDate || null,
-      endDate: this.endDate || null,
-      copyCleanerAssignments: this.copyCleanerAssignments,
+      contractId: this.contractId(),
+      anchorDate: this.anchorDate() || null,
+      endDate: this.endDate() || null,
+      copyCleanerAssignments: this.copyCleanerAssignments(),
       // Never per-visit requests under a weekly flat fee — the server enforces it too.
-      autoRequestPayment: this.billingControlledByContract ? false : this.autoRequestPayment,
-      isActive: this.isActive,
-      notes: this.notes || null
+      autoRequestPayment: this.billingControlledByContract ? false : this.autoRequestPayment(),
+      isActive: this.isActive(),
+      notes: this.notes() || null
     };
 
-    const request = this.series && !this.startingNew
-      ? this.recurring.update(this.series.id, dto)
-      : this.recurring.createFromOrder(this.orderId, dto);
+    const request = this.series() && !this.startingNew()
+      ? this.recurring.update(this.series()!.id, dto)
+      : this.recurring.createFromOrder(orderId, dto);
 
     request
-      .pipe(finalize(() => { this.saving = false; }))
+      .pipe(finalize(() => { this.saving.set(false); }))
       .subscribe({
         next: (series) => {
-          this.series = series;
+          this.series.set(series);
           this.seedFormFrom(series);
-          this.editing = false;
-          this.startingNew = false;
-          this.noticeMessage = ['Schedule saved.', ...(series.generationWarnings || [])].join(' ');
-          this.errorMessage = series.generationWarnings?.join(' ') || '';
+          this.editing.set(false);
+          this.startingNew.set(false);
+          this.noticeMessage.set(['Schedule saved.', ...(series.generationWarnings || [])].join(' '));
+          this.errorMessage.set(series.generationWarnings?.join(' ') || '');
           this.ordersGenerated.emit(series.occurrences.map(o => o.orderId));
         },
         error: (err) => {
-          this.errorMessage = extractApiErrorMessage(err, 'Could not save the recurring schedule.');
+          this.errorMessage.set(extractApiErrorMessage(err, 'Could not save the recurring schedule.'));
         }
       });
   }
 
   generateNow(): void {
-    if (this.generating || !this.series) return;
+    if (this.generating() || !this.series()) return;
 
-    this.generating = true;
-    this.errorMessage = '';
-    this.noticeMessage = '';
+    this.generating.set(true);
+    this.errorMessage.set('');
+    this.noticeMessage.set('');
 
-    this.recurring.generate(this.series.id)
-      .pipe(finalize(() => { this.generating = false; }))
+    this.recurring.generate(this.series()!.id)
+      .pipe(finalize(() => { this.generating.set(false); }))
       .subscribe({
         next: (result) => {
           // The SKIPPED count is reported, not hidden: it is how an admin can see for themselves
           // that pressing this twice does nothing rather than having to trust that it does not.
-          const target = this.series?.upcomingOccurrenceTarget;
-          this.noticeMessage = result.createdCount > 0
+          const target = this.series()?.upcomingOccurrenceTarget;
+          this.noticeMessage.set(result.createdCount > 0
             ? `${result.createdCount} cleaning(s) created.`
             : target
               ? `Nothing to create — the plan already has its ${target} upcoming cleaning(s).`
-              : 'Nothing to create — every cleaning in the next 30 days already exists.';
+              : 'Nothing to create — every cleaning in the next 30 days already exists.');
 
           if (result.warnings.length) {
-            this.errorMessage = result.warnings.join(' ');
+            this.errorMessage.set(result.warnings.join(' '));
           }
 
           this.ordersGenerated.emit(result.createdOrderIds);
           this.refresh();
         },
         error: (err) => {
-          this.errorMessage = extractApiErrorMessage(err, 'Could not generate the next cleanings.');
+          this.errorMessage.set(extractApiErrorMessage(err, 'Could not generate the next cleanings.'));
         }
       });
   }
 
   get needsFutureOrdersChoice(): boolean {
-    const s = this.series;
-    return !this.startingNew && !!s && this.futureOccurrences.some(o => o.wasGenerated && o.status !== 'Cancelled' && o.status !== 'Refunded')
-      && (this.intervalValue !== s.intervalValue || this.intervalUnit !== s.intervalUnit
-        || this.anchorDate !== s.anchorDate.slice(0, 10) || this.serviceTime !== s.serviceTime.slice(0, 5)
-        || this.endDate !== (s.endDate || '').slice(0, 10)
-        || this.daysKey(this.intervalUnit === RecurrenceIntervalUnit.Weeks ? this.serviceDaysOfWeek : [])
+    const s = this.series();
+    return !this.startingNew() && !!s && this.futureOccurrences.some(o => o.wasGenerated && o.status !== 'Cancelled' && o.status !== 'Refunded')
+      && (this.intervalValue() !== s.intervalValue || this.intervalUnit() !== s.intervalUnit
+        || this.anchorDate() !== s.anchorDate.slice(0, 10) || this.serviceTime() !== s.serviceTime.slice(0, 5)
+        || this.endDate() !== (s.endDate || '').slice(0, 10)
+        || this.daysKey(this.intervalUnit() === RecurrenceIntervalUnit.Weeks ? this.serviceDaysOfWeek() : [])
           !== this.daysKey(s.intervalUnit === RecurrenceIntervalUnit.Weeks ? s.serviceDaysOfWeek : [])
-        || this.daysKey(this.intervalUnit === RecurrenceIntervalUnit.Months ? this.serviceDaysOfMonth : [])
+        || this.daysKey(this.intervalUnit() === RecurrenceIntervalUnit.Months ? this.serviceDaysOfMonth() : [])
           !== this.daysKey(s.intervalUnit === RecurrenceIntervalUnit.Months ? s.serviceDaysOfMonth : [])
-        || (this.loyaltyPercentToSend ?? 0) !== (s.recurringLoyaltyDiscountPercent ?? 0)
-        || (this.loyaltyAmountToSend ?? 0) !== (s.recurringLoyaltyDiscountAmount ?? 0));
+        || (this.loyaltyPercentToSend() ?? 0) !== (s.recurringLoyaltyDiscountPercent ?? 0)
+        || (this.loyaltyAmountToSend() ?? 0) !== (s.recurringLoyaltyDiscountAmount ?? 0));
   }
 
   private daysKey(days: number[] | undefined | null): string {
@@ -616,44 +613,44 @@ export class RecurringSeriesPanelComponent implements OnChanges {
 
   /** The count as sent: a whole number, or null for a legacy plan keeping its 30-day window. */
   private get targetToSend(): number | null {
-    const target = this.upcomingOccurrenceTarget as number | string | null;
+    const target = this.upcomingOccurrenceTarget() as number | string | null;
     return target == null || target === '' ? null : Number(target);
   }
 
   confirmAction(): void {
-    if (!this.series || !this.pendingAction || this.saving || !this.canUpdate) return;
-    const action = this.pendingAction;
-    this.saving = true;
+    const action = this.pendingAction();
+    if (!this.series() || !action || this.saving() || !this.canUpdate()) return;
+    this.saving.set(true);
     const request: Observable<unknown> = action.kind === 'skip'
-      ? this.recurring.skip(this.series.id, action.orderId!)
-      : this.recurring.setState(this.series.id, action.kind);
-    request.pipe(finalize(() => { this.saving = false; })).subscribe({
+      ? this.recurring.skip(this.series()!.id, action.orderId!)
+      : this.recurring.setState(this.series()!.id, action.kind);
+    request.pipe(finalize(() => { this.saving.set(false); })).subscribe({
       next: () => {
-        this.pendingAction = null;
-        this.noticeMessage = action.kind === 'skip' ? 'This cleaning was skipped. Later dates stay on the original schedule.' : 'Recurrence updated. Existing orders are kept.';
+        this.pendingAction.set(null);
+        this.noticeMessage.set(action.kind === 'skip' ? 'This cleaning was skipped. Later dates stay on the original schedule.' : 'Recurrence updated. Existing orders are kept.');
         this.refresh();
         this.ordersGenerated.emit([]);
       },
-      error: err => { this.errorMessage = extractApiErrorMessage(err, 'Could not update the recurrence.'); }
+      error: err => { this.errorMessage.set(extractApiErrorMessage(err, 'Could not update the recurrence.')); }
     });
   }
 
   private refresh(): void {
-    if (!this.series) return;
-    this.recurring.get(this.series.id).subscribe({
-      next: (series) => { this.series = series; this.seedFormFrom(series); },
+    if (!this.series()) return;
+    this.recurring.get(this.series()!.id).subscribe({
+      next: (series) => { this.series.set(series); this.seedFormFrom(series); },
       error: () => { /* the notice above already told them what happened */ }
     });
   }
 
   /** Occurrences carrying a cleaner the series assigned and nobody has notified. */
   get unnotifiedOccurrenceCount(): number {
-    return (this.series?.occurrences ?? [])
+    return (this.series()?.occurrences ?? [])
       .filter(o => o.autoAssignedNotNotifiedCount > 0).length;
   }
 
   get futureOccurrences() {
     const today = new Date().toISOString().slice(0, 10);
-    return (this.series?.occurrences ?? []).filter(o => o.serviceDate.slice(0, 10) >= today);
+    return (this.series()?.occurrences ?? []).filter(o => o.serviceDate.slice(0, 10) >= today);
   }
 }

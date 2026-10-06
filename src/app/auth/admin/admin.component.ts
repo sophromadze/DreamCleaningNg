@@ -1,4 +1,4 @@
-import { Component, OnInit, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy, inject, signal } from '@angular/core';
 import { ActivatedRoute, ParamMap } from '@angular/router';
 import { skip } from 'rxjs/operators';
 import { AdminService, UserPermissions } from '../../services/admin.service';
@@ -45,8 +45,8 @@ export class AdminComponent implements OnInit {
   private route = inject(ActivatedRoute);
 
   // Permissions
-  userRole: string = '';
-  userPermissions: any = {
+  readonly userRole = signal<string>('');
+  readonly userPermissions = signal<any>({
     role: '',
     permissions: {
       canView: false,
@@ -56,7 +56,7 @@ export class AdminComponent implements OnInit {
       canActivate: false,
       canDeactivate: false
     }
-  };
+  });
 
   /** Tabs only a SuperAdmin may open. Both are role-gated rather than permission-gated — canView
    *  is held by Admins and Moderators too. Services edits the price catalogue every quote is built
@@ -88,24 +88,24 @@ export class AdminComponent implements OnInit {
     ['customers', 'cleaners', 'business-clients', 'staff'];
 
   // UI State
-  activeTab: string = 'orders';
-  selectedDiscountSubTab: 'promo-codes' | 'special-offers' | 'subscriptions' | 'gift-cards' = 'promo-codes';
-  pendingOrderId: number | null = null;
-  pendingUserId: number | null = null;
+  readonly activeTab = signal<string>('orders');
+  readonly selectedDiscountSubTab = signal<'promo-codes' | 'special-offers' | 'subscriptions' | 'gift-cards'>('promo-codes');
+  readonly pendingOrderId = signal<number | null>(null);
+  readonly pendingUserId = signal<number | null>(null);
   /**
    * Which Users sub-tab to open. Set by a legacy deep link asking for the old top-level Cleaners
    * tab, and by `?usersTab=` — which is how the Orders panel sends an admin to the BUSINESS
    * CLIENTS tab for a commercial order instead of dumping them on Customers.
    */
-  initialUsersTab: AdminUsersTab | null = null;
+  readonly initialUsersTab = signal<AdminUsersTab | null>(null);
   /** `?clientId=` — the commercial client whose detail panel should open on arrival. */
-  pendingClientId: number | null = null;
-  errorMessage = '';
-  successMessage = '';
+  readonly pendingClientId = signal<number | null>(null);
+  readonly errorMessage = signal('');
+  readonly successMessage = signal('');
 
   // Maintenance Mode
-  maintenanceStatus: MaintenanceModeStatus | null = null;
-  isTogglingMaintenance = false;
+  readonly maintenanceStatus = signal<MaintenanceModeStatus | null>(null);
+  readonly isTogglingMaintenance = signal(false);
 
   // Live Chat toggle
   chatEnabled = true;
@@ -127,45 +127,45 @@ export class AdminComponent implements OnInit {
     // says which of its four lists to land on.
     const usersTabParam = this.route.snapshot.queryParamMap.get('usersTab');
     if (usersTabParam && AdminComponent.USERS_TABS.includes(usersTabParam as AdminUsersTab)) {
-      this.initialUsersTab = usersTabParam as AdminUsersTab;
+      this.initialUsersTab.set(usersTabParam as AdminUsersTab);
     }
     const clientIdParam = this.route.snapshot.queryParamMap.get('clientId');
     if (clientIdParam) {
       const id = parseInt(clientIdParam, 10);
       if (!isNaN(id)) {
-        this.pendingClientId = id;
+        this.pendingClientId.set(id);
         // A client id with no sub-tab named can only mean Business Clients — the only list that
         // renders one. Spelling it out here keeps the link short at the call sites.
-        this.initialUsersTab ??= 'business-clients';
+        this.initialUsersTab.update(v => v ?? ('business-clients'));
       }
     }
 
     // Either param on its own means Users, so a link does not have to say `tab=users` as well.
     // Checked before the chain below, whose final branch would otherwise restore the last
     // sessionStorage tab straight over the top of it.
-    const impliesUsersTab = this.initialUsersTab !== null || this.pendingClientId !== null;
+    const impliesUsersTab = this.initialUsersTab() !== null || this.pendingClientId() !== null;
 
     if (orderIdParam) {
       const id = parseInt(orderIdParam, 10);
       if (!isNaN(id)) {
-        this.activeTab = 'orders';
-        this.pendingOrderId = id;
+        this.activeTab.set('orders');
+        this.pendingOrderId.set(id);
       }
     } else if (userIdParam) {
       const id = parseInt(userIdParam, 10);
       if (!isNaN(id)) {
-        this.activeTab = 'users';
-        this.pendingUserId = id;
+        this.activeTab.set('users');
+        this.pendingUserId.set(id);
         // A customer id can only mean the Customers list. Said out loud so the shell does not
         // fall through to its remembered sub-tab and open the panel behind Business Clients.
-        this.initialUsersTab ??= 'customers';
+        this.initialUsersTab.update(v => v ?? ('customers'));
       }
     } else if (tabParam && this.resolveTab(tabParam)) {
-      this.activeTab = this.resolveTab(tabParam)!;
-      sessionStorage.setItem('adminActiveTab', this.activeTab);
+      this.activeTab.set(this.resolveTab(tabParam)!);
+      sessionStorage.setItem('adminActiveTab', this.activeTab());
     } else if (impliesUsersTab) {
-      this.activeTab = 'users';
-      sessionStorage.setItem('adminActiveTab', this.activeTab);
+      this.activeTab.set('users');
+      sessionStorage.setItem('adminActiveTab', this.activeTab());
     } else {
       // Restore last active tab from sessionStorage if available
       let savedTab = sessionStorage.getItem('adminActiveTab');
@@ -176,7 +176,7 @@ export class AdminComponent implements OnInit {
       // last on Cleaners lands on Users → Cleaners instead of on Orders.
       if (savedTab && AdminComponent.LEGACY_TAB_REDIRECTS[savedTab]) {
         const target = AdminComponent.LEGACY_TAB_REDIRECTS[savedTab];
-        this.initialUsersTab = target.usersTab;
+        this.initialUsersTab.set(target.usersTab);
         savedTab = target.tab;
       }
       if (
@@ -185,11 +185,11 @@ export class AdminComponent implements OnInit {
         savedTab === 'subscriptions' ||
         savedTab === 'gift-cards'
       ) {
-        this.selectedDiscountSubTab = 'promo-codes';
+        this.selectedDiscountSubTab.set('promo-codes');
         savedTab = 'discounts';
       }
       if (savedTab) {
-        this.activeTab = savedTab;
+        this.activeTab.set(savedTab);
       }
     }
 
@@ -230,21 +230,21 @@ export class AdminComponent implements OnInit {
     if (!orderIdParam && !userIdParam && !usersTabParam && !clientIdParam && !tabParam) return;
 
     if (usersTabParam && AdminComponent.USERS_TABS.includes(usersTabParam as AdminUsersTab)) {
-      this.initialUsersTab = usersTabParam as AdminUsersTab;
+      this.initialUsersTab.set(usersTabParam as AdminUsersTab);
     }
 
     if (clientIdParam) {
       const id = parseInt(clientIdParam, 10);
       if (!isNaN(id)) {
-        this.pendingClientId = id;
-        this.initialUsersTab ??= 'business-clients';
+        this.pendingClientId.set(id);
+        this.initialUsersTab.update(v => v ?? ('business-clients'));
       }
     }
 
     if (orderIdParam) {
       const id = parseInt(orderIdParam, 10);
       if (!isNaN(id)) {
-        this.pendingOrderId = id;
+        this.pendingOrderId.set(id);
         this.setActiveTab('orders');
       }
       return;
@@ -253,8 +253,8 @@ export class AdminComponent implements OnInit {
     if (userIdParam) {
       const id = parseInt(userIdParam, 10);
       if (!isNaN(id)) {
-        this.pendingUserId = id;
-        this.initialUsersTab ??= 'customers';
+        this.pendingUserId.set(id);
+        this.initialUsersTab.update(v => v ?? ('customers'));
         this.setActiveTab('users');
       }
       return;
@@ -282,7 +282,7 @@ export class AdminComponent implements OnInit {
         
         // If refresh fails, check if we need to redirect to login
         if (error.status === 401) {
-          this.errorMessage = 'Your session has expired. Please log in again.';
+          this.errorMessage.set('Your session has expired. Please log in again.');
           // Redirect to login after a short delay
           setTimeout(() => {
             window.location.href = '/login';
@@ -299,12 +299,12 @@ export class AdminComponent implements OnInit {
   loadUserPermissions() {
     this.adminService.getUserPermissions().subscribe({
       next: (response) => {
-        this.userRole = response.role;
-        this.userPermissions = response;
+        this.userRole.set(response.role);
+        this.userPermissions.set(response);
 
         // A tab restored from sessionStorage predates knowing the role — drop back to Orders
         // if it turns out this admin may not open it (e.g. demoted since their last visit).
-        if (!this.canOpenTab(this.activeTab)) {
+        if (!this.canOpenTab(this.activeTab())) {
           this.setActiveTab('orders');
         }
 
@@ -321,7 +321,7 @@ export class AdminComponent implements OnInit {
       },
       error: (error) => {
         console.error('Error loading permissions:', error);
-        this.errorMessage = 'Failed to load permissions. Please try again.';
+        this.errorMessage.set('Failed to load permissions. Please try again.');
       }
     });
   }
@@ -329,7 +329,7 @@ export class AdminComponent implements OnInit {
   loadMaintenanceStatus() {
     this.maintenanceModeService.getStatus().subscribe({
       next: (status) => {
-        this.maintenanceStatus = status;
+        this.maintenanceStatus.set(status);
       },
       error: (error) => {
         console.error('Error loading maintenance status:', error);
@@ -350,20 +350,20 @@ export class AdminComponent implements OnInit {
       next: (res) => {
         this.chatEnabled = res.isEnabled;
         this.isTogglingChat = false;
-        this.successMessage = `Live chat ${res.isEnabled ? 'enabled' : 'disabled'} for visitors`;
-        setTimeout(() => this.successMessage = '', 3000);
+        this.successMessage.set(`Live chat ${res.isEnabled ? 'enabled' : 'disabled'} for visitors`);
+        setTimeout(() => this.successMessage.set(''), 3000);
       },
       error: () => {
-        this.errorMessage = 'Failed to toggle chat';
+        this.errorMessage.set('Failed to toggle chat');
         this.isTogglingChat = false;
-        setTimeout(() => this.errorMessage = '', 3000);
+        setTimeout(() => this.errorMessage.set(''), 3000);
       }
     });
   }
 
   confirmToggleMaintenance() {
-    const action = this.maintenanceStatus?.isEnabled ? 'stop' : 'start';
-    const message = this.maintenanceStatus?.isEnabled 
+    const action = this.maintenanceStatus()?.isEnabled ? 'stop' : 'start';
+    const message = this.maintenanceStatus()?.isEnabled 
       ? 'Are you sure you want to stop maintenance mode? This will allow customers to access the site again.'
       : 'Are you sure you want to start maintenance mode? This will block all customers from accessing the site.';
     
@@ -373,26 +373,26 @@ export class AdminComponent implements OnInit {
   }
 
   toggleMaintenanceMode() {
-    if (!this.maintenanceStatus) return;
+    if (!this.maintenanceStatus()) return;
 
-    this.isTogglingMaintenance = true;
+    this.isTogglingMaintenance.set(true);
     const request: ToggleMaintenanceModeRequest = {
-      isEnabled: !this.maintenanceStatus.isEnabled,
-      message: this.maintenanceStatus.isEnabled ? undefined : 'Scheduled maintenance in progress. We apologize for any inconvenience.'
+      isEnabled: !this.maintenanceStatus()!.isEnabled,
+      message: this.maintenanceStatus()!.isEnabled ? undefined : 'Scheduled maintenance in progress. We apologize for any inconvenience.'
     };
 
     this.maintenanceModeService.toggleMaintenanceMode(request).subscribe({
       next: (status) => {
-        this.maintenanceStatus = status;
-        this.isTogglingMaintenance = false;
-        this.successMessage = `Maintenance mode ${status.isEnabled ? 'enabled' : 'disabled'} successfully`;
-        setTimeout(() => this.successMessage = '', 3000);
+        this.maintenanceStatus.set(status);
+        this.isTogglingMaintenance.set(false);
+        this.successMessage.set(`Maintenance mode ${status.isEnabled ? 'enabled' : 'disabled'} successfully`);
+        setTimeout(() => this.successMessage.set(''), 3000);
       },
       error: (error) => {
         console.error('Error toggling maintenance mode:', error);
-        this.errorMessage = 'Failed to toggle maintenance mode';
-        this.isTogglingMaintenance = false;
-        setTimeout(() => this.errorMessage = '', 3000);
+        this.errorMessage.set('Failed to toggle maintenance mode');
+        this.isTogglingMaintenance.set(false);
+        setTimeout(() => this.errorMessage.set(''), 3000);
       }
     });
   }
@@ -405,8 +405,8 @@ export class AdminComponent implements OnInit {
 
   canOpenTab(tab: string): boolean {
     if (AdminComponent.ADMIN_AND_UP_TABS.includes(tab))
-      return this.userRole === 'Admin' || this.userRole === 'SuperAdmin';
-    return !AdminComponent.SUPER_ADMIN_ONLY_TABS.includes(tab) || this.userRole === 'SuperAdmin';
+      return this.userRole() === 'Admin' || this.userRole() === 'SuperAdmin';
+    return !AdminComponent.SUPER_ADMIN_ONLY_TABS.includes(tab) || this.userRole() === 'SuperAdmin';
   }
 
   /** Tabs a Moderator may not open. Invoices mirrors [Authorize(Roles = "Admin,SuperAdmin")] on
@@ -427,7 +427,7 @@ export class AdminComponent implements OnInit {
     const moved = AdminComponent.LEGACY_TAB_REDIRECTS[tab];
     if (!moved) return null;
 
-    this.initialUsersTab = moved.usersTab;
+    this.initialUsersTab.set(moved.usersTab);
     return moved.tab;
   }
 
@@ -435,9 +435,9 @@ export class AdminComponent implements OnInit {
     if (!this.canOpenTab(tab)) {
       tab = 'orders';
     }
-    this.activeTab = tab;
+    this.activeTab.set(tab);
     if (tab === 'discounts') {
-      this.selectedDiscountSubTab = 'promo-codes';
+      this.selectedDiscountSubTab.set('promo-codes');
     }
     sessionStorage.setItem('adminActiveTab', tab);
   }

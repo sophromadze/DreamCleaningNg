@@ -1,4 +1,4 @@
-import { Component, PLATFORM_ID, OnInit, OnDestroy, Output, EventEmitter, ViewChild, ElementRef, AfterViewInit, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, PLATFORM_ID, OnInit, OnDestroy, ElementRef, AfterViewInit, ChangeDetectionStrategy, inject, output, viewChild, signal } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { Subscription } from 'rxjs';
 import { filter, take } from 'rxjs/operators';
@@ -21,7 +21,7 @@ import { ThemeService } from '../../services/theme.service';
       <button
         type="button"
         class="custom-google-btn"
-        [disabled]="!googleReady"
+        [disabled]="!googleReady()"
         (click)="onGoogleClick()"
         aria-label="Sign in with Google">
         <span class="google-icon">
@@ -32,17 +32,17 @@ import { ThemeService } from '../../services/theme.service';
             <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
           </svg>
         </span>
-        <span>{{ !googleReady ? 'Loading...' : 'Sign in with Google' }}</span>
+        <span>{{ !googleReady() ? 'Loading...' : 'Sign in with Google' }}</span>
       </button>
       <!-- Real Google button, off-screen; we trigger it programmatically on our button click -->
       <div #googleBtnContainer class="google-btn-hidden">
-        @if (showGoogleButton) {
+        @if (showGoogleButton()) {
         <asl-google-signin-button
           type="standard"
           size="large"
           text="signin_with"
           shape="rectangular"
-          [theme]="googleButtonTheme"
+          [theme]="googleButtonTheme()"
           logo_alignment="center"
           [width]="400">
         </asl-google-signin-button>
@@ -51,7 +51,7 @@ import { ThemeService } from '../../services/theme.service';
     </div>
     }
   `,
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styles: [`
     :host {
       display: block;
@@ -137,13 +137,13 @@ export class GoogleSigninWrapperComponent implements OnInit, AfterViewInit, OnDe
   private socialAuthService = inject(SocialAuthService);
   private themeService = inject(ThemeService);
 
-  @Output() googleSignInError = new EventEmitter<string>();
-  @ViewChild('googleBtnContainer') googleBtnContainerRef!: ElementRef<HTMLElement>;
+  readonly googleSignInError = output<string>();
+  readonly googleBtnContainerRef = viewChild<ElementRef<HTMLElement>>('googleBtnContainer');
 
   isBrowser = false;
-  googleReady = false;
-  showGoogleButton = false;
-  googleButtonTheme: 'outline' | 'filled_black' = 'outline';
+  readonly googleReady = signal(false);
+  readonly showGoogleButton = signal(false);
+  readonly googleButtonTheme = signal<'outline' | 'filled_black'>('outline');
   private initSub: Subscription | null = null;
   private themeSub: Subscription | null = null;
 
@@ -153,9 +153,9 @@ export class GoogleSigninWrapperComponent implements OnInit, AfterViewInit, OnDe
 
   ngOnInit() {
     if (this.isBrowser && this.socialAuthService) {
-      this.googleButtonTheme = this.themeService.theme === 'dark' ? 'filled_black' : 'outline';
+      this.googleButtonTheme.set(this.themeService.theme === 'dark' ? 'filled_black' : 'outline');
       this.themeSub = this.themeService.theme$.subscribe(theme => {
-        this.googleButtonTheme = theme === 'dark' ? 'filled_black' : 'outline';
+        this.googleButtonTheme.set(theme === 'dark' ? 'filled_black' : 'outline');
       });
       this.initSub = this.socialAuthService.initState
         .pipe(
@@ -163,18 +163,18 @@ export class GoogleSigninWrapperComponent implements OnInit, AfterViewInit, OnDe
           take(1)
         )
         .subscribe(() => {
-          this.googleReady = true;
-          this.showGoogleButton = true;
+          this.googleReady.set(true);
+          this.showGoogleButton.set(true);
         });
       setTimeout(() => {
-        if (!this.googleReady) {
-          this.googleReady = true;
-          this.showGoogleButton = true;
+        if (!this.googleReady()) {
+          this.googleReady.set(true);
+          this.showGoogleButton.set(true);
         }
       }, 4000);
     } else {
-      this.googleReady = true;
-      this.showGoogleButton = true;
+      this.googleReady.set(true);
+      this.showGoogleButton.set(true);
     }
   }
 
@@ -188,9 +188,9 @@ export class GoogleSigninWrapperComponent implements OnInit, AfterViewInit, OnDe
   }
 
   onGoogleClick() {
-    if (!this.isBrowser || !this.googleReady) return;
+    if (!this.isBrowser || !this.googleReady()) return;
     this.googleSignInError.emit('');
-    const container = this.googleBtnContainerRef?.nativeElement;
+    const container = this.googleBtnContainerRef()?.nativeElement;
     if (!container) {
       this.googleSignInError.emit('Sign-in is not ready. Please try again in a moment.');
       return;

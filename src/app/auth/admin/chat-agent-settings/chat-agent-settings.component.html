@@ -1,25 +1,25 @@
 <button
   type="button"
   class="chat-agent-btn"
-  [class.chat-agent-btn--open]="isOpen"
+  [class.chat-agent-btn--open]="isOpen()"
   (click)="togglePanel()"
-  [attr.aria-expanded]="isOpen">
-  💬 Chat Agent@if (settings) {
+  [attr.aria-expanded]="isOpen()">
+  💬 Chat Agent@if (settings()) {
   <span class="chat-agent-btn__status"> · {{ widgetStatusLabel }}</span>
   }
 </button>
 
-@if (isOpen) {
+@if (isOpen()) {
 <div class="chat-agent-panel">
   <h3 class="chat-agent-panel__title">AI Chat Agent</h3>
 
-  @if (loading) {
+  @if (loading()) {
   <div class="chat-agent-panel__loading">Loading…</div>
   }
-  @if (!loading && settings) {
+  @if (!loading() && settings()) {
 
     <!-- Visibility -->
-    <fieldset class="chat-agent-panel__group" [disabled]="saving">
+    <fieldset class="chat-agent-panel__group" [disabled]="saving()">
       <legend>Who can see the chat widget</legend>
       @for (option of visibilityOptions; track $index) {
       <label class="chat-agent-option">
@@ -27,7 +27,7 @@
           type="radio"
           name="chatVisibility"
           [value]="option.mode"
-          [checked]="settings.visibilityMode === option.mode"
+          [checked]="settings()!.visibilityMode === option.mode"
           (change)="onVisibilitySelected(option.mode)" />
         <span class="chat-agent-option__text">
           <strong>{{ option.label }}</strong>
@@ -42,8 +42,8 @@
       <label class="chat-agent-switch">
         <input
           type="checkbox"
-          [checked]="settings.escalationEmailEnabled"
-          [disabled]="saving"
+          [checked]="settings()!.escalationEmailEnabled"
+          [disabled]="saving()"
           (change)="onToggleEscalationEmail()" />
         <span class="chat-agent-switch__track"><span class="chat-agent-switch__thumb"></span></span>
       </label>
@@ -53,27 +53,27 @@
       </span>
     </div>
 
-    @if (successMessage) {
+    @if (successMessage()) {
     <div class="chat-agent-panel__message chat-agent-panel__message--success">
-      {{ successMessage }}
+      {{ successMessage() }}
     </div>
     }
-    @if (errorMessage) {
+    @if (errorMessage()) {
     <div class="chat-agent-panel__message chat-agent-panel__message--error">
-      {{ errorMessage }}
+      {{ errorMessage() }}
     </div>
     }
 
-    @if (settings.updatedByEmail && updatedAtLocal) {
+    @if (settings()!.updatedByEmail && updatedAtLocal) {
     <p class="chat-agent-panel__audit">
-      Last updated by {{ settings.updatedByEmail }} at {{ updatedAtLocal | date: 'MMM d, y, h:mm a' }}
+      Last updated by {{ settings()!.updatedByEmail }} at {{ updatedAtLocal | date: 'MMM d, y, h:mm a' }}
     </p>
     }
   }
 
-  @if (!loading && !settings && errorMessage) {
+  @if (!loading() && !settings() && errorMessage()) {
   <div class="chat-agent-panel__message chat-agent-panel__message--error">
-    {{ errorMessage }}
+    {{ errorMessage() }}
   </div>
   }
 </div>

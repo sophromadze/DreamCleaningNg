@@ -62,24 +62,24 @@ describe('AdminUserSearchComponent', () => {
     it('refuses a click landing within the settle window of a list change', async () => {
       vi.useFakeTimers();
       await search('smith');
-      expect(component.filteredUsers.length).toBeGreaterThan(0);
+      expect(component.filteredUsers().length).toBeGreaterThan(0);
 
       // The list just changed — this is the mis-click the guard exists for.
       component.lastListChangedAt = Date.now();
       vi.spyOn(component.userSelected, 'emit').mockReturnValue(undefined);
 
-      component.selectUser(component.filteredUsers[0]);
+      component.selectUser(component.filteredUsers()[0]);
 
       expect(component.userSelected.emit).not.toHaveBeenCalled();
-      expect(component.clickRejected).toBe(true);
+      expect(component.clickRejected()).toBe(true);
       // The term must survive so the admin can simply click again.
-      expect(component.userSearchTerm).toBe('smith');
+      expect(component.userSearchTerm()).toBe('smith');
     });
 
     it('accepts the same click once the list has settled', async () => {
       vi.useFakeTimers();
       await search('smith');
-      const target = component.filteredUsers[0];
+      const target = component.filteredUsers()[0];
 
       component.lastListChangedAt = Date.now() - (USER_LIST_SETTLE_MS + 50);
       vi.spyOn(component.userSelected, 'emit').mockReturnValue(undefined);
@@ -87,19 +87,19 @@ describe('AdminUserSearchComponent', () => {
       component.selectUser(target);
 
       expect(component.userSelected.emit).toHaveBeenCalledExactlyOnceWith(target);
-      expect(component.clickRejected).toBe(false);
+      expect(component.clickRejected()).toBe(false);
     });
 
     it('clears the rejection notice on the next keystroke', async () => {
       vi.useFakeTimers();
       await search('smith');
       component.lastListChangedAt = Date.now();
-      component.selectUser(component.filteredUsers[0]);
-      expect(component.clickRejected).toBe(true);
+      component.selectUser(component.filteredUsers()[0]);
+      expect(component.clickRejected()).toBe(true);
 
       await search('smithe');
 
-      expect(component.clickRejected).toBe(false);
+      expect(component.clickRejected()).toBe(false);
     });
 
     it('does not stamp the change time when a re-filter produces the same rows', async () => {
@@ -132,25 +132,25 @@ describe('AdminUserSearchComponent', () => {
       vi.useFakeTimers();
       await search('s');
 
-      expect(component.needsMoreCharacters).toBe(true);
-      expect(component.filteredUsers).toEqual([]);
+      expect(component.needsMoreCharacters()).toBe(true);
+      expect(component.filteredUsers()).toEqual([]);
     });
 
     it('never dumps the whole customer base for an empty box', async () => {
       vi.useFakeTimers();
       await search('');
 
-      expect(component.filteredUsers).toEqual([]);
+      expect(component.filteredUsers()).toEqual([]);
     });
 
     it('does not filter until the debounce elapses', async () => {
       vi.useFakeTimers();
       component.onSearchInput('smith');
-      expect(component.filteredUsers).toEqual([]);
+      expect(component.filteredUsers()).toEqual([]);
 
       await vi.advanceTimersByTimeAsync(USER_SEARCH_DEBOUNCE_MS);
 
-      expect(component.filteredUsers.length).toBeGreaterThan(0);
+      expect(component.filteredUsers().length).toBeGreaterThan(0);
     });
 
     it('caps the rendered rows and reports the remainder', async () => {
@@ -162,18 +162,18 @@ describe('AdminUserSearchComponent', () => {
 
       await search('zed');
 
-      expect(component.filteredUsers.length).toBe(USER_SEARCH_MAX_RESULTS);
-      expect(component.totalMatchCount).toBe(many.length);
+      expect(component.filteredUsers().length).toBe(USER_SEARCH_MAX_RESULTS);
+      expect(component.totalMatchCount()).toBe(many.length);
       expect(component.hiddenMatchCount).toBe(7);
     });
 
     it('matches on name, email and id', async () => {
       vi.useFakeTimers();
       await search('jane@example.com');
-      expect(component.filteredUsers.map(u => u.id)).toEqual([3]);
+      expect(component.filteredUsers().map(u => u.id)).toEqual([3]);
 
       await search('doe');
-      expect(component.filteredUsers.map(u => u.id)).toEqual([3]);
+      expect(component.filteredUsers().map(u => u.id)).toEqual([3]);
     });
 
     it('exposes the minimum as at least two characters', () => {
@@ -229,7 +229,7 @@ describe('AdminUserSearchComponent', () => {
       fixture.detectChanges();
       await search('Beridze');
 
-      expect(component.filteredUsers.map(u => u.id)).toEqual([99]);
+      expect(component.filteredUsers().map(u => u.id)).toEqual([99]);
       expect(adminService.getUsers).not.toHaveBeenCalled();
     });
 
@@ -243,7 +243,7 @@ describe('AdminUserSearchComponent', () => {
       later.componentInstance.onSearchInput('Nino');
       await vi.advanceTimersByTimeAsync(USER_SEARCH_DEBOUNCE_MS);
 
-      expect(later.componentInstance.filteredUsers.map(u => u.id)).toEqual([99]);
+      expect(later.componentInstance.filteredUsers().map(u => u.id)).toEqual([99]);
     });
 
     it('ranks seeds ahead of the server list so the render cap cannot hide them', async () => {
@@ -266,7 +266,7 @@ describe('AdminUserSearchComponent', () => {
       component.loadUsers(true);
       await search('Beridze');
 
-      expect(component.filteredUsers.map(u => u.id)).toEqual([99]);
+      expect(component.filteredUsers().map(u => u.id)).toEqual([99]);
       expect(component.availableUsers.filter(u => u.id === 99).length).toBe(1);
       expect(component.availableUsers[0].id).not.toBe(99);
     });
@@ -284,7 +284,7 @@ describe('AdminUserSearchComponent', () => {
       component.loadUsers(true);
       await search('Beridze');
 
-      expect(component.filteredUsers.map(u => u.id)).toEqual([99]);
+      expect(component.filteredUsers().map(u => u.id)).toEqual([99]);
     });
 
     /**

@@ -1,5 +1,5 @@
 // admin-gift-cards.component.ts
-import { Component, OnInit, AfterViewInit, OnDestroy, ViewChild, ElementRef, HostListener, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, OnInit, AfterViewInit, OnDestroy, ElementRef, HostListener, ChangeDetectionStrategy, inject, viewChild, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { AdminService } from '../../../services/admin.service';
 import { formatNyDateTime } from '../../../shared/ny-time.util';
@@ -46,18 +46,18 @@ interface GiftCardUsage {
   standalone: true,
   imports: [FormsModule],
   templateUrl: './admin-gift-cards.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './admin-gift-cards.component.scss'
 })
 export class AdminGiftCardsComponent implements OnInit, AfterViewInit, OnDestroy {
   private adminService = inject(AdminService);
 
-  @ViewChild('tableWrapper', { static: false }) tableWrapper!: ElementRef<HTMLDivElement>;
-  @ViewChild('tableHeader', { static: false }) tableHeader!: ElementRef<HTMLTableSectionElement>;
+  readonly tableWrapper = viewChild<ElementRef<HTMLDivElement>>('tableWrapper');
+  readonly tableHeader = viewChild<ElementRef<HTMLTableSectionElement>>('tableHeader');
   
   giftCards: GiftCardAdmin[] = [];
   filteredGiftCards: GiftCardAdmin[] = [];
-  selectedGiftCard: GiftCardAdmin | null = null;
+  readonly selectedGiftCard = signal<GiftCardAdmin | null>(null);
   
   // Sticky header management
   private scrollListener?: () => void;
@@ -74,42 +74,42 @@ export class AdminGiftCardsComponent implements OnInit, AfterViewInit, OnDestroy
   }
   
   // Filters
-  searchTerm = '';
-  filterStatus = 'all'; // all, active, inactive, fullyUsed, partiallyUsed
-  filterPaidStatus = 'all'; // all, paid, unpaid
-  filterDeliveryStatus = 'all'; // all, notSent, sent
+  readonly searchTerm = signal('');
+  readonly filterStatus = signal('all'); // all, active, inactive, fullyUsed, partiallyUsed
+  readonly filterPaidStatus = signal('all'); // all, paid, unpaid
+  readonly filterDeliveryStatus = signal('all'); // all, notSent, sent
   
   // Pagination
-  currentPage = 1;
+  readonly currentPage = signal(1);
   itemsPerPage = 20;
-  totalPages = 1;
-  paginatedGiftCards: GiftCardAdmin[] = [];
+  readonly totalPages = signal(1);
+  readonly paginatedGiftCards = signal<GiftCardAdmin[]>([]);
   
   // Stats
-  totalGiftCards = 0;
-  totalAmountSold = 0;
-  totalAmountUsed = 0;
-  activeGiftCards = 0;
+  readonly totalGiftCards = signal(0);
+  readonly totalAmountSold = signal(0);
+  readonly totalAmountUsed = signal(0);
+  readonly activeGiftCards = signal(0);
 
-  giftCardBackgroundPath: string = '';
-  hasGiftCardBackground: boolean = false;
+  readonly giftCardBackgroundPath = signal<string>('');
+  readonly hasGiftCardBackground = signal<boolean>(false);
   /** True when an upload is configured but its file is gone — the preview shows the default. */
-  giftCardBackgroundMissing: boolean = false;
+  readonly giftCardBackgroundMissing = signal<boolean>(false);
   isUpdatingBackground: boolean = false;
 
   selectedFile: File | null = null;
-  isUploading: boolean = false;
-  imagePreviewUrl: string | null = null;
+  readonly isUploading = signal<boolean>(false);
+  readonly imagePreviewUrl = signal<string | null>(null);
   
-  loading = false;
-  errorMessage = '';
-  isSuperAdmin = false;
-  userPermissions: any = {
+  readonly loading = signal(false);
+  readonly errorMessage = signal('');
+  readonly isSuperAdmin = signal(false);
+  readonly userPermissions = signal<any>({
     permissions: {
       canActivate: false,
       canDeactivate: false
     }
-  };
+  });
 
   ngOnInit() {
     this.checkUserRole();
@@ -122,7 +122,9 @@ export class AdminGiftCardsComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   private initializeStickyHeader() {
-    if (!this.tableWrapper || !this.tableHeader) {
+    const tableWrapper = this.tableWrapper();
+    const tableHeader = this.tableHeader();
+    if (!tableWrapper || !tableHeader) {
       if (this.initializationRetries < this.maxRetries) {
         this.initializationRetries++;
         setTimeout(() => {
@@ -132,7 +134,7 @@ export class AdminGiftCardsComponent implements OnInit, AfterViewInit, OnDestroy
       return;
     }
     
-    if (!this.tableWrapper.nativeElement || !this.tableHeader.nativeElement) {
+    if (!tableWrapper.nativeElement || !tableHeader.nativeElement) {
       if (this.initializationRetries < this.maxRetries) {
         this.initializationRetries++;
         setTimeout(() => {
@@ -150,8 +152,9 @@ export class AdminGiftCardsComponent implements OnInit, AfterViewInit, OnDestroy
     if (this.scrollListener) {
       window.removeEventListener('scroll', this.scrollListener, true);
     }
-    if (this.horizontalScrollListener && this.tableWrapper) {
-      const wrapperEl = this.tableWrapper.nativeElement;
+    const tableWrapper = this.tableWrapper();
+    if (this.horizontalScrollListener && tableWrapper) {
+      const wrapperEl = tableWrapper.nativeElement;
       wrapperEl.removeEventListener('scroll', this.horizontalScrollListener);
       wrapperEl.removeEventListener('touchmove', this.horizontalScrollListener);
       wrapperEl.removeEventListener('wheel', this.horizontalScrollListener);
@@ -168,7 +171,8 @@ export class AdminGiftCardsComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   private setupStickyHeader() {
-    if (!this.tableWrapper || !this.tableHeader) {
+    const tableWrapper = this.tableWrapper();
+    if (!tableWrapper || !this.tableHeader()) {
       return;
     }
 
@@ -185,19 +189,21 @@ export class AdminGiftCardsComponent implements OnInit, AfterViewInit, OnDestroy
     this.horizontalScrollListener = () => {
       this.syncHorizontalScroll();
     };
-    this.tableWrapper.nativeElement.addEventListener('scroll', this.horizontalScrollListener);
+    tableWrapper.nativeElement.addEventListener('scroll', this.horizontalScrollListener);
 
     this.stickyHeaderInitialized = true;
     this.updateStickyHeader();
   }
 
   private updateStickyHeader() {
-    if (!this.tableWrapper || !this.tableHeader) {
+    const tableWrapper = this.tableWrapper();
+    const tableHeader = this.tableHeader();
+    if (!tableWrapper || !tableHeader) {
       return;
     }
 
-    const wrapper = this.tableWrapper.nativeElement;
-    const header = this.tableHeader.nativeElement;
+    const wrapper = tableWrapper.nativeElement;
+    const header = tableHeader.nativeElement;
     const rect = wrapper.getBoundingClientRect();
     const offset = this.headerStickyOffset;
     
@@ -339,12 +345,14 @@ export class AdminGiftCardsComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   private syncHorizontalScroll() {
-    if (!this.tableWrapper || !this.tableHeader) {
+    const tableWrapper = this.tableWrapper();
+    const tableHeader = this.tableHeader();
+    if (!tableWrapper || !tableHeader) {
       return;
     }
 
-    const wrapper = this.tableWrapper.nativeElement;
-    const header = this.tableHeader.nativeElement;
+    const wrapper = tableWrapper.nativeElement;
+    const header = tableHeader.nativeElement;
     
     // Sync horizontal scroll position by translating the header
     // Only sync if header is currently fixed/sticky
@@ -372,31 +380,31 @@ export class AdminGiftCardsComponent implements OnInit, AfterViewInit, OnDestroy
   checkUserRole() {
     this.adminService.getUserPermissions().subscribe({
       next: (permissions) => {
-        this.isSuperAdmin = permissions.role === 'SuperAdmin';
-        this.userPermissions = permissions;
+        this.isSuperAdmin.set(permissions.role === 'SuperAdmin');
+        this.userPermissions.set(permissions);
       },
       error: () => {
-        this.isSuperAdmin = false;
+        this.isSuperAdmin.set(false);
       }
     });
   }
 
   canToggleGiftCardStatus(giftCard: GiftCardAdmin): boolean {
-    if (this.isSuperAdmin) return true;
-    if (!this.userPermissions.permissions) return false;
+    if (this.isSuperAdmin()) return true;
+    if (!this.userPermissions().permissions) return false;
     
     return giftCard.isActive 
-      ? this.userPermissions.permissions.canDeactivate 
-      : this.userPermissions.permissions.canActivate;
+      ? this.userPermissions().permissions.canDeactivate 
+      : this.userPermissions().permissions.canActivate;
   }
 
   maskGiftCardCode(code: string): string {
-    return this.isSuperAdmin ? code : '*'.repeat(code.length);
+    return this.isSuperAdmin() ? code : '*'.repeat(code.length);
   }
 
   loadGiftCards() {
-    this.loading = true;
-    this.errorMessage = '';
+    this.loading.set(true);
+    this.errorMessage.set('');
     
     this.adminService.getAllGiftCards().subscribe({
       next: (cards) => {
@@ -410,32 +418,32 @@ export class AdminGiftCardsComponent implements OnInit, AfterViewInit, OnDestroy
         this.giftCards = cards;
         this.calculateStats();
         this.applyFilters();
-        this.loading = false;
+        this.loading.set(false);
       },
       error: () => {
-        this.errorMessage = 'Failed to load gift cards';
-        this.loading = false;
+        this.errorMessage.set('Failed to load gift cards');
+        this.loading.set(false);
       }
     });
   }
 
   calculateStats() {
-    this.totalGiftCards = this.giftCards.length;
-    this.totalAmountSold = this.giftCards
+    this.totalGiftCards.set(this.giftCards.length);
+    this.totalAmountSold.set(this.giftCards
       .filter(g => g.isPaid)
-      .reduce((sum, g) => sum + g.originalAmount, 0);
-    this.totalAmountUsed = this.giftCards
-      .reduce((sum, g) => sum + g.totalAmountUsed, 0);
-    this.activeGiftCards = this.giftCards
-      .filter(g => g.isActive && !g.isFullyUsed).length;
+      .reduce((sum, g) => sum + g.originalAmount, 0));
+    this.totalAmountUsed.set(this.giftCards
+      .reduce((sum, g) => sum + g.totalAmountUsed, 0));
+    this.activeGiftCards.set(this.giftCards
+      .filter(g => g.isActive && !g.isFullyUsed).length);
   }
 
   applyFilters() {
     let filtered = [...this.giftCards];
 
     // Search filter
-    if (this.searchTerm) {
-      const term = this.searchTerm.toLowerCase();
+    if (this.searchTerm()) {
+      const term = this.searchTerm().toLowerCase();
       filtered = filtered.filter(g =>
         g.id.toString().includes(term) ||
         (g.senderEmail || '').toLowerCase().includes(term) ||
@@ -445,7 +453,7 @@ export class AdminGiftCardsComponent implements OnInit, AfterViewInit, OnDestroy
     }
 
     // Status filter
-    switch (this.filterStatus) {
+    switch (this.filterStatus()) {
       case 'active':
         filtered = filtered.filter(g => g.isActive && !g.isFullyUsed);
         break;
@@ -461,7 +469,7 @@ export class AdminGiftCardsComponent implements OnInit, AfterViewInit, OnDestroy
     }
 
     // Paid status filter
-    switch (this.filterPaidStatus) {
+    switch (this.filterPaidStatus()) {
       case 'paid':
         filtered = filtered.filter(g => g.isPaid);
         break;
@@ -471,7 +479,7 @@ export class AdminGiftCardsComponent implements OnInit, AfterViewInit, OnDestroy
     }
 
     // Delivery filter ("send later" cards the customer hasn't sent yet)
-    switch (this.filterDeliveryStatus) {
+    switch (this.filterDeliveryStatus()) {
       case 'notSent':
         filtered = filtered.filter(g => g.isPendingSend);
         break;
@@ -485,20 +493,20 @@ export class AdminGiftCardsComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   updatePagination() {
-    this.totalPages = Math.ceil(this.filteredGiftCards.length / this.itemsPerPage);
-    this.currentPage = Math.min(this.currentPage, this.totalPages);
-    this.currentPage = Math.max(1, this.currentPage);
+    this.totalPages.set(Math.ceil(this.filteredGiftCards.length / this.itemsPerPage));
+    this.currentPage.set(Math.min(this.currentPage(), this.totalPages()));
+    this.currentPage.set(Math.max(1, this.currentPage()));
     
-    const startIndex = (this.currentPage - 1) * this.itemsPerPage;
-    this.paginatedGiftCards = this.filteredGiftCards.slice(
+    const startIndex = (this.currentPage() - 1) * this.itemsPerPage;
+    this.paginatedGiftCards.set(this.filteredGiftCards.slice(
       startIndex,
       startIndex + this.itemsPerPage
-    );
+    ));
   }
 
   changePage(page: number) {
-    if (page >= 1 && page <= this.totalPages) {
-      this.currentPage = page;
+    if (page >= 1 && page <= this.totalPages()) {
+      this.currentPage.set(page);
       this.updatePagination();
     }
   }
@@ -507,18 +515,18 @@ export class AdminGiftCardsComponent implements OnInit, AfterViewInit, OnDestroy
     const pages: number[] = [];
     const maxVisiblePages = 3; // Number of pages to show in the middle
 
-    if (this.totalPages <= 5) {
+    if (this.totalPages() <= 5) {
       // If total pages is 5 or less, show all pages
-      for (let i = 2; i < this.totalPages; i++) {
+      for (let i = 2; i < this.totalPages(); i++) {
         pages.push(i);
       }
     } else {
       // Calculate the range of pages to show
-      let start = Math.max(2, this.currentPage - 1);
-      let end = Math.min(this.totalPages - 1, start + maxVisiblePages - 1);
+      let start = Math.max(2, this.currentPage() - 1);
+      let end = Math.min(this.totalPages() - 1, start + maxVisiblePages - 1);
 
       // Adjust start if we're near the end
-      if (end === this.totalPages - 1) {
+      if (end === this.totalPages() - 1) {
         start = Math.max(2, end - maxVisiblePages + 1);
       }
 
@@ -532,33 +540,33 @@ export class AdminGiftCardsComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   previousPage() {
-    if (this.currentPage > 1) {
-      this.changePage(this.currentPage - 1);
+    if (this.currentPage() > 1) {
+      this.changePage(this.currentPage() - 1);
     }
   }
 
   nextPage() {
-    if (this.currentPage < this.totalPages) {
-      this.changePage(this.currentPage + 1);
+    if (this.currentPage() < this.totalPages()) {
+      this.changePage(this.currentPage() + 1);
     }
   }
 
   goToPage(page: number) {
-    if (page >= 1 && page <= this.totalPages) {
+    if (page >= 1 && page <= this.totalPages()) {
       this.changePage(page);
     }
   }
 
   viewDetails(giftCard: GiftCardAdmin) {
-    if (this.selectedGiftCard?.id === giftCard.id) {
-      this.selectedGiftCard = null;
+    if (this.selectedGiftCard()?.id === giftCard.id) {
+      this.selectedGiftCard.set(null);
     } else {
-      this.selectedGiftCard = giftCard;
+      this.selectedGiftCard.set(giftCard);
     }
   }
 
   closeDetails() {
-    this.selectedGiftCard = null;
+    this.selectedGiftCard.set(null);
   }
 
   toggleGiftCardStatus(giftCard: GiftCardAdmin) {
@@ -594,9 +602,9 @@ export class AdminGiftCardsComponent implements OnInit, AfterViewInit, OnDestroy
       next: (config) => {
         // The server sends the background IN EFFECT (the default when nothing usable is
         // uploaded), so the preview always shows what customers and the email get.
-        this.giftCardBackgroundPath = config.backgroundImagePath || '';
-        this.hasGiftCardBackground = config.hasBackground;
-        this.giftCardBackgroundMissing = !!config.configuredImageMissing;
+        this.giftCardBackgroundPath.set(config.backgroundImagePath || '');
+        this.hasGiftCardBackground.set(config.hasBackground);
+        this.giftCardBackgroundMissing.set(!!config.configuredImageMissing);
       },
       error: () => {}
     });
@@ -623,7 +631,7 @@ export class AdminGiftCardsComponent implements OnInit, AfterViewInit, OnDestroy
       // Create preview
       const reader = new FileReader();
       reader.onload = (e: any) => {
-        this.imagePreviewUrl = e.target.result;
+        this.imagePreviewUrl.set(e.target.result);
       };
       reader.readAsDataURL(file);
     }
@@ -635,18 +643,18 @@ export class AdminGiftCardsComponent implements OnInit, AfterViewInit, OnDestroy
       return;
     }
     
-    this.isUploading = true;
+    this.isUploading.set(true);
     
     this.adminService.uploadGiftCardBackground(this.selectedFile).subscribe({
       next: (response) => {
-        this.isUploading = false;
+        this.isUploading.set(false);
         
         if (response && response.imagePath) {
-          this.giftCardBackgroundPath = response.imagePath;
-          this.hasGiftCardBackground = true;
-          this.giftCardBackgroundMissing = false;
+          this.giftCardBackgroundPath.set(response.imagePath);
+          this.hasGiftCardBackground.set(true);
+          this.giftCardBackgroundMissing.set(false);
           this.selectedFile = null;
-          this.imagePreviewUrl = null;
+          this.imagePreviewUrl.set(null);
           
           // Clear file input
           const fileInput = document.getElementById('file-input') as HTMLInputElement;
@@ -680,7 +688,7 @@ export class AdminGiftCardsComponent implements OnInit, AfterViewInit, OnDestroy
         }
       },
       error: (error) => {
-        this.isUploading = false;
+        this.isUploading.set(false);
         const errorMessage = error.error?.message || error.message || 'Unknown error';
         alert('Upload failed: ' + errorMessage);
       }

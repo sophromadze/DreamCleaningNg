@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, PLATFORM_ID, ChangeDetectorRef, ChangeDetectionStrategy, NgZone, inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, PLATFORM_ID, ChangeDetectorRef, ChangeDetectionStrategy, NgZone, inject, signal } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { Subscription, concat, map, of } from 'rxjs';
@@ -46,7 +46,7 @@ const FIRST_PAGE_SIZE = 2;
   standalone: true,
   imports: [RouterLink],
   templateUrl: './testimonial-section.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './testimonial-section.component.scss'
 })
 export class TestimonialSectionComponent implements OnInit, OnDestroy {
@@ -55,7 +55,7 @@ export class TestimonialSectionComponent implements OnInit, OnDestroy {
   private platformId = inject<Object>(PLATFORM_ID);
 
   private readonly zone = inject(NgZone);
-  reviews: ExtendedReview[] = [];
+  readonly reviews = signal<ExtendedReview[]>([]);
 
   protected readonly photoSrc = responsiveSrc(TESTIMONIAL_PHOTO);
   protected readonly photoSrcset = responsiveSrcset(TESTIMONIAL_PHOTO);
@@ -66,16 +66,16 @@ export class TestimonialSectionComponent implements OnInit, OnDestroy {
   showGoogleReviews = environment.production;
 
   /** Index of the currently visible review in the testimonial slider. */
-  currentReviewIndex: number = 0;
+  readonly currentReviewIndex = signal<number>(0);
   /**
    * The only slides in the DOM: the visible review plus one neighbour on each side (ascending
    * index order, like the full list was). Navigating moves the window, so the outgoing slide is
    * still there to fade out and the incoming one is already there to fade in. Rendering every
    * review cost ~3,500 DOM nodes and made all ~150 avatars download at once.
    */
-  renderedReviews: ExtendedReview[] = [];
+  readonly renderedReviews = signal<ExtendedReview[]>([]);
   /** The review shown right now (`reviews[currentReviewIndex]`). */
-  activeReview: ExtendedReview | null = null;
+  readonly activeReview = signal<ExtendedReview | null>(null);
   private reviewSliderTimer: any = null;
   private reviewSliderPaused: boolean = false;
   private static readonly REVIEW_SLIDER_INTERVAL_MS = 6000;
@@ -135,7 +135,7 @@ export class TestimonialSectionComponent implements OnInit, OnDestroy {
     // `!environment.production` gate guarantees this branch never runs in
     // production builds, so placeholder copy stays out of the live site.
     if (!environment.production) {
-      this.reviews = TestimonialSectionComponent.DEV_PREVIEW_REVIEWS.map(r => ({ ...r, isExpanded: false }));
+      this.reviews.set(TestimonialSectionComponent.DEV_PREVIEW_REVIEWS.map(r => ({ ...r, isExpanded: false })));
       this.updateRenderedReviews();
       this.startReviewSlider();
       return;
@@ -162,12 +162,12 @@ export class TestimonialSectionComponent implements OnInit, OnDestroy {
           if (reviews.length === 0) return;
           // Keep the objects already on screen (same order on both requests) so their slides
           // aren't re-created when the full list replaces the first page.
-          const shown = this.reviews;
-          this.reviews = reviews.map((review, i) =>
+          const shown = this.reviews();
+          this.reviews.set(reviews.map((review, i) =>
             shown[i] && shown[i].authorName === review.authorName && shown[i].text === review.text
               ? shown[i]
-              : { ...review, isExpanded: false });
-          if (this.currentReviewIndex >= this.reviews.length) this.currentReviewIndex = 0;
+              : { ...review, isExpanded: false }));
+          if (this.currentReviewIndex() >= this.reviews().length) this.currentReviewIndex.set(0);
           this.updateRenderedReviews();
           if (!this.reviewSliderTimer) this.startReviewSlider();
           this.cdr.markForCheck();
@@ -180,30 +180,30 @@ export class TestimonialSectionComponent implements OnInit, OnDestroy {
   }
 
   private updateRenderedReviews() {
-    const n = this.reviews.length;
-    const current = this.currentReviewIndex;
+    const n = this.reviews().length;
+    const current = this.currentReviewIndex();
     const indices = n === 0 ? [] : [...new Set([(current - 1 + n) % n, current, (current + 1) % n])];
-    this.renderedReviews = indices.sort((a, b) => a - b).map(i => this.reviews[i]);
-    this.activeReview = this.reviews[current] ?? null;
+    this.renderedReviews.set(indices.sort((a, b) => a - b).map(i => this.reviews()[i]));
+    this.activeReview.set(this.reviews()[current] ?? null);
   }
 
   // ---------- Testimonial slider ----------
   private startReviewSlider() {
     if (!this.isBrowser) return;
     if (this.reviewSliderTimer) clearInterval(this.reviewSliderTimer);
-    if (this.reviews.length <= 1) return;
+    if (this.reviews().length <= 1) return;
     if (debugTimersPaused()) return;
     this.reviewSliderTimer = setIntervalOutsideZone(this.zone, () => {
-      if (this.reviewSliderPaused || this.reviews.length === 0) return;
-      this.currentReviewIndex = (this.currentReviewIndex + 1) % this.reviews.length;
+      if (this.reviewSliderPaused || this.reviews().length === 0) return;
+      this.currentReviewIndex.set((this.currentReviewIndex() + 1) % this.reviews().length);
       this.updateRenderedReviews();
       this.cdr.detectChanges();
     }, TestimonialSectionComponent.REVIEW_SLIDER_INTERVAL_MS);
   }
 
   goToReview(index: number) {
-    if (index < 0 || index >= this.reviews.length) return;
-    this.currentReviewIndex = index;
+    if (index < 0 || index >= this.reviews().length) return;
+    this.currentReviewIndex.set(index);
     this.updateRenderedReviews();
     // Reset the auto-advance window so the user gets a full interval to read
     // the slide they just clicked into.
@@ -211,14 +211,14 @@ export class TestimonialSectionComponent implements OnInit, OnDestroy {
   }
 
   prevReview() {
-    if (this.reviews.length <= 1) return;
-    const index = (this.currentReviewIndex - 1 + this.reviews.length) % this.reviews.length;
+    if (this.reviews().length <= 1) return;
+    const index = (this.currentReviewIndex() - 1 + this.reviews().length) % this.reviews().length;
     this.goToReview(index);
   }
 
   nextReview() {
-    if (this.reviews.length <= 1) return;
-    const index = (this.currentReviewIndex + 1) % this.reviews.length;
+    if (this.reviews().length <= 1) return;
+    const index = (this.currentReviewIndex() + 1) % this.reviews().length;
     this.goToReview(index);
   }
 

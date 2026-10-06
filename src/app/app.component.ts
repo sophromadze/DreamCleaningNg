@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, PLATFORM_ID, ChangeDetectorRef, DOCUMENT, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, PLATFORM_ID, ChangeDetectorRef, DOCUMENT, ChangeDetectionStrategy, inject, signal, computed } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { PlatformLocation } from '@angular/common';
 import { RouterOutlet, Router, NavigationEnd, ActivatedRoute } from '@angular/router';
@@ -125,40 +125,34 @@ export class AppComponent implements OnInit, OnDestroy {
   private servicesInitialized = false;
 
   /** Same as header: only show route content (outlet) when we have a definitive answer. */
-  isAuthInitialized = false;
+  readonly isAuthInitialized = signal(false);
   isBrowser = false;
-  private _path: string;
+  private readonly _path = signal('');
 
   /** Trigger for the deferred account-notice / order-reminder block: set once and kept. */
-  hasSessionUser = false;
+  readonly hasSessionUser = signal(false);
   /** Trigger for the deferred auth modal when it is asked for before the page went idle. */
-  authModalRequested = false;
+  readonly authModalRequested = signal(false);
 
   /** Same as header showAuthUI: show loading until auth ready, then show outlet. */
-  get showRouteLoading(): boolean {
-    return isProtectedRoute(this._path) && !this.isAuthInitialized;
-  }
+  readonly showRouteLoading = computed<boolean>(() => isProtectedRoute(this._path()) && !this.isAuthInitialized());
 
-  get showSocialStickyBanners(): boolean {
-    return !isSocialStickyHiddenRoute(this._path);
-  }
+  readonly showSocialStickyBanners = computed<boolean>(() => !isSocialStickyHiddenRoute(this._path()));
 
   /**
    * The Call / Email / Book Now / Free Quote tab on the right edge. It had NO route gate at all -
    * it has always rendered on every page - so this is the first one, and it is deliberately narrow:
    * hiding it anywhere else is a separate decision nobody has taken.
    */
-  get showFloatingActions(): boolean {
-    return !isCleanerPortalRoute(this._path);
-  }
+  readonly showFloatingActions = computed<boolean>(() => !isCleanerPortalRoute(this._path()));
 
   get showLiveChat(): boolean {
-    return this.isBrowser && !isChatHiddenRoute(this._path);
+    return this.isBrowser && !isChatHiddenRoute(this._path());
   }
 
   constructor() {
     this.isBrowser = isPlatformBrowser(this.platformId);
-    this._path = this.getInitialPath();
+    this._path.set(this.getInitialPath());
   }
 
   private updateCanonicalUrl(): void {
@@ -233,7 +227,7 @@ export class AppComponent implements OnInit, OnDestroy {
 
     this.subscriptions.add(
       this.authModalService.isOpen$.subscribe(isOpen => {
-        if (isOpen) this.authModalRequested = true;
+        if (isOpen) this.authModalRequested.set(true);
       })
     );
 
@@ -242,7 +236,7 @@ export class AppComponent implements OnInit, OnDestroy {
         filter((e): e is NavigationEnd => e instanceof NavigationEnd),
         map(() => this.getInitialPath())
       ).subscribe((path) => {
-        this._path = path;
+        this._path.set(path);
         this.cdr.detectChanges();
       })
     );
@@ -253,7 +247,7 @@ export class AppComponent implements OnInit, OnDestroy {
         this.authService.isInitialized$,
         this.authService.currentUser
       ]).subscribe(([initialized, user]) => {
-        if (user) this.hasSessionUser = true;
+        if (user) this.hasSessionUser.set(true);
         if (initialized && !this.servicesInitialized) {
           this.servicesInitialized = true;
           this.tokenRefreshService.startTokenRefresh();
@@ -269,7 +263,7 @@ export class AppComponent implements OnInit, OnDestroy {
         // Same as header: show route content (hide loading) after auth ready; rAF + 80ms so shimmer visible at least one frame
         if (initialized && this.isBrowser) {
           const hideLoadingNow = () => {
-            this.isAuthInitialized = true;
+            this.isAuthInitialized.set(true);
             this.cdr.detectChanges();
           };
           if (typeof requestAnimationFrame !== 'undefined') {

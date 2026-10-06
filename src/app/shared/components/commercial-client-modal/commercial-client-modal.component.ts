@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges, inject, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnChanges, SimpleChanges, inject, ChangeDetectionStrategy, output, input, signal, computed } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { finalize } from 'rxjs/operators';
 
@@ -94,14 +94,14 @@ const CLIENT_FORM_FIELD_IDS: Record<ClientFormField, string> = {
   standalone: true,
   imports: [FormsModule],
   templateUrl: './commercial-client-modal.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./commercial-client-modal.component.scss']
 })
 export class CommercialClientModalComponent implements OnChanges {
   private contracts = inject(ContractService);
 
   /** Host-controlled visibility. Every false→true transition resets the form. */
-  @Input() open = false;
+  readonly open = input(false);
 
   /**
    * Render as a right-side slide-in panel rather than a centred modal.
@@ -114,46 +114,46 @@ export class CommercialClientModalComponent implements OnChanges {
    * happens in one. The Create Invoice form deliberately does NOT: there the client is created
    * mid-invoice, over a form the admin is halfway through, which is exactly what a modal is for.
    */
-  @Input() panel = false;
+  readonly panel = input(false);
 
   /**
    * The client being edited, or null to create a new one. Read once per opening — the host does
    * not have to keep it in step while the modal is up.
    */
-  @Input() client: InvoiceClientOption | null = null;
+  readonly client = input<InvoiceClientOption | null>(null);
 
   /** Cancel, backdrop, ✕, or a completed save. The host clears its own flag. */
-  @Output() closed = new EventEmitter<void>();
+  readonly closed = output<void>();
 
   /** Emitted once the client exists on the server, carrying the row the server returned. */
-  @Output() created = new EventEmitter<ContractClient>();
+  readonly created = output<ContractClient>();
 
   /** Emitted after an edit is saved. The host reloads; the payload is the id that changed. */
-  @Output() saved = new EventEmitter<number>();
+  readonly saved = output<number>();
 
-  form = this.emptyForm();
+  readonly form = signal(this.emptyForm(), { equal: () => false });
 
   /** Which mode this opening is in. Fixed at open time, never mid-edit. */
-  editingId: number | null = null;
-  linkedAccountName = '';
-  linkedAccountEmail = '';
-  contractCount = 0;
+  readonly editingId = signal<number | null>(null);
+  readonly linkedAccountName = signal('');
+  readonly linkedAccountEmail = signal('');
+  readonly contractCount = signal(0);
 
-  get isEdit(): boolean { return this.editingId !== null; }
-  get isLinked(): boolean { return !!this.linkedAccountName; }
+  readonly isEdit = computed<boolean>(() => this.editingId() !== null);
+  readonly isLinked = computed<boolean>(() => !!this.linkedAccountName());
 
   /** Business-flagged accounts, for the optional link. Loaded on first open. */
-  businessCustomers: BusinessCustomer[] = [];
-  loadingCustomers = false;
+  readonly businessCustomers = signal<BusinessCustomer[]>([]);
+  readonly loadingCustomers = signal(false);
 
-  errorMessage = '';
-  saving = false;
+  readonly errorMessage = signal('');
+  readonly saving = signal(false);
 
   /**
    * The field the last failed validation named, so the template can mark it and `submit` can focus
    * it. Cleared by the next keystroke anywhere in the form.
    */
-  invalidField: ClientFormField | null = null;
+  readonly invalidField = signal<ClientFormField | null>(null);
 
   /**
    * True once the entity type is somebody's answer rather than something this form guessed — the
@@ -166,18 +166,19 @@ export class CommercialClientModalComponent implements OnChanges {
     const opened = changes['open'];
     if (!opened || !opened.currentValue || opened.previousValue) return;
 
-    this.errorMessage = '';
-    this.invalidField = null;
-    this.saving = false;
-    this.form = this.emptyForm();
-    this.editingId = null;
-    this.linkedAccountName = '';
-    this.linkedAccountEmail = '';
-    this.contractCount = 0;
+    this.errorMessage.set('');
+    this.invalidField.set(null);
+    this.saving.set(false);
+    this.form.set(this.emptyForm());
+    this.editingId.set(null);
+    this.linkedAccountName.set('');
+    this.linkedAccountEmail.set('');
+    this.contractCount.set(0);
     this.entityTypeManuallyEdited = false;
 
-    if (this.client) {
-      this.fillFrom(this.client);
+    const client = this.client();
+    if (client) {
+      this.fillFrom(client);
     } else {
       // The account picker is only ever offered on CREATE — an existing client's link is owned by
       // the business flag on that account, not by this form.
@@ -187,10 +188,10 @@ export class CommercialClientModalComponent implements OnChanges {
 
   /** Copies a saved client into the form. Nothing here is derived; every value round-trips. */
   private fillFrom(client: InvoiceClientOption): void {
-    this.editingId = client.id;
-    this.linkedAccountName = client.linkedAccountName ?? '';
-    this.linkedAccountEmail = client.linkedAccountEmail ?? '';
-    this.contractCount = client.contracts?.length ?? 0;
+    this.editingId.set(client.id);
+    this.linkedAccountName.set(client.linkedAccountName ?? '');
+    this.linkedAccountEmail.set(client.linkedAccountEmail ?? '');
+    this.contractCount.set(client.contracts?.length ?? 0);
 
     // A stored entity type is already somebody's answer. Renaming the client on an edit must not
     // overwrite what is printed on their existing paperwork's successors.
@@ -199,7 +200,7 @@ export class CommercialClientModalComponent implements OnChanges {
     const location = client.primaryLocation;
     const hasContact = !!client.billingContactFirstName;
 
-    this.form = {
+    this.form.set({
       ...this.emptyForm(),
       legalEntityName: client.legalEntityName ?? '',
       entityType: client.entityType ?? '',
@@ -230,7 +231,7 @@ export class CommercialClientModalComponent implements OnChanges {
       locationCity: location?.city ?? '',
       locationState: location?.state ?? '',
       locationZip: location?.zip ?? ''
-    };
+    });
   }
 
   private emptyForm() {
@@ -274,14 +275,14 @@ export class CommercialClientModalComponent implements OnChanges {
    * A failure here is not fatal: the link is optional and the client saves fine without it.
    */
   private loadBusinessCustomers(): void {
-    if (this.businessCustomers.length) return;
+    if (this.businessCustomers().length) return;
 
-    this.loadingCustomers = true;
+    this.loadingCustomers.set(true);
     this.contracts.getBusinessCustomers()
-      .pipe(finalize(() => this.loadingCustomers = false))
+      .pipe(finalize(() => this.loadingCustomers.set(false)))
       .subscribe({
-        next: rows => this.businessCustomers = rows || [],
-        error: () => this.businessCustomers = []
+        next: rows => this.businessCustomers.set(rows || []),
+        error: () => this.businessCustomers.set([])
       });
   }
 
@@ -293,33 +294,35 @@ export class CommercialClientModalComponent implements OnChanges {
    * — that is the admin saying something the account does not know.
    */
   onSourceUserSelected(): void {
-    const customer = this.businessCustomers.find(c => c.userId === this.form.sourceUserId);
+    const customer = this.businessCustomers().find(c => c.userId === this.form().sourceUserId);
     if (!customer) return;
 
-    if (!this.form.principalAddress.trim()) this.form.principalAddress = customer.address ?? '';
-    if (!this.form.city.trim()) this.form.city = customer.city ?? '';
-    if (!this.form.state.trim() || this.form.state === 'NY') {
-      this.form.state = customer.state || this.form.state;
+    if (!this.form().principalAddress.trim()) { this.form().principalAddress = customer.address ?? ''; this.form.set(this.form()); }
+    if (!this.form().city.trim()) { this.form().city = customer.city ?? ''; this.form.set(this.form()); }
+    if (!this.form().state.trim() || this.form().state === 'NY') {
+      this.form().state = customer.state || this.form().state;
+      this.form.set(this.form());
     }
-    if (!this.form.zip.trim()) this.form.zip = customer.zip ?? '';
-    if (!this.form.noticeEmail.trim()) this.form.noticeEmail = customer.email ?? '';
+    if (!this.form().zip.trim()) { this.form().zip = customer.zip ?? ''; this.form.set(this.form()); }
+    if (!this.form().noticeEmail.trim()) { this.form().noticeEmail = customer.email ?? ''; this.form.set(this.form()); }
 
-    if (!this.form.contactFirstName.trim()) this.form.contactFirstName = customer.firstName ?? '';
-    if (!this.form.contactLastName.trim()) this.form.contactLastName = customer.lastName ?? '';
-    if (!this.form.contactEmail.trim()) this.form.contactEmail = customer.email ?? '';
-    if (!this.form.contactPhone.trim()) this.form.contactPhone = customer.phone ?? '';
+    if (!this.form().contactFirstName.trim()) { this.form().contactFirstName = customer.firstName ?? ''; this.form.set(this.form()); }
+    if (!this.form().contactLastName.trim()) { this.form().contactLastName = customer.lastName ?? ''; this.form.set(this.form()); }
+    if (!this.form().contactEmail.trim()) { this.form().contactEmail = customer.email ?? ''; this.form.set(this.form()); }
+    if (!this.form().contactPhone.trim()) { this.form().contactPhone = customer.phone ?? ''; this.form.set(this.form()); }
   }
 
   onPhoneInput(event: Event, field: 'phone' | 'contactPhone'): void {
     const input = event.target as HTMLInputElement;
     const cleaned = sanitizePhoneInput(input.value);
     input.value = cleaned;
-    this.form[field] = cleaned;
+    this.form()[field] = cleaned;
+    this.form.set(this.form());
   }
 
   onFieldInput(): void {
-    if (this.errorMessage) this.errorMessage = '';
-    this.invalidField = null;
+    if (this.errorMessage()) this.errorMessage.set('');
+    this.invalidField.set(null);
   }
 
   /**
@@ -334,7 +337,7 @@ export class CommercialClientModalComponent implements OnChanges {
     this.onFieldInput();
 
     const inferred = applyInferredEntityType(value, this.entityTypeManuallyEdited);
-    if (inferred !== null) this.form.entityType = inferred;
+    if (inferred !== null) { this.form().entityType = inferred; this.form.set(this.form()); }
   }
 
   /**
@@ -347,9 +350,9 @@ export class CommercialClientModalComponent implements OnChanges {
   }
 
   close(): void {
-    if (this.saving) return;
-    this.errorMessage = '';
-    this.invalidField = null;
+    if (this.saving()) return;
+    this.errorMessage.set('');
+    this.invalidField.set(null);
     this.closed.emit();
   }
 
@@ -367,9 +370,7 @@ export class CommercialClientModalComponent implements OnChanges {
    * `validate()` is the gate instead — it names the first thing wrong in the order the form reads,
    * and `invalidField` puts the cursor in the box it is talking about.
    */
-  get canSubmit(): boolean {
-    return !this.saving;
-  }
+  readonly canSubmit = computed<boolean>(() => !this.saving());
 
   /**
    * True while a required company field is still blank. Used only to EXPLAIN, never to disable:
@@ -377,47 +378,47 @@ export class CommercialClientModalComponent implements OnChanges {
    * so up front beats letting the admin discover it by pressing Save.
    */
   get hasBlankRequiredFields(): boolean {
-    return !this.form.legalEntityName.trim()
-      || !this.form.entityType.trim()
-      || !this.form.principalAddress.trim()
-      || !this.form.city.trim()
-      || !this.form.state.trim()
-      || !this.form.zip.trim();
+    return !this.form().legalEntityName.trim()
+      || !this.form().entityType.trim()
+      || !this.form().principalAddress.trim()
+      || !this.form().city.trim()
+      || !this.form().state.trim()
+      || !this.form().zip.trim();
   }
 
   submit(): void {
-    if (this.saving) return;
+    if (this.saving()) return;
 
     const problem = this.validate();
     if (problem) {
-      this.errorMessage = problem.message;
-      this.invalidField = problem.field;
+      this.errorMessage.set(problem.message);
+      this.invalidField.set(problem.field);
       this.focusInvalidField();
       return;
     }
 
-    this.saving = true;
-    this.errorMessage = '';
-    this.invalidField = null;
+    this.saving.set(true);
+    this.errorMessage.set('');
+    this.invalidField.set(null);
 
     const payload = this.buildPayload();
-    const request = this.isEdit
-      ? this.contracts.updateClient(this.editingId!, payload)
+    const request = this.isEdit()
+      ? this.contracts.updateClient(this.editingId()!, payload)
       : this.contracts.createClient(payload);
 
     request
       // finalize, not complete: an HTTP error never reaches complete, and releasing the button
       // there is how a failed save leaves the form stuck on "Saving…".
-      .pipe(finalize(() => this.saving = false))
+      .pipe(finalize(() => this.saving.set(false)))
       .subscribe({
         next: client => {
-          if (this.isEdit) this.saved.emit(this.editingId!);
+          if (this.isEdit()) this.saved.emit(this.editingId()!);
           else this.created.emit(client);
           this.closed.emit();
         },
         error: err => {
-          this.errorMessage = extractApiErrorMessage(
-            err, this.isEdit ? 'Could not save the client.' : 'Could not create the client.');
+          this.errorMessage.set(extractApiErrorMessage(
+            err, this.isEdit() ? 'Could not save the client.' : 'Could not create the client.'));
         }
       });
   }
@@ -430,25 +431,25 @@ export class CommercialClientModalComponent implements OnChanges {
    */
   private validate(): ClientFormProblem | null {
     const required: ReadonlyArray<[ClientFormField, string, string]> = [
-      ['legalEntityName', this.form.legalEntityName, 'Enter the legal entity name of the client.'],
-      ['entityType', this.form.entityType, 'Enter the entity type, e.g. "a limited liability company".'],
-      ['principalAddress', this.form.principalAddress, 'Enter the principal business address.'],
-      ['city', this.form.city, 'Enter the city.'],
-      ['state', this.form.state, 'Enter the state.'],
-      ['zip', this.form.zip, 'Enter the ZIP code.']
+      ['legalEntityName', this.form().legalEntityName, 'Enter the legal entity name of the client.'],
+      ['entityType', this.form().entityType, 'Enter the entity type, e.g. "a limited liability company".'],
+      ['principalAddress', this.form().principalAddress, 'Enter the principal business address.'],
+      ['city', this.form().city, 'Enter the city.'],
+      ['state', this.form().state, 'Enter the state.'],
+      ['zip', this.form().zip, 'Enter the ZIP code.']
     ];
 
     for (const [field, value, message] of required) {
       if (!value.trim()) return { field, message };
     }
 
-    const billingEmail = this.form.noticeEmail.trim();
+    const billingEmail = this.form().noticeEmail.trim();
     if (billingEmail) {
       const problem = describeEmailProblem(billingEmail);
       if (problem) return { field: 'noticeEmail', message: `Billing email: ${problem}` };
     }
 
-    const contactEmail = this.form.contactEmail.trim();
+    const contactEmail = this.form().contactEmail.trim();
     if (contactEmail) {
       const problem = describeEmailProblem(contactEmail);
       if (problem) return { field: 'contactEmail', message: `Billing contact email: ${problem}` };
@@ -456,16 +457,16 @@ export class CommercialClientModalComponent implements OnChanges {
 
     // A half-entered contact is a mistake worth naming: a first name with no last name reaches
     // the server as a [Required] violation nobody can read.
-    const hasContactName = !!this.form.contactFirstName.trim() || !!this.form.contactLastName.trim();
+    const hasContactName = !!this.form().contactFirstName.trim() || !!this.form().contactLastName.trim();
     if (hasContactName
-      && (!this.form.contactFirstName.trim() || !this.form.contactLastName.trim())) {
+      && (!this.form().contactFirstName.trim() || !this.form().contactLastName.trim())) {
       return {
-        field: this.form.contactFirstName.trim() ? 'contactLastName' : 'contactFirstName',
+        field: this.form().contactFirstName.trim() ? 'contactLastName' : 'contactFirstName',
         message: 'Enter both a first and last name for the billing contact, or leave both blank.'
       };
     }
 
-    if (this.form.addLocation) {
+    if (this.form().addLocation) {
       const location = this.resolvedLocation();
       // With "same as company" on, the company boxes are the ones to fix and they were already
       // checked above — so a blank reaching here can only be the location's own field.
@@ -489,7 +490,8 @@ export class CommercialClientModalComponent implements OnChanges {
    * the form arguing with them.
    */
   private focusInvalidField(): void {
-    const id = this.invalidField ? CLIENT_FORM_FIELD_IDS[this.invalidField] : null;
+    const field = this.invalidField();
+    const id = field ? CLIENT_FORM_FIELD_IDS[field] : null;
     if (!id || typeof document === 'undefined') return;
 
     const input = document.getElementById(id) as HTMLElement | null;
@@ -499,53 +501,53 @@ export class CommercialClientModalComponent implements OnChanges {
 
   /** The location fields with "same as company" applied. */
   private resolvedLocation() {
-    const same = this.form.sameAsCompany;
+    const same = this.form().sameAsCompany;
     return {
-      address: (same ? this.form.principalAddress : this.form.locationAddress).trim(),
-      city: (same ? this.form.city : this.form.locationCity).trim(),
-      state: (same ? this.form.state : this.form.locationState).trim(),
-      zip: (same ? this.form.zip : this.form.locationZip).trim()
+      address: (same ? this.form().principalAddress : this.form().locationAddress).trim(),
+      city: (same ? this.form().city : this.form().locationCity).trim(),
+      state: (same ? this.form().state : this.form().locationState).trim(),
+      zip: (same ? this.form().zip : this.form().locationZip).trim()
     };
   }
 
   private buildPayload(): CreateCommercialClient {
-    const hasContact = !!this.form.contactFirstName.trim() && !!this.form.contactLastName.trim();
+    const hasContact = !!this.form().contactFirstName.trim() && !!this.form().contactLastName.trim();
     const location = this.resolvedLocation();
 
     return {
-      legalEntityName: this.form.legalEntityName.trim(),
-      entityType: this.form.entityType.trim(),
-      formationState: this.form.formationState.trim() || undefined,
-      principalAddress: this.form.principalAddress.trim(),
-      city: this.form.city.trim(),
-      state: this.form.state.trim(),
-      zip: this.form.zip.trim(),
-      noticeEmail: this.form.noticeEmail.trim() || undefined,
-      phone: normalizePhone10(this.form.phone) || undefined,
+      legalEntityName: this.form().legalEntityName.trim(),
+      entityType: this.form().entityType.trim(),
+      formationState: this.form().formationState.trim() || undefined,
+      principalAddress: this.form().principalAddress.trim(),
+      city: this.form().city.trim(),
+      state: this.form().state.trim(),
+      zip: this.form().zip.trim(),
+      noticeEmail: this.form().noticeEmail.trim() || undefined,
+      phone: normalizePhone10(this.form().phone) || undefined,
 
       // Create only, and only ever what was explicitly chosen: the server refuses an account that
       // is not business-flagged, and never infers one from a matching email address. On EDIT it is
       // omitted entirely — an existing client's link is owned by the business flag on the account,
       // and the server does not read this field there either.
-      sourceUserId: this.isEdit ? undefined : (this.form.sourceUserId ?? null),
+      sourceUserId: this.isEdit() ? undefined : (this.form().sourceUserId ?? null),
 
       billingContact: hasContact
         ? {
-            firstName: this.form.contactFirstName.trim(),
-            lastName: this.form.contactLastName.trim(),
-            title: this.form.contactTitle.trim() || undefined,
-            email: this.form.contactEmail.trim() || undefined,
-            phone: normalizePhone10(this.form.contactPhone) || undefined,
+            firstName: this.form().contactFirstName.trim(),
+            lastName: this.form().contactLastName.trim(),
+            title: this.form().contactTitle.trim() || undefined,
+            email: this.form().contactEmail.trim() || undefined,
+            phone: normalizePhone10(this.form().contactPhone) || undefined,
             // The invoice form reads the client's first contact, preferring the signer; using the
             // same role keeps a standalone client's contact indistinguishable from a contract's.
             role: ContractContactRole.ClientSigner
           }
         : null,
 
-      serviceLocation: this.form.addLocation
+      serviceLocation: this.form().addLocation
         ? {
-            businessBrand: this.form.businessBrand.trim() || undefined,
-            locationName: this.form.locationName.trim() || undefined,
+            businessBrand: this.form().businessBrand.trim() || undefined,
+            locationName: this.form().locationName.trim() || undefined,
             address: location.address,
             city: location.city,
             state: location.state,

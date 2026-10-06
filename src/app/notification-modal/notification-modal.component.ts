@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectionStrategy, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Subscription } from 'rxjs';
 import { SignalRService, UserNotification } from '../services/signalr.service';
@@ -8,22 +8,22 @@ import { SignalRService, UserNotification } from '../services/signalr.service';
   standalone: true,
   imports: [CommonModule],
   templateUrl: './notification-modal.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./notification-modal.component.scss']
 })
 export class NotificationModalComponent implements OnInit, OnDestroy {
   private signalRService = inject(SignalRService);
 
-  showModal = false;
-  currentNotification: UserNotification | null = null;
+  readonly showModal = signal(false);
+  readonly currentNotification = signal<UserNotification | null>(null);
   private subscription?: Subscription;
 
   ngOnInit() {
     // Subscribe to notifications
     this.subscription = this.signalRService.notifications$.subscribe(notification => {
       if (notification) {
-        this.currentNotification = notification;
-        this.showModal = true;
+        this.currentNotification.set(notification);
+        this.showModal.set(true);
       }
     });
   }
@@ -33,18 +33,18 @@ export class NotificationModalComponent implements OnInit, OnDestroy {
   }
 
   closeModal() {
-    this.showModal = false;
+    this.showModal.set(false);
     this.signalRService.clearNotifications();
   }
 
   getTitle(): string {
-    if (this.currentNotification?.type === 'accountUpdated' && this.currentNotification?.title) {
-      return this.currentNotification.title;
+    if (this.currentNotification()?.type === 'accountUpdated' && this.currentNotification()?.title) {
+      return this.currentNotification()!.title!;
     }
-    if (this.currentNotification?.type === 'accountUpdated') {
+    if (this.currentNotification()?.type === 'accountUpdated') {
       return 'Account Updated';
     }
-    switch (this.currentNotification?.type) {
+    switch (this.currentNotification()?.type) {
       case 'blocked':
         return 'Account Blocked';
       case 'unblocked':
@@ -69,25 +69,25 @@ export class NotificationModalComponent implements OnInit, OnDestroy {
       'forceLogout': 'force-logout',
       'userDeleted': 'user-deleted'
     };
-    return typeMap[this.currentNotification?.type || ''] || '';
+    return typeMap[this.currentNotification()?.type || ''] || '';
   }
 
   getIconClass(): string {
-    return this.currentNotification?.type || '';
+    return this.currentNotification()?.type || '';
   }
 
   getIcon(): string {
-    switch (this.currentNotification?.type) {
+    switch (this.currentNotification()?.type) {
       case 'blocked':
         return '🚫';
       case 'unblocked':
         return '✅';
       case 'roleChanged':
-        if (this.currentNotification?.data?.updating) {
+        if (this.currentNotification()?.data?.updating) {
           return '⏳';
-        } else if (this.currentNotification?.data?.redirecting) {
+        } else if (this.currentNotification()?.data?.redirecting) {
           return '🔄';
-        } else if (this.currentNotification?.data?.success) {
+        } else if (this.currentNotification()?.data?.success) {
           return '🎉';
         } else {
           return '👤';

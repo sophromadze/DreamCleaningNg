@@ -1,4 +1,4 @@
-@if (variant === 'inline') {
+@if (variant() === 'inline') {
   <div class="service-area-map-wrapper">
     <div class="search-section">
       <div class="search-row">
@@ -12,15 +12,15 @@
         />
         <button type="button" class="search-btn" (click)="onSearch()">Search</button>
       </div>
-      @if (searchMessage) {
-        <p [class]="messageClass">{{ searchMessage }}</p>
+      @if (searchMessage()) {
+        <p [class]="messageClass">{{ searchMessage() }}</p>
       }
     </div>
     <div #mapContainer class="map-container"></div>
   </div>
 } @else {
-  <div class="sticky-coverage" [class.docked]="isDocked" [class.expanded]="isExpanded">
-    <div class="sticky-map-sheet" [class.open]="isExpanded">
+  <div class="sticky-coverage" [class.docked]="isDocked()" [class.expanded]="isExpanded()">
+    <div class="sticky-map-sheet" [class.open]="isExpanded()">
       <div class="sheet-header">
         <span class="sheet-title">Are we in your area?</span>
         <button type="button" class="sheet-close" (click)="collapse()" aria-label="Close map">×</button>
@@ -40,8 +40,8 @@
         />
         <button type="button" class="search-btn" (click)="onSearch()">Search</button>
       </div>
-      @if (searchMessage) {
-        <p [class]="messageClass">{{ searchMessage }}</p>
+      @if (searchMessage()) {
+        <p [class]="messageClass">{{ searchMessage() }}</p>
       }
     </div>
   </div>

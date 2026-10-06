@@ -9,7 +9,7 @@ import { StructuredDataService } from '../../../services/structured-data.service
   standalone: true,
   imports: [RouterModule],
   templateUrl: './office-cleaning.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './office-cleaning.component.scss'
 })
 export class OfficeCleaningComponent implements OnInit, OnDestroy {

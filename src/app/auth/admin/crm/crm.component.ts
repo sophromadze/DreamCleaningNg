@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy } from '@angular/core';
+import { Component, ChangeDetectionStrategy, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { LeadsPipelineComponent } from './leads/leads-pipeline.component';
 import { CrmCustomersComponent } from './customers/crm-customers.component';
@@ -15,32 +15,32 @@ type CrmTab = 'leads' | 'calls' | 'customers' | 'segments' | 'automation';
   standalone: true,
   imports: [RouterLink, LeadsPipelineComponent, CrmCustomersComponent, CrmSegmentsComponent, CrmAutomationComponent, CrmCallsComponent],
   templateUrl: './crm.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./crm.component.scss']
 })
 export class CrmComponent {
-  activeTab: CrmTab = 'leads';
+  readonly activeTab = signal<CrmTab>('leads');
 
   /** Segment key passed into the customers list when a segment card is opened. */
-  customerSegmentFilter = '';
+  readonly customerSegmentFilter = signal('');
 
   /** Lead id to auto-open in the Leads tab when a call's linked lead is clicked. */
-  leadToOpen?: number;
+  readonly leadToOpen = signal<number | undefined>(undefined);
 
   setTab(tab: CrmTab): void {
-    this.activeTab = tab;
+    this.activeTab.set(tab);
     try { sessionStorage.setItem('crmActiveTab', tab); } catch { /* SSR / privacy mode */ }
   }
 
   /** From the Segments tab: filter the customer list by the chosen segment and switch tabs. */
   onSegmentSelected(key: string): void {
-    this.customerSegmentFilter = key;
+    this.customerSegmentFilter.set(key);
     this.setTab('customers');
   }
 
   /** From the Calls tab: open the linked lead in the Leads pipeline. */
   onCallLeadSelected(leadId: number): void {
-    this.leadToOpen = leadId;
+    this.leadToOpen.set(leadId);
     this.setTab('leads');
   }
 
@@ -52,7 +52,7 @@ export class CrmComponent {
       const saved = sessionStorage.getItem('crmActiveTab') as CrmTab | null;
       // Ignore any unknown value left in storage by a tab that has since moved out of the CRM —
       // 'ads' went to Company, 'contracts' to its own top-level section.
-      if (saved && this.validTabs.includes(saved)) this.activeTab = saved;
+      if (saved && this.validTabs.includes(saved)) this.activeTab.set(saved);
     } catch { /* SSR / privacy mode */ }
   }
 }

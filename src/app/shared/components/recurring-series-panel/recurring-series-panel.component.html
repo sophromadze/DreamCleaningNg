@@ -1,21 +1,21 @@
 <div class="rsp">
   <h5>Recurrence</h5>
 
-  @if (loading) {
+  @if (loading()) {
   <div class="rsp-loading">Loading schedule…</div>
   }
 
-  @if (errorMessage) {
-  <div class="rsp-alert rsp-alert--error">{{ errorMessage }}</div>
+  @if (errorMessage()) {
+  <div class="rsp-alert rsp-alert--error">{{ errorMessage() }}</div>
   }
-  @if (noticeMessage) {
-  <div class="rsp-alert rsp-alert--notice">{{ noticeMessage }}</div>
+  @if (noticeMessage()) {
+  <div class="rsp-alert rsp-alert--notice">{{ noticeMessage() }}</div>
   }
 
   <!-- ── Not recurring yet ────────────────────────────────────────────────────────────── -->
-  @if (!loading && !series && !editing) {
+  @if (!loading() && !series() && !editing()) {
     <p class="rsp-muted">This is a one-off cleaning.</p>
-    @if (canCreate) {
+    @if (canCreate()) {
     <button type="button" class="rsp-btn rsp-btn--primary" (click)="startSetup()">
       Make it recurring
     </button>
@@ -23,37 +23,37 @@
   }
 
   <!-- ── Existing schedule ────────────────────────────────────────────────────────────── -->
-  @if (!loading && series && !editing) {
+  @if (!loading() && series() && !editing()) {
     <p class="rsp-summary">
-      <strong>{{ series.intervalLabel }}</strong>
-      <span class="rsp-chip" [class.rsp-chip--off]="!series.isActive">
-        {{ series.stoppedAt ? 'Stopped' : (series.isActive ? 'Active' : 'Paused') }}
+      <strong>{{ series()!.intervalLabel }}</strong>
+      <span class="rsp-chip" [class.rsp-chip--off]="!series()!.isActive">
+        {{ series()!.stoppedAt ? 'Stopped' : (series()!.isActive ? 'Active' : 'Paused') }}
       </span>
     </p>
 
-    <p class="rsp-line"><strong>Recurrence start date:</strong> {{ series.anchorDate | date:'mediumDate' }}</p>
-    @if (series.endDate) {
-    <p class="rsp-line"><strong>Ends:</strong> {{ series.endDate | date:'mediumDate' }}</p>
+    <p class="rsp-line"><strong>Recurrence start date:</strong> {{ series()!.anchorDate | date:'mediumDate' }}</p>
+    @if (series()!.endDate) {
+    <p class="rsp-line"><strong>Ends:</strong> {{ series()!.endDate | date:'mediumDate' }}</p>
     }
     <p class="rsp-line">
       <strong>Upcoming cleanings:</strong>
-      @if (series.upcomingOccurrenceTarget != null) {
-        keeps {{ series.upcomingOccurrenceTarget }} generated ({{ series.upcomingCount ?? 0 }} now).
+      @if (series()!.upcomingOccurrenceTarget != null) {
+        keeps {{ series()!.upcomingOccurrenceTarget }} generated ({{ series()!.upcomingCount ?? 0 }} now).
       }
-      @if (series.upcomingOccurrenceTarget == null) {
+      @if (series()!.upcomingOccurrenceTarget == null) {
       the next 30 days are generated.
       }
     </p>
-    @if (series.contract) {
+    @if (series()!.contract) {
     <p class="rsp-line">
-      <strong>Contract:</strong> {{ series.contract.contractNumber }}
-      @if (series.contract.serviceAddress) {
-      <span> · {{ series.contract.serviceAddress }}</span>
+      <strong>Contract:</strong> {{ series()!.contract!.contractNumber }}
+      @if (series()!.contract!.serviceAddress) {
+      <span> · {{ series()!.contract!.serviceAddress }}</span>
       }
     </p>
     }
-    @if (series.notes) {
-    <p class="rsp-line"><strong>Note:</strong> {{ series.notes }}</p>
+    @if (series()!.notes) {
+    <p class="rsp-line"><strong>Note:</strong> {{ series()!.notes }}</p>
     }
 
     <!--
@@ -63,28 +63,28 @@
     -->
     <p class="rsp-line rsp-line--fact">
       <strong>Cleaners:</strong>
-      @if (series.copyCleanerAssignments) {
+      @if (series()!.copyCleanerAssignments) {
         copied onto each cleaning — <em>no email or SMS is sent</em>. Use the Send email button on
         each order.
       }
-      @if (!series.copyCleanerAssignments) {
+      @if (!series()!.copyCleanerAssignments) {
       assigned by hand on each cleaning.
       }
     </p>
 
     <p class="rsp-line rsp-line--fact">
       <strong>Payment:</strong>
-      @if (series.stoppedAt) {
+      @if (series()!.stoppedAt) {
       no automatic payment requests are sent for this stopped plan.
       }
-      @if (!series.stoppedAt && series.billingControlledByContract) {
-        billed by {{ series.contract?.contractNumber }}'s weekly invoice. These cleanings are operational
+      @if (!series()!.stoppedAt && series()!.billingControlledByContract) {
+        billed by {{ series()!.contract?.contractNumber }}'s weekly invoice. These cleanings are operational
         records — no per-cleaning payment requests are sent.
       }
-      @if (!series.stoppedAt && !series.billingControlledByContract && series.autoRequestPayment) {
+      @if (!series()!.stoppedAt && !series()!.billingControlledByContract && series()!.autoRequestPayment) {
         requested automatically, never sooner than 24 hours after the previous cleaning.
       }
-      @if (!series.stoppedAt && !series.billingControlledByContract && !series.autoRequestPayment) {
+      @if (!series()!.stoppedAt && !series()!.billingControlledByContract && !series()!.autoRequestPayment) {
         the customer can pay whenever they like; nothing is sent automatically.
       }
     </p>
@@ -92,13 +92,13 @@
     <!-- The standing discount, stated in the form it was agreed in rather than converted. -->
     <p class="rsp-line rsp-line--fact">
       <strong>Standing discount:</strong>
-      @if (series.recurringLoyaltyDiscountAmount != null) {
-        {{ series.recurringLoyaltyDiscountAmount | currency:'USD' }} off every cleaning.
+      @if (series()!.recurringLoyaltyDiscountAmount != null) {
+        {{ series()!.recurringLoyaltyDiscountAmount | currency:'USD' }} off every cleaning.
       }
-      @if (series.recurringLoyaltyDiscountAmount == null && series.recurringLoyaltyDiscountPercent) {
-        {{ series.recurringLoyaltyDiscountPercent }}% off every cleaning.
+      @if (series()!.recurringLoyaltyDiscountAmount == null && series()!.recurringLoyaltyDiscountPercent) {
+        {{ series()!.recurringLoyaltyDiscountPercent }}% off every cleaning.
       }
-      @if (series.recurringLoyaltyDiscountAmount == null && !series.recurringLoyaltyDiscountPercent) {
+      @if (series()!.recurringLoyaltyDiscountAmount == null && !series()!.recurringLoyaltyDiscountPercent) {
         none — each cleaning is priced at the customer's ordinary rate.
       }
     </p>
@@ -115,7 +115,7 @@
       @for (o of futureOccurrences; track $index) {
       <li class="rsp-occurrence">
         <span class="rsp-occ-date">{{ o.serviceDate | date:'EEE d MMM' }}</span>
-        @if (!series.billingControlledByContract) {
+        @if (!series()!.billingControlledByContract) {
         <span class="rsp-occ-total">{{ o.total | currency:'USD' }}</span>
         }
         <span class="rsp-occ-status" [class.rsp-occ-status--paid]="o.isPaid">
@@ -124,9 +124,9 @@
         @if (o.isTemplate) {
         <span class="rsp-occ-tag">source</span>
         }
-        @if (canUpdate && o.wasGenerated && !o.isPaid && o.status === 'Pending') {
+        @if (canUpdate() && o.wasGenerated && !o.isPaid && o.status === 'Pending') {
         <button
-                type="button" class="rsp-btn rsp-btn--tiny" (click)="pendingAction = {kind: 'skip', orderId: o.orderId}">Skip this cleaning</button>
+                type="button" class="rsp-btn rsp-btn--tiny" (click)="pendingAction.set({kind: 'skip', orderId: o.orderId})">Skip this cleaning</button>
         }
         @if (o.autoAssignedNotNotifiedCount > 0) {
         <span class="rsp-occ-warn"
@@ -138,47 +138,47 @@
       }
       @if (futureOccurrences.length === 0) {
       <li class="rsp-muted">
-        {{ series.upcomingOccurrenceTarget != null ? 'No upcoming cleanings.' : 'Nothing scheduled in the next 30 days.' }}
+        {{ series()!.upcomingOccurrenceTarget != null ? 'No upcoming cleanings.' : 'Nothing scheduled in the next 30 days.' }}
       </li>
       }
     </ul>
 
-    @if (series.pendingDates.length > 0) {
+    @if (series()!.pendingDates.length > 0) {
     <p class="rsp-muted rsp-tiny">
-      {{ series.pendingDates.length }} date(s) {{ series.upcomingOccurrenceTarget != null ? 'are still needed to reach the target' : 'in the next 30 days have no cleaning yet' }} —
+      {{ series()!.pendingDates.length }} date(s) {{ series()!.upcomingOccurrenceTarget != null ? 'are still needed to reach the target' : 'in the next 30 days have no cleaning yet' }} —
       they are created by the daily pass, or press Generate now.
     </p>
     }
 
     <div class="rsp-actions">
-      @if (canCreate && series.stoppedAt && series.templateOrderId === orderId) {
+      @if (canCreate() && series()!.stoppedAt && series()!.templateOrderId === orderId()) {
       <button type="button"
               class="rsp-btn rsp-btn--primary" (click)="startSetup(true)">Start new recurring plan</button>
       }
-      @if (canUpdate && !series.stoppedAt) {
+      @if (canUpdate() && !series()!.stoppedAt) {
       <button type="button" class="rsp-btn" (click)="startSetup()">Edit schedule</button>
       }
-      @if (canUpdate && !series.stoppedAt) {
+      @if (canUpdate() && !series()!.stoppedAt) {
       <button type="button" class="rsp-btn"
-              (click)="pendingAction = {kind: series.isActive ? 'pause' : 'resume'}">{{ series.isActive ? 'Pause recurrence' : 'Resume recurrence' }}</button>
+              (click)="pendingAction.set({kind: series()!.isActive ? 'pause' : 'resume'})">{{ series()!.isActive ? 'Pause recurrence' : 'Resume recurrence' }}</button>
       }
-      @if (canUpdate && !series.stoppedAt) {
-      <button type="button" class="rsp-btn" (click)="pendingAction = {kind: 'stop'}">Stop recurrence</button>
+      @if (canUpdate() && !series()!.stoppedAt) {
+      <button type="button" class="rsp-btn" (click)="pendingAction.set({kind: 'stop'})">Stop recurrence</button>
       }
-      @if (canUpdate && series.isActive && !series.stoppedAt) {
-      <button type="button" class="rsp-btn" (click)="generateNow()" [disabled]="generating">
-        {{ generating ? 'Generating…' : 'Generate now' }}
+      @if (canUpdate() && series()!.isActive && !series()!.stoppedAt) {
+      <button type="button" class="rsp-btn" (click)="generateNow()" [disabled]="generating()">
+        {{ generating() ? 'Generating…' : 'Generate now' }}
       </button>
       }
     </div>
   }
 
-  @if (pendingAction) {
+  @if (pendingAction()) {
   <div class="rsp-alert rsp-alert--notice">
-    <p>{{ pendingAction.kind === 'stop' ? 'Permanently stop this recurrence? Existing orders will stay.' : pendingAction.kind === 'skip' ? 'Skip this cleaning only? The anchor and later dates will stay.' : pendingAction.kind === 'pause' ? 'Pause new generation? Already-generated orders will stay.' : 'Resume generation from the existing recurrence rule?' }}</p>
+    <p>{{ pendingAction()!.kind === 'stop' ? 'Permanently stop this recurrence? Existing orders will stay.' : pendingAction()!.kind === 'skip' ? 'Skip this cleaning only? The anchor and later dates will stay.' : pendingAction()!.kind === 'pause' ? 'Pause new generation? Already-generated orders will stay.' : 'Resume generation from the existing recurrence rule?' }}</p>
     <div class="rsp-actions">
-      <button type="button" class="rsp-btn rsp-btn--primary" [disabled]="saving" (click)="confirmAction()">Confirm</button>
-      <button type="button" class="rsp-btn" [disabled]="saving" (click)="pendingAction = null">Cancel</button>
+      <button type="button" class="rsp-btn rsp-btn--primary" [disabled]="saving()" (click)="confirmAction()">Confirm</button>
+      <button type="button" class="rsp-btn" [disabled]="saving()" (click)="pendingAction.set(null)">Cancel</button>
     </div>
   </div>
   }
@@ -187,8 +187,8 @@
        Grouped into the three questions the form actually asks — when it repeats, what it
        costs, and how it behaves — because a flat run of labels made the discount field look
        like part of the schedule and the estimate look like part of the discount.            -->
-  @if (editing) {
-    @if (startingNew) {
+  @if (editing()) {
+    @if (startingNew()) {
     <p class="rsp-muted">Set up a new plan from this order. The previous plan stays stopped and its history is kept.</p>
     }
 
@@ -218,21 +218,21 @@
 
       <!-- Said at the moment of choosing, not after Save. The server refuses it as well; this is
            the courtesy, that is the control. -->
-      @if (dailyNotSupported) {
+      @if (dailyNotSupported()) {
       <p class="rsp-warn">
         Daily cleaning is not supported yet. Choose 2 days or more, or use weeks or months.
       </p>
       }
 
       <!-- Any combination of weekdays — nothing is excluded for anyone. -->
-      @if (intervalUnit === Units.Weeks) {
+      @if (intervalUnit() === Units.Weeks) {
       <div class="rsp-field">
         <span class="rsp-label">Service days</span>
         <div class="rsp-days" role="group" aria-label="Service days">
           @for (d of weekdayChips; track d.value) {
           <button type="button" class="rsp-day"
-                  [class.rsp-day--on]="serviceDaysOfWeek.includes(d.value)"
-                  [attr.aria-pressed]="serviceDaysOfWeek.includes(d.value)"
+                  [class.rsp-day--on]="serviceDaysOfWeek().includes(d.value)"
+                  [attr.aria-pressed]="serviceDaysOfWeek().includes(d.value)"
                   (click)="toggleWeekday(d.value)">{{ d.label }}</button>
           }
         </div>
@@ -251,14 +251,14 @@
 
       <!-- Days of the month. A day a month does not have (the 31st in April) is skipped that
            month, never moved to another date. -->
-      @if (intervalUnit === Units.Months) {
+      @if (intervalUnit() === Units.Months) {
       <div class="rsp-field">
         <span class="rsp-label">Days of month</span>
         <div class="rsp-days rsp-days--month" role="group" aria-label="Days of month">
           @for (d of monthDayChoices; track d) {
           <button type="button" class="rsp-day"
-                  [class.rsp-day--on]="serviceDaysOfMonth.includes(d)"
-                  [attr.aria-pressed]="serviceDaysOfMonth.includes(d)"
+                  [class.rsp-day--on]="serviceDaysOfMonth().includes(d)"
+                  [attr.aria-pressed]="serviceDaysOfMonth().includes(d)"
                   (click)="toggleMonthDay(d)">{{ d }}</button>
           }
         </div>
@@ -304,13 +304,13 @@
         </small>
       </label>
 
-      @if (contractOptions.length || contractId) {
+      @if (contractOptions().length || contractId()) {
       <label class="rsp-field">
         <span class="rsp-label">Commercial contract <span class="rsp-optional">optional</span></span>
         <select class="rsp-input" [(ngModel)]="contractId" (ngModelChange)="refreshSuggestedFirstCleaning()"
                 aria-label="Commercial contract">
           <option [ngValue]="null">No contract</option>
-          @for (c of contractOptions; track c.id) {
+          @for (c of contractOptions(); track c.id) {
           <option [ngValue]="c.id">
             {{ c.contractNumber }} — {{ c.isWeeklyFlatFee ? 'weekly flat fee' : 'per visit' }}
           </option>
@@ -340,7 +340,7 @@
       }
 
       @if (!billingControlledByContract) {
-      @if (pricePreview) {
+      @if (pricePreview(); as pricePreview) {
       <div class="rsp-note">
         <p class="rsp-note-title">Discounts on the source order</p>
         <p class="rsp-note-body">
@@ -370,15 +370,15 @@
         <span class="rsp-label">Recurring discount <span class="rsp-optional">optional</span></span>
 
         <div class="rsp-mode" role="group" aria-label="Recurring discount type">
-          <button type="button" class="rsp-mode-btn" [class.rsp-mode-btn--on]="loyaltyDiscountMode === 'percent'"
-                  [attr.aria-pressed]="loyaltyDiscountMode === 'percent'"
+          <button type="button" class="rsp-mode-btn" [class.rsp-mode-btn--on]="loyaltyDiscountMode() === 'percent'"
+                  [attr.aria-pressed]="loyaltyDiscountMode() === 'percent'"
                   (click)="setLoyaltyDiscountMode('percent')">Percentage</button>
-          <button type="button" class="rsp-mode-btn" [class.rsp-mode-btn--on]="loyaltyDiscountMode === 'fixed'"
-                  [attr.aria-pressed]="loyaltyDiscountMode === 'fixed'"
+          <button type="button" class="rsp-mode-btn" [class.rsp-mode-btn--on]="loyaltyDiscountMode() === 'fixed'"
+                  [attr.aria-pressed]="loyaltyDiscountMode() === 'fixed'"
                   (click)="setLoyaltyDiscountMode('fixed')">Fixed amount</button>
         </div>
 
-        @if (loyaltyDiscountMode === 'percent') {
+        @if (loyaltyDiscountMode() === 'percent') {
         <div class="rsp-adorned">
           <input type="number" min="0" max="100" step="0.01" class="rsp-input" placeholder="0"
                  aria-label="Recurring discount percentage"
@@ -387,7 +387,7 @@
         </div>
         }
 
-        @if (loyaltyDiscountMode === 'fixed') {
+        @if (loyaltyDiscountMode() === 'fixed') {
         <div class="rsp-adorned">
           <span class="rsp-adorn">$</span>
           <input type="number" min="0" step="0.01" class="rsp-input" placeholder="0.00"
@@ -397,10 +397,10 @@
         }
 
         <small class="rsp-hint">
-          @if (loyaltyDiscountMode === 'percent') {
+          @if (loyaltyDiscountMode() === 'percent') {
             Taken off every cleaning in this plan, as a share of what that cleaning is priced at.
           }
-          @if (loyaltyDiscountMode === 'fixed') {
+          @if (loyaltyDiscountMode() === 'fixed') {
             The same dollar amount comes off every cleaning, whatever it is priced at.
           }
           Leave blank for no standing discount. One-time promo codes, Bubble Points and automatic
@@ -408,14 +408,14 @@
         </small>
       </div>
 
-      @if (previewLoading) {
+      @if (previewLoading()) {
       <p class="rsp-muted rsp-tiny">Calculating recurring estimate…</p>
       }
-      @if (previewError) {
-      <p class="rsp-warn">{{ previewError }}</p>
+      @if (previewError()) {
+      <p class="rsp-warn">{{ previewError() }}</p>
       }
 
-      @if (pricePreview; as preview) {
+      @if (pricePreview(); as preview) {
       <div class="rsp-estimate">
         <p class="rsp-estimate-title">Estimated recurring cleaning</p>
         <dl class="rsp-estimate-rows">
@@ -480,10 +480,10 @@
       <p class="rsp-note-body">
         {{ retainedFutureOccurrences.length }} future cleaning(s) are already generated, through
         {{ lastRetainedFutureDate | date:'mediumDate' }}.
-        Future generation will use: every {{ intervalValue }} {{ intervalUnit === Units.Weeks ? 'week(s)' : intervalUnit === Units.Months ? 'month(s)' : 'day(s)' }}@if (intervalUnit === Units.Weeks && serviceDaysOfWeek.length) {
- on {{ describeDays(serviceDaysOfWeek, Units.Weeks) }}
-        }@if (intervalUnit === Units.Months && serviceDaysOfMonth.length) {
- on the {{ describeDays(serviceDaysOfMonth, Units.Months) }}
+        Future generation will use: every {{ intervalValue() }} {{ intervalUnit() === Units.Weeks ? 'week(s)' : intervalUnit() === Units.Months ? 'month(s)' : 'day(s)' }}@if (intervalUnit() === Units.Weeks && serviceDaysOfWeek().length) {
+ on {{ describeDays(serviceDaysOfWeek(), Units.Weeks) }}
+        }@if (intervalUnit() === Units.Months && serviceDaysOfMonth().length) {
+ on the {{ describeDays(serviceDaysOfMonth(), Units.Months) }}
         }.
         Nothing already created is moved or deleted automatically.
       </p>
@@ -557,10 +557,10 @@
 
     <div class="rsp-actions">
       <button type="button" class="rsp-btn rsp-btn--primary" (click)="save()"
-              [disabled]="saving || !!validationError">
-        {{ saving ? 'Saving…' : (series && !startingNew ? 'Save schedule' : 'Start recurring') }}
+              [disabled]="saving() || !!validationError">
+        {{ saving() ? 'Saving…' : (series() && !startingNew() ? 'Save schedule' : 'Start recurring') }}
       </button>
-      <button type="button" class="rsp-btn" (click)="cancelEdit()" [disabled]="saving">Cancel</button>
+      <button type="button" class="rsp-btn" (click)="cancelEdit()" [disabled]="saving()">Cancel</button>
     </div>
   }
 </div>

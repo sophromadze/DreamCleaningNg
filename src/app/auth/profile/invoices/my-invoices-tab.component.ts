@@ -1,4 +1,4 @@
-import { Component, OnInit, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { finalize } from 'rxjs';
 import {
@@ -18,15 +18,15 @@ import { extractApiErrorMessage } from '../../../utils/http-error.utils';
   standalone: true,
   imports: [CommonModule],
   templateUrl: './my-invoices-tab.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./my-invoices-tab.component.scss']
 })
 export class MyInvoicesTabComponent implements OnInit {
   private invoiceService = inject(CustomerInvoiceService);
 
-  invoices: MyCustomerInvoice[] = [];
-  loading = true;
-  error = '';
+  readonly invoices = signal<MyCustomerInvoice[]>([]);
+  readonly loading = signal(true);
+  readonly error = signal('');
 
   readonly statusLabels = CUSTOMER_INVOICE_STATUS_LABELS;
 
@@ -35,18 +35,18 @@ export class MyInvoicesTabComponent implements OnInit {
   }
 
   load(): void {
-    this.loading = true;
-    this.error = '';
+    this.loading.set(true);
+    this.error.set('');
     this.invoiceService.listMine()
-      .pipe(finalize(() => this.loading = false))
+      .pipe(finalize(() => this.loading.set(false)))
       .subscribe({
-        next: list => this.invoices = list,
-        error: err => this.error = extractApiErrorMessage(err, 'Your invoices could not be loaded.')
+        next: list => this.invoices.set(list),
+        error: err => this.error.set(extractApiErrorMessage(err, 'Your invoices could not be loaded.'))
       });
   }
 
   get unpaid(): MyCustomerInvoice[] {
-    return this.invoices.filter(i => i.status === 'Sent' || i.status === 'NotSent');
+    return this.invoices().filter(i => i.status === 'Sent' || i.status === 'NotSent');
   }
 
   get unpaidTotal(): number {

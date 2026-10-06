@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, inject, ChangeDetectionStrategy, signal } from '@angular/core';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { RouterModule } from '@angular/router';
@@ -16,7 +16,7 @@ import { faCircleXmark } from '../shared/icons/glyphs/faCircleXmark';
   standalone: true,
   imports: [ReactiveFormsModule, RouterModule, BubbleFieldComponent, IconComponent],
   templateUrl: './free-quote.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './free-quote.component.scss'
 })
 export class FreeQuoteComponent implements OnInit {
@@ -27,10 +27,10 @@ export class FreeQuoteComponent implements OnInit {
   protected readonly icons = { faCircleCheck, faCircleXmark };
 
   quoteForm: FormGroup;
-  isSubmitting = false;
-  showSuccess = false;
-  showError = false;
-  errorMessage = '';
+  readonly isSubmitting = signal(false);
+  readonly showSuccess = signal(false);
+  readonly showError = signal(false);
+  readonly errorMessage = signal('');
   protected readonly phoneNumber = inject(PhoneNumberService);
   private readonly analytics = inject(AnalyticsService);
 
@@ -72,9 +72,9 @@ export class FreeQuoteComponent implements OnInit {
       return;
     }
 
-    this.isSubmitting = true;
-    this.showError = false;
-    this.showSuccess = false;
+    this.isSubmitting.set(true);
+    this.showError.set(false);
+    this.showSuccess.set(false);
 
     const formValue = this.quoteForm.getRawValue();
     
@@ -91,9 +91,9 @@ export class FreeQuoteComponent implements OnInit {
     this.http.post(`${environment.apiUrl}/contact/quote-request`, quoteData)
       .subscribe({
         next: (response) => {
-          this.isSubmitting = false;
-          this.showSuccess = true;
-          this.showError = false;
+          this.isSubmitting.set(false);
+          this.showSuccess.set(true);
+          this.showError.set(false);
 
           // Confirmation cue — quote request sent.
           this.orderSound.playFormSubmit();
@@ -111,18 +111,18 @@ export class FreeQuoteComponent implements OnInit {
 
           // Hide success message after 5 seconds
           setTimeout(() => {
-            this.showSuccess = false;
+            this.showSuccess.set(false);
           }, 5000);
         },
         error: (error) => {
-          this.isSubmitting = false;
-          this.showError = true;
-          this.showSuccess = false;
-          this.errorMessage = error.error?.message || 'Failed to send quote request. Please try again.';
+          this.isSubmitting.set(false);
+          this.showError.set(true);
+          this.showSuccess.set(false);
+          this.errorMessage.set(error.error?.message || 'Failed to send quote request. Please try again.');
           
           // Hide error message after 5 seconds
           setTimeout(() => {
-            this.showError = false;
+            this.showError.set(false);
           }, 5000);
         }
       });

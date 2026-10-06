@@ -17,7 +17,7 @@ import { StructuredDataService } from '../../../services/structured-data.service
   standalone: true,
   imports: [RouterModule, IconComponent, CardImageDirective],
   templateUrl: './heavy-condition-cleaning.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './heavy-condition-cleaning.component.scss'
 })
 export class HeavyConditionCleaningComponent implements OnInit, OnDestroy {

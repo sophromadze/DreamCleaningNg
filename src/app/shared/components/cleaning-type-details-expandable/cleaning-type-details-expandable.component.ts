@@ -1,4 +1,4 @@
-import { Component, Input, ChangeDetectionStrategy } from '@angular/core';
+import { Component, ChangeDetectionStrategy, input, signal } from '@angular/core';
 import {
   REGULAR_CLEANING_CHECKLIST,
   DEEP_CLEANING_CHECKLIST,
@@ -17,15 +17,15 @@ import { faXmark } from '../../icons/glyphs/faXmark';
   standalone: true,
   imports: [IconComponent],
   templateUrl: './cleaning-type-details-expandable.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './cleaning-type-details-expandable.component.scss',
 })
 export class CleaningTypeDetailsExpandableComponent {
   protected readonly icons = { faCheck, faChevronDown, faChevronUp, faXmark };
 
-  @Input() cleaningType: 'normal' | 'deep' = 'normal';
+  readonly cleaningType = input<'normal' | 'deep'>('normal');
 
-  expanded = false;
+  readonly expanded = signal(false);
 
   readonly regularChecklist: CleaningChecklistSection[] = REGULAR_CLEANING_CHECKLIST;
   readonly deepChecklist: CleaningChecklistSection[] = DEEP_CLEANING_CHECKLIST;
@@ -33,31 +33,31 @@ export class CleaningTypeDetailsExpandableComponent {
   readonly deepNotIncludedFooter: string[] = DEEP_CLEANING_NOT_INCLUDED;
 
   get activeChecklist(): CleaningChecklistSection[] {
-    return this.cleaningType === 'deep' ? this.deepChecklist : this.regularChecklist;
+    return this.cleaningType() === 'deep' ? this.deepChecklist : this.regularChecklist;
   }
 
   get activeNotIncludedFooter(): string[] {
-    return this.cleaningType === 'deep' ? this.deepNotIncludedFooter : this.regularNotIncludedFooter;
+    return this.cleaningType() === 'deep' ? this.deepNotIncludedFooter : this.regularNotIncludedFooter;
   }
 
   get panelTitle(): string {
-    return this.cleaningType === 'deep'
+    return this.cleaningType() === 'deep'
       ? 'Deep cleaning (Additional to Regular)'
       : 'Regular cleaning';
   }
 
   get notIncludedFooterTitle(): string {
-    return this.cleaningType === 'deep' ? 'Not included in deep cleaning' : 'Not included in regular cleaning';
+    return this.cleaningType() === 'deep' ? 'Not included in deep cleaning' : 'Not included in regular cleaning';
   }
 
   get toggleButtonLabel(): string {
-    if (this.expanded) {
+    if (this.expanded()) {
       return "Hide what's included";
     }
-    return this.cleaningType === 'deep' ? "What's included - Deep" : "What's included - Regular";
+    return this.cleaningType() === 'deep' ? "What's included - Deep" : "What's included - Regular";
   }
 
   toggle(): void {
-    this.expanded = !this.expanded;
+    this.expanded.set(!this.expanded());
   }
 }

@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, PLATFORM_ID, EventEmitter, Output, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, PLATFORM_ID, ChangeDetectionStrategy, inject, output, signal } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { Router, RouterModule, NavigationEnd } from '@angular/router';
 import { Subject, Subscription } from 'rxjs';
@@ -11,7 +11,7 @@ import { AuthService } from '../../services/auth.service';
   standalone: true,
   imports: [CommonModule, RouterModule],
   templateUrl: './bubble-badge.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './bubble-badge.component.scss'
 })
 export class BubbleBadgeComponent implements OnInit, OnDestroy {
@@ -20,12 +20,12 @@ export class BubbleBadgeComponent implements OnInit, OnDestroy {
   private router = inject(Router);
   private platformId = inject<Object>(PLATFORM_ID);
 
-  summary: HeaderSummary | null = null;
+  readonly summary = signal<HeaderSummary | null>(null);
   /**
    * Whether the points system is on for this account, reported after each load so the header can
    * drop the slot (and remember the answer for the next server render) when it is off.
    */
-  @Output() availability = new EventEmitter<boolean>();
+  readonly availability = output<boolean>();
   /**
    * Stands in for the summary until it loads (and on the server): the badge is drawn from it in
    * full - visible - with an empty number slot, so the balance arriving fills reserved space
@@ -37,7 +37,7 @@ export class BubbleBadgeComponent implements OnInit, OnDestroy {
     tierProgressPercent: 0, nextTierName: null
   };
   isLoading = false;
-  showTooltip = false;
+  readonly showTooltip = signal(false);
   isBrowser: boolean;
   private destroy$ = new Subject<void>();
   private visibilityHandler?: () => void;
@@ -56,7 +56,7 @@ export class BubbleBadgeComponent implements OnInit, OnDestroy {
         if (user) {
           this.loadSummary();
         } else {
-          this.summary = null;
+          this.summary.set(null);
         }
       });
 
@@ -93,7 +93,7 @@ export class BubbleBadgeComponent implements OnInit, OnDestroy {
     this.isLoading = true;
     this.bubbleRewardsService.getHeaderSummary().subscribe({
       next: (data) => {
-        this.summary = data;
+        this.summary.set(data);
         this.isLoading = false;
         this.availability.emit(!!data?.pointsSystemEnabled);
       },

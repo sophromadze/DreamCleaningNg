@@ -10,7 +10,7 @@ import { StructuredDataService } from '../../../../services/structured-data.serv
   standalone: true,
   imports: [RouterModule, IconComponent],
   templateUrl: './bathroom-cleaning.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './bathroom-cleaning.component.scss'
 })
 export class BathroomCleaningComponent implements OnInit, OnDestroy {

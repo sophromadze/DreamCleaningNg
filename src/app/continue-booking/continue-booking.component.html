@@ -1,7 +1,7 @@
-@if (showContinueBooking && !userDismissed) {
-<div class="continue-booking-container" [class.expanded]="isExpanded">
+@if (showContinueBooking() && !userDismissed()) {
+<div class="continue-booking-container" [class.expanded]="isExpanded()">
   <!-- Expanded State -->
-  @if (isExpanded) {
+  @if (isExpanded()) {
   <div class="continue-booking-card">
     <div class="continue-booking-actions">
       <button class="continue-booking-minimize" (click)="onMinimize()" aria-label="Minimize">
@@ -27,7 +27,7 @@
       <div class="continue-booking-text">
         <span class="continue-booking-subtitle">Your booking is saved, continue it whenever you want!</span>
       </div>
-      @if (!isExpanded) {
+      @if (!isExpanded()) {
       <div class="continue-booking-icon">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
           <path d="M9 12L11 14L15 10M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -39,7 +39,7 @@
   }
 
   <!-- Toggle Button (Collapsed State) -->
-  @if (!isExpanded) {
+  @if (!isExpanded()) {
   <button class="toggle-button" (click)="toggleExpanded()" title="Continue Booking">
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
       <path d="M9 12L11 14L15 10M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>

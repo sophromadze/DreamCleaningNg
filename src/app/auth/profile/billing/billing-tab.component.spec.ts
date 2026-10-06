@@ -94,20 +94,21 @@ describe('BillingTabComponent', () => {
 
   it('asks for a successor before removing the Primary card, preferring the Backup', () => {
     setup([card(1, { isPrimary: true }), card(2), card(3, { isBackup: true })]);
-    component.openRemove(component.cards[0]);
-    expect(component.removeDialog!.newPrimaryId).toBe(3);
+    component.openRemove(component.cards()[0]);
+    expect(component.removeDialog()!.newPrimaryId).toBe(3);
     expect(component.removeConsequence()).toContain('Choose the card that should replace it');
 
     billing.removeCard.mockReturnValue(of({ message: 'ok', cards: [], autoPayEnabled: false }));
-    component.removeDialog!.newPrimaryId = null;
+    component.removeDialog()!.newPrimaryId = null;
+    component.removeDialog.set(component.removeDialog());
     component.confirmRemove();
     expect(billing.removeCard).not.toHaveBeenCalled();
-    expect(component.removeDialog!.error).toContain('Choose which card');
+    expect(component.removeDialog()!.error).toContain('Choose which card');
   });
 
   it('warns that removing the only card turns Automatic Payments off', () => {
     setup([card(1, { isPrimary: true })], overview({ autoPayEnabled: true }));
-    component.openRemove(component.cards[0]);
+    component.openRemove(component.cards()[0]);
     expect(component.removeConsequence()).toContain('turns Automatic Payments off');
   });
 
@@ -120,14 +121,18 @@ describe('BillingTabComponent', () => {
   it('requires all three booking consents before authorising office-booked charges', () => {
     setup([card(1, { isPrimary: true })]);
     billing.getTerms.mockReturnValue(of({ scope: 'office', version: 'v1', text: 'terms' }));
-    component.openTerms('arrangement', component.autoPay!.arrangements[0]);
+    component.openTerms('arrangement', component.autoPay()!.arrangements[0]);
 
-    component.terms!.accepted = true;
+    component.terms()!.accepted = true;
+    component.terms.set(component.terms());
     expect(component.termsCanSubmit).toBe(false);
-    component.terms!.smsConsent = true;
-    component.terms!.cancellationFeeConsent = true;
+    component.terms()!.smsConsent = true;
+    component.terms.set(component.terms());
+    component.terms()!.cancellationFeeConsent = true;
+    component.terms.set(component.terms());
     expect(component.termsCanSubmit).toBe(false);
-    component.terms!.termsOfServiceConsent = true;
+    component.terms()!.termsOfServiceConsent = true;
+    component.terms.set(component.terms());
     expect(component.termsCanSubmit).toBe(true);
   });
 
@@ -136,9 +141,10 @@ describe('BillingTabComponent', () => {
     billing.getTerms.mockReturnValue(of({ scope: 'general', version: '2026-09.1', text: 'general terms' }));
     billing.enableAutoPay.mockReturnValue(of(overview({ autoPayEnabled: true })));
     component.openTerms('general', null);
-    component.terms!.accepted = true;
+    component.terms()!.accepted = true;
+    component.terms.set(component.terms());
     component.submitTerms();
     expect(billing.enableAutoPay).toHaveBeenCalledWith('2026-09.1');
-    expect(component.autoPay!.autoPayEnabled).toBe(true);
+    expect(component.autoPay()!.autoPayEnabled).toBe(true);
   });
 });
