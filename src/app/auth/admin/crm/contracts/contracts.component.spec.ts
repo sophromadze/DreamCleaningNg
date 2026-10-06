@@ -276,10 +276,10 @@ describe('ContractFormComponent', () => {
 
     flushPricingPreview();
 
-    expect(component.model.contractTemplateId).toBe(1);
-    expect(component.model.contractorProfileId).toBe(2);
-    expect(component.model.scopeTemplateId).toBe(5);
-    expect(component.model.scope.groups.length).toBe(1);
+    expect(component.model().contractTemplateId).toBe(1);
+    expect(component.model().contractorProfileId).toBe(2);
+    expect(component.model().scopeTemplateId).toBe(5);
+    expect(component.model().scope.groups.length).toBe(1);
   });
 
   /**
@@ -309,7 +309,7 @@ describe('ContractFormComponent', () => {
     });
     flushPricingPreview();
 
-    expect(component.model.contractTemplateId).toBe(2);
+    expect(component.model().contractTemplateId).toBe(2);
   });
 
   // ── weekly flat fee (template v3.0) ────────────────────────────────────────
@@ -321,8 +321,10 @@ describe('ContractFormComponent', () => {
     expect(first.request.body.pricingBasis).toBe(ContractPricingBasis.PerVisit);
     first.flush({});
 
-    component.model.schedule.visitsPerPeriod = 6;
-    component.model.pricing.pricingBasis = ContractPricingBasis.WeeklyFlatFee;
+    component.model().schedule.visitsPerPeriod = 6;
+    component.model.set(component.model());
+    component.model().pricing.pricingBasis = ContractPricingBasis.WeeklyFlatFee;
+    component.model.set(component.model());
     component.onPricingBasisChanged();
     (component as any).refreshPricingPreview();
     const weekly = http.expectOne(r => r.url.endsWith('/pricing-preview'));
@@ -337,15 +339,17 @@ describe('ContractFormComponent', () => {
     flushReferenceData();
     flushPricingPreview();
 
-    component.model.pricing.pricingBasis = ContractPricingBasis.WeeklyFlatFee;
-    component.model.billing.frequency = ContractBillingFrequency.Weekly;
-    component.pricingPreview = {
+    component.model().pricing.pricingBasis = ContractPricingBasis.WeeklyFlatFee;
+    component.model.set(component.model());
+    component.model().billing.frequency = ContractBillingFrequency.Weekly;
+    component.model.set(component.model());
+    component.pricingPreview.set({
       pricingBasis: ContractPricingBasis.WeeklyFlatFee,
       preTaxPrice: 875, salesTaxAmount: 77.66, totalPrice: 952.66,
       perVisitAllocation: 875 / 6, scheduledVisitsPerFeePeriod: 6,
       cancellationAmount: 72.92, remainingBalance: 72.91, lockoutFee: 145.83,
       liabilityCapAmount: 437.5, lateChargeAnnualPercent: 12
-    };
+    });
     if (!component.isOpen('pricing')) component.togglePanel('pricing');
     fixture.detectChanges();
 
@@ -366,12 +370,14 @@ describe('ContractFormComponent', () => {
     flushReferenceData();
     flushPricingPreview();
 
-    component.model.billing.frequency = ContractBillingFrequency.Monthly;
-    component.model.pricing.pricingBasis = ContractPricingBasis.WeeklyFlatFee;
+    component.model().billing.frequency = ContractBillingFrequency.Monthly;
+    component.model.set(component.model());
+    component.model().pricing.pricingBasis = ContractPricingBasis.WeeklyFlatFee;
+    component.model.set(component.model());
     expect(component.weeklyFlatFeeProblem).toContain('invoiced weekly');
 
     component.onPricingBasisChanged();
-    expect(component.model.billing.frequency as ContractBillingFrequency).toBe(ContractBillingFrequency.Weekly);
+    expect(component.model().billing.frequency as ContractBillingFrequency).toBe(ContractBillingFrequency.Weekly);
     expect(component.weeklyFlatFeeProblem).toBeNull();
     http.match(r => r.url.endsWith('/pricing-preview')).forEach(r => r.flush({}));
   });
@@ -385,9 +391,12 @@ describe('ContractFormComponent', () => {
     flushReferenceData();
     flushPricingPreview();
 
-    component.model.schedule.flexibleScheduling = true;
-    component.model.schedule.frequencyUnit = 'calendar week';
-    component.model.schedule.visitsPerPeriod = 1;
+    component.model().schedule.flexibleScheduling = true;
+    component.model.set(component.model());
+    component.model().schedule.frequencyUnit = 'calendar week';
+    component.model.set(component.model());
+    component.model().schedule.visitsPerPeriod = 1;
+    component.model.set(component.model());
     for (const day of ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Sunday']) {
       if (!component.isServiceDaySelected(day)) component.toggleServiceDay(day);
     }
@@ -396,10 +405,11 @@ describe('ContractFormComponent', () => {
     }
 
     expect(component.visitCountWarning).toContain('Visits per period is 1 but 6 regular service days');
-    expect(component.model.schedule.visitsPerPeriod).toBe(1);
+    expect(component.model().schedule.visitsPerPeriod).toBe(1);
     expect(component.selectedServiceDays.length).toBe(6);
 
-    component.model.schedule.visitsPerPeriod = 6;
+    component.model().schedule.visitsPerPeriod = 6;
+    component.model.set(component.model());
     expect(component.visitCountWarning).toBeNull();
   });
 
@@ -408,10 +418,11 @@ describe('ContractFormComponent', () => {
     flushReferenceData();
     http.expectOne(r => r.url.endsWith('/pricing-preview')).flush({});
 
-    component.model.scope.groups[0].items[0].selected = false;
+    component.model().scope.groups[0].items[0].selected = false;
+    component.model.set(component.model());
 
     // The template the picker still offers is untouched.
-    expect(component.scopeTemplates[0].structure.groups[0].items[0].selected).toBe(true);
+    expect(component.scopeTemplates()[0].structure.groups[0].items[0].selected).toBe(true);
   });
 
   it('asks the SERVER for every derived figure instead of computing one', () => {
@@ -439,8 +450,8 @@ describe('ContractFormComponent', () => {
       liabilityCapAmount: 11049.87, lateChargeAnnualPercent: 12
     });
 
-    expect(component.pricingPreview?.totalPrice).toBe(925.43);
-    expect(component.pricingPreview?.cancellationAmount).toBe(425.00);
+    expect(component.pricingPreview()?.totalPrice).toBe(925.43);
+    expect(component.pricingPreview()?.cancellationAmount).toBe(425.00);
   });
 
   it('defaults every advanced term to the drafted agreement', () => {
@@ -450,21 +461,21 @@ describe('ContractFormComponent', () => {
     flushPricingPreview();
 
     // An admin who never opens the Advanced panel must produce the standard wording.
-    expect(component.model.advanced.curePeriodDays).toBe(15);
-    expect(component.model.advanced.confidentialityYears).toBe(2);
-    expect(component.model.advanced.makeupWindowDays).toBe(14);
-    expect(component.model.advanced.lockoutWaitMinutes).toBe(20);
+    expect(component.model().advanced.curePeriodDays).toBe(15);
+    expect(component.model().advanced.confidentialityYears).toBe(2);
+    expect(component.model().advanced.makeupWindowDays).toBe(14);
+    expect(component.model().advanced.lockoutWaitMinutes).toBe(20);
     // The Satisfaction Guarantee: report within 24 hours, with a narrow 72-hour outer limit for an
     // issue that could not reasonably have been found sooner — the same rule the published policy
     // and the landing page state.
-    expect(component.model.advanced.qualityComplaintHours).toBe(24);
-    expect(component.model.advanced.qualityLatentDeficiencyLimitHours).toBe(72);
-    expect(component.model.pricing.cancellationPercent).toBe(50);
+    expect(component.model().advanced.qualityComplaintHours).toBe(24);
+    expect(component.model().advanced.qualityLatentDeficiencyLimitHours).toBe(72);
+    expect(component.model().pricing.cancellationPercent).toBe(50);
 
     // A MULTIPLE of the per-visit fee, not a lookback in months. A months-based cap moves every
     // time the visit frequency or billing cadence changes, so the ceiling a client agreed to
     // would silently drift.
-    expect(component.model.pricing.liabilityCapMultiple).toBe(13);
+    expect(component.model().pricing.liabilityCapMultiple).toBe(13);
 
     // TERM DEFAULTS (2026-09-30): NO minimum commitment and THIRTY days' notice. There is no
     // company-wide commitment; one exists only when specifically agreed with a client. New drafts
@@ -472,19 +483,19 @@ describe('ContractFormComponent', () => {
     //
     // These MIRROR `TermSnapshot`'s server-side defaults, asserted in
     // `CommercialBillingUpgradeTests.NewContract_TermDefaults_AreNoCommitmentAndThirtyDaysNotice`.
-    expect(component.model.term.minimumCommitmentMonths).toBe(0);
-    expect(component.model.term.initialTermMonths).toBe(0);
-    expect(component.model.term.terminationNoticeDays).toBe(30);
-    expect(component.model.term.renewalType).toBe('month-to-month');
+    expect(component.model().term.minimumCommitmentMonths).toBe(0);
+    expect(component.model().term.initialTermMonths).toBe(0);
+    expect(component.model().term.terminationNoticeDays).toBe(30);
+    expect(component.model().term.renewalType).toBe('month-to-month');
 
     // NOT seeded with today. The minimum-commitment and initial-term end dates are both derived
     // from it, so a default would print three confident dates nobody chose — and would shorten
     // the commitment on any contract signed ahead of its start.
-    expect(component.model.term.serviceCommencementDate).toBeNull();
+    expect(component.model().term.serviceCommencementDate).toBeNull();
 
     // The $35 failed-payment fee is RETIRED and has no field on the form. At zero the clause is
     // dropped from the generated agreement rather than printed as "$0.00".
-    expect(component.model.pricing.returnedPaymentFee).toBe(0);
+    expect(component.model().pricing.returnedPaymentFee).toBe(0);
   });
 
   // ── the drafted agreement's new inputs ────────────────────────────────────
@@ -502,14 +513,15 @@ describe('ContractFormComponent', () => {
     flushReferenceData();
     flushPricingPreview();
 
-    expect(component.model.schedule.arrivalWindowStart).toBe('8:30 AM');
-    expect(component.model.schedule.arrivalWindowEnd).toBe('9:30 AM');
-    expect(component.model.schedule.serviceTime).toBe('8:30 AM');
+    expect(component.model().schedule.arrivalWindowStart).toBe('8:30 AM');
+    expect(component.model().schedule.arrivalWindowEnd).toBe('9:30 AM');
+    expect(component.model().schedule.serviceTime).toBe('8:30 AM');
 
-    component.model.schedule.arrivalWindowStart = '6:00 AM';
+    component.model().schedule.arrivalWindowStart = '6:00 AM';
+    component.model.set(component.model());
     component.onArrivalWindowChange();
 
-    expect(component.model.schedule.serviceTime).toBe('6:00 AM');
+    expect(component.model().schedule.serviceTime).toBe('6:00 AM');
   });
 
   /**
@@ -522,10 +534,10 @@ describe('ContractFormComponent', () => {
     flushReferenceData();
     flushPricingPreview();
 
-    expect(component.model.siteDetails.approximateSquareFootage).toBe('');
-    expect(component.model.siteDetails.customerRestroomCounts).toBe('');
-    expect(component.model.siteDetails.foodServicePermitHolder).toBe('');
-    expect(component.model.siteDetails.foodContactSanitizing).toBe('');
+    expect(component.model().siteDetails.approximateSquareFootage).toBe('');
+    expect(component.model().siteDetails.customerRestroomCounts).toBe('');
+    expect(component.model().siteDetails.foodServicePermitHolder).toBe('');
+    expect(component.model().siteDetails.foodContactSanitizing).toBe('');
   });
 
   /**
@@ -544,7 +556,8 @@ describe('ContractFormComponent', () => {
     flushReferenceData();
     flushPricingPreview();
 
-    component.openPanels.add('contacts');
+    component.openPanels().add('contacts');
+    component.openPanels.set(component.openPanels());
     fixture.detectChanges();
 
     const dom = fixture.nativeElement as HTMLElement;
@@ -553,8 +566,9 @@ describe('ContractFormComponent', () => {
     expect(dom.querySelector('#clientOperationalEmail')).not.toBeNull();
 
     // Still on the model, still posted, so an older draft is not silently stripped on re-save.
-    component.model.contacts.clientNoticeMailingAddress = '12 Water Street, Jersey City, NJ';
-    expect(component.model.contacts.clientNoticeMailingAddress)
+    component.model().contacts.clientNoticeMailingAddress = '12 Water Street, Jersey City, NJ';
+    component.model.set(component.model());
+    expect(component.model().contacts.clientNoticeMailingAddress)
       .toBe('12 Water Street, Jersey City, NJ');
   });
 
@@ -571,7 +585,8 @@ describe('ContractFormComponent', () => {
       fixture.detectChanges();
       flushReferenceData();
       flushPricingPreview();
-      component.openPanels.add('contacts');
+      component.openPanels().add('contacts');
+      component.openPanels.set(component.openPanels());
       fixture.detectChanges();
       return fixture.nativeElement as HTMLElement;
     }
@@ -594,10 +609,12 @@ describe('ContractFormComponent', () => {
     it('stores what is typed on its own, independent of the approval and operational emails', async () => {
       const dom = openContacts();
       // A new contract starts with a string, never null.
-      expect(component.model.contacts.clientNoticeEmail).toBe('');
+      expect(component.model().contacts.clientNoticeEmail).toBe('');
 
-      component.model.contacts.clientApprovalEmail = 'approvals@client.example';
-      component.model.contacts.clientOperationalEmail = 'facilities@client.example';
+      component.model().contacts.clientApprovalEmail = 'approvals@client.example';
+      component.model.set(component.model());
+      component.model().contacts.clientOperationalEmail = 'facilities@client.example';
+      component.model.set(component.model());
       fixture.detectChanges();
       await fixture.whenStable();
 
@@ -606,9 +623,9 @@ describe('ContractFormComponent', () => {
       input.dispatchEvent(new Event('input'));
       fixture.detectChanges();
 
-      expect(component.model.contacts.clientNoticeEmail).toBe('legal@client.example');
-      expect(component.model.contacts.clientApprovalEmail).toBe('approvals@client.example');
-      expect(component.model.contacts.clientOperationalEmail).toBe('facilities@client.example');
+      expect(component.model().contacts.clientNoticeEmail).toBe('legal@client.example');
+      expect(component.model().contacts.clientApprovalEmail).toBe('approvals@client.example');
+      expect(component.model().contacts.clientOperationalEmail).toBe('facilities@client.example');
     });
 
     it('reopens a draft saved before the field existed with a blank string, not null', () => {
@@ -624,8 +641,8 @@ describe('ContractFormComponent', () => {
       });
       http.match(r => r.url.endsWith('/pricing-preview')).forEach(r => r.flush({}));
 
-      expect(component.model.contacts.clientNoticeEmail).toBe('');
-      expect(component.model.contacts.clientApprovalEmail).toBe('contracts@northline.example');
+      expect(component.model().contacts.clientNoticeEmail).toBe('');
+      expect(component.model().contacts.clientApprovalEmail).toBe('contracts@northline.example');
     });
   });
 
@@ -645,7 +662,8 @@ describe('ContractFormComponent', () => {
     flushReferenceData();
     flushPricingPreview();
 
-    component.openPanels.add('siteDetails');
+    component.openPanels().add('siteDetails');
+    component.openPanels.set(component.openPanels());
     fixture.detectChanges();
 
     const dom = fixture.nativeElement as HTMLElement;
@@ -669,7 +687,8 @@ describe('ContractFormComponent', () => {
     flushReferenceData();
     flushPricingPreview();
 
-    component.openPanels.add('contacts');
+    component.openPanels().add('contacts');
+    component.openPanels.set(component.openPanels());
     fixture.detectChanges();
 
     const dom = fixture.nativeElement as HTMLElement;
@@ -696,21 +715,30 @@ describe('ContractFormComponent', () => {
     flushReferenceData();
     http.expectOne(r => r.url.endsWith('/pricing-preview')).flush({});
 
-    component.model.newClient!.legalEntityName = 'Chick Tastic LLC';
-    component.model.newClient!.principalAddress = '1569 Flatbush Ave.';
-    component.model.newServiceLocation!.address = '1569 Flatbush Ave.';
-    component.model.newClientSigner!.firstName = 'Natalie';
-    component.model.newClientSigner!.lastName = 'Finkels';
-    component.model.newClientSigner!.email = 'n@example.com';
-    component.model.pricing.priceInput = 849.99;
-    component.model.contacts.contractorBackupContact = '';
-    component.model.contacts.clientBackupContact = '';
+    component.model().newClient!.legalEntityName = 'Chick Tastic LLC';
+    component.model.set(component.model());
+    component.model().newClient!.principalAddress = '1569 Flatbush Ave.';
+    component.model.set(component.model());
+    component.model().newServiceLocation!.address = '1569 Flatbush Ave.';
+    component.model.set(component.model());
+    component.model().newClientSigner!.firstName = 'Natalie';
+    component.model.set(component.model());
+    component.model().newClientSigner!.lastName = 'Finkels';
+    component.model.set(component.model());
+    component.model().newClientSigner!.email = 'n@example.com';
+    component.model.set(component.model());
+    component.model().pricing.priceInput = 849.99;
+    component.model.set(component.model());
+    component.model().contacts.contractorBackupContact = '';
+    component.model.set(component.model());
+    component.model().contacts.clientBackupContact = '';
+    component.model.set(component.model());
 
     let emitted: any = null;
     component.generated.subscribe(d => emitted = d);
     component.generatePreview();
 
-    expect(component.errorMessage).toBeFalsy();
+    expect(component.errorMessage()).toBeFalsy();
 
     const saved = http.expectOne(r => r.method === 'POST' && r.url.endsWith('/crm/contracts'));
     // Still POSTED, as empty strings rather than dropped keys — the fields stay on the model so a
@@ -735,8 +763,8 @@ describe('ContractFormComponent', () => {
     flushReferenceData();
     flushPricingPreview();
 
-    expect(component.model.contacts.contractorOperationalEmail).toBe('hello@dreamcleaningnyc.com');
-    expect(component.model.contacts.contractorSupervisorPhone).toBeTruthy();
+    expect(component.model().contacts.contractorOperationalEmail).toBe('hello@dreamcleaningnyc.com');
+    expect(component.model().contacts.contractorSupervisorPhone).toBeTruthy();
   });
 
   /** Reselecting a profile must not wipe a supervisor an admin typed for this contract. */
@@ -745,10 +773,11 @@ describe('ContractFormComponent', () => {
     flushReferenceData();
     flushPricingPreview();
 
-    component.model.contacts.contractorSupervisorName = 'Weekend crew lead';
+    component.model().contacts.contractorSupervisorName = 'Weekend crew lead';
+    component.model.set(component.model());
     component.onContractorProfileChange();
 
-    expect(component.model.contacts.contractorSupervisorName).toBe('Weekend crew lead');
+    expect(component.model().contacts.contractorSupervisorName).toBe('Weekend crew lead');
   });
 
   /**
@@ -763,9 +792,12 @@ describe('ContractFormComponent', () => {
 
     expect(component.termDatesHint).toContain('No minimum commitment');
 
-    component.model.term.serviceCommencementDate = '2026-01-31';
-    component.model.term.minimumCommitmentMonths = 1;
-    component.model.term.initialTermMonths = 6;
+    component.model().term.serviceCommencementDate = '2026-01-31';
+    component.model.set(component.model());
+    component.model().term.minimumCommitmentMonths = 1;
+    component.model.set(component.model());
+    component.model().term.initialTermMonths = 6;
+    component.model.set(component.model());
 
     expect(component.termDatesHint).toContain('February 28, 2026');
     expect(component.termDatesHint).toContain('July 30, 2026');
@@ -783,17 +815,18 @@ describe('ContractFormComponent', () => {
     component.setCommitmentMode('custom');
     expect(component.hasCustomCommitment).toBe(true);
     // Nothing is filled in for the admin: the agreed number has to be typed.
-    expect(component.model.term.minimumCommitmentMonths).toBe(0);
+    expect(component.model().term.minimumCommitmentMonths).toBe(0);
 
-    component.model.term.minimumCommitmentMonths = 12;
+    component.model().term.minimumCommitmentMonths = 12;
+    component.model.set(component.model());
     component.onCommitmentMonthsChanged();
     // The initial term can never end before the earliest date the client may leave.
-    expect(component.model.term.initialTermMonths).toBe(12);
+    expect(component.model().term.initialTermMonths).toBe(12);
 
     component.setCommitmentMode('none');
     expect(component.hasCustomCommitment).toBe(false);
-    expect(component.model.term.minimumCommitmentMonths).toBe(0);
-    expect(component.model.term.initialTermMonths).toBe(0);
+    expect(component.model().term.minimumCommitmentMonths).toBe(0);
+    expect(component.model().term.initialTermMonths).toBe(0);
   });
 
   it('assigns no supplies or consumables to either party until an admin chooses', () => {
@@ -801,16 +834,16 @@ describe('ContractFormComponent', () => {
     flushReferenceData();
     flushPricingPreview();
 
-    expect(component.model.supplies.equipmentProvidedBy).toBeNull();
-    expect(component.model.supplies.trashLinersProvidedBy).toBeNull();
-    expect(component.model.supplies.paperTowelsProvidedBy).toBeNull();
-    expect(component.model.supplies.toiletTissueProvidedBy).toBeNull();
-    expect(component.model.supplies.otherConsumables).toEqual([]);
+    expect(component.model().supplies.equipmentProvidedBy).toBeNull();
+    expect(component.model().supplies.trashLinersProvidedBy).toBeNull();
+    expect(component.model().supplies.paperTowelsProvidedBy).toBeNull();
+    expect(component.model().supplies.toiletTissueProvidedBy).toBeNull();
+    expect(component.model().supplies.otherConsumables).toEqual([]);
 
     component.addOtherConsumable();
-    expect(component.model.supplies.otherConsumables.length).toBe(1);
+    expect(component.model().supplies.otherConsumables.length).toBe(1);
     component.removeOtherConsumable(0);
-    expect(component.model.supplies.otherConsumables.length).toBe(0);
+    expect(component.model().supplies.otherConsumables.length).toBe(0);
   });
 
   it('starts on a detailed Scope of Work and hides the site details for the shorter modes', () => {
@@ -818,7 +851,7 @@ describe('ContractFormComponent', () => {
     flushReferenceData();
     flushPricingPreview();
 
-    expect(component.model.scopeDetail).toBe(ScopeDetailMode.Detailed);
+    expect(component.model().scopeDetail).toBe(ScopeDetailMode.Detailed);
 
     const siteDetailsPanel = () => Array.from(
       (fixture.nativeElement as HTMLElement).querySelectorAll('.panel-head span'))
@@ -827,11 +860,13 @@ describe('ContractFormComponent', () => {
     fixture.detectChanges();
     expect(siteDetailsPanel()).toBe(true);
 
-    component.model.scopeDetail = ScopeDetailMode.Simplified;
+    component.model().scopeDetail = ScopeDetailMode.Simplified;
+    component.model.set(component.model());
     fixture.detectChanges();
     expect(siteDetailsPanel()).toBe(false);
 
-    component.model.scopeDetail = ScopeDetailMode.Omitted;
+    component.model().scopeDetail = ScopeDetailMode.Omitted;
+    component.model.set(component.model());
     fixture.detectChanges();
     expect(siteDetailsPanel()).toBe(false);
   });
@@ -841,17 +876,18 @@ describe('ContractFormComponent', () => {
     flushReferenceData();
     flushPricingPreview();
 
-    component.model.newClient!.sourceUserId = 77;
+    component.model().newClient!.sourceUserId = 77;
+    component.model.set(component.model());
     component.onSourceUserSelected();
 
     // The signer IS that person, so their identity is filled in outright.
-    expect(component.model.newClientSigner!.firstName).toBe('Natalie');
-    expect(component.model.newClientSigner!.lastName).toBe('Finkels');
-    expect(component.model.newClientSigner!.email).toBe('natalie@example.com');
+    expect(component.model().newClientSigner!.firstName).toBe('Natalie');
+    expect(component.model().newClientSigner!.lastName).toBe('Finkels');
+    expect(component.model().newClientSigner!.email).toBe('natalie@example.com');
     // Their address seeds the company's, which the admin can then correct.
-    expect(component.model.newClient!.principalAddress).toBe('1569 Flatbush Ave.');
-    expect(component.model.newClient!.city).toBe('Brooklyn');
-    expect(component.model.newClient!.zip).toBe('11210');
+    expect(component.model().newClient!.principalAddress).toBe('1569 Flatbush Ave.');
+    expect(component.model().newClient!.city).toBe('Brooklyn');
+    expect(component.model().newClient!.zip).toBe('11210');
   });
 
   it('never guesses the legal entity name from the linked person', () => {
@@ -861,10 +897,11 @@ describe('ContractFormComponent', () => {
     flushReferenceData();
     flushPricingPreview();
 
-    component.model.newClient!.sourceUserId = 77;
+    component.model().newClient!.sourceUserId = 77;
+    component.model.set(component.model());
     component.onSourceUserSelected();
 
-    expect(component.model.newClient!.legalEntityName).toBe('');
+    expect(component.model().newClient!.legalEntityName).toBe('');
   });
 
   it('does not overwrite a company address the admin has already typed', () => {
@@ -872,11 +909,13 @@ describe('ContractFormComponent', () => {
     flushReferenceData();
     flushPricingPreview();
 
-    component.model.newClient!.principalAddress = '2000 Kings Highway';
-    component.model.newClient!.sourceUserId = 77;
+    component.model().newClient!.principalAddress = '2000 Kings Highway';
+    component.model.set(component.model());
+    component.model().newClient!.sourceUserId = 77;
+    component.model.set(component.model());
     component.onSourceUserSelected();
 
-    expect(component.model.newClient!.principalAddress).toBe('2000 Kings Highway');
+    expect(component.model().newClient!.principalAddress).toBe('2000 Kings Highway');
   });
 
   it('mirrors the signer contact into the notice fields while the box is ticked', () => {
@@ -886,14 +925,16 @@ describe('ContractFormComponent', () => {
     flushReferenceData();
     flushPricingPreview();
 
-    expect(component.useSignerContactForNotices).toBe(true);
+    expect(component.useSignerContactForNotices()).toBe(true);
 
-    component.model.newClientSigner!.email = 'ap@northline.example';
-    component.model.newClientSigner!.phone = '2125551234';
+    component.model().newClientSigner!.email = 'ap@northline.example';
+    component.model.set(component.model());
+    component.model().newClientSigner!.phone = '2125551234';
+    component.model.set(component.model());
     component.onSignerContactChanged();
 
-    expect(component.model.newClient!.noticeEmail).toBe('ap@northline.example');
-    expect(component.model.newClient!.phone).toBe('2125551234');
+    expect(component.model().newClient!.noticeEmail).toBe('ap@northline.example');
+    expect(component.model().newClient!.phone).toBe('2125551234');
   });
 
   it('leaves the notice contact alone once the box is unticked', () => {
@@ -901,12 +942,14 @@ describe('ContractFormComponent', () => {
     flushReferenceData();
     flushPricingPreview();
 
-    component.useSignerContactForNotices = false;
-    component.model.newClient!.noticeEmail = 'legal@northline.example';
-    component.model.newClientSigner!.email = 'dana@northline.example';
+    component.useSignerContactForNotices.set(false);
+    component.model().newClient!.noticeEmail = 'legal@northline.example';
+    component.model.set(component.model());
+    component.model().newClientSigner!.email = 'dana@northline.example';
+    component.model.set(component.model());
     component.onSignerContactChanged();
 
-    expect(component.model.newClient!.noticeEmail).toBe('legal@northline.example');
+    expect(component.model().newClient!.noticeEmail).toBe('legal@northline.example');
   });
 
   it('keeps the Advanced panel collapsed and the essentials open', () => {
@@ -926,17 +969,24 @@ describe('ContractFormComponent', () => {
     flushReferenceData();
     http.expectOne(r => r.url.endsWith('/pricing-preview')).flush({});
 
-    component.model.newClient!.legalEntityName = 'Chick Tastic LLC';
-    component.model.newClient!.principalAddress = '1569 Flatbush Ave.';
-    component.model.newClientSigner!.firstName = 'Natalie';
-    component.model.newClientSigner!.lastName = 'Finkels';
-    component.model.newClientSigner!.email = 'n@example.com';
-    component.model.pricing.priceInput = 849.99;
-    component.model.newServiceLocation!.address = '';
+    component.model().newClient!.legalEntityName = 'Chick Tastic LLC';
+    component.model.set(component.model());
+    component.model().newClient!.principalAddress = '1569 Flatbush Ave.';
+    component.model.set(component.model());
+    component.model().newClientSigner!.firstName = 'Natalie';
+    component.model.set(component.model());
+    component.model().newClientSigner!.lastName = 'Finkels';
+    component.model.set(component.model());
+    component.model().newClientSigner!.email = 'n@example.com';
+    component.model.set(component.model());
+    component.model().pricing.priceInput = 849.99;
+    component.model.set(component.model());
+    component.model().newServiceLocation!.address = '';
+    component.model.set(component.model());
 
     component.generatePreview();
 
-    expect(component.errorMessage).toContain('service location');
+    expect(component.errorMessage()).toContain('service location');
     http.expectNone(r => r.method === 'POST' && r.url.endsWith('/crm/contracts'));
   });
 
@@ -945,13 +995,20 @@ describe('ContractFormComponent', () => {
     flushReferenceData();
     http.expectOne(r => r.url.endsWith('/pricing-preview')).flush({});
 
-    component.model.newClient!.legalEntityName = 'Chick Tastic LLC';
-    component.model.newClient!.principalAddress = '1569 Flatbush Ave.';
-    component.model.newServiceLocation!.address = '1569 Flatbush Ave.';
-    component.model.newClientSigner!.firstName = 'Natalie';
-    component.model.newClientSigner!.lastName = 'Finkels';
-    component.model.newClientSigner!.email = 'n@example.com';
-    component.model.pricing.priceInput = 849.99;
+    component.model().newClient!.legalEntityName = 'Chick Tastic LLC';
+    component.model.set(component.model());
+    component.model().newClient!.principalAddress = '1569 Flatbush Ave.';
+    component.model.set(component.model());
+    component.model().newServiceLocation!.address = '1569 Flatbush Ave.';
+    component.model.set(component.model());
+    component.model().newClientSigner!.firstName = 'Natalie';
+    component.model.set(component.model());
+    component.model().newClientSigner!.lastName = 'Finkels';
+    component.model.set(component.model());
+    component.model().newClientSigner!.email = 'n@example.com';
+    component.model.set(component.model());
+    component.model().pricing.priceInput = 849.99;
+    component.model.set(component.model());
 
     let emitted: any = null;
     component.generated.subscribe(d => emitted = d);
@@ -975,18 +1032,18 @@ describe('ContractFormComponent', () => {
   // half that makes the screen agree with it.
 
   it('reopens a draft on the default template when its saved version has been retired', () => {
-    component.templates = [
+    component.templates.set([
       { id: 9, name: 'MSA', version: '2.1', isActive: true, isDefault: true } as any
-    ];
+    ]);
 
     expect((component as any).resolveEditableTemplateId(4)).toBe(9);
   });
 
   it('keeps the saved template when it is still offered', () => {
-    component.templates = [
+    component.templates.set([
       { id: 4, name: 'MSA', version: '2.0', isActive: true, isDefault: false } as any,
       { id: 9, name: 'MSA', version: '2.1', isActive: true, isDefault: true } as any
-    ];
+    ]);
 
     // A template that is still on offer is the admin's choice, not something to override.
     expect((component as any).resolveEditableTemplateId(4)).toBe(4);
@@ -995,7 +1052,7 @@ describe('ContractFormComponent', () => {
   it('leaves the saved id alone when nothing has loaded to replace it', () => {
     // No templates yet is not a reason to blank the draft's own template — that would send 0 and
     // fail validation on a form the admin never touched.
-    component.templates = [];
+    component.templates.set([]);
 
     expect((component as any).resolveEditableTemplateId(4)).toBe(4);
   });

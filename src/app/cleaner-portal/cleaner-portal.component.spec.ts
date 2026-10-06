@@ -96,14 +96,14 @@ describe('CleanerPortalComponent', () => {
     it('copes with one name, extra spacing and no name at all', () => {
       fixture.detectChanges();
 
-      component.context = { ...component.context!, cleanerName: 'Nino' };
+      component.context.set({ ...component.context()!, cleanerName: 'Nino' });
       expect(component.greetingName).toBe('Nino');
 
-      component.context = { ...component.context!, cleanerName: '  Nika   Sophromadze  ' };
+      component.context.set({ ...component.context()!, cleanerName: '  Nika   Sophromadze  ' });
       expect(component.greetingName).toBe('Nika');
 
       // Nothing to greet by: the template drops the comma rather than rendering "Hello, !".
-      component.context = { ...component.context!, cleanerName: null as any };
+      component.context.set({ ...component.context()!, cleanerName: null as any });
       expect(component.greetingName).toBe('');
     });
   });
@@ -115,16 +115,16 @@ describe('CleanerPortalComponent', () => {
    */
   describe('embedded in the Cleaners page', () => {
     it('is off by default, and changes nothing about the view when on', () => {
-      expect(component.embedded).toBe(false);
+      expect(component.embedded()).toBe(false);
 
-      component.embedded = true;
+      fixture.componentRef.setInput('embedded', true);
       portal.getContext.mockReturnValue(of({
         isCleanerView: false, isSystemWideView: true, cleanerId: null,
         cleanerName: null, language: 'en', preferredLanguage: null
       } as any));
       fixture.detectChanges();
 
-      expect(component.context?.isSystemWideView).toBe(true);
+      expect(component.context()?.isSystemWideView).toBe(true);
       expect(portal.getAllJobs).toHaveBeenCalled();
     });
   });
@@ -157,7 +157,7 @@ describe('CleanerPortalComponent', () => {
 
       // The template keys the "ask the office to link your account" notice off this. An empty
       // list alone would read as "you have no work", which is a different and unactionable claim.
-      expect(component.context?.cleanerId).toBeNull();
+      expect(component.context()?.cleanerId).toBeNull();
       expect(component.currentJobs.length).toBe(0);
     });
   });
@@ -186,7 +186,7 @@ describe('CleanerPortalComponent', () => {
       expect(component.selectedDayJobs[0].orderId).toBe(2);
       // ...and the day carries a dot, which is what makes the month itself answer "when am I
       // working" before anything is clicked.
-      const cell = component.calendarCells.find(c => c.key === '2026-09-10');
+      const cell = component.calendarCells().find(c => c.key === '2026-09-10');
       expect(cell?.jobCount).toBe(2);
     });
 
@@ -194,11 +194,11 @@ describe('CleanerPortalComponent', () => {
       fixture.detectChanges();
 
       component.selectDay('2026-09-10');
-      expect(component.selectedJob?.orderId).toBe(91);
+      expect(component.selectedJob()?.orderId).toBe(91);
 
       // A day with no work clears the side card rather than leaving the previous day job on screen.
       component.selectDay('2026-09-11');
-      expect(component.selectedJob).toBeNull();
+      expect(component.selectedJob()).toBeNull();
       expect(component.selectedDayJobs.length).toBe(0);
     });
 
@@ -207,8 +207,8 @@ describe('CleanerPortalComponent', () => {
 
       component.selectDay('2026-11-03');
 
-      expect(component.calendarMonthLabel).toBe('November 2026');
-      expect(component.calendarCells.some(c => c.key === '2026-11-03' && c.inMonth)).toBe(true);
+      expect(component.calendarMonthLabel()).toBe('November 2026');
+      expect(component.calendarCells().some(c => c.key === '2026-11-03' && c.inMonth)).toBe(true);
     });
 
     /**
@@ -226,7 +226,7 @@ describe('CleanerPortalComponent', () => {
       }));
       fixture.detectChanges();
 
-      const cell = component.calendarCells.find(c => c.key === '2026-09-10');
+      const cell = component.calendarCells().find(c => c.key === '2026-09-10');
       expect(cell?.jobCount).toBe(6);
       expect(cell?.dots.length).toBe(6);
       // Done on the left, still-to-do on the right - a month scanned left to right reads as work
@@ -242,7 +242,7 @@ describe('CleanerPortalComponent', () => {
         }));
         const f = TestBed.createComponent(CleanerPortalComponent);
         f.detectChanges();
-        return f.componentInstance.calendarCells.find(c => c.key === '2026-09-10')?.dotSize;
+        return f.componentInstance.calendarCells().find(c => c.key === '2026-09-10')?.dotSize;
       };
 
       expect(bandFor(1)).toBe('lg');
@@ -261,7 +261,7 @@ describe('CleanerPortalComponent', () => {
 
       // Both lists feed ONE index, so the month reads as a whole rather than as a grid that goes
       // blank the moment a cleaner looks back at last week.
-      const august = component.calendarCells.find(c => c.key === '2026-08-01');
+      const august = component.calendarCells().find(c => c.key === '2026-08-01');
       component.selectDay('2026-08-01');
       expect(component.selectedDayJobs.length).toBe(1);
       expect(august === undefined || august.jobCount === 1).toBe(true);
@@ -276,11 +276,11 @@ describe('CleanerPortalComponent', () => {
 
       // Nothing to open: the side card stays on whatever it was, and is null on a day of only
       // finished work.
-      expect(component.selectedJob).toBeNull();
+      expect(component.selectedJob()).toBeNull();
       component.selectJob(done);
-      expect(component.selectedJob).toBeNull();
+      expect(component.selectedJob()).toBeNull();
 
-      const cells = component.calendarCells;
+      const cells = component.calendarCells();
       const augustCell = cells.find(c => c.key === '2026-08-01');
       if (augustCell) expect(augustCell.dots).toEqual(['done']);
     });
@@ -289,9 +289,9 @@ describe('CleanerPortalComponent', () => {
       fixture.detectChanges();
 
       component.selectDay('2026-09-10');
-      expect(component.selectedJob?.orderId).toBe(91);
+      expect(component.selectedJob()?.orderId).toBe(91);
 
-      const cell = component.calendarCells.find(c => c.key === '2026-09-10');
+      const cell = component.calendarCells().find(c => c.key === '2026-09-10');
       expect(cell?.dots).toEqual(['active']);
     });
   });
@@ -402,11 +402,11 @@ describe('CleanerPortalComponent', () => {
       }));
       fixture.detectChanges();
 
-      expect(component.language).toBe('ka');
+      expect(component.language()).toBe('ka');
       // Following their nationality, so the picker reads "Automatic" rather than naming Georgian -
       // otherwise saving once would pin them to it.
       expect(component.languageChoice).toBe('');
-      expect(component.t.today).toBe('დღეს');
+      expect(component.t().today).toBe('დღეს');
     });
 
     /**
@@ -434,7 +434,7 @@ describe('CleanerPortalComponent', () => {
 
       // Whichever band the NY clock is in, it is one of Georgian's three - and the greeting is
       // never the English fallback.
-      expect([component.t.greetingMorning, component.t.greetingAfternoon, component.t.greetingEvening])
+      expect([component.t().greetingMorning, component.t().greetingAfternoon, component.t().greetingEvening])
         .toContain(component.greeting);
       // FIRST name only: a greeting, not a salutation on a letter.
       expect(component.greetingName).toBe('Nino');
@@ -442,12 +442,12 @@ describe('CleanerPortalComponent', () => {
 
     it('applies a chosen language immediately and persists it', () => {
       fixture.detectChanges();
-      expect(component.language).toBe('en');
+      expect(component.language()).toBe('en');
 
       component.onLanguageChange('ka');
 
       expect(portal.setLanguage).toHaveBeenCalledWith('ka');
-      expect(component.language).toBe('ka');
+      expect(component.language()).toBe('ka');
       expect(component.languageChoice).toBe('ka');
     });
 
@@ -460,7 +460,7 @@ describe('CleanerPortalComponent', () => {
       // Re-sending whatever the default resolves to today would pin them to it forever.
       expect(portal.setLanguage).toHaveBeenCalledWith(null);
       expect(component.languageChoice).toBe('');
-      expect(component.language).toBe('ru');
+      expect(component.language()).toBe('ru');
     });
 
     it('counts and names things in the chosen language', () => {
@@ -484,7 +484,7 @@ describe('CleanerPortalComponent', () => {
       component.openDetail(91);
 
       expect(portal.getOrderDetail).not.toHaveBeenCalled();
-      expect(component.selectedDetail).toBeNull();
+      expect(component.selectedDetail()).toBeNull();
     });
 
     it('opens for a SuperAdmin', () => {
@@ -494,7 +494,7 @@ describe('CleanerPortalComponent', () => {
       component.openDetail(91);
 
       expect(portal.getOrderDetail).toHaveBeenCalledWith(91);
-      expect(component.selectedDetail).toBeTruthy();
+      expect(component.selectedDetail()).toBeTruthy();
     });
   });
 
@@ -533,8 +533,8 @@ describe('CleanerPortalComponent', () => {
       portal.getContext.mockReturnValue(throwError(() => ({ status: 500 })));
       fixture.detectChanges();
 
-      expect(component.errorMessage).toBeTruthy();
-      expect(component.loading).toBe(false);
+      expect(component.errorMessage()).toBeTruthy();
+      expect(component.loading()).toBe(false);
     });
   });
 
@@ -564,7 +564,7 @@ describe('CleanerPortalComponent', () => {
         component.onLanguageChange('ka');
 
         expect(portal.setLanguage).not.toHaveBeenCalled();
-        expect(component.language).toBe('ka');
+        expect(component.language()).toBe('ka');
         // Bound to what is rendered, not to a preference: an admin has no nationality on file and
         // so is never in the "Automatic" state the cleaner's picker reports.
         expect(component.languageChoice).toBe('ka');
@@ -595,7 +595,7 @@ describe('CleanerPortalComponent', () => {
         const second = TestBed.createComponent(CleanerPortalComponent);
         second.detectChanges();
 
-        expect(second.componentInstance.language).toBe('ru');
+        expect(second.componentInstance.language()).toBe('ru');
       });
 
       /**
@@ -613,7 +613,7 @@ describe('CleanerPortalComponent', () => {
         const cleanerView = TestBed.createComponent(CleanerPortalComponent);
         cleanerView.detectChanges();
 
-        expect(cleanerView.componentInstance.language).toBe('ka');
+        expect(cleanerView.componentInstance.language()).toBe('ka');
         expect(cleanerView.componentInstance.isLanguagePreview).toBe(false);
       });
     });
@@ -654,7 +654,7 @@ describe('CleanerPortalComponent', () => {
       // ...and unbounded: somebody looking a customer up does not know which month to stand in.
       expect(portal.getAllJobs).toHaveBeenCalledWith(null, null, 'brook');
       // The calendar steps aside for the results rather than describing a set it is not showing.
-      expect(component.isSearchMode).toBe(true);
+      expect(component.isSearchMode()).toBe(true);
       expect(component.showSchedule).toBe(false);
     });
 
@@ -665,7 +665,7 @@ describe('CleanerPortalComponent', () => {
 
       component.clearSearch();
 
-      expect(component.isSearchMode).toBe(false);
+      expect(component.isSearchMode()).toBe(false);
       expect(component.showSchedule).toBe(true);
       expect(vi.mocked(portal.getAllJobs).mock.lastCall![2]).toBeNull();
     });
@@ -678,9 +678,9 @@ describe('CleanerPortalComponent', () => {
 
       component.selectAdminJob({ ...job(), status: 'Active', assignedCleaners: ['A'], maidsCount: 1, isPaid: true });
 
-      expect(component.selectedAdminJob?.orderId).toBe(91);
+      expect(component.selectedAdminJob()?.orderId).toBe(91);
       expect(portal.getOrderDetail).not.toHaveBeenCalled();
-      expect(component.selectedDetail).toBeNull();
+      expect(component.selectedDetail()).toBeNull();
     });
 
     it('opens the full read-only detail from the "View full details" button', () => {
@@ -690,7 +690,7 @@ describe('CleanerPortalComponent', () => {
       component.openDetail(91);
 
       expect(portal.getOrderDetail).toHaveBeenCalledWith(91);
-      expect(component.selectedDetail).toBeTruthy();
+      expect(component.selectedDetail()).toBeTruthy();
     });
 
     it('does NOT throw the detail panel open when a month simply finishes loading', () => {
@@ -701,7 +701,7 @@ describe('CleanerPortalComponent', () => {
 
       // The job is selected so the side card has something to show, but nothing was clicked.
       expect(portal.getOrderDetail).not.toHaveBeenCalled();
-      expect(component.selectedDetail).toBeNull();
+      expect(component.selectedDetail()).toBeNull();
     });
   });
 });

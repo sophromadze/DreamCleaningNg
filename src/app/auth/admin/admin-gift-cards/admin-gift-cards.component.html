@@ -48,7 +48,7 @@
                 <button 
                   class="btn-upload" 
                   (click)="uploadImage()"
-                  [disabled]="!selectedFile || isUploading() || (!isSuperAdmin() && !userPermissions().permissions.canUpdate)">
+                  [disabled]="!selectedFile() || isUploading() || (!isSuperAdmin() && !userPermissions().permissions.canUpdate)">
                   {{ isUploading() ? 'Uploading...' : 'Upload' }}
                 </button>
               </div>

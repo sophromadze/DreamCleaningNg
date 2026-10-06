@@ -39,7 +39,7 @@
       <select aria-label="Changed by" [(ngModel)]="selectedAdminId" class="filter-select" (change)="onFilterChange()"
               title="Who made the change">
         <option value="all">Anyone</option>
-        @for (admin of metadata.admins; track admin.id) {
+        @for (admin of metadata().admins; track admin.id) {
         <option [value]="admin.id">
           {{ admin.name || admin.email }}
         </option>
@@ -48,8 +48,8 @@
 
       <select aria-label="Period" [(ngModel)]="selectedDays"
               class="filter-select"
-              [disabled]="hasExplicitDateRange"
-              [title]="hasExplicitDateRange ? 'Ignored while an explicit date range is set' : 'How far back to look'"
+              [disabled]="hasExplicitDateRange()"
+              [title]="hasExplicitDateRange() ? 'Ignored while an explicit date range is set' : 'How far back to look'"
               (change)="onFilterChange()">
         <option [value]="180">All Logs (6 Months)</option>
         <option [value]="1">Last 24 hours</option>
@@ -70,11 +70,11 @@
         To
         <input type="date" class="filter-date" [(ngModel)]="toDate" (change)="onFilterChange()">
       </label>
-      @if (hasExplicitDateRange) {
+      @if (hasExplicitDateRange()) {
       <button type="button" class="action-btn secondary"
               (click)="clearDateRange()">Clear dates</button>
       }
-      @if (hasActiveFilters) {
+      @if (hasActiveFilters()) {
       <button type="button" class="action-btn secondary"
               (click)="clearAllFilters()">Reset all filters</button>
       }
@@ -82,16 +82,16 @@
     </div>
   </div>
 
-  @if (errorMessage) {
+  @if (errorMessage()) {
   <div class="error-message">
-    {{ errorMessage }}
+    {{ errorMessage() }}
     <button class="close-btn" (click)="clearMessages()">×</button>
   </div>
   }
 
-  @if (successMessage) {
+  @if (successMessage()) {
   <div class="success-message">
-    {{ successMessage }}
+    {{ successMessage() }}
   </div>
   }
 
@@ -113,7 +113,7 @@
           </thead>
           <tbody>
           @for (log of filteredLogs; track log.id) {
-            <tr [class.expanded]="viewingLogId === log.id" (click)="viewLogDetails(log.id)" style="cursor: pointer;">
+            <tr [class.expanded]="viewingLogId() === log.id" (click)="viewLogDetails(log.id)" style="cursor: pointer;">
               <td>#{{ log.id }}</td>
               <td>
                 <span class="action-badge" [ngClass]="getActionClass(log.action)">
@@ -132,17 +132,17 @@
                   @if (!isLogUndone(log)) {
                   <button type="button" class="action-btn secondary"
                           (click)="undoLog(log, $event)"
-                          [disabled]="undoingLogIds.has(log.id)"
+                          [disabled]="undoingLogIds().has(log.id)"
                           title="Revert this change in the database (does not refund payments or recall emails)">
-                    {{ undoingLogIds.has(log.id) ? '...' : 'Undo' }}
+                    {{ undoingLogIds().has(log.id) ? '...' : 'Undo' }}
                   </button>
                   }
                   @if (isLogUndone(log)) {
                   <button type="button" class="action-btn primary"
                           (click)="redoLog(log, $event)"
-                          [disabled]="undoingLogIds.has(log.id)"
+                          [disabled]="undoingLogIds().has(log.id)"
                           title="Re-apply this change">
-                    {{ undoingLogIds.has(log.id) ? '...' : 'Redo' }}
+                    {{ undoingLogIds().has(log.id) ? '...' : 'Redo' }}
                   </button>
                   }
                 } @else {
@@ -158,7 +158,7 @@
             </tr>
 
             <!-- ENHANCED: Details row with special handling for cleaner assignments -->
-            @if (viewingLogId === log.id) {
+            @if (viewingLogId() === log.id) {
             <tr class="details-row">
               <td colspan="7">
                 <div class="log-details">
@@ -701,17 +701,17 @@
     </div>
 
     <!-- Pagination -->
-    @if (totalPages > 1) {
+    @if (totalPages() > 1) {
     <div class="pagination">
-      <button class="page-btn" (click)="previousPage()" [disabled]="currentPage === 1">
+      <button class="page-btn" (click)="previousPage()" [disabled]="currentPage() === 1">
         ‹ Previous
       </button>
       
-      <button class="page-btn" (click)="goToPage(1)" [class.active]="currentPage === 1">
+      <button class="page-btn" (click)="goToPage(1)" [class.active]="currentPage() === 1">
         1
       </button>
       
-      @if (totalPages > 5 && currentPage > 3) {
+      @if (totalPages() > 5 && currentPage() > 3) {
       <span class="page-ellipsis">...</span>
       }
       
@@ -719,25 +719,25 @@
       <button 
               class="page-btn" 
               (click)="goToPage(page)"
-              [class.active]="currentPage === page">
+              [class.active]="currentPage() === page">
         {{ page }}
       </button>
       }
       
-      @if (totalPages > 5 && currentPage < totalPages - 2) {
+      @if (totalPages() > 5 && currentPage() < totalPages() - 2) {
       <span class="page-ellipsis">...</span>
       }
       
-      @if (totalPages > 1) {
+      @if (totalPages() > 1) {
       <button 
               class="page-btn" 
-              (click)="goToPage(totalPages)"
-              [class.active]="currentPage === totalPages">
-        {{ totalPages }}
+              (click)="goToPage(totalPages())"
+              [class.active]="currentPage() === totalPages()">
+        {{ totalPages() }}
       </button>
       }
       
-      <button class="page-btn" (click)="nextPage()" [disabled]="currentPage === totalPages">
+      <button class="page-btn" (click)="nextPage()" [disabled]="currentPage() === totalPages()">
         Next ›
       </button>
     </div>
@@ -745,13 +745,13 @@
   </div>
   }
 
-  @if (!isLoading && filteredLogs.length === 0) {
+  @if (!isLoading() && filteredLogs.length === 0) {
   <div class="no-logs">
     <p>No audit logs found for the selected criteria.</p>
   </div>
   }
 
-  @if (isLoading) {
+  @if (isLoading()) {
   <div class="loading">
     <p>Loading audit logs...</p>
   </div>

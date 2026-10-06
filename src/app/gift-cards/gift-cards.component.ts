@@ -8,6 +8,7 @@ import { AuthService } from '../services/auth.service';
 import { AuthModalService } from '../services/auth-modal.service';
 import { BubbleFieldComponent } from '../bubble-field/bubble-field.component';
 import { GIFT_CARD_DEFAULT_BACKGROUND } from '../shared/gift-card-background';
+import { formViewRefresher } from '../shared/forms/form-view-refresher';
 
 /** "Send to someone now" (today's flow) or "Buy for myself - send later" (signed-in only). */
 export type GiftCardDeliveryMode = 'now' | 'later';
@@ -25,6 +26,8 @@ const GIFT_CARD_DRAFT_TTL_MS = 30 * 60 * 1000;
   styleUrls: ['./gift-cards.component.scss']
 })
 export class GiftCardsComponent implements OnInit {
+  /** Re-renders when a form changes outside a template event (see form-view-refresher). */
+  private readonly watchForm = formViewRefresher();
   private fb = inject(FormBuilder);
   private giftCardService = inject(GiftCardService);
   private authService = inject(AuthService);
@@ -74,6 +77,7 @@ export class GiftCardsComponent implements OnInit {
       senderEmail: ['', [Validators.required, Validators.email, Validators.maxLength(255)]],
       message: ['', [Validators.required, Validators.maxLength(70)]]
     });
+    this.watchForm(this.giftCardForm);
 
     // Subscribe to form changes to update preview
     this.giftCardForm.valueChanges.subscribe(formValue => {

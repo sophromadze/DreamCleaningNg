@@ -7,34 +7,34 @@
 
     <!-- Left sidebar tabs -->
     <div class="tab-sidebar">
-      <button class="tab-btn tab-purple" [class.active]="activeTab === 'dashboard'" (click)="setActiveTab('dashboard')">
+      <button class="tab-btn tab-purple" [class.active]="activeTab() === 'dashboard'" (click)="setActiveTab('dashboard')">
         <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
         Dashboard
       </button>
-      <button class="tab-btn tab-green" [class.active]="activeTab === 'shared'" (click)="setActiveTab('shared')">
+      <button class="tab-btn tab-green" [class.active]="activeTab() === 'shared'" (click)="setActiveTab('shared')">
         <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 12l2 2 4-4"/></svg>
         Shared Tasks
       </button>
-      <button class="tab-btn tab-yellow" [class.active]="activeTab === 'mytasks'" (click)="setActiveTab('mytasks')">
+      <button class="tab-btn tab-yellow" [class.active]="activeTab() === 'mytasks'" (click)="setActiveTab('mytasks')">
         <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
         My Tasks
-        @if (myAssignedTasks.length > 0) {
+        @if (myAssignedTasks().length > 0) {
         <span class="tab-indicator-yellow"></span>
         }
-        @if (uncheckedDoneCreatedCount > 0) {
+        @if (uncheckedDoneCreatedCount() > 0) {
         <span class="tab-indicator-green"></span>
         }
       </button>
-      <button class="tab-btn tab-red" [class.active]="activeTab === 'interactions'" (click)="setActiveTab('interactions')">
+      <button class="tab-btn tab-red" [class.active]="activeTab() === 'interactions'" (click)="setActiveTab('interactions')">
         <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
         Client Interactions
       </button>
-      <button class="tab-btn tab-blue" [class.active]="activeTab === 'handover'" (click)="setActiveTab('handover')">
+      <button class="tab-btn tab-blue" [class.active]="activeTab() === 'handover'" (click)="setActiveTab('handover')">
         <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
         Handover Notes
       </button>
       @if (isSuperAdmin) {
-      <button class="tab-btn tab-orange" [class.active]="activeTab === 'logs'" (click)="setActiveTab('logs')">
+      <button class="tab-btn tab-orange" [class.active]="activeTab() === 'logs'" (click)="setActiveTab('logs')">
         <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
         Logs
       </button>
@@ -43,7 +43,7 @@
 
     <!-- Tab content -->
     <div class="tab-content">
-@switch (activeTab) {
+@switch (activeTab()) {
 
       <!-- ═══ DASHBOARD TAB (original layout) ═══ -->
       @case ('dashboard') {
@@ -57,15 +57,15 @@
               <div class="card-title">
                 <span class="icon-alert">!</span>
                 <h2>URGENT TASKS & FOLLOW-UPS</h2>
-                @if (urgentTasks.length) {
-                <span class="count-badge">{{ urgentTasks.length }}</span>
+                @if (urgentTasks().length) {
+                <span class="count-badge">{{ urgentTasks().length }}</span>
                 }
               </div>
               <a class="view-all" (click)="goToSharedTab('urgent')">
                 View All &rarr;
               </a>
             </div>
-            @if (!loadingTasks && urgentTasks.length > 0) {
+            @if (!loadingTasks() && urgentTasks().length > 0) {
             <div class="urgent-list" tabindex="0" role="region" aria-label="Urgent tasks">
               @for (task of dashboardUrgentTasks; track task.id) {
               <div class="task-row task-row-columns"
@@ -122,10 +122,10 @@
               }
             </div>
             }
-            @if (!loadingTasks && urgentTasks.length === 0) {
+            @if (!loadingTasks() && urgentTasks().length === 0) {
             <div class="empty-state">No urgent tasks right now.</div>
             }
-            @if (loadingTasks) {
+            @if (loadingTasks()) {
             <div class="loading-state">Loading tasks...</div>
             }
           </div>
@@ -167,11 +167,11 @@
           <div class="card-header">
             <div class="card-title">
               <span class="icon-tasks">&#9776;</span>
-              <h2>ACTIVE TASKS ({{ activeTaskCount }})</h2>
+              <h2>ACTIVE TASKS ({{ activeTaskCount() }})</h2>
             </div>
             <a class="view-all" (click)="goToSharedTab('active')">Show All &rarr;</a>
           </div>
-          @if (!loadingTasks && activeTasks.length > 0) {
+          @if (!loadingTasks() && activeTasks().length > 0) {
           <div class="tasks-list">
             @for (task of dashboardActiveTasks; track task.id) {
             <div class="task-row task-row-columns"
@@ -226,7 +226,7 @@
               </div>
               <div class="task-menu-wrap" (click)="$event.stopPropagation()">
                 <button class="menu-btn" (click)="toggleMenu(task.id, $event)" title="Actions">&#8942;</button>
-                @if (openMenuTaskId === task.id) {
+                @if (openMenuTaskId() === task.id) {
                 <div class="task-menu">
                   <button (click)="openEditTask(task)">Edit</button>
                   <button (click)="deleteTask(task)" class="danger">Delete</button>
@@ -237,10 +237,10 @@
             }
           </div>
           }
-          @if (!loadingTasks && activeTasks.length === 0) {
+          @if (!loadingTasks() && activeTasks().length === 0) {
           <div class="empty-state">No tasks found.</div>
           }
-          @if (loadingTasks) {
+          @if (loadingTasks()) {
           <div class="loading-state">Loading tasks...</div>
           }
         </div>
@@ -264,12 +264,12 @@
             </select>
             <select aria-label="Filter by admin" class="filter-select" [(ngModel)]="historyAdminFilter" (ngModelChange)="onHistoryFilterChange()">
               <option value="">All Admins</option>
-              @for (admin of historyAdmins; track admin.id) {
+              @for (admin of historyAdmins(); track admin.id) {
               <option [value]="admin.id">{{ admin.firstName }}</option>
               }
             </select>
           </div>
-          @if (!loadingInteractions && filteredHistory.length > 0) {
+          @if (!loadingInteractions() && filteredHistory().length > 0) {
           <div class="history-list">
             @for (item of dashboardInteractions; track item.id) {
             <div class="history-row" (click)="openEditInteraction(item)">
@@ -294,7 +294,7 @@
               <span class="status-badge" [ngClass]="'status-' + item.status.toLowerCase()">{{ item.status }}</span>
               <div class="task-menu-wrap" (click)="$event.stopPropagation()">
                 <button class="menu-btn" (click)="toggleInteractionMenu(item.id, $event)" title="Actions">&#8942;</button>
-                @if (openMenuInteractionId === item.id) {
+                @if (openMenuInteractionId() === item.id) {
                 <div class="task-menu">
                   <button (click)="openEditInteraction(item)">Edit</button>
                   <button (click)="deleteInteraction(item)" class="danger">Delete</button>
@@ -305,10 +305,10 @@
             }
           </div>
           }
-          @if (!loadingInteractions && filteredHistory.length === 0) {
+          @if (!loadingInteractions() && filteredHistory().length === 0) {
           <div class="empty-state">No client history found.</div>
           }
-          @if (loadingInteractions) {
+          @if (loadingInteractions()) {
           <div class="loading-state">Loading...</div>
           }
         </div>
@@ -324,7 +324,7 @@
             </div>
             <a class="view-all" (click)="setActiveTab('handover')">View All &rarr;</a>
           </div>
-          @if (!loadingNotes && handoverNotes.length > 0) {
+          @if (!loadingNotes() && handoverNotes().length > 0) {
           <div class="notes-list">
             @for (note of dashboardNotes; track note.id) {
             <div class="note-card">
@@ -351,10 +351,10 @@
             }
           </div>
           }
-          @if (!loadingNotes && handoverNotes.length === 0) {
+          @if (!loadingNotes() && handoverNotes().length === 0) {
           <div class="empty-state">No handover notes yet.</div>
           }
-          @if (loadingNotes) {
+          @if (loadingNotes()) {
           <div class="loading-state">Loading...</div>
           }
         </div>
@@ -367,29 +367,29 @@
         <button class="create-new-btn create-btn-green" (click)="openCreateTask()">+ Create New Task</button>
 
         <div class="sub-tabs">
-          <button class="sub-tab-btn" [class.active]="sharedSubTab === 'urgent'" (click)="sharedSubTab = 'urgent'">
-            Urgent @if (urgentTasks.length) {
-            <span class="sub-tab-count">{{ urgentTasks.length }}</span>
+          <button class="sub-tab-btn" [class.active]="sharedSubTab() === 'urgent'" (click)="sharedSubTab.set('urgent')">
+            Urgent @if (urgentTasks().length) {
+            <span class="sub-tab-count">{{ urgentTasks().length }}</span>
             }
           </button>
-          <button class="sub-tab-btn" [class.active]="sharedSubTab === 'active'" (click)="sharedSubTab = 'active'">
-            Active @if (activeTaskCount) {
-            <span class="sub-tab-count">{{ activeTaskCount }}</span>
+          <button class="sub-tab-btn" [class.active]="sharedSubTab() === 'active'" (click)="sharedSubTab.set('active')">
+            Active @if (activeTaskCount()) {
+            <span class="sub-tab-count">{{ activeTaskCount() }}</span>
             }
           </button>
-          <button class="sub-tab-btn" [class.active]="sharedSubTab === 'done'" (click)="sharedSubTab = 'done'">
-            Done @if (doneSharedTasks.length) {
-            <span class="sub-tab-count">{{ doneSharedTasks.length }}</span>
+          <button class="sub-tab-btn" [class.active]="sharedSubTab() === 'done'" (click)="sharedSubTab.set('done')">
+            Done @if (doneSharedTasks().length) {
+            <span class="sub-tab-count">{{ doneSharedTasks().length }}</span>
             }
           </button>
         </div>
 
         <div class="card">
-      @switch (sharedSubTab) {
+      @switch (sharedSubTab()) {
 
           <!-- Urgent sub-tab -->
           @case ('urgent') {
-            @if (!loadingTasks && urgentTasks.length > 0) {
+            @if (!loadingTasks() && urgentTasks().length > 0) {
             <div class="urgent-list" tabindex="0" role="region" aria-label="Urgent tasks">
               @for (task of paginatedUrgentTasks; track task.id) {
               <div class="task-row task-row-columns" (click)="openEditTask(task)">
@@ -430,36 +430,36 @@
               }
             </div>
             }
-            @if (!loadingTasks && urgentTasks.length === 0) {
+            @if (!loadingTasks() && urgentTasks().length === 0) {
             <div class="empty-state">No urgent tasks right now.</div>
             }
-            @if (loadingTasks) {
+            @if (loadingTasks()) {
             <div class="loading-state">Loading tasks...</div>
             }
-            @if (urgentTotalPages > 1) {
+            @if (urgentTotalPages() > 1) {
             <div class="pagination">
-              <button class="page-btn" (click)="goToPageFor('urgent', urgentPage - 1)" [disabled]="urgentPage === 1">&#8249; Previous</button>
-              <button class="page-btn" (click)="goToPageFor('urgent', 1)" [class.active]="urgentPage === 1">1</button>
-              @if (urgentTotalPages > 5 && urgentPage > 3) {
+              <button class="page-btn" (click)="goToPageFor('urgent', urgentPage() - 1)" [disabled]="urgentPage() === 1">&#8249; Previous</button>
+              <button class="page-btn" (click)="goToPageFor('urgent', 1)" [class.active]="urgentPage() === 1">1</button>
+              @if (urgentTotalPages() > 5 && urgentPage() > 3) {
               <span class="page-ellipsis">...</span>
               }
               @for (page of getVisiblePagesFor('urgent'); track page) {
-              <button class="page-btn" (click)="goToPageFor('urgent', page)" [class.active]="urgentPage === page">{{ page }}</button>
+              <button class="page-btn" (click)="goToPageFor('urgent', page)" [class.active]="urgentPage() === page">{{ page }}</button>
               }
-              @if (urgentTotalPages > 5 && urgentPage < urgentTotalPages - 2) {
+              @if (urgentTotalPages() > 5 && urgentPage() < urgentTotalPages() - 2) {
               <span class="page-ellipsis">...</span>
               }
-              @if (urgentTotalPages > 1) {
-              <button class="page-btn" (click)="goToPageFor('urgent', urgentTotalPages)" [class.active]="urgentPage === urgentTotalPages">{{ urgentTotalPages }}</button>
+              @if (urgentTotalPages() > 1) {
+              <button class="page-btn" (click)="goToPageFor('urgent', urgentTotalPages())" [class.active]="urgentPage() === urgentTotalPages()">{{ urgentTotalPages() }}</button>
               }
-              <button class="page-btn" (click)="goToPageFor('urgent', urgentPage + 1)" [disabled]="urgentPage === urgentTotalPages">Next &#8250;</button>
+              <button class="page-btn" (click)="goToPageFor('urgent', urgentPage() + 1)" [disabled]="urgentPage() === urgentTotalPages()">Next &#8250;</button>
             </div>
             }
           }
 
           <!-- Active sub-tab -->
           @case ('active') {
-            @if (!loadingTasks && activeTasks.length > 0) {
+            @if (!loadingTasks() && activeTasks().length > 0) {
             <div class="tasks-list">
               @for (task of paginatedActiveTasks; track task.id) {
               <div class="task-row task-row-columns" (click)="openEditTask(task)">
@@ -495,7 +495,7 @@
                 </div>
                 <div class="task-menu-wrap" (click)="$event.stopPropagation()">
                   <button class="menu-btn" (click)="toggleMenu(task.id, $event)" title="Actions">&#8942;</button>
-                  @if (openMenuTaskId === task.id) {
+                  @if (openMenuTaskId() === task.id) {
                   <div class="task-menu">
                     <button (click)="openEditTask(task)">Edit</button>
                     <button (click)="deleteTask(task)" class="danger">Delete</button>
@@ -506,36 +506,36 @@
               }
             </div>
             }
-            @if (!loadingTasks && activeTasks.length === 0) {
+            @if (!loadingTasks() && activeTasks().length === 0) {
             <div class="empty-state">No active tasks.</div>
             }
-            @if (loadingTasks) {
+            @if (loadingTasks()) {
             <div class="loading-state">Loading tasks...</div>
             }
-            @if (activeTotalPages > 1) {
+            @if (activeTotalPages() > 1) {
             <div class="pagination">
-              <button class="page-btn" (click)="goToPageFor('active', activePage - 1)" [disabled]="activePage === 1">&#8249; Previous</button>
-              <button class="page-btn" (click)="goToPageFor('active', 1)" [class.active]="activePage === 1">1</button>
-              @if (activeTotalPages > 5 && activePage > 3) {
+              <button class="page-btn" (click)="goToPageFor('active', activePage() - 1)" [disabled]="activePage() === 1">&#8249; Previous</button>
+              <button class="page-btn" (click)="goToPageFor('active', 1)" [class.active]="activePage() === 1">1</button>
+              @if (activeTotalPages() > 5 && activePage() > 3) {
               <span class="page-ellipsis">...</span>
               }
               @for (page of getVisiblePagesFor('active'); track page) {
-              <button class="page-btn" (click)="goToPageFor('active', page)" [class.active]="activePage === page">{{ page }}</button>
+              <button class="page-btn" (click)="goToPageFor('active', page)" [class.active]="activePage() === page">{{ page }}</button>
               }
-              @if (activeTotalPages > 5 && activePage < activeTotalPages - 2) {
+              @if (activeTotalPages() > 5 && activePage() < activeTotalPages() - 2) {
               <span class="page-ellipsis">...</span>
               }
-              @if (activeTotalPages > 1) {
-              <button class="page-btn" (click)="goToPageFor('active', activeTotalPages)" [class.active]="activePage === activeTotalPages">{{ activeTotalPages }}</button>
+              @if (activeTotalPages() > 1) {
+              <button class="page-btn" (click)="goToPageFor('active', activeTotalPages())" [class.active]="activePage() === activeTotalPages()">{{ activeTotalPages() }}</button>
               }
-              <button class="page-btn" (click)="goToPageFor('active', activePage + 1)" [disabled]="activePage === activeTotalPages">Next &#8250;</button>
+              <button class="page-btn" (click)="goToPageFor('active', activePage() + 1)" [disabled]="activePage() === activeTotalPages()">Next &#8250;</button>
             </div>
             }
           }
 
           <!-- Done sub-tab -->
           @case ('done') {
-            @if (!loadingTasks && doneSharedTasks.length > 0) {
+            @if (!loadingTasks() && doneSharedTasks().length > 0) {
             <div class="tasks-list">
               @for (task of paginatedDoneSharedTasks; track task.id) {
               <div class="task-row task-row-columns task-done" (click)="openEditTask(task)">
@@ -568,7 +568,7 @@
                 </div>
                 <div class="task-menu-wrap" (click)="$event.stopPropagation()">
                   <button class="menu-btn" (click)="toggleMenu(task.id, $event)" title="Actions">&#8942;</button>
-                  @if (openMenuTaskId === task.id) {
+                  @if (openMenuTaskId() === task.id) {
                   <div class="task-menu">
                     <button (click)="openEditTask(task)">Edit</button>
                     <button (click)="deleteTask(task)" class="danger">Delete</button>
@@ -579,29 +579,29 @@
               }
             </div>
             }
-            @if (!loadingTasks && doneSharedTasks.length === 0) {
+            @if (!loadingTasks() && doneSharedTasks().length === 0) {
             <div class="empty-state">No completed tasks.</div>
             }
-            @if (loadingTasks) {
+            @if (loadingTasks()) {
             <div class="loading-state">Loading...</div>
             }
-            @if (doneSharedTotalPages > 1) {
+            @if (doneSharedTotalPages() > 1) {
             <div class="pagination">
-              <button class="page-btn" (click)="goToPageFor('doneShared', doneSharedPage - 1)" [disabled]="doneSharedPage === 1">&#8249; Previous</button>
-              <button class="page-btn" (click)="goToPageFor('doneShared', 1)" [class.active]="doneSharedPage === 1">1</button>
-              @if (doneSharedTotalPages > 5 && doneSharedPage > 3) {
+              <button class="page-btn" (click)="goToPageFor('doneShared', doneSharedPage() - 1)" [disabled]="doneSharedPage() === 1">&#8249; Previous</button>
+              <button class="page-btn" (click)="goToPageFor('doneShared', 1)" [class.active]="doneSharedPage() === 1">1</button>
+              @if (doneSharedTotalPages() > 5 && doneSharedPage() > 3) {
               <span class="page-ellipsis">...</span>
               }
               @for (page of getVisiblePagesFor('doneShared'); track page) {
-              <button class="page-btn" (click)="goToPageFor('doneShared', page)" [class.active]="doneSharedPage === page">{{ page }}</button>
+              <button class="page-btn" (click)="goToPageFor('doneShared', page)" [class.active]="doneSharedPage() === page">{{ page }}</button>
               }
-              @if (doneSharedTotalPages > 5 && doneSharedPage < doneSharedTotalPages - 2) {
+              @if (doneSharedTotalPages() > 5 && doneSharedPage() < doneSharedTotalPages() - 2) {
               <span class="page-ellipsis">...</span>
               }
-              @if (doneSharedTotalPages > 1) {
-              <button class="page-btn" (click)="goToPageFor('doneShared', doneSharedTotalPages)" [class.active]="doneSharedPage === doneSharedTotalPages">{{ doneSharedTotalPages }}</button>
+              @if (doneSharedTotalPages() > 1) {
+              <button class="page-btn" (click)="goToPageFor('doneShared', doneSharedTotalPages())" [class.active]="doneSharedPage() === doneSharedTotalPages()">{{ doneSharedTotalPages() }}</button>
               }
-              <button class="page-btn" (click)="goToPageFor('doneShared', doneSharedPage + 1)" [disabled]="doneSharedPage === doneSharedTotalPages">Next &#8250;</button>
+              <button class="page-btn" (click)="goToPageFor('doneShared', doneSharedPage() + 1)" [disabled]="doneSharedPage() === doneSharedTotalPages()">Next &#8250;</button>
             </div>
             }
           }
@@ -617,20 +617,20 @@
         <button class="create-new-btn create-btn-red" (click)="openCreateInteraction()">+ Create New Interaction</button>
 
         <div class="sub-tabs">
-          <button class="sub-tab-btn" [class.active]="interactionsSubTab === 'active'" (click)="interactionsSubTab = 'active'">
-            Active @if (filteredHistory.length) {
-            <span class="sub-tab-count">{{ filteredHistory.length }}</span>
+          <button class="sub-tab-btn" [class.active]="interactionsSubTab() === 'active'" (click)="interactionsSubTab.set('active')">
+            Active @if (filteredHistory().length) {
+            <span class="sub-tab-count">{{ filteredHistory().length }}</span>
             }
           </button>
-          <button class="sub-tab-btn" [class.active]="interactionsSubTab === 'closed'" (click)="interactionsSubTab = 'closed'">
-            Closed @if (closedInteractions.length) {
-            <span class="sub-tab-count">{{ closedInteractions.length }}</span>
+          <button class="sub-tab-btn" [class.active]="interactionsSubTab() === 'closed'" (click)="interactionsSubTab.set('closed')">
+            Closed @if (closedInteractions().length) {
+            <span class="sub-tab-count">{{ closedInteractions().length }}</span>
             }
           </button>
         </div>
 
         <div class="card">
-      @switch (interactionsSubTab) {
+      @switch (interactionsSubTab()) {
 
           <!-- Active interactions sub-tab -->
           @case ('active') {
@@ -641,12 +641,12 @@
               </select>
               <select aria-label="Filter by admin" class="filter-select" [(ngModel)]="historyAdminFilter" (ngModelChange)="onHistoryFilterChange()">
                 <option value="">All Admins</option>
-                @for (admin of historyAdmins; track admin.id) {
+                @for (admin of historyAdmins(); track admin.id) {
                 <option [value]="admin.id">{{ admin.firstName }}</option>
                 }
               </select>
             </div>
-            @if (!loadingInteractions && filteredHistory.length > 0) {
+            @if (!loadingInteractions() && filteredHistory().length > 0) {
             <div class="history-list">
               @for (item of paginatedFilteredHistory; track item.id) {
               <div class="history-row" (click)="openEditInteraction(item)">
@@ -671,7 +671,7 @@
                 <span class="status-badge" [ngClass]="'status-' + item.status.toLowerCase()">{{ item.status }}</span>
                 <div class="task-menu-wrap" (click)="$event.stopPropagation()">
                   <button class="menu-btn" (click)="toggleInteractionMenu(item.id, $event)" title="Actions">&#8942;</button>
-                  @if (openMenuInteractionId === item.id) {
+                  @if (openMenuInteractionId() === item.id) {
                   <div class="task-menu">
                     <button (click)="openEditInteraction(item)">Edit</button>
                     <button (click)="deleteInteraction(item)" class="danger">Delete</button>
@@ -682,36 +682,36 @@
               }
             </div>
             }
-            @if (!loadingInteractions && filteredHistory.length === 0) {
+            @if (!loadingInteractions() && filteredHistory().length === 0) {
             <div class="empty-state">No active interactions.</div>
             }
-            @if (loadingInteractions) {
+            @if (loadingInteractions()) {
             <div class="loading-state">Loading...</div>
             }
-            @if (interactionsTotalPages > 1) {
+            @if (interactionsTotalPages() > 1) {
             <div class="pagination">
-              <button class="page-btn" (click)="goToPageFor('interactions', interactionsPage - 1)" [disabled]="interactionsPage === 1">&#8249; Previous</button>
-              <button class="page-btn" (click)="goToPageFor('interactions', 1)" [class.active]="interactionsPage === 1">1</button>
-              @if (interactionsTotalPages > 5 && interactionsPage > 3) {
+              <button class="page-btn" (click)="goToPageFor('interactions', interactionsPage() - 1)" [disabled]="interactionsPage() === 1">&#8249; Previous</button>
+              <button class="page-btn" (click)="goToPageFor('interactions', 1)" [class.active]="interactionsPage() === 1">1</button>
+              @if (interactionsTotalPages() > 5 && interactionsPage() > 3) {
               <span class="page-ellipsis">...</span>
               }
               @for (page of getVisiblePagesFor('interactions'); track page) {
-              <button class="page-btn" (click)="goToPageFor('interactions', page)" [class.active]="interactionsPage === page">{{ page }}</button>
+              <button class="page-btn" (click)="goToPageFor('interactions', page)" [class.active]="interactionsPage() === page">{{ page }}</button>
               }
-              @if (interactionsTotalPages > 5 && interactionsPage < interactionsTotalPages - 2) {
+              @if (interactionsTotalPages() > 5 && interactionsPage() < interactionsTotalPages() - 2) {
               <span class="page-ellipsis">...</span>
               }
-              @if (interactionsTotalPages > 1) {
-              <button class="page-btn" (click)="goToPageFor('interactions', interactionsTotalPages)" [class.active]="interactionsPage === interactionsTotalPages">{{ interactionsTotalPages }}</button>
+              @if (interactionsTotalPages() > 1) {
+              <button class="page-btn" (click)="goToPageFor('interactions', interactionsTotalPages())" [class.active]="interactionsPage() === interactionsTotalPages()">{{ interactionsTotalPages() }}</button>
               }
-              <button class="page-btn" (click)="goToPageFor('interactions', interactionsPage + 1)" [disabled]="interactionsPage === interactionsTotalPages">Next &#8250;</button>
+              <button class="page-btn" (click)="goToPageFor('interactions', interactionsPage() + 1)" [disabled]="interactionsPage() === interactionsTotalPages()">Next &#8250;</button>
             </div>
             }
           }
 
           <!-- Closed interactions sub-tab -->
           @case ('closed') {
-            @if (!loadingInteractions && closedInteractions.length > 0) {
+            @if (!loadingInteractions() && closedInteractions().length > 0) {
             <div class="history-list">
               @for (item of paginatedClosedInteractions; track item.id) {
               <div class="history-row" (click)="openEditInteraction(item)">
@@ -736,7 +736,7 @@
                 <span class="status-badge status-closed">{{ item.status }}</span>
                 <div class="task-menu-wrap" (click)="$event.stopPropagation()">
                   <button class="menu-btn" (click)="toggleInteractionMenu(item.id, $event)" title="Actions">&#8942;</button>
-                  @if (openMenuInteractionId === item.id) {
+                  @if (openMenuInteractionId() === item.id) {
                   <div class="task-menu">
                     <button (click)="openEditInteraction(item)">Edit</button>
                     <button (click)="deleteInteraction(item)" class="danger">Delete</button>
@@ -747,29 +747,29 @@
               }
             </div>
             }
-            @if (!loadingInteractions && closedInteractions.length === 0) {
+            @if (!loadingInteractions() && closedInteractions().length === 0) {
             <div class="empty-state">No closed interactions.</div>
             }
-            @if (loadingInteractions) {
+            @if (loadingInteractions()) {
             <div class="loading-state">Loading...</div>
             }
-            @if (closedInteractionsTotalPages > 1) {
+            @if (closedInteractionsTotalPages() > 1) {
             <div class="pagination">
-              <button class="page-btn" (click)="goToPageFor('closedInteractions', closedInteractionsPage - 1)" [disabled]="closedInteractionsPage === 1">&#8249; Previous</button>
-              <button class="page-btn" (click)="goToPageFor('closedInteractions', 1)" [class.active]="closedInteractionsPage === 1">1</button>
-              @if (closedInteractionsTotalPages > 5 && closedInteractionsPage > 3) {
+              <button class="page-btn" (click)="goToPageFor('closedInteractions', closedInteractionsPage() - 1)" [disabled]="closedInteractionsPage() === 1">&#8249; Previous</button>
+              <button class="page-btn" (click)="goToPageFor('closedInteractions', 1)" [class.active]="closedInteractionsPage() === 1">1</button>
+              @if (closedInteractionsTotalPages() > 5 && closedInteractionsPage() > 3) {
               <span class="page-ellipsis">...</span>
               }
               @for (page of getVisiblePagesFor('closedInteractions'); track page) {
-              <button class="page-btn" (click)="goToPageFor('closedInteractions', page)" [class.active]="closedInteractionsPage === page">{{ page }}</button>
+              <button class="page-btn" (click)="goToPageFor('closedInteractions', page)" [class.active]="closedInteractionsPage() === page">{{ page }}</button>
               }
-              @if (closedInteractionsTotalPages > 5 && closedInteractionsPage < closedInteractionsTotalPages - 2) {
+              @if (closedInteractionsTotalPages() > 5 && closedInteractionsPage() < closedInteractionsTotalPages() - 2) {
               <span class="page-ellipsis">...</span>
               }
-              @if (closedInteractionsTotalPages > 1) {
-              <button class="page-btn" (click)="goToPageFor('closedInteractions', closedInteractionsTotalPages)" [class.active]="closedInteractionsPage === closedInteractionsTotalPages">{{ closedInteractionsTotalPages }}</button>
+              @if (closedInteractionsTotalPages() > 1) {
+              <button class="page-btn" (click)="goToPageFor('closedInteractions', closedInteractionsTotalPages())" [class.active]="closedInteractionsPage() === closedInteractionsTotalPages()">{{ closedInteractionsTotalPages() }}</button>
               }
-              <button class="page-btn" (click)="goToPageFor('closedInteractions', closedInteractionsPage + 1)" [disabled]="closedInteractionsPage === closedInteractionsTotalPages">Next &#8250;</button>
+              <button class="page-btn" (click)="goToPageFor('closedInteractions', closedInteractionsPage() + 1)" [disabled]="closedInteractionsPage() === closedInteractionsTotalPages()">Next &#8250;</button>
             </div>
             }
           }
@@ -785,42 +785,42 @@
         <button class="create-new-btn create-btn-yellow" (click)="openCreatePersonalTask()">+ Create New Admin Task</button>
 
         <div class="sub-tabs">
-          <button class="sub-tab-btn" [class.active]="myTasksSubTab === 'assigned'" (click)="myTasksSubTab = 'assigned'">
-            My Tasks @if (myAssignedTasks.length) {
-            <span class="sub-tab-count">{{ myAssignedTasks.length }}</span>
+          <button class="sub-tab-btn" [class.active]="myTasksSubTab() === 'assigned'" (click)="myTasksSubTab.set('assigned')">
+            My Tasks @if (myAssignedTasks().length) {
+            <span class="sub-tab-count">{{ myAssignedTasks().length }}</span>
             }
-            @if (myAssignedTasks.length > 0) {
+            @if (myAssignedTasks().length > 0) {
             <span class="pending-task-dot"></span>
             }
           </button>
-          <button class="sub-tab-btn" [class.active]="myTasksSubTab === 'created'" (click)="myTasksSubTab = 'created'">
-            Tasks I Created @if (myCreatedTasks.length) {
-            <span class="sub-tab-count">{{ myCreatedTasks.length }}</span>
+          <button class="sub-tab-btn" [class.active]="myTasksSubTab() === 'created'" (click)="myTasksSubTab.set('created')">
+            Tasks I Created @if (myCreatedTasks().length) {
+            <span class="sub-tab-count">{{ myCreatedTasks().length }}</span>
             }
-            @if (uncheckedDoneCreatedCount > 0) {
+            @if (uncheckedDoneCreatedCount() > 0) {
             <span class="unchecked-done-dot"></span>
             }
           </button>
-          <button class="sub-tab-btn" [class.active]="myTasksSubTab === 'done'" (click)="myTasksSubTab = 'done'">
-            Done @if (donePersonalTasks.length) {
-            <span class="sub-tab-count">{{ donePersonalTasks.length }}</span>
+          <button class="sub-tab-btn" [class.active]="myTasksSubTab() === 'done'" (click)="myTasksSubTab.set('done')">
+            Done @if (donePersonalTasks().length) {
+            <span class="sub-tab-count">{{ donePersonalTasks().length }}</span>
             }
           </button>
           @if (isSuperAdmin) {
-          <button class="sub-tab-btn" [class.active]="myTasksSubTab === 'allAdmin'" (click)="myTasksSubTab = 'allAdmin'">
-            All Admin Tasks @if (allAdminTasks.length) {
-            <span class="sub-tab-count">{{ allAdminTasks.length }}</span>
+          <button class="sub-tab-btn" [class.active]="myTasksSubTab() === 'allAdmin'" (click)="myTasksSubTab.set('allAdmin')">
+            All Admin Tasks @if (allAdminTasks().length) {
+            <span class="sub-tab-count">{{ allAdminTasks().length }}</span>
             }
           </button>
           }
         </div>
 
         <div class="card">
-      @switch (myTasksSubTab) {
+      @switch (myTasksSubTab()) {
 
           <!-- My assigned tasks sub-tab -->
           @case ('assigned') {
-            @if (!loadingPersonalTasks && myAssignedTasks.length > 0) {
+            @if (!loadingPersonalTasks() && myAssignedTasks().length > 0) {
             <div class="tasks-list">
               @for (task of paginatedMyAssignedTasks; track task.id) {
               <div class="task-row task-row-columns" (click)="openEditPersonalTask(task)">
@@ -852,7 +852,7 @@
                 </div>
                 <div class="task-menu-wrap" (click)="$event.stopPropagation()">
                   <button class="menu-btn" (click)="togglePersonalTaskMenu(task.id, $event)" title="Actions">&#8942;</button>
-                  @if (openMenuPersonalTaskId === task.id) {
+                  @if (openMenuPersonalTaskId() === task.id) {
                   <div class="task-menu">
                     <button (click)="openEditPersonalTask(task)">Edit</button>
                     <button (click)="deletePersonalTask(task)" class="danger">Delete</button>
@@ -863,36 +863,36 @@
               }
             </div>
             }
-            @if (!loadingPersonalTasks && myAssignedTasks.length === 0) {
+            @if (!loadingPersonalTasks() && myAssignedTasks().length === 0) {
             <div class="empty-state">No tasks assigned to you.</div>
             }
-            @if (loadingPersonalTasks) {
+            @if (loadingPersonalTasks()) {
             <div class="loading-state">Loading...</div>
             }
-            @if (myAssignedTotalPages > 1) {
+            @if (myAssignedTotalPages() > 1) {
             <div class="pagination">
-              <button class="page-btn" (click)="goToPageFor('myAssigned', myAssignedPage - 1)" [disabled]="myAssignedPage === 1">&#8249; Previous</button>
-              <button class="page-btn" (click)="goToPageFor('myAssigned', 1)" [class.active]="myAssignedPage === 1">1</button>
-              @if (myAssignedTotalPages > 5 && myAssignedPage > 3) {
+              <button class="page-btn" (click)="goToPageFor('myAssigned', myAssignedPage() - 1)" [disabled]="myAssignedPage() === 1">&#8249; Previous</button>
+              <button class="page-btn" (click)="goToPageFor('myAssigned', 1)" [class.active]="myAssignedPage() === 1">1</button>
+              @if (myAssignedTotalPages() > 5 && myAssignedPage() > 3) {
               <span class="page-ellipsis">...</span>
               }
               @for (page of getVisiblePagesFor('myAssigned'); track page) {
-              <button class="page-btn" (click)="goToPageFor('myAssigned', page)" [class.active]="myAssignedPage === page">{{ page }}</button>
+              <button class="page-btn" (click)="goToPageFor('myAssigned', page)" [class.active]="myAssignedPage() === page">{{ page }}</button>
               }
-              @if (myAssignedTotalPages > 5 && myAssignedPage < myAssignedTotalPages - 2) {
+              @if (myAssignedTotalPages() > 5 && myAssignedPage() < myAssignedTotalPages() - 2) {
               <span class="page-ellipsis">...</span>
               }
-              @if (myAssignedTotalPages > 1) {
-              <button class="page-btn" (click)="goToPageFor('myAssigned', myAssignedTotalPages)" [class.active]="myAssignedPage === myAssignedTotalPages">{{ myAssignedTotalPages }}</button>
+              @if (myAssignedTotalPages() > 1) {
+              <button class="page-btn" (click)="goToPageFor('myAssigned', myAssignedTotalPages())" [class.active]="myAssignedPage() === myAssignedTotalPages()">{{ myAssignedTotalPages() }}</button>
               }
-              <button class="page-btn" (click)="goToPageFor('myAssigned', myAssignedPage + 1)" [disabled]="myAssignedPage === myAssignedTotalPages">Next &#8250;</button>
+              <button class="page-btn" (click)="goToPageFor('myAssigned', myAssignedPage() + 1)" [disabled]="myAssignedPage() === myAssignedTotalPages()">Next &#8250;</button>
             </div>
             }
           }
 
           <!-- Tasks I created sub-tab -->
           @case ('created') {
-            @if (!loadingPersonalTasks && myCreatedTasks.length > 0) {
+            @if (!loadingPersonalTasks() && myCreatedTasks().length > 0) {
             <div class="tasks-list">
               @for (task of paginatedMyCreatedTasks; track task.id) {
               <div class="task-row task-row-columns" [class.task-done-unchecked]="task.status === 'Done' && !task.checkedByCreator" (click)="openEditPersonalTask(task)">
@@ -924,7 +924,7 @@
                 </div>
                 <div class="task-menu-wrap" (click)="$event.stopPropagation()">
                   <button class="menu-btn" (click)="togglePersonalTaskMenu(task.id, $event)" title="Actions">&#8942;</button>
-                  @if (openMenuPersonalTaskId === task.id) {
+                  @if (openMenuPersonalTaskId() === task.id) {
                   <div class="task-menu">
                     <button (click)="openEditPersonalTask(task)">Edit</button>
                     <button (click)="deletePersonalTask(task)" class="danger">Delete</button>
@@ -935,36 +935,36 @@
               }
             </div>
             }
-            @if (!loadingPersonalTasks && myCreatedTasks.length === 0) {
+            @if (!loadingPersonalTasks() && myCreatedTasks().length === 0) {
             <div class="empty-state">You haven't created any tasks for other admins.</div>
             }
-            @if (loadingPersonalTasks) {
+            @if (loadingPersonalTasks()) {
             <div class="loading-state">Loading...</div>
             }
-            @if (myCreatedTotalPages > 1) {
+            @if (myCreatedTotalPages() > 1) {
             <div class="pagination">
-              <button class="page-btn" (click)="goToPageFor('myCreated', myCreatedPage - 1)" [disabled]="myCreatedPage === 1">&#8249; Previous</button>
-              <button class="page-btn" (click)="goToPageFor('myCreated', 1)" [class.active]="myCreatedPage === 1">1</button>
-              @if (myCreatedTotalPages > 5 && myCreatedPage > 3) {
+              <button class="page-btn" (click)="goToPageFor('myCreated', myCreatedPage() - 1)" [disabled]="myCreatedPage() === 1">&#8249; Previous</button>
+              <button class="page-btn" (click)="goToPageFor('myCreated', 1)" [class.active]="myCreatedPage() === 1">1</button>
+              @if (myCreatedTotalPages() > 5 && myCreatedPage() > 3) {
               <span class="page-ellipsis">...</span>
               }
               @for (page of getVisiblePagesFor('myCreated'); track page) {
-              <button class="page-btn" (click)="goToPageFor('myCreated', page)" [class.active]="myCreatedPage === page">{{ page }}</button>
+              <button class="page-btn" (click)="goToPageFor('myCreated', page)" [class.active]="myCreatedPage() === page">{{ page }}</button>
               }
-              @if (myCreatedTotalPages > 5 && myCreatedPage < myCreatedTotalPages - 2) {
+              @if (myCreatedTotalPages() > 5 && myCreatedPage() < myCreatedTotalPages() - 2) {
               <span class="page-ellipsis">...</span>
               }
-              @if (myCreatedTotalPages > 1) {
-              <button class="page-btn" (click)="goToPageFor('myCreated', myCreatedTotalPages)" [class.active]="myCreatedPage === myCreatedTotalPages">{{ myCreatedTotalPages }}</button>
+              @if (myCreatedTotalPages() > 1) {
+              <button class="page-btn" (click)="goToPageFor('myCreated', myCreatedTotalPages())" [class.active]="myCreatedPage() === myCreatedTotalPages()">{{ myCreatedTotalPages() }}</button>
               }
-              <button class="page-btn" (click)="goToPageFor('myCreated', myCreatedPage + 1)" [disabled]="myCreatedPage === myCreatedTotalPages">Next &#8250;</button>
+              <button class="page-btn" (click)="goToPageFor('myCreated', myCreatedPage() + 1)" [disabled]="myCreatedPage() === myCreatedTotalPages()">Next &#8250;</button>
             </div>
             }
           }
 
           <!-- Done tasks sub-tab -->
           @case ('done') {
-            @if (!loadingPersonalTasks && donePersonalTasks.length > 0) {
+            @if (!loadingPersonalTasks() && donePersonalTasks().length > 0) {
             <div class="tasks-list">
               @for (task of paginatedDonePersonalTasks; track task.id) {
               <div class="task-row task-row-columns task-done" [class.task-done-unchecked]="!task.checkedByCreator && task.createdByAdminId === currentAdminId" (click)="openEditPersonalTask(task)">
@@ -998,36 +998,36 @@
               }
             </div>
             }
-            @if (!loadingPersonalTasks && donePersonalTasks.length === 0) {
+            @if (!loadingPersonalTasks() && donePersonalTasks().length === 0) {
             <div class="empty-state">No completed tasks.</div>
             }
-            @if (loadingPersonalTasks) {
+            @if (loadingPersonalTasks()) {
             <div class="loading-state">Loading...</div>
             }
-            @if (donePersonalTotalPages > 1) {
+            @if (donePersonalTotalPages() > 1) {
             <div class="pagination">
-              <button class="page-btn" (click)="goToPageFor('donePersonal', donePersonalPage - 1)" [disabled]="donePersonalPage === 1">&#8249; Previous</button>
-              <button class="page-btn" (click)="goToPageFor('donePersonal', 1)" [class.active]="donePersonalPage === 1">1</button>
-              @if (donePersonalTotalPages > 5 && donePersonalPage > 3) {
+              <button class="page-btn" (click)="goToPageFor('donePersonal', donePersonalPage() - 1)" [disabled]="donePersonalPage() === 1">&#8249; Previous</button>
+              <button class="page-btn" (click)="goToPageFor('donePersonal', 1)" [class.active]="donePersonalPage() === 1">1</button>
+              @if (donePersonalTotalPages() > 5 && donePersonalPage() > 3) {
               <span class="page-ellipsis">...</span>
               }
               @for (page of getVisiblePagesFor('donePersonal'); track page) {
-              <button class="page-btn" (click)="goToPageFor('donePersonal', page)" [class.active]="donePersonalPage === page">{{ page }}</button>
+              <button class="page-btn" (click)="goToPageFor('donePersonal', page)" [class.active]="donePersonalPage() === page">{{ page }}</button>
               }
-              @if (donePersonalTotalPages > 5 && donePersonalPage < donePersonalTotalPages - 2) {
+              @if (donePersonalTotalPages() > 5 && donePersonalPage() < donePersonalTotalPages() - 2) {
               <span class="page-ellipsis">...</span>
               }
-              @if (donePersonalTotalPages > 1) {
-              <button class="page-btn" (click)="goToPageFor('donePersonal', donePersonalTotalPages)" [class.active]="donePersonalPage === donePersonalTotalPages">{{ donePersonalTotalPages }}</button>
+              @if (donePersonalTotalPages() > 1) {
+              <button class="page-btn" (click)="goToPageFor('donePersonal', donePersonalTotalPages())" [class.active]="donePersonalPage() === donePersonalTotalPages()">{{ donePersonalTotalPages() }}</button>
               }
-              <button class="page-btn" (click)="goToPageFor('donePersonal', donePersonalPage + 1)" [disabled]="donePersonalPage === donePersonalTotalPages">Next &#8250;</button>
+              <button class="page-btn" (click)="goToPageFor('donePersonal', donePersonalPage() + 1)" [disabled]="donePersonalPage() === donePersonalTotalPages()">Next &#8250;</button>
             </div>
             }
           }
 
           <!-- All admin tasks sub-tab (SuperAdmin only) -->
           @case ('allAdmin') {
-            @if (!loadingAllAdminTasks && allAdminTasks.length > 0) {
+            @if (!loadingAllAdminTasks() && allAdminTasks().length > 0) {
             <div class="tasks-list">
               @for (task of paginatedAllAdminTasks; track task.id) {
               <div class="task-row task-row-columns" (click)="openViewPersonalTask(task)">
@@ -1060,29 +1060,29 @@
               }
             </div>
             }
-            @if (!loadingAllAdminTasks && allAdminTasks.length === 0) {
+            @if (!loadingAllAdminTasks() && allAdminTasks().length === 0) {
             <div class="empty-state">No admin tasks found.</div>
             }
-            @if (loadingAllAdminTasks) {
+            @if (loadingAllAdminTasks()) {
             <div class="loading-state">Loading...</div>
             }
-            @if (allAdminTotalPages > 1) {
+            @if (allAdminTotalPages() > 1) {
             <div class="pagination">
-              <button class="page-btn" (click)="goToPageFor('allAdmin', allAdminPage - 1)" [disabled]="allAdminPage === 1">&#8249; Previous</button>
-              <button class="page-btn" (click)="goToPageFor('allAdmin', 1)" [class.active]="allAdminPage === 1">1</button>
-              @if (allAdminTotalPages > 5 && allAdminPage > 3) {
+              <button class="page-btn" (click)="goToPageFor('allAdmin', allAdminPage() - 1)" [disabled]="allAdminPage() === 1">&#8249; Previous</button>
+              <button class="page-btn" (click)="goToPageFor('allAdmin', 1)" [class.active]="allAdminPage() === 1">1</button>
+              @if (allAdminTotalPages() > 5 && allAdminPage() > 3) {
               <span class="page-ellipsis">...</span>
               }
               @for (page of getVisiblePagesFor('allAdmin'); track page) {
-              <button class="page-btn" (click)="goToPageFor('allAdmin', page)" [class.active]="allAdminPage === page">{{ page }}</button>
+              <button class="page-btn" (click)="goToPageFor('allAdmin', page)" [class.active]="allAdminPage() === page">{{ page }}</button>
               }
-              @if (allAdminTotalPages > 5 && allAdminPage < allAdminTotalPages - 2) {
+              @if (allAdminTotalPages() > 5 && allAdminPage() < allAdminTotalPages() - 2) {
               <span class="page-ellipsis">...</span>
               }
-              @if (allAdminTotalPages > 1) {
-              <button class="page-btn" (click)="goToPageFor('allAdmin', allAdminTotalPages)" [class.active]="allAdminPage === allAdminTotalPages">{{ allAdminTotalPages }}</button>
+              @if (allAdminTotalPages() > 1) {
+              <button class="page-btn" (click)="goToPageFor('allAdmin', allAdminTotalPages())" [class.active]="allAdminPage() === allAdminTotalPages()">{{ allAdminTotalPages() }}</button>
               }
-              <button class="page-btn" (click)="goToPageFor('allAdmin', allAdminPage + 1)" [disabled]="allAdminPage === allAdminTotalPages">Next &#8250;</button>
+              <button class="page-btn" (click)="goToPageFor('allAdmin', allAdminPage() + 1)" [disabled]="allAdminPage() === allAdminTotalPages()">Next &#8250;</button>
             </div>
             }
           }
@@ -1104,7 +1104,7 @@
               <h2>HANDOVER NOTES</h2>
             </div>
           </div>
-          @if (!loadingNotes && handoverNotes.length > 0) {
+          @if (!loadingNotes() && handoverNotes().length > 0) {
           <div class="notes-list">
             @for (note of paginatedHandoverNotes; track note.id) {
             <div class="note-card">
@@ -1131,30 +1131,30 @@
             }
           </div>
           }
-          @if (!loadingNotes && handoverNotes.length === 0) {
+          @if (!loadingNotes() && handoverNotes().length === 0) {
           <div class="empty-state">No handover notes yet.</div>
           }
-          @if (loadingNotes) {
+          @if (loadingNotes()) {
           <div class="loading-state">Loading...</div>
           }
           <!-- Pagination -->
-          @if (handoverTotalPages > 1) {
+          @if (handoverTotalPages() > 1) {
           <div class="pagination">
-            <button class="page-btn" (click)="goToPageFor('handover', handoverPage - 1)" [disabled]="handoverPage === 1">&#8249; Previous</button>
-            <button class="page-btn" (click)="goToPageFor('handover', 1)" [class.active]="handoverPage === 1">1</button>
-            @if (handoverTotalPages > 5 && handoverPage > 3) {
+            <button class="page-btn" (click)="goToPageFor('handover', handoverPage() - 1)" [disabled]="handoverPage() === 1">&#8249; Previous</button>
+            <button class="page-btn" (click)="goToPageFor('handover', 1)" [class.active]="handoverPage() === 1">1</button>
+            @if (handoverTotalPages() > 5 && handoverPage() > 3) {
             <span class="page-ellipsis">...</span>
             }
             @for (page of getVisiblePagesFor('handover'); track page) {
-            <button class="page-btn" (click)="goToPageFor('handover', page)" [class.active]="handoverPage === page">{{ page }}</button>
+            <button class="page-btn" (click)="goToPageFor('handover', page)" [class.active]="handoverPage() === page">{{ page }}</button>
             }
-            @if (handoverTotalPages > 5 && handoverPage < handoverTotalPages - 2) {
+            @if (handoverTotalPages() > 5 && handoverPage() < handoverTotalPages() - 2) {
             <span class="page-ellipsis">...</span>
             }
-            @if (handoverTotalPages > 1) {
-            <button class="page-btn" (click)="goToPageFor('handover', handoverTotalPages)" [class.active]="handoverPage === handoverTotalPages">{{ handoverTotalPages }}</button>
+            @if (handoverTotalPages() > 1) {
+            <button class="page-btn" (click)="goToPageFor('handover', handoverTotalPages())" [class.active]="handoverPage() === handoverTotalPages()">{{ handoverTotalPages() }}</button>
             }
-            <button class="page-btn" (click)="goToPageFor('handover', handoverPage + 1)" [disabled]="handoverPage === handoverTotalPages">Next &#8250;</button>
+            <button class="page-btn" (click)="goToPageFor('handover', handoverPage() + 1)" [disabled]="handoverPage() === handoverTotalPages()">Next &#8250;</button>
           </div>
           }
         </div>
@@ -1189,12 +1189,12 @@
             </select>
             <select aria-label="Filter by admin" class="filter-select" [(ngModel)]="logAdminFilter" (ngModelChange)="onLogFilterChange()">
               <option value="">All Admins</option>
-              @for (admin of admins; track admin.id) {
+              @for (admin of admins(); track admin.id) {
               <option [value]="admin.id">{{ admin.firstName }}</option>
               }
             </select>
           </div>
-          @if (!loadingLogs || activityLogs.length > 0) {
+          @if (!loadingLogs() || activityLogs().length > 0) {
           <div class="log-list">
             @for (log of paginatedActivityLogs; track $index) {
             <div class="log-entry">
@@ -1228,34 +1228,34 @@
             }
           </div>
           }
-          @if (!loadingLogs && activityLogs.length === 0) {
+          @if (!loadingLogs() && activityLogs().length === 0) {
           <div class="empty-state">No activity logs yet.</div>
           }
-          @if (loadingLogs && activityLogs.length === 0) {
+          @if (loadingLogs() && activityLogs().length === 0) {
           <div class="loading-state">Loading...</div>
           }
-          @if (loadingLogs && activityLogs.length > 0) {
+          @if (loadingLogs() && activityLogs().length > 0) {
           <div class="loading-state">Loading more...</div>
           }
           <!-- Pagination -->
-          @if (logsTotalPages > 1 || logHasMore) {
+          @if (logsTotalPages() > 1 || logHasMore()) {
           <div class="pagination">
-            <button class="page-btn" (click)="goToPageFor('logs', logsPage - 1)" [disabled]="logsPage === 1">&#8249; Previous</button>
-            <button class="page-btn" (click)="goToPageFor('logs', 1)" [class.active]="logsPage === 1">1</button>
-            @if (logsTotalPages > 5 && logsPage > 3) {
+            <button class="page-btn" (click)="goToPageFor('logs', logsPage() - 1)" [disabled]="logsPage() === 1">&#8249; Previous</button>
+            <button class="page-btn" (click)="goToPageFor('logs', 1)" [class.active]="logsPage() === 1">1</button>
+            @if (logsTotalPages() > 5 && logsPage() > 3) {
             <span class="page-ellipsis">...</span>
             }
             @for (page of getVisiblePagesFor('logs'); track page) {
-            <button class="page-btn" (click)="goToPageFor('logs', page)" [class.active]="logsPage === page">{{ page }}</button>
+            <button class="page-btn" (click)="goToPageFor('logs', page)" [class.active]="logsPage() === page">{{ page }}</button>
             }
-            @if (logsTotalPages > 5 && logsPage < logsTotalPages - 2) {
+            @if (logsTotalPages() > 5 && logsPage() < logsTotalPages() - 2) {
             <span class="page-ellipsis">...</span>
             }
-            @if (logsTotalPages > 1) {
-            <button class="page-btn" (click)="goToPageFor('logs', logsTotalPages)" [class.active]="logsPage === logsTotalPages">{{ logsTotalPages }}</button>
+            @if (logsTotalPages() > 1) {
+            <button class="page-btn" (click)="goToPageFor('logs', logsTotalPages())" [class.active]="logsPage() === logsTotalPages()">{{ logsTotalPages() }}</button>
             }
-            <button class="page-btn" (click)="goToPageFor('logs', logsPage + 1)" [disabled]="logsPage === logsTotalPages">Next &#8250;</button>
-            @if (logHasMore && !loadingLogs) {
+            <button class="page-btn" (click)="goToPageFor('logs', logsPage() + 1)" [disabled]="logsPage() === logsTotalPages()">Next &#8250;</button>
+            @if (logHasMore() && !loadingLogs()) {
             <button class="page-btn load-more-page-btn" (click)="loadMoreLogs()">Load More...</button>
             }
           </div>
@@ -1271,40 +1271,40 @@
   <!-- ═══════════════════════════ MODALS ═══════════════════════════ -->
 
   <!-- Task Modal -->
-  @if (showTaskModal) {
+  @if (showTaskModal()) {
   <div class="modal-overlay" (click)="closeModal($event)">
     <div class="modal">
       <div class="modal-header">
-        <h3>{{ editingTaskId ? 'Edit Task #' + editingTaskId : 'New Task' }}</h3>
-        <button class="close-btn" (click)="showTaskModal = false">&times;</button>
+        <h3>{{ editingTaskId() ? 'Edit Task #' + editingTaskId() : 'New Task' }}</h3>
+        <button class="close-btn" (click)="showTaskModal.set(false)">&times;</button>
       </div>
       <div class="modal-body">
         <div class="form-group">
           <label>Title *</label>
-          <input type="text" [(ngModel)]="taskForm.title" placeholder="Task title" class="form-input">
+          <input type="text" [(ngModel)]="taskForm().title" placeholder="Task title" class="form-input">
         </div>
         <div class="form-group">
           <label>Description</label>
-          <textarea [(ngModel)]="taskForm.description" placeholder="Details..." class="form-input" rows="3"></textarea>
+          <textarea [(ngModel)]="taskForm().description" placeholder="Details..." class="form-input" rows="3"></textarea>
         </div>
         <div class="form-row">
           <div class="form-group">
             <label>Priority</label>
-            <select aria-label="Priority" [(ngModel)]="taskForm.priority" class="form-input">
+            <select aria-label="Priority" [(ngModel)]="taskForm().priority" class="form-input">
               <option value="Urgent">Urgent</option><option value="High">High</option><option value="Medium">Medium</option><option value="Normal">Normal</option><option value="Low">Low</option>
             </select>
           </div>
           <div class="form-group">
             <label>Due Date</label>
-            <input aria-label="Due Date" type="date" [(ngModel)]="taskForm.dueDate" class="form-input">
+            <input aria-label="Due Date" type="date" [(ngModel)]="taskForm().dueDate" class="form-input">
           </div>
         </div>
         <div class="form-group autocomplete-group" (click)="$event.stopPropagation()">
           <label>Client Name</label>
-          <input type="text" [ngModel]="taskClientQuery" (ngModelChange)="onTaskClientInput($event)" placeholder="Search or type client name..." class="form-input" autocomplete="off">
-          @if (showTaskClientDropdown && taskClientResults.length > 0) {
+          <input type="text" [ngModel]="taskClientQuery()" (ngModelChange)="onTaskClientInput($event)" placeholder="Search or type client name..." class="form-input" autocomplete="off">
+          @if (showTaskClientDropdown() && taskClientResults().length > 0) {
           <div class="autocomplete-dropdown">
-            @for (client of taskClientResults; track $index) {
+            @for (client of taskClientResults(); track $index) {
             <div class="autocomplete-item" (click)="selectTaskClient(client, $event)">
               <span class="ac-name">{{ client.firstName }} {{ client.lastName }}</span>
               <span class="ac-email">{{ client.email }}</span>
@@ -1315,10 +1315,10 @@
         </div>
         <div class="form-group autocomplete-group" (click)="$event.stopPropagation()">
           <label>Order (optional)</label>
-          <input type="text" [ngModel]="taskOrderQuery" (ngModelChange)="onTaskOrderInput($event)" placeholder="Search by order ID or client name..." class="form-input" autocomplete="off">
-          @if (showTaskOrderDropdown && taskOrderResults.length > 0) {
+          <input type="text" [ngModel]="taskOrderQuery()" (ngModelChange)="onTaskOrderInput($event)" placeholder="Search by order ID or client name..." class="form-input" autocomplete="off">
+          @if (showTaskOrderDropdown() && taskOrderResults().length > 0) {
           <div class="autocomplete-dropdown">
-            @for (order of taskOrderResults; track order.id) {
+            @for (order of taskOrderResults(); track order.id) {
             <div class="autocomplete-item order-item" (click)="selectTaskOrder(order, $event)">
               <span class="ac-name">#{{ order.id }} &ndash; {{ order.contactFirstName }} {{ order.contactLastName }}</span>
               <span class="ac-email">{{ order.serviceTypeName }} &bull; {{ formatDate(order.serviceDate) }} &bull; {{ order.status }}</span>
@@ -1330,63 +1330,63 @@
         <div class="form-row">
           <div class="form-group">
             <label>Client Email</label>
-            <input type="email" [(ngModel)]="taskForm.clientEmail" placeholder="Email (optional)" class="form-input">
+            <input type="email" [(ngModel)]="taskForm().clientEmail" placeholder="Email (optional)" class="form-input">
           </div>
           <div class="form-group">
             <label>Client Phone</label>
-            <input type="text" [(ngModel)]="taskForm.clientPhone" placeholder="Phone (optional)" class="form-input">
+            <input type="text" [(ngModel)]="taskForm().clientPhone" placeholder="Phone (optional)" class="form-input">
           </div>
         </div>
-        @if (editingTaskId) {
+        @if (editingTaskId()) {
         <div class="form-group">
           <label>Completion Note</label>
-          <textarea [(ngModel)]="taskForm.completionNote" placeholder="What was done to complete this task..." class="form-input" rows="2"></textarea>
+          <textarea [(ngModel)]="taskForm().completionNote" placeholder="What was done to complete this task..." class="form-input" rows="2"></textarea>
         </div>
         }
       </div>
       <div class="modal-footer">
-        <button class="btn btn-secondary" (click)="showTaskModal = false">Cancel</button>
-        <button class="btn btn-primary" (click)="saveTask()" [disabled]="!taskForm.title.trim()">{{ editingTaskId ? 'Update' : 'Create' }}</button>
+        <button class="btn btn-secondary" (click)="showTaskModal.set(false)">Cancel</button>
+        <button class="btn btn-primary" (click)="saveTask()" [disabled]="!taskForm().title.trim()">{{ editingTaskId() ? 'Update' : 'Create' }}</button>
       </div>
     </div>
   </div>
   }
 
   <!-- Personal Admin Task Modal -->
-  @if (showPersonalTaskModal) {
+  @if (showPersonalTaskModal()) {
   <div class="modal-overlay" (click)="closeModal($event)">
     <div class="modal">
       <div class="modal-header">
-        <h3>{{ editingPersonalTaskId ? 'Edit Admin Task #' + editingPersonalTaskId : 'New Admin Task' }}</h3>
-        <button class="close-btn" (click)="showPersonalTaskModal = false">&times;</button>
+        <h3>{{ editingPersonalTaskId() ? 'Edit Admin Task #' + editingPersonalTaskId() : 'New Admin Task' }}</h3>
+        <button class="close-btn" (click)="showPersonalTaskModal.set(false)">&times;</button>
       </div>
       <div class="modal-body">
         <div class="form-group">
           <label>Title *</label>
-          <input type="text" [(ngModel)]="personalTaskForm.title" placeholder="Task title" class="form-input" [disabled]="personalTaskReadOnly">
+          <input type="text" [(ngModel)]="personalTaskForm().title" placeholder="Task title" class="form-input" [disabled]="personalTaskReadOnly()">
         </div>
         <div class="form-group">
           <label>Description</label>
-          <textarea [(ngModel)]="personalTaskForm.description" placeholder="Details..." class="form-input" rows="3" [disabled]="personalTaskReadOnly"></textarea>
+          <textarea [(ngModel)]="personalTaskForm().description" placeholder="Details..." class="form-input" rows="3" [disabled]="personalTaskReadOnly()"></textarea>
         </div>
         <div class="form-row">
           <div class="form-group">
             <label>Priority</label>
-            <select aria-label="Priority" [(ngModel)]="personalTaskForm.priority" class="form-input" [disabled]="personalTaskReadOnly">
+            <select aria-label="Priority" [(ngModel)]="personalTaskForm().priority" class="form-input" [disabled]="personalTaskReadOnly()">
               <option value="Urgent">Urgent</option><option value="High">High</option><option value="Medium">Medium</option><option value="Normal">Normal</option><option value="Low">Low</option>
             </select>
           </div>
           <div class="form-group">
             <label>Due Date</label>
-            <input aria-label="Due Date" type="date" [(ngModel)]="personalTaskForm.dueDate" class="form-input" [disabled]="personalTaskReadOnly">
+            <input aria-label="Due Date" type="date" [(ngModel)]="personalTaskForm().dueDate" class="form-input" [disabled]="personalTaskReadOnly()">
           </div>
         </div>
         <!-- Multi-admin select for create mode -->
-        @if (!editingPersonalTaskId) {
+        @if (!editingPersonalTaskId()) {
         <div class="form-group">
           <label>Assign To * (select one or more)</label>
           <div class="admin-multi-select">
-            @for (admin of admins; track admin.id) {
+            @for (admin of admins(); track admin.id) {
             <div class="admin-select-item"
                  [class.selected]="isAdminSelected(admin.id)"
                  (click)="toggleAdminSelection(admin.id)">
@@ -1399,12 +1399,12 @@
         </div>
         }
         <!-- Single admin display for edit mode -->
-        @if (editingPersonalTaskId) {
+        @if (editingPersonalTaskId()) {
         <div class="form-group">
           <label>Assigned To</label>
-          <select aria-label="Assigned To" [(ngModel)]="personalTaskForm.assignedToAdminId" class="form-input" [disabled]="personalTaskReadOnly">
+          <select aria-label="Assigned To" [(ngModel)]="personalTaskForm().assignedToAdminId" class="form-input" [disabled]="personalTaskReadOnly()">
             <option [ngValue]="0" disabled>Select admin...</option>
-            @for (admin of admins; track admin.id) {
+            @for (admin of admins(); track admin.id) {
             <option [ngValue]="admin.id">
               {{ admin.firstName }} ({{ displayRole(admin.role) }})
             </option>
@@ -1412,18 +1412,18 @@
           </select>
         </div>
         }
-        @if (editingPersonalTaskId) {
+        @if (editingPersonalTaskId()) {
         <div class="form-group">
           <label>Completion Note</label>
-          <textarea [(ngModel)]="personalTaskForm.completionNote" placeholder="What was done to complete this task..." class="form-input" rows="2"></textarea>
+          <textarea [(ngModel)]="personalTaskForm().completionNote" placeholder="What was done to complete this task..." class="form-input" rows="2"></textarea>
         </div>
         }
       </div>
       <div class="modal-footer">
-        <button class="btn btn-secondary" (click)="showPersonalTaskModal = false">Cancel</button>
+        <button class="btn btn-secondary" (click)="showPersonalTaskModal.set(false)">Cancel</button>
         <button class="btn btn-primary" (click)="savePersonalTask()"
-                [disabled]="!personalTaskForm.title.trim() || (!editingPersonalTaskId && (!personalTaskForm.assignedToAdminIds || personalTaskForm.assignedToAdminIds.length === 0)) || (editingPersonalTaskId && !personalTaskForm.assignedToAdminId)">
-          {{ editingPersonalTaskId ? 'Update' : 'Create' }}
+                [disabled]="!personalTaskForm().title.trim() || (!editingPersonalTaskId() && (!personalTaskForm().assignedToAdminIds || personalTaskForm().assignedToAdminIds.length === 0)) || (editingPersonalTaskId() && !personalTaskForm().assignedToAdminId)">
+          {{ editingPersonalTaskId() ? 'Update' : 'Create' }}
         </button>
       </div>
     </div>
@@ -1431,20 +1431,20 @@
   }
 
   <!-- Interaction Modal -->
-  @if (showInteractionModal) {
+  @if (showInteractionModal()) {
   <div class="modal-overlay" (click)="closeModal($event)">
     <div class="modal">
       <div class="modal-header">
-        <h3>{{ editingInteractionId ? 'Edit Interaction #' + editingInteractionId : 'Log Client Interaction' }}</h3>
-        <button class="close-btn" (click)="showInteractionModal = false">&times;</button>
+        <h3>{{ editingInteractionId() ? 'Edit Interaction #' + editingInteractionId() : 'Log Client Interaction' }}</h3>
+        <button class="close-btn" (click)="showInteractionModal.set(false)">&times;</button>
       </div>
       <div class="modal-body">
         <div class="form-group autocomplete-group" (click)="$event.stopPropagation()">
           <label>Client Name *</label>
-          <input type="text" [ngModel]="interactionClientQuery" (ngModelChange)="onInteractionClientInput($event)" placeholder="Search or type client name..." class="form-input" autocomplete="off">
-          @if (showInteractionClientDropdown && interactionClientResults.length > 0) {
+          <input type="text" [ngModel]="interactionClientQuery()" (ngModelChange)="onInteractionClientInput($event)" placeholder="Search or type client name..." class="form-input" autocomplete="off">
+          @if (showInteractionClientDropdown() && interactionClientResults().length > 0) {
           <div class="autocomplete-dropdown">
-            @for (client of interactionClientResults; track $index) {
+            @for (client of interactionClientResults(); track $index) {
             <div class="autocomplete-item" (click)="selectInteractionClient(client, $event)">
               <span class="ac-name">{{ client.firstName }} {{ client.lastName }}</span>
               <span class="ac-email">{{ client.email }}</span>
@@ -1456,17 +1456,17 @@
         <div class="form-row">
           <div class="form-group">
             <label>Phone</label>
-            <input type="text" [(ngModel)]="interactionForm.clientPhone" placeholder="Phone number" class="form-input">
+            <input type="text" [(ngModel)]="interactionForm().clientPhone" placeholder="Phone number" class="form-input">
           </div>
           <div class="form-group">
             <label>Email</label>
-            <input type="email" [(ngModel)]="interactionForm.clientEmail" placeholder="Email (optional)" class="form-input">
+            <input type="email" [(ngModel)]="interactionForm().clientEmail" placeholder="Email (optional)" class="form-input">
           </div>
         </div>
         <div class="form-row">
           <div class="form-group">
             <label>Type</label>
-            <select aria-label="Type" [(ngModel)]="interactionForm.type" class="form-input">
+            <select aria-label="Type" [(ngModel)]="interactionForm().type" class="form-input">
               <option value="">Select type...</option>
               <option value="Phone call">Phone call</option><option value="SMS sent">SMS sent</option><option value="Email sent">Email sent</option>
               <option value="Quote sent">Quote sent</option><option value="Reminder call">Reminder call</option><option value="Booking confirmed">Booking confirmed</option>
@@ -1475,62 +1475,62 @@
           </div>
           <div class="form-group">
             <label>Status</label>
-            <select aria-label="Status" [(ngModel)]="interactionForm.status" class="form-input">
+            <select aria-label="Status" [(ngModel)]="interactionForm().status" class="form-input">
               <option value="Pending">Pending</option><option value="Urgent">Urgent</option><option value="Closed">Closed</option>
             </select>
           </div>
         </div>
         <div class="form-group">
           <label>Notes</label>
-          <textarea [(ngModel)]="interactionForm.notes" placeholder="Interaction details..." class="form-input" rows="3"></textarea>
+          <textarea [(ngModel)]="interactionForm().notes" placeholder="Interaction details..." class="form-input" rows="3"></textarea>
         </div>
       </div>
       <div class="modal-footer">
-        <button class="btn btn-secondary" (click)="showInteractionModal = false">Cancel</button>
-        <button class="btn btn-primary" (click)="saveInteraction()" [disabled]="!interactionForm.clientName.trim()">{{ editingInteractionId ? 'Update' : 'Save' }}</button>
+        <button class="btn btn-secondary" (click)="showInteractionModal.set(false)">Cancel</button>
+        <button class="btn btn-primary" (click)="saveInteraction()" [disabled]="!interactionForm().clientName.trim()">{{ editingInteractionId() ? 'Update' : 'Save' }}</button>
       </div>
     </div>
   </div>
   }
 
   <!-- Handover Note Modal -->
-  @if (showNoteModal) {
+  @if (showNoteModal()) {
   <div class="modal-overlay" (click)="closeModal($event)">
     <div class="modal">
       <div class="modal-header">
-        <h3>{{ editingNoteId ? 'Edit Note #' + editingNoteId : 'Add Shift Note' }}</h3>
-        <button class="close-btn" (click)="showNoteModal = false">&times;</button>
+        <h3>{{ editingNoteId() ? 'Edit Note #' + editingNoteId() : 'Add Shift Note' }}</h3>
+        <button class="close-btn" (click)="showNoteModal.set(false)">&times;</button>
       </div>
       <div class="modal-body">
         <div class="form-group">
           <label>Note *</label>
-          <textarea [(ngModel)]="noteForm.content" placeholder="Write your handover note here..." class="form-input" rows="5"></textarea>
+          <textarea [(ngModel)]="noteForm().content" placeholder="Write your handover note here..." class="form-input" rows="5"></textarea>
         </div>
         <div class="form-group">
           <label>For</label>
-          <select aria-label="For" [(ngModel)]="noteForm.targetAudience" class="form-input">
+          <select aria-label="For" [(ngModel)]="noteForm().targetAudience" class="form-input">
             <option value="ForNextAdmin">Next Admin</option>
             <option value="ForAllAdmins">All Admins</option>
           </select>
         </div>
       </div>
       <div class="modal-footer">
-        <button class="btn btn-secondary" (click)="showNoteModal = false">Cancel</button>
-        <button class="btn btn-primary" (click)="saveNote()" [disabled]="!noteForm.content.trim()">{{ editingNoteId ? 'Update' : 'Save Note' }}</button>
+        <button class="btn btn-secondary" (click)="showNoteModal.set(false)">Cancel</button>
+        <button class="btn btn-primary" (click)="saveNote()" [disabled]="!noteForm().content.trim()">{{ editingNoteId() ? 'Update' : 'Save Note' }}</button>
       </div>
     </div>
   </div>
   }
 
   <!-- View Personal Task Modal (SuperAdmin read-only) -->
-  @if (showViewPersonalTaskModal) {
+  @if (showViewPersonalTaskModal()) {
   <div class="modal-overlay" (click)="closeModal($event)">
     <div class="modal">
       <div class="modal-header">
-        <h3>View Admin Task {{ viewingPersonalTask ? '#' + viewingPersonalTask.id : '' }}</h3>
-        <button class="close-btn" (click)="showViewPersonalTaskModal = false">&times;</button>
+        <h3>View Admin Task {{ viewingPersonalTask() ? '#' + viewingPersonalTask()!.id : '' }}</h3>
+        <button class="close-btn" (click)="showViewPersonalTaskModal.set(false)">&times;</button>
       </div>
-      @if (viewingPersonalTask) {
+      @if (viewingPersonalTask(); as viewingPersonalTask) {
       <div class="modal-body">
         <div class="view-field">
           <label>Title</label>
@@ -1589,14 +1589,14 @@
       </div>
       }
       <div class="modal-footer">
-        <button class="btn btn-secondary" (click)="showViewPersonalTaskModal = false">Close</button>
+        <button class="btn btn-secondary" (click)="showViewPersonalTaskModal.set(false)">Close</button>
       </div>
     </div>
   </div>
   }
 
   <!-- Completion Note Modal -->
-  @if (showCompletionModal) {
+  @if (showCompletionModal()) {
   <div class="modal-overlay" (click)="closeModal($event)">
     <div class="modal completion-modal">
       <div class="modal-header">

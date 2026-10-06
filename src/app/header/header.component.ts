@@ -1,4 +1,5 @@
-import { Component, OnInit, HostListener, ElementRef, Injector, PLATFORM_ID, OnDestroy, NgZone, inject, ChangeDetectorRef, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, HostListener, ElementRef, Injector, PLATFORM_ID, OnDestroy, NgZone, inject, ChangeDetectorRef, ChangeDetectionStrategy, signal } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { RouterLink, RouterLinkActive, Router, NavigationEnd, NavigationStart } from '@angular/router';
 import { isPlatformBrowser } from '@angular/common';
 import { BubbleBadgeComponent } from './bubble-badge/bubble-badge.component';
@@ -18,7 +19,7 @@ import type { InvoiceService } from '../services/invoice.service';
 import type { SignalRService } from '../services/signalr.service';
 import { canViewAdminPage } from '../shared/admin-viewable-pages';
 import { combineLatest, Subject, fromEvent } from 'rxjs';
-import { takeUntil, filter, debounceTime } from 'rxjs/operators';
+import { takeUntil, filter, debounceTime, map } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
 import { HeaderAccountMenuComponent } from './header-account-menu/header-account-menu.component';
 import { UiHintService } from '../shared/ssr/ui-hint.service';
@@ -40,7 +41,7 @@ interface HeaderAccountServices {
   standalone: true,
   imports: [RouterLink, RouterLinkActive, BubbleBadgeComponent, HeaderAccountMenuComponent],
   templateUrl: './header.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './header.component.scss'
 })
 export class HeaderComponent implements OnInit, OnDestroy {
@@ -49,6 +50,10 @@ export class HeaderComponent implements OnInit, OnDestroy {
   private stickyCtaService = inject(StickyCtaService);
   themeService = inject(ThemeService);
   private router = inject(Router);
+  /** router.url as a signal (the active-menu classes are derived from it). */
+  private readonly currentUrl = toSignal(
+    this.router.events.pipe(filter(e => e instanceof NavigationEnd), map(() => this.router.url)),
+    { initialValue: this.router.url });
   private elementRef = inject(ElementRef);
   private cdr = inject(ChangeDetectorRef);
   private blogStatusService = inject(BlogStatusService);
@@ -59,26 +64,26 @@ export class HeaderComponent implements OnInit, OnDestroy {
 
   private readonly zone = inject(NgZone);
   private destroy$ = new Subject<void>();
-  isMenuOpen = false;
-  isUserMenuOpen = false;
-  isLoginMenuOpen = false;
-  isServicesMenuOpen = false;
+  readonly isMenuOpen = signal(false);
+  readonly isUserMenuOpen = signal(false);
+  readonly isLoginMenuOpen = signal(false);
+  readonly isServicesMenuOpen = signal(false);
   isResidentialCleaningSubmenuOpen = false;
-  isMoreMenuOpen = false;
-  isAboutMenuOpen = false;
-  currentUser: any = null;
-  userInitials: string = '';
+  readonly isMoreMenuOpen = signal(false);
+  readonly isAboutMenuOpen = signal(false);
+  readonly currentUser = signal<any>(null);
+  readonly userInitials = signal<string>('');
   isAuthInitialized = false;
-  isMobile = false;
-  showAuthUI = false; // Only show auth UI when we have a definitive answer
-  hasUnpaidOrders = false; // Track if user has unpaid orders
-  hasUnviewedNewOrders = false; // Track if there are new orders not viewed by admins
+  readonly isMobile = signal(false);
+  readonly showAuthUI = signal(false); // Only show auth UI when we have a definitive answer
+  readonly hasUnpaidOrders = signal(false); // Track if user has unpaid orders
+  readonly hasUnviewedNewOrders = signal(false); // Track if there are new orders not viewed by admins
   hasPendingPersonalTasks = false; // Track if admin has pending personal tasks
   hasUncheckedDoneTasks = false; // Track if admin has unchecked completed tasks they created
-  pendingBlogDrafts = 0; // AI blog drafts waiting for review (staff badge)
-  blogPublicVisible = false; // Admin-driven master switch; false = "Soon" span (safe default)
+  readonly pendingBlogDrafts = signal(0); // AI blog drafts waiting for review (staff badge)
+  readonly blogPublicVisible = signal(false); // Admin-driven master switch; false = "Soon" span (safe default)
   /** Business customer with at least one contract — drives the My Contracts menu entry. */
-  hasContracts = false;
+  readonly hasContracts = signal(false);
   /**
    * Business customer with at least one ISSUED invoice — drives the My Invoices menu entry.
    *
@@ -86,14 +91,14 @@ export class HeaderComponent implements OnInit, OnDestroy {
    * work is routinely invoiced without a signed agreement, and a signed agreement may have
    * nothing billed against it yet.
    */
-  hasInvoices = false;
+  readonly hasInvoices = signal(false);
   stickyCtaVisible = false; // When true, hide header mobile call icon (sticky CTA bar is shown)
-  nyTime: string = ''; // Live New York time for admins/superadmins
+  readonly nyTime = signal<string>(''); // Live New York time for admins/superadmins
   /**
    * Whether the points badge is on for this account: null until the badge has loaded once
    * (the layout hint stands in until then), false when the points system is switched off.
    */
-  pointsBadgeOn: boolean | null = null;
+  readonly pointsBadgeOn = signal<boolean | null>(null);
   private nyTimeInterval: any;
   public isBrowser: boolean;
   private accountServices: Promise<HeaderAccountServices> | null = null;
@@ -111,19 +116,19 @@ export class HeaderComponent implements OnInit, OnDestroy {
    * nothing moves when the real state arrives. showAuthUI flips only after hydration.
    */
   get clockVisible(): boolean {
-    return (this.showAuthUI ? this.isAdminOrSuperAdmin : this.uiHint.initial.admin) && !!this.nyTime;
+    return (this.showAuthUI() ? this.isAdminOrSuperAdmin : this.uiHint.initial.admin) && !!this.nyTime();
   }
 
   /** The points badge's slot: reserved from the hint until auth resolves, then the real answer. */
   get badgeVisible(): boolean {
-    if (!this.showAuthUI) return this.uiHint.initial.signedIn && this.uiHint.initial.pointsBadge;
-    return !this.shouldShowLogin() && this.pointsBadgeOn !== false;
+    if (!this.showAuthUI()) return this.uiHint.initial.signedIn && this.uiHint.initial.pointsBadge;
+    return !this.shouldShowLogin() && this.pointsBadgeOn() !== false;
   }
 
   /** The badge reports whether the points system is on; remembered for the next render. */
   onPointsBadgeAvailability(enabled: boolean): void {
-    this.pointsBadgeOn = enabled;
-    this.uiHint.setPointsBadge(enabled, this.currentUser);
+    this.pointsBadgeOn.set(enabled);
+    this.uiHint.setPointsBadge(enabled, this.currentUser());
   }
 
   /**
@@ -160,11 +165,11 @@ export class HeaderComponent implements OnInit, OnDestroy {
       this.restoreFromCache();
     }
     // Get initial values from auth service (only if we don't have cached data)
-    if (!this.currentUser) {
+    if (!this.currentUser()) {
       const initialUser = this.authService.currentUserValue;
       if (initialUser) {
-        this.currentUser = initialUser;
-        this.userInitials = `${initialUser.firstName[0]}${initialUser.lastName[0]}`.toUpperCase();
+        this.currentUser.set(initialUser);
+        this.userInitials.set(`${initialUser.firstName[0]}${initialUser.lastName[0]}`.toUpperCase());
       }
     }
     // Real-time personal task updates and the new-order badge start with the account services
@@ -175,7 +180,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
     this.blogStatusService.publicVisible$
       .pipe(takeUntil(this.destroy$))
       .subscribe(visible => {
-        this.blogPublicVisible = visible;
+        this.blogPublicVisible.set(visible);
         this.cdr.detectChanges();
       });
 
@@ -187,8 +192,8 @@ export class HeaderComponent implements OnInit, OnDestroy {
       this.isAuthInitialized = isInitialized;
       // Update user data if changed
       if (user) {
-        this.currentUser = user;
-        this.userInitials = `${user.firstName[0]}${user.lastName[0]}`.toUpperCase();
+        this.currentUser.set(user);
+        this.userInitials.set(`${user.firstName[0]}${user.lastName[0]}`.toUpperCase());
         // Cache the minimal user data for next refresh
         if (this.isBrowser) {
           this.cacheUserData(user);
@@ -216,9 +221,9 @@ export class HeaderComponent implements OnInit, OnDestroy {
         this.checkMyInvoices();
       } else if (isInitialized) {
         // Only clear user data if auth service is initialized and user is null
-        this.currentUser = null;
-        this.userInitials = '';
-        this.hasUnpaidOrders = false;
+        this.currentUser.set(null);
+        this.userInitials.set('');
+        this.hasUnpaidOrders.set(false);
         this.hasPendingPersonalTasks = false;
         if (this.isBrowser) {
           this.stopNyTimeClock();
@@ -231,7 +236,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
       // Show auth UI after auth is ready; use requestAnimationFrame + short delay so shimmer is visible at least one frame
       if (isInitialized && this.isBrowser) {
         const showNow = () => {
-          this.showAuthUI = true;
+          this.showAuthUI.set(true);
           this.cdr.detectChanges();
         };
         if (typeof requestAnimationFrame !== 'undefined') {
@@ -251,8 +256,8 @@ export class HeaderComponent implements OnInit, OnDestroy {
         takeUntil(this.destroy$)
       )
       .subscribe(() => {
-        this.isUserMenuOpen = false;
-        this.isLoginMenuOpen = false;
+        this.isUserMenuOpen.set(false);
+        this.isLoginMenuOpen.set(false);
       });
 
     // Listen to router navigation events to refresh unpaid orders check
@@ -264,7 +269,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
         )
         .subscribe(() => {
           // Refresh unpaid orders check after navigation
-          if (this.currentUser) {
+          if (this.currentUser()) {
             this.checkUnpaidOrders();
             if (this.isAdminOrSuperAdmin) {
               this.checkPendingPersonalTasks();
@@ -280,7 +285,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
           takeUntil(this.destroy$)
         )
         .subscribe(() => {
-          if (this.currentUser) {
+          if (this.currentUser()) {
             this.checkUnpaidOrders();
           }
         });
@@ -292,7 +297,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
           takeUntil(this.destroy$)
         )
         .subscribe(() => {
-          if (this.currentUser) {
+          if (this.currentUser()) {
             this.checkUnpaidOrders();
           }
         });
@@ -315,12 +320,12 @@ export class HeaderComponent implements OnInit, OnDestroy {
   }
 
   get isAdminOrSuperAdmin(): boolean {
-    return this.currentUser?.role === 'SuperAdmin' || this.currentUser?.role === 'Admin';
+    return this.currentUser()?.role === 'SuperAdmin' || this.currentUser()?.role === 'Admin';
   }
 
   /** True when the user can view a restricted admin page (SuperAdmin, or a granted Admin). */
   canViewPage(pageKey: string): boolean {
-    return canViewAdminPage(this.currentUser, pageKey);
+    return canViewAdminPage(this.currentUser(), pageKey);
   }
 
   /** Show the single "Company" dropdown entry only when the user can see at least one of its tabs. */
@@ -342,7 +347,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
   }
 
   get isInternalUser(): boolean {
-    const role = this.currentUser?.role;
+    const role = this.currentUser()?.role;
     return role === 'SuperAdmin' || role === 'Admin' || role === 'Moderator';
   }
 
@@ -353,7 +358,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
    * reads as the app being broken.
    */
   get isCleanerAccount(): boolean {
-    return this.currentUser?.role === 'Cleaner';
+    return this.currentUser()?.role === 'Cleaner';
   }
 
   private startNyTimeClock(): void {
@@ -385,7 +390,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
     }).formatToParts(new Date());
     const hour = parts.find(p => p.type === 'hour')?.value ?? '';
     const minute = parts.find(p => p.type === 'minute')?.value ?? '';
-    this.nyTime = `${hour}:${minute}`;
+    this.nyTime.set(`${hour}:${minute}`);
   }
 
   private checkUnpaidOrders() {
@@ -399,19 +404,19 @@ export class HeaderComponent implements OnInit, OnDestroy {
           // Other / Invoice orders keep isPaid=false by backend design but are never paid here
           // (create-payment-intent refuses them), so only a Stripe ('Normal') order can owe its
           // booking payment. A top-up (pendingUpdateAmount) is only ever set on an isPaid order.
-          this.hasUnpaidOrders = orders.some(order =>
+          this.hasUnpaidOrders.set(orders.some(order =>
             order.status !== 'Cancelled' &&
             order.status !== 'Refunded' &&
             (
               (!order.isPaid && (!order.paymentMethod || order.paymentMethod === 'Normal')) ||
               ((order.pendingUpdateAmount ?? 0) > 0.01)
             )
-          );
+          ));
         },
         error: (error) => {
           // Silently fail - don't show error for unpaid orders check
           console.error('Error checking unpaid orders:', error);
-          this.hasUnpaidOrders = false;
+          this.hasUnpaidOrders.set(false);
         }
       }));
   }
@@ -448,7 +453,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
     // A cleaner's login has no customer side at all, so the check is skipped rather than fired
     // and discarded — same reasoning as the customer entries hidden from them below.
     if (this.isCleanerAccount) {
-      this.hasContracts = false;
+      this.hasContracts.set(false);
       return;
     }
 
@@ -456,12 +461,12 @@ export class HeaderComponent implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (res: { hasContracts: boolean }) => {
-          this.hasContracts = res?.hasContracts ?? false;
+          this.hasContracts.set(res?.hasContracts ?? false);
           this.cdr.detectChanges();
         },
         // Safe default: a failed check hides the link rather than offering one that 403s.
         error: () => {
-          this.hasContracts = false;
+          this.hasContracts.set(false);
         }
       }));
   }
@@ -477,7 +482,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
   private checkMyInvoices(): void {
     if (!this.isBrowser) return;
     if (this.isCleanerAccount) {
-      this.hasInvoices = false;
+      this.hasInvoices.set(false);
       return;
     }
 
@@ -485,11 +490,11 @@ export class HeaderComponent implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (res: { hasInvoices: boolean }) => {
-          this.hasInvoices = res?.hasInvoices ?? false;
+          this.hasInvoices.set(res?.hasInvoices ?? false);
           this.cdr.detectChanges();
         },
         error: () => {
-          this.hasInvoices = false;
+          this.hasInvoices.set(false);
         }
       }));
   }
@@ -500,11 +505,11 @@ export class HeaderComponent implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (res) => {
-          this.pendingBlogDrafts = res?.count ?? 0;
+          this.pendingBlogDrafts.set(res?.count ?? 0);
           this.cdr.detectChanges();
         },
         error: () => {
-          this.pendingBlogDrafts = 0;
+          this.pendingBlogDrafts.set(0);
         }
       }));
   }
@@ -529,7 +534,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
     newOrders.hasUnviewedOrders$
       .pipe(takeUntil(this.destroy$))
       .subscribe(has => {
-        this.hasUnviewedNewOrders = has;
+        this.hasUnviewedNewOrders.set(has);
         this.cdr.detectChanges();
       });
   }
@@ -561,7 +566,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
           role: user.role,
           profilePictureUrl: user.profilePictureUrl
         },
-        userInitials: this.userInitials,
+        userInitials: this.userInitials(),
         timestamp: Date.now()
       };
       
@@ -578,8 +583,8 @@ export class HeaderComponent implements OnInit, OnDestroy {
         const cached = JSON.parse(cachedData);
         const cacheAge = Date.now() - cached.timestamp;
         if (cacheAge < 24 * 60 * 60 * 1000) {
-          this.currentUser = cached.user;
-          this.userInitials = cached.userInitials;
+          this.currentUser.set(cached.user);
+          this.userInitials.set(cached.userInitials);
           this.isAuthInitialized = true;
           // Do NOT set showAuthUI here: let combineLatest set it so the template
           // shows the shimmer placeholder until auth state is confirmed.
@@ -612,7 +617,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
   checkScreenSize() {
     if (this.isBrowser) {
       const narrowScreen = window.innerWidth <= 768;
-      this.isMobile = narrowScreen || this.isTouchDevice();
+      this.isMobile.set(narrowScreen || this.isTouchDevice());
     }
   }
 
@@ -626,41 +631,41 @@ export class HeaderComponent implements OnInit, OnDestroy {
     const clickedInsideAbout = this.elementRef.nativeElement.querySelector('.has-dropdown.about-dropdown')?.contains(targetElement);
     const clickedInsideMore = this.elementRef.nativeElement.querySelector('.has-dropdown.more-dropdown')?.contains(targetElement);
 
-    if (!clickedInsideUserMenu && this.isUserMenuOpen) {
-      this.isUserMenuOpen = false;
+    if (!clickedInsideUserMenu && this.isUserMenuOpen()) {
+      this.isUserMenuOpen.set(false);
     }
-    if (!clickedInsideGuestAuth && this.isLoginMenuOpen) {
-      this.isLoginMenuOpen = false;
+    if (!clickedInsideGuestAuth && this.isLoginMenuOpen()) {
+      this.isLoginMenuOpen.set(false);
     }
     
-    if (!clickedInsideServices && this.isServicesMenuOpen) {
-      this.isServicesMenuOpen = false;
+    if (!clickedInsideServices && this.isServicesMenuOpen()) {
+      this.isServicesMenuOpen.set(false);
       this.isResidentialCleaningSubmenuOpen = false;
     }
 
-    if (!clickedInsideAbout && this.isAboutMenuOpen) {
-      this.isAboutMenuOpen = false;
+    if (!clickedInsideAbout && this.isAboutMenuOpen()) {
+      this.isAboutMenuOpen.set(false);
     }
 
-    if (!clickedInsideMore && this.isMoreMenuOpen) {
-      this.isMoreMenuOpen = false;
+    if (!clickedInsideMore && this.isMoreMenuOpen()) {
+      this.isMoreMenuOpen.set(false);
     }
   }
 
   // Helper method to determine if we should show login button
   shouldShowLogin(): boolean {
     // Show login button if we have no user
-    return !this.currentUser;
+    return !this.currentUser();
   }
 
   // Helper method to determine if we should show user menu
   shouldShowUserMenu(): boolean {
     // Show user menu if we have a user (from cache or auth service)
-    return !!this.currentUser;
+    return !!this.currentUser();
   }
 
   toggleMenu() {
-    this.isMenuOpen = !this.isMenuOpen;
+    this.isMenuOpen.set(!this.isMenuOpen());
     if (this.isBrowser) {
       const navLinks = this.elementRef.nativeElement.querySelector('.nav-links');
       if (navLinks) {
@@ -668,12 +673,12 @@ export class HeaderComponent implements OnInit, OnDestroy {
       }
     }
     // Close other menus when mobile menu is toggled
-    if (!this.isMenuOpen) {
-      this.isUserMenuOpen = false;
-      this.isServicesMenuOpen = false;
+    if (!this.isMenuOpen()) {
+      this.isUserMenuOpen.set(false);
+      this.isServicesMenuOpen.set(false);
       this.isResidentialCleaningSubmenuOpen = false;
-      this.isMoreMenuOpen = false;
-      this.isAboutMenuOpen = false;
+      this.isMoreMenuOpen.set(false);
+      this.isAboutMenuOpen.set(false);
     }
   }
 
@@ -682,16 +687,16 @@ export class HeaderComponent implements OnInit, OnDestroy {
   }
 
   closeDropdownMenu() {
-    this.isUserMenuOpen = false;
+    this.isUserMenuOpen.set(false);
   }
 
   toggleLoginMenu(event?: Event) {
     if (event) {
       event.stopPropagation();
     }
-    this.isLoginMenuOpen = !this.isLoginMenuOpen;
-    if (this.isLoginMenuOpen) {
-      this.isUserMenuOpen = false;
+    this.isLoginMenuOpen.set(!this.isLoginMenuOpen());
+    if (this.isLoginMenuOpen()) {
+      this.isUserMenuOpen.set(false);
       // Google Sign-In is no longer loaded on every page; start it now so the modal's Google
       // button is ready by the time "Log In" / "Sign Up" is picked from this menu.
       this.authService.warmUpSocialAuth();
@@ -699,7 +704,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
   }
 
   closeLoginMenu() {
-    this.isLoginMenuOpen = false;
+    this.isLoginMenuOpen.set(false);
   }
 
   toggleUserMenu(event?: Event) {
@@ -707,7 +712,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
     if (event?.target) {
       const el = event.target as HTMLElement;
       if (el.closest('a') || el.closest('.dropdown-menu')) {
-        this.isUserMenuOpen = false;
+        this.isUserMenuOpen.set(false);
         if (event) event.stopPropagation();
         return;
       }
@@ -717,15 +722,15 @@ export class HeaderComponent implements OnInit, OnDestroy {
       event.stopPropagation();
     }
     
-    this.isUserMenuOpen = !this.isUserMenuOpen;
+    this.isUserMenuOpen.set(!this.isUserMenuOpen());
     // Close other menus when user menu is opened
-    if (this.isUserMenuOpen) {
-      this.isLoginMenuOpen = false;
-      this.isMenuOpen = false;
-      this.isServicesMenuOpen = false;
+    if (this.isUserMenuOpen()) {
+      this.isLoginMenuOpen.set(false);
+      this.isMenuOpen.set(false);
+      this.isServicesMenuOpen.set(false);
       this.isResidentialCleaningSubmenuOpen = false;
-      this.isMoreMenuOpen = false;
-      this.isAboutMenuOpen = false;
+      this.isMoreMenuOpen.set(false);
+      this.isAboutMenuOpen.set(false);
         if (this.isBrowser) {
           const navLinks = this.elementRef.nativeElement.querySelector('.nav-links');
           if (navLinks) {
@@ -741,14 +746,14 @@ export class HeaderComponent implements OnInit, OnDestroy {
       event.stopPropagation();
     }
     
-    if (this.isMobile) {
-      const openingServices = !this.isServicesMenuOpen;
+    if (this.isMobile()) {
+      const openingServices = !this.isServicesMenuOpen();
       if (openingServices) {
-        this.isMoreMenuOpen = false;
-        this.isAboutMenuOpen = false;
+        this.isMoreMenuOpen.set(false);
+        this.isAboutMenuOpen.set(false);
       }
-      this.isServicesMenuOpen = !this.isServicesMenuOpen;
-      if (!this.isServicesMenuOpen) {
+      this.isServicesMenuOpen.set(!this.isServicesMenuOpen());
+      if (!this.isServicesMenuOpen()) {
         this.isResidentialCleaningSubmenuOpen = false;
       }
     }
@@ -759,14 +764,14 @@ export class HeaderComponent implements OnInit, OnDestroy {
       event.stopPropagation();
     }
     
-    if (this.isMobile) {
+    if (this.isMobile()) {
       this.isResidentialCleaningSubmenuOpen = !this.isResidentialCleaningSubmenuOpen;
     }
   }
 
   // Handle services link click
   onServicesClick(event: Event) {
-    if (this.isMobile) {
+    if (this.isMobile()) {
       // On mobile, only toggle menu, don't navigate
       event.preventDefault();
       this.toggleServicesMenu(event);
@@ -779,7 +784,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
 
   // Handle residential cleaning link click
   onResidentialCleaningClick(event: Event) {
-    if (this.isMobile) {
+    if (this.isMobile()) {
       // On mobile, only toggle submenu, don't navigate
       event.preventDefault();
       this.toggleResidentialCleaningSubmenu(event);
@@ -792,7 +797,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
 
   // Handle "All Services" link click (mobile only)
   onAllServicesClick(event: Event) {
-    if (this.isMobile) {
+    if (this.isMobile()) {
       // On mobile, navigate to service page and close all menus
       this.closeAllMenus();
     } else {
@@ -808,13 +813,13 @@ export class HeaderComponent implements OnInit, OnDestroy {
   }
 
   closeAllMenus() {
-    this.isServicesMenuOpen = false;
+    this.isServicesMenuOpen.set(false);
     this.isResidentialCleaningSubmenuOpen = false;
-    this.isMoreMenuOpen = false;
-    this.isAboutMenuOpen = false;
-    this.isUserMenuOpen = false;
-    this.isLoginMenuOpen = false;
-    this.isMenuOpen = false;
+    this.isMoreMenuOpen.set(false);
+    this.isAboutMenuOpen.set(false);
+    this.isUserMenuOpen.set(false);
+    this.isLoginMenuOpen.set(false);
+    this.isMenuOpen.set(false);
     this.cdr.detectChanges(); // Ensure dropdown hides immediately when a link is clicked
     if (this.isBrowser) {
       const navLinks = this.elementRef.nativeElement.querySelector('.nav-links');
@@ -848,31 +853,31 @@ export class HeaderComponent implements OnInit, OnDestroy {
 
   // Desktop hover handlers
   showServicesMenu() {
-    if (!this.isMobile) {
-      this.isServicesMenuOpen = true;
-      this.isMoreMenuOpen = false;
-      this.isAboutMenuOpen = false;
+    if (!this.isMobile()) {
+      this.isServicesMenuOpen.set(true);
+      this.isMoreMenuOpen.set(false);
+      this.isAboutMenuOpen.set(false);
     }
   }
 
   // About dropdown handlers (mirrors the More/Information dropdown)
   showAboutMenu() {
-    if (!this.isMobile) {
-      this.isAboutMenuOpen = true;
-      this.isServicesMenuOpen = false;
+    if (!this.isMobile()) {
+      this.isAboutMenuOpen.set(true);
+      this.isServicesMenuOpen.set(false);
       this.isResidentialCleaningSubmenuOpen = false;
-      this.isMoreMenuOpen = false;
+      this.isMoreMenuOpen.set(false);
     }
   }
 
   hideAboutMenu() {
-    if (!this.isMobile) {
-      this.isAboutMenuOpen = false;
+    if (!this.isMobile()) {
+      this.isAboutMenuOpen.set(false);
     }
   }
 
   closeAboutMenu() {
-    this.isAboutMenuOpen = false;
+    this.isAboutMenuOpen.set(false);
   }
 
   toggleAboutMenu(event?: Event) {
@@ -880,19 +885,19 @@ export class HeaderComponent implements OnInit, OnDestroy {
       event.stopPropagation();
     }
 
-    if (this.isMobile) {
-      const openingAbout = !this.isAboutMenuOpen;
+    if (this.isMobile()) {
+      const openingAbout = !this.isAboutMenuOpen();
       if (openingAbout) {
-        this.isServicesMenuOpen = false;
+        this.isServicesMenuOpen.set(false);
         this.isResidentialCleaningSubmenuOpen = false;
-        this.isMoreMenuOpen = false;
+        this.isMoreMenuOpen.set(false);
       }
-      this.isAboutMenuOpen = !this.isAboutMenuOpen;
+      this.isAboutMenuOpen.set(!this.isAboutMenuOpen());
     }
   }
 
   onAboutClick(event: Event) {
-    if (this.isMobile) {
+    if (this.isMobile()) {
       // On mobile, only toggle menu, don't navigate
       event.preventDefault();
       this.toggleAboutMenu(event);
@@ -904,47 +909,47 @@ export class HeaderComponent implements OnInit, OnDestroy {
   }
 
   hideServicesMenu() {
-    if (!this.isMobile) {
-      this.isServicesMenuOpen = false;
+    if (!this.isMobile()) {
+      this.isServicesMenuOpen.set(false);
       this.isResidentialCleaningSubmenuOpen = false;
     }
   }
 
   closeServicesMenu() {
-    this.isServicesMenuOpen = false;
+    this.isServicesMenuOpen.set(false);
     this.isResidentialCleaningSubmenuOpen = false;
   }
 
   showResidentialCleaningSubmenu() {
-    if (!this.isMobile) {
+    if (!this.isMobile()) {
       this.isResidentialCleaningSubmenuOpen = true;
     }
   }
 
   hideResidentialCleaningSubmenu() {
-    if (!this.isMobile) {
+    if (!this.isMobile()) {
       this.isResidentialCleaningSubmenuOpen = false;
     }
   }
 
   // Desktop hover handlers for More menu
   showMoreMenu() {
-    if (!this.isMobile) {
-      this.isMoreMenuOpen = true;
-      this.isServicesMenuOpen = false;
+    if (!this.isMobile()) {
+      this.isMoreMenuOpen.set(true);
+      this.isServicesMenuOpen.set(false);
       this.isResidentialCleaningSubmenuOpen = false;
-      this.isAboutMenuOpen = false;
+      this.isAboutMenuOpen.set(false);
     }
   }
 
   hideMoreMenu() {
-    if (!this.isMobile) {
-      this.isMoreMenuOpen = false;
+    if (!this.isMobile()) {
+      this.isMoreMenuOpen.set(false);
     }
   }
 
   closeMoreMenu() {
-    this.isMoreMenuOpen = false;
+    this.isMoreMenuOpen.set(false);
   }
 
   // Mobile-friendly more menu handler (Services and More are mutually exclusive)
@@ -953,20 +958,20 @@ export class HeaderComponent implements OnInit, OnDestroy {
       event.stopPropagation();
     }
     
-    if (this.isMobile) {
-      const openingMore = !this.isMoreMenuOpen;
+    if (this.isMobile()) {
+      const openingMore = !this.isMoreMenuOpen();
       if (openingMore) {
-        this.isServicesMenuOpen = false;
+        this.isServicesMenuOpen.set(false);
         this.isResidentialCleaningSubmenuOpen = false;
-        this.isAboutMenuOpen = false;
+        this.isAboutMenuOpen.set(false);
       }
-      this.isMoreMenuOpen = !this.isMoreMenuOpen;
+      this.isMoreMenuOpen.set(!this.isMoreMenuOpen());
     }
   }
 
   // Handle Information link click (no landing page — pure dropdown trigger)
   onMoreClick(event: Event) {
-    if (this.isMobile) {
+    if (this.isMobile()) {
       // On mobile, only toggle menu, don't navigate
       event.preventDefault();
       this.toggleMoreMenu(event);
@@ -990,14 +995,14 @@ export class HeaderComponent implements OnInit, OnDestroy {
   // Check if current route is a service route (excludes borough pages, which belong
   // to the About menu, and Information-menu routes)
   isServiceRoute(): boolean {
-    const currentUrl = this.router.url;
+    const currentUrl = this.currentUrl();
     if (this.isMoreRoute() || this.isAboutRoute()) return false;
     return currentUrl === '/service-page' || currentUrl.startsWith('/services/');
   }
 
   // Check if current route belongs to the About menu (Company + Service Area)
   isAboutRoute(): boolean {
-    const currentUrl = this.router.url.split('?')[0].split('#')[0];
+    const currentUrl = this.currentUrl().split('?')[0].split('#')[0];
     return currentUrl === '/about'
       || currentUrl === '/reviews'
       || currentUrl === '/services/brooklyn-cleaning'
@@ -1015,7 +1020,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
 
   // Check if current route belongs to the Information menu (Explore + Help)
   isMoreRoute(): boolean {
-    const currentUrl = this.router.url.split('?')[0].split('#')[0];
+    const currentUrl = this.currentUrl().split('?')[0].split('#')[0];
     return currentUrl === '/faq'
       || currentUrl === '/contact'
       || currentUrl === '/cleaning-checklist'

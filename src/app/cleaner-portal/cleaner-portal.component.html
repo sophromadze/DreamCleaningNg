@@ -1,8 +1,8 @@
-<div class="portal-page" [class.portal-page--embedded]="embedded">
+<div class="portal-page" [class.portal-page--embedded]="embedded()">
 
   <!-- The greeting is the cleaner's header; the SuperAdmin keeps the plain title, because "All
        Cleanings" is a report, not somebody's own day. -->
-  @if (context?.isCleanerView) {
+  @if (context()?.isCleanerView) {
   <header class="portal-header portal-header--cleaner">
     <div>
       <!-- FIRST name only: this is a greeting, not a salutation on a letter. `cleanerName` keeps
@@ -10,7 +10,7 @@
       <h1>{{ greeting }}@if (greetingName) {
       , {{ greetingName }}
       }!</h1>
-      <p class="portal-subtitle">{{ t.scheduleSubtitle }}</p>
+      <p class="portal-subtitle">{{ t().scheduleSubtitle }}</p>
     </div>
 
     <!--
@@ -24,11 +24,11 @@
     -->
     <div class="portal-user">
       <label class="language-picker language-picker--full">
-        <span class="sr-only">{{ t.language }}</span>
+        <span class="sr-only">{{ t().language }}</span>
         <select [value]="languageChoice"
-                [disabled]="savingLanguage"
+                [disabled]="savingLanguage()"
                 (change)="onLanguageChange($any($event.target).value)">
-          <option value="">{{ t.language }}: {{ t.languageAutomatic }}</option>
+          <option value="">{{ t().language }}: {{ t().languageAutomatic }}</option>
           @for (option of languageOptions; track option.code) {
           <option [value]="option.code">{{ option.name }}</option>
           }
@@ -36,9 +36,9 @@
       </label>
 
       <label class="language-picker language-picker--short">
-        <span class="sr-only">{{ t.language }}</span>
+        <span class="sr-only">{{ t().language }}</span>
         <select [value]="languageChoice"
-                [disabled]="savingLanguage"
+                [disabled]="savingLanguage()"
                 (change)="onLanguageChange($any($event.target).value)">
           <option value="">AUTO</option>
           @for (option of languageOptions; track option.code) {
@@ -56,13 +56,13 @@
     page. The header ROW itself stays, because the language picker lives in it and the Portal tab is
     where an admin needs it most.
   -->
-  @if (context && !context.isCleanerView) {
+  @if (context() && !context()!.isCleanerView) {
   <div class="portal-header">
-    @if (!embedded) {
+    @if (!embedded()) {
     <div>
       <!-- No `?.`: the wrapping *ngIf above already narrowed `context` to non-null. -->
-      <h1>{{ context.isSystemWideView ? 'All Cleanings' : 'My Jobs' }}</h1>
-      @if (context?.isSystemWideView) {
+      <h1>{{ context()!.isSystemWideView ? 'All Cleanings' : 'My Jobs' }}</h1>
+      @if (context()?.isSystemWideView) {
       <p class="portal-subtitle">
         Every cleaning in the system - past, current and upcoming, for every cleaner. Read only.
       </p>
@@ -83,7 +83,7 @@
     -->
     <div class="portal-user">
       <label class="language-picker language-picker--full">
-        <span class="sr-only">{{ t.language }}</span>
+        <span class="sr-only">{{ t().language }}</span>
         <select [value]="languageChoice" (change)="onLanguageChange($any($event.target).value)">
           @for (option of languageOptions; track option.code) {
           <option [value]="option.code">{{ option.name }}</option>
@@ -92,7 +92,7 @@
       </label>
 
       <label class="language-picker language-picker--short">
-        <span class="sr-only">{{ t.language }}</span>
+        <span class="sr-only">{{ t().language }}</span>
         <select [value]="languageChoice" (change)="onLanguageChange($any($event.target).value)">
           @for (option of languageOptions; track option.code) {
           <option [value]="option.code">{{ option.short }}</option>
@@ -103,8 +103,8 @@
   </div>
   }
 
-  @if (errorMessage) {
-  <div class="portal-error">{{ errorMessage }}</div>
+  @if (errorMessage()) {
+  <div class="portal-error">{{ errorMessage() }}</div>
   }
 
   <!--
@@ -112,15 +112,15 @@
     you", never as "you have no work" - the two look identical from an empty list, and only one of
     them is something the person can act on.
   -->
-  @if (context?.isCleanerView && !loading && !context?.cleanerId) {
+  @if (context()?.isCleanerView && !loading() && !context()?.cleanerId) {
   <div class="portal-notice">
-    <h2>{{ t.notLinkedTitle }}</h2>
-    <p>{{ t.notLinkedBody }}</p>
+    <h2>{{ t().notLinkedTitle }}</h2>
+    <p>{{ t().notLinkedBody }}</p>
   </div>
   }
 
-  @if (loading && context?.isCleanerView) {
-  <div class="loading-note">{{ t.loadingJobs }}</div>
+  @if (loading() && context()?.isCleanerView) {
+  <div class="loading-note">{{ t().loadingJobs }}</div>
   }
 
   <!--
@@ -128,42 +128,42 @@
     cleaning up, and it deliberately ignores the visible month - somebody hunting for a customer
     does not know which month to be standing in first.
   -->
-  @if (context?.isSystemWideView) {
+  @if (context()?.isSystemWideView) {
   <div class="filters">
     <input type="text"
            class="filter-input"
            placeholder="Search every cleaning by customer, address or cleaner..."
-           [ngModel]="searchTerm"
+           [ngModel]="searchTerm()"
            (ngModelChange)="onSearchChanged($event)">
-    @if (isSearchMode) {
+    @if (isSearchMode()) {
     <button type="button" class="filter-clear" (click)="clearSearch()">Clear</button>
     }
   </div>
   }
 
   <!-- ─────────────────────  SUPERADMIN SEARCH RESULTS (all time)  ───────────────────── -->
-  @if (context?.isSystemWideView && isSearchMode) {
+  @if (context()?.isSystemWideView && isSearchMode()) {
 
     <div class="day-header">
       <div>
         <h2>Search results</h2>
-        <p>Every cleaning matching "{{ searchTerm }}", newest first.</p>
+        <p>Every cleaning matching "{{ searchTerm() }}", newest first.</p>
       </div>
-      <span class="day-count">{{ allJobs.length }} {{ cleaningsWord(allJobs.length) }}</span>
+      <span class="day-count">{{ allJobs().length }} {{ cleaningsWord(allJobs().length) }}</span>
     </div>
 
-    @if (loading) {
+    @if (loading()) {
     <div class="loading-note">Searching...</div>
     }
 
-    @if (!loading && allJobs.length === 0) {
+    @if (!loading() && allJobs().length === 0) {
     <p class="empty-note">
       No cleanings match that search.
     </p>
     }
-    @if (!loading && allJobs.length > 0) {
+    @if (!loading() && allJobs().length > 0) {
     <div class="job-list">
-      @for (job of allJobs; track trackByOrderId($index, job)) {
+      @for (job of allJobs(); track trackByOrderId($index, job)) {
 
         <ng-container *ngTemplateOutlet="adminJobCard; context: { $implicit: job, showDate: true }"></ng-container>
       }
@@ -186,26 +186,26 @@
         -->
         <div class="calendar-summary">
           <h2>{{ selectedDayCount }} {{ cleaningsWord(selectedDayCount) }}</h2>
-          @if (context?.isCleanerView && selectedDayCount > 0) {
-          <span>{{ t.goodLuck }}</span>
+          @if (context()?.isCleanerView && selectedDayCount > 0) {
+          <span>{{ t().goodLuck }}</span>
           }
-          @if (context?.isCleanerView && selectedDayCount === 0) {
-          <span>{{ t.freeDay }}</span>
+          @if (context()?.isCleanerView && selectedDayCount === 0) {
+          <span>{{ t().freeDay }}</span>
           }
-          @if (context?.isSystemWideView) {
+          @if (context()?.isSystemWideView) {
           <span>Across every cleaner.</span>
           }
         </div>
 
         <div class="calendar-toolbar">
-          <button type="button" class="calendar-nav" (click)="previousMonth()" [attr.aria-label]="t.previousMonth">&lsaquo;</button>
-          <h2 class="calendar-month">{{ calendarMonthLabel }}</h2>
-          <button type="button" class="calendar-nav" (click)="nextMonth()" [attr.aria-label]="t.nextMonth">&rsaquo;</button>
-          <button type="button" class="calendar-today" (click)="goToToday()">{{ t.today }}</button>
+          <button type="button" class="calendar-nav" (click)="previousMonth()" [attr.aria-label]="t().previousMonth">&lsaquo;</button>
+          <h2 class="calendar-month">{{ calendarMonthLabel() }}</h2>
+          <button type="button" class="calendar-nav" (click)="nextMonth()" [attr.aria-label]="t().nextMonth">&rsaquo;</button>
+          <button type="button" class="calendar-today" (click)="goToToday()">{{ t().today }}</button>
         </div>
 
         <div class="calendar-grid">
-          @for (weekday of t.weekdays; track $index) {
+          @for (weekday of t().weekdays; track $index) {
           <div class="calendar-weekday">{{ weekday }}</div>
           }
 
@@ -214,12 +214,12 @@
                the grid; a finished job is a quiet green mark that does not compete with it.
                One dot per cleaning, always: the row is a COUNT, so a busy day shrinks its dots
                (calendar-dots--sm/xs) rather than dropping any. -->
-          @for (cell of calendarCells; track trackByCellKey($index, cell)) {
+          @for (cell of calendarCells(); track trackByCellKey($index, cell)) {
           <button type="button"
                   class="calendar-cell"
                   [class.calendar-cell--muted]="!cell.inMonth"
                   [class.calendar-cell--today]="cell.isToday"
-                  [class.calendar-cell--selected]="cell.key === selectedDateKey"
+                  [class.calendar-cell--selected]="cell.key === selectedDateKey()"
                   (click)="selectDay(cell.key)">
             <span class="calendar-day-number">{{ cell.day }}</span>
             @if (cell.dots.length > 0) {
@@ -238,22 +238,22 @@
       <div class="day-header">
         <div>
           <h2>{{ selectedDayLongLabel }}</h2>
-          @if (context?.isCleanerView) {
-          <p>{{ t.dayHeaderSubtitle }}</p>
+          @if (context()?.isCleanerView) {
+          <p>{{ t().dayHeaderSubtitle }}</p>
           }
-          @if (context?.isSystemWideView) {
+          @if (context()?.isSystemWideView) {
           <p>Every cleaning booked for this day.</p>
           }
         </div>
         <span class="day-count">{{ selectedDayCount }} {{ cleaningsWord(selectedDayCount) }}</span>
       </div>
 
-      @if (loading && context?.isSystemWideView) {
+      @if (loading() && context()?.isSystemWideView) {
       <div class="loading-note">Loading this month...</div>
       }
 
-      @if (!loading && selectedDayCount === 0) {
-      <p class="empty-note">{{ t.nothingScheduled }}</p>
+      @if (!loading() && selectedDayCount === 0) {
+      <p class="empty-note">{{ t().nothingScheduled }}</p>
       }
 
       <!--
@@ -263,11 +263,11 @@
         customer, the supplies, the instructions) is a briefing, and a briefing belongs on the one
         job being looked at rather than repeated down a list being scanned.
       -->
-      @if (context?.isCleanerView && selectedDayJobs.length > 0) {
+      @if (context()?.isCleanerView && selectedDayJobs.length > 0) {
       <div class="job-list">
         @for (job of selectedDayJobs; track trackByOrderId($index, job)) {
         <article class="job-card"
-                 [class.job-card--active]="selectedJob?.orderId === job.orderId"
+                 [class.job-card--active]="selectedJob()?.orderId === job.orderId"
                  [class.job-card--done]="job.isCompleted"
                  (click)="selectJob(job)">
 
@@ -285,7 +285,7 @@
             <div class="job-title-row">
               <h3 class="job-service">{{ job.serviceTypeName }}</h3>
               @if (job.isCompleted) {
-              <span class="status-badge status-done">{{ t.completed }}</span>
+              <span class="status-badge status-done">{{ t().completed }}</span>
               }
             </div>
 
@@ -309,7 +309,7 @@
       }
 
       <!-- ── Every cleaner's jobs, for the SuperAdmin ── -->
-      @if (context?.isSystemWideView && selectedDayAdminJobs.length > 0) {
+      @if (context()?.isSystemWideView && selectedDayAdminJobs.length > 0) {
       <div class="job-list">
         @for (job of selectedDayAdminJobs; track trackByOrderId($index, job)) {
           <ng-container *ngTemplateOutlet="adminJobCard; context: { $implicit: job, showDate: false }"></ng-container>
@@ -327,17 +327,17 @@
         frames every answer under it. Then who and where, then the job itself, then the two things
         that change what happens on the doorstep: the supplies and the instructions.
       -->
-      @if (selectedJob) {
+      @if (selectedJob(); as selectedJob) {
       <div class="side-card">
 
         <div class="side-block side-block--lead">
-          <span class="side-label">{{ t.service }}</span>
+          <span class="side-label">{{ t().service }}</span>
           <h2>{{ selectedJob.serviceTypeName }}</h2>
         </div>
 
         <div class="side-row">
           <span class="side-icon" aria-hidden="true">👤</span>
-          <div><span class="side-inline-label">{{ t.customerName }}</span> - {{ selectedJob.customerName || '-' }}</div>
+          <div><span class="side-inline-label">{{ t().customerName }}</span> - {{ selectedJob.customerName || '-' }}</div>
         </div>
 
         <div class="side-row">
@@ -351,7 +351,7 @@
             {{ formatTime(selectedJob.serviceTime) }}
             @if (selectedJob.serviceDurationMinutes) {
             <span class="detail-secondary">
-              {{ t.durationLabel }}: {{ formatDuration(selectedJob.serviceDurationMinutes) }}
+              {{ t().durationLabel }}: {{ formatDuration(selectedJob.serviceDurationMinutes) }}
             </span>
             }
           </div>
@@ -365,7 +365,7 @@
             <a
                [href]="mapsUrl(selectedJob.mapsAddress || selectedJob.address)"
                target="_blank"
-               rel="noopener">{{ t.openInMaps }}</a>
+               rel="noopener">{{ t().openInMaps }}</a>
             }
           </div>
         </div>
@@ -376,7 +376,7 @@
         <div class="side-row">
           <span class="side-icon" aria-hidden="true">🔑</span>
           <div>
-            <span class="side-inline-label">{{ t.entryInstruction }}</span>
+            <span class="side-inline-label">{{ t().entryInstruction }}</span>
             <span class="side-entry">{{ selectedJob.entryMethod }}</span>
           </div>
         </div>
@@ -388,7 +388,7 @@
 
         @if (selectedJob.services.length > 0 || selectedJob.propertyType) {
         <div class="side-block">
-          <span class="side-label">{{ t.detailsLabel }}</span>
+          <span class="side-label">{{ t().detailsLabel }}</span>
           <div class="job-tags">
             @if (selectedJob.propertyType) {
             <span>{{ propertyTypeLabel(selectedJob.propertyType) }}</span>
@@ -409,7 +409,7 @@
 
         @if (selectedJob.floorTypes.length > 0) {
         <div class="side-block">
-          <span class="side-label">{{ t.floorTypes }}</span>
+          <span class="side-label">{{ t().floorTypes }}</span>
           <div class="job-tags">
             @for (floor of selectedJob.floorTypes; track floor) {
             <span>{{ floor }}</span>
@@ -424,7 +424,7 @@
 
         @if (selectedJob.extraServices.length > 0) {
         <div class="side-block">
-          <span class="side-label">{{ t.extraServices }}</span>
+          <span class="side-label">{{ t().extraServices }}</span>
           <div class="job-tags">
             @for (extra of selectedJob.extraServices; track extra) {
             <span class="job-tag--extra">{{ extra }}</span>
@@ -434,16 +434,16 @@
         }
 
         <!-- Cleaners at once, for the SuperAdmin only - a cleaner already knows who they are. -->
-        @if (selectedAdminJob && context?.isSystemWideView) {
+        @if (selectedAdminJob() && context()?.isSystemWideView) {
           <div class="side-divider"></div>
 
           <div class="side-block">
             <span class="side-label">Cleaners</span>
             <div class="job-tags">
-              @for (cleaner of selectedAdminJob.assignedCleaners; track cleaner) {
+              @for (cleaner of selectedAdminJob()!.assignedCleaners; track cleaner) {
               <span>{{ cleaner }}</span>
               }
-              @if (selectedAdminJob.assignedCleaners.length === 0) {
+              @if (selectedAdminJob()!.assignedCleaners.length === 0) {
               <span class="muted">Not staffed</span>
               }
             </div>
@@ -462,10 +462,10 @@
         <div class="supplies-flag" [class.supplies-flag--bring]="selectedJob.bringCleaningSupplies">
           <span class="supplies-flag__head">
             @if (selectedJob.bringCleaningSupplies) {
-            {{ t.suppliesBring }}
+            {{ t().suppliesBring }}
             }
             @if (!selectedJob.bringCleaningSupplies) {
-            {{ t.suppliesProvided }}
+            {{ t().suppliesProvided }}
             }
           </span>
           @if (supplyItemNames(selectedJob.suppliesItemKeys).length > 0) {
@@ -484,10 +484,10 @@
         <div class="supplies-flag" [class.supplies-flag--bring]="selectedJob.bringCleaningEssentials">
           <span class="supplies-flag__head">
             @if (selectedJob.bringCleaningEssentials) {
-            {{ t.essentialsBring }}
+            {{ t().essentialsBring }}
             }
             @if (!selectedJob.bringCleaningEssentials) {
-            {{ t.essentialsProvided }}
+            {{ t().essentialsProvided }}
             }
           </span>
           @if (supplyItemNames(selectedJob.essentialsItemKeys).length > 0) {
@@ -503,22 +503,22 @@
              and what the office added when staffing the job are different kinds of instruction. -->
         @if (selectedJob.customerInstructions) {
         <div class="side-note">
-          <span class="side-label">{{ t.customerInstructions }}</span>
+          <span class="side-label">{{ t().customerInstructions }}</span>
           <p>{{ selectedJob.customerInstructions }}</p>
         </div>
         }
 
         @if (selectedJob.cleanerInstructions) {
         <div class="side-note side-note--office">
-          <span class="side-label">{{ t.cleanerInstructions }}</span>
+          <span class="side-label">{{ t().cleanerInstructions }}</span>
           <p>{{ selectedJob.cleanerInstructions }}</p>
         </div>
         }
 
-        @if (selectedAdminJob && context?.isSystemWideView) {
+        @if (selectedAdminJob() && context()?.isSystemWideView) {
         <button type="button"
                 class="side-details-btn"
-                (click)="openDetail(selectedAdminJob.orderId)">
+                (click)="openDetail(selectedAdminJob()!.orderId)">
           View full details
         </button>
         }
@@ -537,7 +537,7 @@
   -->
   <ng-template #adminJobCard let-job let-showDate="showDate">
     <article class="job-card"
-             [class.job-card--active]="selectedAdminJob?.orderId === job.orderId"
+             [class.job-card--active]="selectedAdminJob()?.orderId === job.orderId"
              (click)="selectAdminJob(job)">
 
       <div class="job-time">
@@ -582,32 +582,32 @@
   </ng-template>
 
   <!-- ──────────────────────  SUPERADMIN DETAIL PANEL (read only)  ────────────────────── -->
-  @if (selectedDetail || detailLoading || detailError) {
+  @if (selectedDetail() || detailLoading() || detailError()) {
   <div class="detail-overlay" (click)="closeDetail()"></div>
   }
 
-  @if (selectedDetail || detailLoading || detailError) {
+  @if (selectedDetail() || detailLoading() || detailError()) {
   <aside class="detail-panel">
     <header class="detail-head">
       <h2>
-        @if (selectedDetail) {
+        @if (selectedDetail(); as selectedDetail) {
         Order #{{ selectedDetail.order.id }}
         }
-        @if (!selectedDetail) {
+        @if (!selectedDetail()) {
         Order
         }
       </h2>
       <button type="button" class="detail-close" (click)="closeDetail()" aria-label="Close">×</button>
     </header>
 
-    @if (detailLoading) {
+    @if (detailLoading()) {
     <div class="loading-note">Loading order...</div>
     }
-    @if (detailError) {
-    <div class="portal-error">{{ detailError }}</div>
+    @if (detailError()) {
+    <div class="portal-error">{{ detailError() }}</div>
     }
 
-    @if (selectedDetail) {
+    @if (selectedDetail(); as selectedDetail) {
     <div class="detail-body">
 
       <!-- This block is EXACTLY the cleaner view, so the SuperAdmin can see what the crew was

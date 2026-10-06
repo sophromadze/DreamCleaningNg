@@ -3,7 +3,7 @@
 <div class="special-offers-section">
   <div class="section-header">
     <h2>Special Offers Management</h2>
-    @if (canCreate && !showCreateForm) {
+    @if (canCreate() && !showCreateForm()) {
     <button class="create-btn" (click)="showCreateOfferForm()">
       Create New Offer
     </button>
@@ -11,21 +11,21 @@
   </div>
 
   <!-- Success/Error Messages -->
-  @if (successMessage) {
+  @if (successMessage()) {
   <div class="alert alert-success">
-    {{ successMessage }}
+    {{ successMessage() }}
   </div>
   }
-  @if (errorMessage) {
+  @if (errorMessage()) {
   <div class="alert alert-danger">
-    {{ errorMessage }}
+    {{ errorMessage() }}
   </div>
   }
 
   <!-- Create/Edit Form -->
-  @if (showCreateForm) {
+  @if (showCreateForm()) {
   <div class="offer-form-container">
-    <h3>{{ editingOfferId ? 'Edit' : 'Create' }} Special Offer</h3>
+    <h3>{{ editingOfferId() ? 'Edit' : 'Create' }} Special Offer</h3>
     
     <form [formGroup]="specialOfferForm" (ngSubmit)="saveOffer()">
       <div class="form-grid">
@@ -109,7 +109,7 @@
           </label>
         </div>
 
-        @if (canEditOfferKey) {
+        @if (canEditOfferKey()) {
         <div class="form-group full-width">
           <label>Key</label>
           <input type="text" formControlName="offerKey" placeholder="e.g. first-time" maxlength="50" autocomplete="off">
@@ -123,8 +123,8 @@
       </div>
 
       <div class="form-actions">
-        <button type="submit" class="save-btn" [disabled]="!specialOfferForm.valid || isLoading">
-          {{ isLoading ? 'Saving...' : 'Save Offer' }}
+        <button type="submit" class="save-btn" [disabled]="!specialOfferForm.valid || isLoading()">
+          {{ isLoading() ? 'Saving...' : 'Save Offer' }}
         </button>
         <button type="button" class="cancel-btn" (click)="cancelEdit()">Cancel</button>
       </div>
@@ -133,7 +133,7 @@
   }
 
   <!-- Special Offers Table -->
-  @if (!isLoading) {
+  @if (!isLoading()) {
   <div class="offers-list">
     <div class="table-wrapper" #tableWrapper>
       <table>
@@ -146,18 +146,18 @@
             <th>Validity</th>
           <th>Status</th>
           <th>Usage</th>
-          @if (canUpdate || canDelete) {
+          @if (canUpdate() || canDelete()) {
           <th>Actions</th>
           }
         </tr>
       </thead>
       <tbody>
-        @for (offer of specialOffers; track offer.id) {
+        @for (offer of specialOffers(); track offer.id) {
         <tr [class.inactive]="!offer.isActive">
-          @if (editingOfferId !== offer.id) {
+          @if (editingOfferId() !== offer.id) {
           <td>{{ offer.name }}</td>
           }
-          @if (editingOfferId !== offer.id) {
+          @if (editingOfferId() !== offer.id) {
           <td>
             <span class="offer-type-badge" [style.background-color]="offer.badgeColor || '#6c757d'"
                   [style.color]="badgeLabelColor(offer.badgeColor || '#6c757d')">
@@ -165,28 +165,28 @@
             </span>
           </td>
           }
-          @if (editingOfferId !== offer.id) {
+          @if (editingOfferId() !== offer.id) {
           <td>{{ offer.description }}</td>
           }
-          @if (editingOfferId !== offer.id) {
+          @if (editingOfferId() !== offer.id) {
           <td>
             {{ offer.isPercentage ? offer.discountValue + '%' : '$' + offer.discountValue }}
           </td>
           }
-          @if (editingOfferId !== offer.id) {
+          @if (editingOfferId() !== offer.id) {
           <td>
             {{ offer.validFrom ? (offer.validFrom | date:'short') : 'Always' }} - 
             {{ offer.validTo ? (offer.validTo | date:'short') : 'Always' }}
           </td>
           }
-          @if (editingOfferId !== offer.id) {
+          @if (editingOfferId() !== offer.id) {
           <td>
             <span class="status-badge" [class.active]="offer.isActive" [class.inactive]="!offer.isActive">
               {{ offer.isActive ? 'Active' : 'Inactive' }}
             </span>
           </td>
           }
-          @if (editingOfferId !== offer.id) {
+          @if (editingOfferId() !== offer.id) {
           <td>
             @if (offer.totalUsersGranted !== undefined) {
             <div>
@@ -200,30 +200,30 @@
             }
           </td>
           }
-          @if (editingOfferId !== offer.id && (canUpdate || canDelete)) {
+          @if (editingOfferId() !== offer.id && (canUpdate() || canDelete())) {
           <td class="actions">
-            @if (canUpdate) {
+            @if (canUpdate()) {
             <button 
                     class="action-btn edit" 
                     (click)="editOffer(offer)">
               Edit
             </button>
             }
-            @if (canUpdate && offer.isActive) {
+            @if (canUpdate() && offer.isActive) {
             <button 
                     class="action-btn disable" 
                     (click)="toggleOfferStatus(offer, false)">
               Disable
             </button>
             }
-            @if (canUpdate && !offer.isActive) {
+            @if (canUpdate() && !offer.isActive) {
             <button 
                     class="action-btn enable" 
                     (click)="toggleOfferStatus(offer, true)">
               Enable
             </button>
             }
-            @if (canDelete && !isProtectedFirstTimeOffer(offer)) {
+            @if (canDelete() && !isProtectedFirstTimeOffer(offer)) {
             <button 
                     class="action-btn delete" 
                     (click)="deleteOffer(offer)">
@@ -234,7 +234,7 @@
           }
           
           <!-- Edit mode -->
-          @if (editingOfferId === offer.id) {
+          @if (editingOfferId() === offer.id) {
           <td class="edit-mode-td" colspan="8">
             <div class="inline-edit-form">
               <h4>Edit Special Offer</h4>
@@ -246,7 +246,7 @@
 
                 <div class="form-group">
                   <label>Offer Type *</label>
-                  <select aria-label="Offer Type" [(ngModel)]="editingOfferType[offer.id]" 
+                  <select aria-label="Offer Type" [(ngModel)]="editingOfferType()[offer.id]" 
                           [disabled]="isEditingFirstTimeOffer()">
                     @for (type of offerTypes; track type.value) {
                     <option [value]="type.value">{{ type.label }}</option>
@@ -297,7 +297,7 @@
 
                 <!-- SuperAdmin only. Invalid or duplicate keys are refused by the API, whose message
                      shows in the alert above. -->
-                @if (canEditOfferKey) {
+                @if (canEditOfferKey()) {
                 <div class="form-group">
                   <label>Key</label>
                   <input type="text" [(ngModel)]="offer.offerKey" placeholder="e.g. first-time" maxlength="50" autocomplete="off">
@@ -321,17 +321,17 @@
   }
 
   <!-- Loading State -->
-  @if (isLoading) {
+  @if (isLoading()) {
   <div class="loading">
     Loading...
   </div>
   }
 
   <!-- Empty State -->
-  @if (!isLoading && specialOffers.length === 0) {
+  @if (!isLoading() && specialOffers().length === 0) {
   <div class="empty-state">
     <p>No special offers created yet.</p>
-    @if (canCreate) {
+    @if (canCreate()) {
     <button class="create-btn" (click)="showCreateOfferForm()">
       Create First Offer
     </button>

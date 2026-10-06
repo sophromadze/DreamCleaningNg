@@ -89,7 +89,7 @@ describe('UserManagementComponent — panel-only mode', () => {
     // it is two lists of different things on top of each other.
     expect(fixture.nativeElement.querySelector('.user-management-section')).toBeNull();
     expect(fixture.nativeElement.querySelector('.detail-panel.open')).not.toBeNull();
-    expect(component.selectedUser?.id).toBe(55);
+    expect(component.selectedUser()?.id).toBe(55);
 
     await vi.advanceTimersByTimeAsync(500);
   });
@@ -99,7 +99,7 @@ describe('UserManagementComponent — panel-only mode', () => {
     fixture.detectChanges();
 
     // Not a second way for a record to arrive in the panel — the deep-link seat, taken.
-    expect(component.openUserId).toBe(55);
+    expect(component.openUserId()).toBe(55);
     expect(component.isEmbedded).toBe(true);
 
     drain();
@@ -130,7 +130,7 @@ describe('UserManagementComponent — panel-only mode', () => {
     component.dismissDetailPanel();
 
     expect(closed).toBe(1);
-    expect(component.selectedUser).toBeNull();
+    expect(component.selectedUser()).toBeNull();
 
     drain();
   });
@@ -188,8 +188,8 @@ describe('UserManagementComponent — the CTO role lock', () => {
 
     // These are pure predicates on the component; detectChanges would put the panel's whole
     // request fan-out on the wire for nothing.
-    component.currentUserRole = 'SuperAdmin';
-    component.canUpdate = true;
+    component.currentUserRole.set('SuperAdmin');
+    component.canUpdate.set(true);
   });
 
   afterEach(() => {
@@ -394,16 +394,18 @@ describe('UserManagementComponent — History lists cancelled and refunded order
     await openHistory();
     // Only the Done order is a real job; the refunded $103 was not spent. The browser used to
     // add Done + Refunded itself (2 jobs, $204) - the figures now come from the server.
-    expect(component.selectedUser!.totalOrders).toBe(1);
-    expect(component.selectedUser!.totalSpent).toBe(659.70);
+    expect(component.selectedUser()!.totalOrders).toBe(1);
+    expect(component.selectedUser()!.totalSpent).toBe(659.70);
     await vi.advanceTimersByTimeAsync(500);
   });
 });
 
 describe('UserManagementComponent — points taken back (2026-10)', () => {
+  beforeEach(() => TestBed.configureTestingModule({ providers: [...testProviders] }));
+
   it('lists only refund/cancellation reversals, with their full admin record', () => {
-    const c = Object.create(UserManagementComponent.prototype) as UserManagementComponent;
-    (c as any).userRewardsSummary = {
+    const c = TestBed.createComponent(UserManagementComponent).componentInstance;
+    c.userRewardsSummary.set({
       pointsHistory: [
         { points: 120, type: 'OrderEarned', description: 'earned', createdAt: '2026-09-01' },
         { points: -120, type: 'RefundReversal', description: 'Refund/cancellation of order #10 (full refund ...)', createdAt: '2026-10-05' },
@@ -411,7 +413,7 @@ describe('UserManagementComponent — points taken back (2026-10)', () => {
         { points: 0, type: 'RefundCorrection', description: 'Refund/cancellation of order #20 (... 0 of 90 ...)', createdAt: '2026-10-06' },
         { points: -50, type: 'Redemption', description: 'redeemed', createdAt: '2026-09-02' }
       ]
-    };
+    });
     expect(c.pointsReversals.map(h => h.points)).toEqual([-120, -60, 0]);
     expect(c.pointsReversals[0].description).toContain('order #10');
   });

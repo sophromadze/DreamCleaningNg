@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ChangeDetectorRef, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef, ChangeDetectionStrategy, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -32,7 +32,7 @@ import { isBedroomsLine, isCleanersLine } from '../../../shared/booking/order-se
   standalone: true,
   imports: [CommonModule, RouterModule, FormsModule, SaveCardModalComponent, IconComponent],
   templateUrl: './order-payment.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./order-payment.component.scss']
 })
 export class OrderPaymentComponent implements OnInit, OnDestroy {
@@ -47,16 +47,16 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
 
   protected readonly icons = { faCircleCheck, faCircleNotch, faGift };
 
-  orderId: number = 0;
-  order: Order | null = null;
-  isProcessing = false;
-  paymentCompleted = false;
-  errorMessage = '';
+  readonly orderId = signal<number>(0);
+  readonly order = signal<Order | null>(null);
+  readonly isProcessing = signal(false);
+  readonly paymentCompleted = signal(false);
+  readonly errorMessage = signal('');
   paymentClientSecret: string | null = null;
   /** Payment intent ID from backend (create-payment-intent) - use this for confirm-payment, same as booking flow */
   paymentIntentId: string | null = null;
-  orderTotal: number = 0;
-  paymentType: 'order' | 'update' | 'partial' = 'order';
+  readonly orderTotal = signal<number>(0);
+  readonly paymentType = signal<'order' | 'update' | 'partial'>('order');
 
   // ── Part-payments (2026-09) ───────────────────────────────────────────────────────────
   // An admin can agree a deposit with the customer and ask for it on its own ("$1,000 now,
@@ -67,35 +67,35 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
   // already paid a deposit and comes back through a plain payment link must not be asked for
   // the whole total a second time.
   /** The live request an admin made, when there is one. Absent = charge the whole balance. */
-  partialRequest: OrderPartialPayment | null = null;
+  readonly partialRequest = signal<OrderPartialPayment | null>(null);
   /** Everything still owed on the order right now. */
-  amountDue = 0;
+  readonly amountDue = signal(0);
   /** Already received against this order's total. Zero on an ordinary order. */
-  amountAlreadyPaid = 0;
+  readonly amountAlreadyPaid = signal(0);
   /** What will still be owed after this payment. Zero when this one settles the order. */
-  remainingAfterPayment = 0;
+  readonly remainingAfterPayment = signal(0);
   /** True when this payment clears the balance — the page says so instead of naming a next one. */
-  isFinalPartialPayment = false;
+  readonly isFinalPartialPayment = signal(false);
   /** The payer chose to settle everything now rather than just the requested slice. */
-  payFullBalance = false;
+  readonly payFullBalance = signal(false);
   /** Set on success when money arrived but the order is still not settled — the success screen
    *  then reports the remaining balance rather than confirming the booking. */
-  partialPaymentRemaining: number | null = null;
-  hasCleaningSupplies = false;
-  isCustomServiceType = false;
+  readonly partialPaymentRemaining = signal<number | null>(null);
+  readonly hasCleaningSupplies = signal(false);
+  readonly isCustomServiceType = signal(false);
   /**
    * The customer's "please provide" list, straight from the shared checklist builder so this
    * page, the confirmation email and the SMS cannot name different products. Empty means the
    * customer bought their way out of every item — rendered as "nothing to prepare".
    */
-  supplyChecklistItems: string[] = [];
+  readonly supplyChecklistItems = signal<string[]>([]);
   currentUser: any;
-  cardError: string | null = null;
-  isLoading = true;
-  showApplePay = false;
+  readonly cardError = signal<string | null>(null);
+  readonly isLoading = signal(true);
+  readonly showApplePay = signal(false);
   // True when a gift card covers the full order amount (server returns requiresPayment=false).
   // Skips Stripe entirely and confirms the order directly.
-  fullyCovered = false;
+  readonly fullyCovered = signal(false);
   /** Secret payment-link token (?t=...) — lets anyone with the link use this page,
    *  logged out OR logged in as a different user. Backend re-validates it on every
    *  call and only while something is unpaid. */
@@ -103,7 +103,7 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
   /** True when paying via the token rather than as the order's own logged-in owner
    *  (covers both logged-out visitors and other logged-in users). Determined after
    *  the order loads. */
-  isGuestMode = false;
+  readonly isGuestMode = signal(false);
   private hasInitialized = false;
 
   // ── Consent gate (admin-created orders only) ──────────────────────────────────────────
@@ -112,14 +112,14 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
   // so the customer has agreed to nothing — they just get a payment link. Those orders collect
   // the same three consents here, and the backend refuses to create a PaymentIntent until it
   // has them, so no card can be charged first. Initial payment only.
-  consentRequired = false;
-  consentAccepted = false;
-  consentAcceptedAt: string | null = null;
-  consentSubmitting = false;
-  consentError = '';
-  smsConsent = false;
-  cancellationConsent = false;
-  termsConsent = false;
+  readonly consentRequired = signal(false);
+  readonly consentAccepted = signal(false);
+  readonly consentAcceptedAt = signal<string | null>(null);
+  readonly consentSubmitting = signal(false);
+  readonly consentError = signal('');
+  readonly smsConsent = signal(false);
+  readonly cancellationConsent = signal(false);
+  readonly termsConsent = signal(false);
   // Same wording as the booking form — one source, two surfaces.
   readonly smsConsentLead = SMS_CONSENT_LEAD;
   readonly cancellationConsentText = CANCELLATION_CONSENT_TEXT;
@@ -128,8 +128,8 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
   // Saved cards: offered ONLY to the logged-in owner — never in guest/token mode, where the
   // payer is often a relative who must not touch the owner's cards. Selecting one never charges
   // anything; the Pay button click does. null = a new card.
-  savedCards: SavedCard[] = [];
-  selectedCardId: number | null = null;
+  readonly savedCards = signal<SavedCard[]>([]);
+  readonly selectedCardId = signal<number | null>(null);
   /** Server rollout switch — the "save this card" box only exists while it is on. */
   savedCardsFeature = false;
   // ── "Save your card?", asked before the charge (2026-09) ────────────────────────────────
@@ -137,17 +137,17 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
   // Replaces the old tick-box on this form AND the post-payment prompt: one question, asked once,
   // between the Pay click and the charge. The answer is applied to the SAME PaymentIntent
   // (setup_future_usage at confirmation), so saving never creates a second payment.
-  showSaveCardModal = false;
+  readonly showSaveCardModal = signal(false);
   /** The answer for THIS attempt; kept across a confirmation retry so nobody is asked twice. */
   saveCardChoice: boolean | null = null;
   /** The server's word that this intent can carry the choice (it holds the owner's Customer). */
   intentCanSaveCard = false;
   /** The card was charged; only our confirmation is late. See confirmCharged(). */
-  finalizingPayment = false;
+  readonly finalizingPayment = signal(false);
   readonly cardLabel = cardLabel;
 
   get selectedCard(): SavedCard | null {
-    return this.savedCards.find(c => c.id === this.selectedCardId) ?? null;
+    return this.savedCards().find(c => c.id === this.selectedCardId()) ?? null;
   }
 
   get usingSavedCard(): boolean {
@@ -160,15 +160,15 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
    * for a part-payment or top-up, whose intents the server does not attach a Customer to.
    */
   get canOfferSaveCard(): boolean {
-    return this.savedCardsFeature && !this.isGuestMode && !this.usingSavedCard
-      && !this.fullyCovered && this.intentCanSaveCard;
+    return this.savedCardsFeature && !this.isGuestMode() && !this.usingSavedCard
+      && !this.fullyCovered() && this.intentCanSaveCard;
   }
 
   /** The Pay button: ask first when there is something to ask, otherwise pay as before. */
   onPayClicked(): void {
-    if (this.isProcessing) return;
+    if (this.isProcessing()) return;
     if (this.canOfferSaveCard && this.saveCardChoice === null) {
-      this.showSaveCardModal = true;
+      this.showSaveCardModal.set(true);
       return;
     }
     this.processPayment();
@@ -176,20 +176,20 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
 
   onSaveCardChoice(save: boolean): void {
     this.saveCardChoice = save;
-    this.showSaveCardModal = false;
+    this.showSaveCardModal.set(false);
     this.processPayment();
   }
 
   /** ✕ / Escape / backdrop: nothing was charged, and the typed card is still there. */
   onSaveCardDismissed(): void {
-    this.showSaveCardModal = false;
+    this.showSaveCardModal.set(false);
     this.cdr.detectChanges();
   }
 
   /** null = enter a new card. */
   selectPaymentMethod(cardId: number | null): void {
-    if (cardId !== this.selectedCardId) this.saveCardChoice = null;   // a different card is a new question
-    this.selectedCardId = cardId;
+    if (cardId !== this.selectedCardId()) this.saveCardChoice = null;   // a different card is a new question
+    this.selectedCardId.set(cardId);
     this.cdr.detectChanges();
   }
 
@@ -216,7 +216,7 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
 
     this.route.params.subscribe(params => {
       // Route is /order/:id/pay
-      this.orderId = +params['id'];
+      this.orderId.set(+params['id']);
       this.tryInit();
     });
   }
@@ -229,7 +229,7 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
 
   private tryInit() {
     if (this.hasInitialized) return;
-    if (!this.orderId || Number.isNaN(this.orderId)) return;
+    if (!this.orderId() || Number.isNaN(this.orderId())) return;
     // With a payment-link token the page works logged-out; otherwise wait for the user.
     if (!this.currentUser?.id && !this.guestToken) return;
 
@@ -238,23 +238,23 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
   }
 
   loadOrder() {
-    this.isLoading = true;
+    this.isLoading.set(true);
     const loggedIn = !!this.currentUser?.id;
     // Logged-in users try the owner-scoped endpoint first (works even on fully-paid
     // orders); if the order belongs to someone else and we hold a link token, fall
     // back to the token-gated guest endpoint. Logged-out visitors go straight there.
     const order$ = loggedIn
-      ? this.orderService.getOrderById(this.orderId).pipe(
+      ? this.orderService.getOrderById(this.orderId()).pipe(
           catchError(err => this.guestToken
-            ? this.orderService.getOrderByIdGuest(this.orderId, this.guestToken)
+            ? this.orderService.getOrderByIdGuest(this.orderId(), this.guestToken)
             : throwError(() => err))
         )
-      : this.orderService.getOrderByIdGuest(this.orderId, this.guestToken!);
+      : this.orderService.getOrderByIdGuest(this.orderId(), this.guestToken!);
     order$.subscribe({
       next: (order) => {
         // Token mode = anyone who isn't the order's own logged-in owner.
-        this.isGuestMode = !!this.guestToken && order.userId !== this.currentUser?.id;
-        this.order = order;
+        this.isGuestMode.set(!!this.guestToken && order.userId !== this.currentUser?.id);
+        this.order.set(order);
         // Decide what kind of payment is needed:
         // - Unpaid order (initial booking payment)
         // - Pending additional payment after an admin/customer update
@@ -262,83 +262,83 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
         // Manual-paid orders (Cash/Zelle/Check/Other) were settled outside Stripe and keep
         // isPaid=false by backend design — there is nothing to pay on the website.
         if (order.paymentMethod && order.paymentMethod !== 'Normal') {
-          this.errorMessage = 'This order was paid outside the website and has no payment due.';
-          this.nothingDue = true;
-          this.isLoading = false;
+          this.errorMessage.set('This order was paid outside the website and has no payment due.');
+          this.nothingDue.set(true);
+          this.isLoading.set(false);
           return;
         }
         if (!order.isPaid) {
           // The balance, never the headline total — they differ once a deposit has been taken.
-          this.amountDue = order.amountDue ?? order.total;
-          this.amountAlreadyPaid = order.amountPaid ?? 0;
+          this.amountDue.set(order.amountDue ?? order.total);
+          this.amountAlreadyPaid.set(order.amountPaid ?? 0);
 
           const pendingPartial = order.pendingPartialPayment;
           if (this.invoiceRequestId) {
             // Opened from a customer invoice: charge THAT invoice's request. The exact figure
             // comes back with the intent (the server clamps it to what is owed); until then the
             // page shows the balance, or the slice when it is the order's current request.
-            this.paymentType = 'partial';
-            this.payFullBalance = this.invoiceFull;
-            this.partialRequest = pendingPartial?.id === this.invoiceRequestId ? pendingPartial : null;
-            this.orderTotal = !this.invoiceFull && this.partialRequest
-              ? Math.min(this.partialRequest.requestedAmount, this.amountDue)
-              : this.amountDue;
+            this.paymentType.set('partial');
+            this.payFullBalance.set(this.invoiceFull);
+            this.partialRequest.set(pendingPartial?.id === this.invoiceRequestId ? pendingPartial : null);
+            this.orderTotal.set(!this.invoiceFull && this.partialRequest()
+              ? Math.min(this.partialRequest()!.requestedAmount, this.amountDue())
+              : this.amountDue());
           } else if (pendingPartial && pendingPartial.status === 'Pending') {
             // An admin has asked for a specific slice. Clamped to what is actually owed, so an
             // order edited downward after the request can't charge the old, larger figure.
-            this.paymentType = 'partial';
-            this.partialRequest = pendingPartial;
-            this.orderTotal = Math.min(pendingPartial.requestedAmount, this.amountDue);
+            this.paymentType.set('partial');
+            this.partialRequest.set(pendingPartial);
+            this.orderTotal.set(Math.min(pendingPartial.requestedAmount, this.amountDue()));
           } else {
-            this.paymentType = 'order';
-            this.orderTotal = this.amountDue;
+            this.paymentType.set('order');
+            this.orderTotal.set(this.amountDue());
           }
-          this.remainingAfterPayment = Math.round((this.amountDue - this.orderTotal) * 100) / 100;
-          this.isFinalPartialPayment = this.remainingAfterPayment < 0.5;
+          this.remainingAfterPayment.set(Math.round((this.amountDue() - this.orderTotal()) * 100) / 100);
+          this.isFinalPartialPayment.set(this.remainingAfterPayment() < 0.5);
         } else if (pendingUpdateAmount > 0.01) {
-          this.paymentType = 'update';
+          this.paymentType.set('update');
           // Backend sends the correct additional amount (difference without tips). Use as-is; do not add tips.
-          this.orderTotal = Math.round(pendingUpdateAmount * 100) / 100;
+          this.orderTotal.set(Math.round(pendingUpdateAmount * 100) / 100);
         } else {
-          this.errorMessage = 'This order has no pending payments';
-          this.nothingDue = true;
-          this.isLoading = false;
+          this.errorMessage.set('This order has no pending payments');
+          this.nothingDue.set(true);
+          this.isLoading.set(false);
           return;
         }
 
         // Ownership check for logged-in users. Guest mode skips it — the backend already
         // validated the secret link token and the unpaid-amount rule.
-        if (!this.isGuestMode && order.userId !== this.currentUser?.id) {
-          this.errorMessage = 'You do not have permission to pay for this order';
-          this.isLoading = false;
+        if (!this.isGuestMode() && order.userId !== this.currentUser?.id) {
+          this.errorMessage.set('You do not have permission to pay for this order');
+          this.isLoading.set(false);
           return;
         }
 
         const extras = order.extraServices ?? [];
-        this.hasCleaningSupplies = hasCleaningSuppliesExtra(extras);
-        this.isCustomServiceType = this.isCustomServiceTypeOrder(order);
-        this.supplyChecklistItems = buildSupplyChecklistItems(
-          resolveSupplyChecklistFacts(extras, this.isCustomServiceType)
-        );
+        this.hasCleaningSupplies.set(hasCleaningSuppliesExtra(extras));
+        this.isCustomServiceType.set(this.isCustomServiceTypeOrder(order));
+        this.supplyChecklistItems.set(buildSupplyChecklistItems(
+          resolveSupplyChecklistFacts(extras, this.isCustomServiceType())
+        ));
 
         // Consent gate — see the field block above. Only the INITIAL payment of an
         // admin-created order asks; a pending additional amount never does.
         // A deposit is still a FIRST payment, so 'partial' is gated exactly like 'order'. Only a
         // top-up on an already-settled order ('update') skips it — those consents already exist.
-        this.consentRequired = this.paymentType !== 'update' && !!order.bookedByAdmin;
-        this.consentAccepted = !!order.paymentConsentAcceptedAt;
-        this.consentAcceptedAt = order.paymentConsentAcceptedAt ?? null;
+        this.consentRequired.set(this.paymentType() !== 'update' && !!order.bookedByAdmin);
+        this.consentAccepted.set(!!order.paymentConsentAcceptedAt);
+        this.consentAcceptedAt.set(order.paymentConsentAcceptedAt ?? null);
 
         // Saved cards — logged-in owner only (guest/token payers never see them), and only while
         // the server's rollout switch is on. Any failure leaves the ordinary card form.
-        if (!this.isGuestMode && order.userId === this.currentUser?.id) {
+        if (!this.isGuestMode() && order.userId === this.currentUser?.id) {
           this.billingService.savedCardsEnabled().subscribe(enabled => {
             this.savedCardsFeature = enabled;
             if (!enabled) return;
             this.billingService.getCards().subscribe({
               next: (cards) => {
-                this.savedCards = cards.filter(c => c.isUsable && !!c.paymentMethodId);
-                this.selectedCardId = (this.savedCards.find(c => c.isPrimary) ?? this.savedCards[0])?.id ?? null;
+                this.savedCards.set(cards.filter(c => c.isUsable && !!c.paymentMethodId));
+                this.selectedCardId.set((this.savedCards().find(c => c.isPrimary) ?? this.savedCards()[0])?.id ?? null);
                 this.cdr.detectChanges();
               },
               error: () => { /* no saved-card options — normal card form remains */ }
@@ -349,8 +349,8 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
         // Consent still owed: don't ask the backend for a PaymentIntent — it would refuse,
         // and the payer would see an error instead of the checkboxes. The card form (and
         // Apple Pay, which needs the client secret) appear once they agree.
-        if (this.consentRequired && !this.consentAccepted) {
-          this.isLoading = false;
+        if (this.consentRequired() && !this.consentAccepted()) {
+          this.isLoading.set(false);
           this.cdr.detectChanges();
           return;
         }
@@ -360,10 +360,10 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
       },
       error: (error) => {
         // Guest link on an already-settled order: backend returns 403 with a helpful message.
-        this.errorMessage = error.status === 403
+        this.errorMessage.set(error.status === 403
           ? (error.error?.message || 'This order has no pending payments. Please log in to view its details.')
-          : 'Failed to load order';
-        this.isLoading = false;
+          : 'Failed to load order');
+        this.isLoading.set(false);
         console.error('Error loading order:', error);
       }
     });
@@ -383,43 +383,43 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
    * against is cancelled by the server before the replacement is issued.
    */
   selectPayFullBalance(payFull: boolean): void {
-    if (this.payFullBalance === payFull || this.isProcessing) return;
-    this.payFullBalance = payFull;
-    this.errorMessage = '';
-    this.cardError = null;
+    if (this.payFullBalance() === payFull || this.isProcessing()) return;
+    this.payFullBalance.set(payFull);
+    this.errorMessage.set('');
+    this.cardError.set(null);
     this.paymentClientSecret = null;
-    this.showApplePay = false;
+    this.showApplePay.set(false);
     this.stripeService.destroyCardElement();
     this.stripeService.destroyPaymentRequestButton();
-    this.isLoading = true;
+    this.isLoading.set(true);
     this.cdr.detectChanges();
     this.createPaymentIntent();
   }
 
   createPaymentIntent() {
-    const guestToken = this.isGuestMode ? this.guestToken! : undefined;
-    const request$ = this.paymentType === 'partial'
-      ? this.bookingService.createPartialPaymentIntent(this.orderId, guestToken, this.payFullBalance, this.invoiceRequestId)
-      : this.paymentType === 'order'
-        ? this.bookingService.createPaymentIntentForOrder(this.orderId, guestToken)
-        : this.orderService.createPendingUpdatePaymentIntent(this.orderId, this.orderTotal, guestToken);
+    const guestToken = this.isGuestMode() ? this.guestToken! : undefined;
+    const request$ = this.paymentType() === 'partial'
+      ? this.bookingService.createPartialPaymentIntent(this.orderId(), guestToken, this.payFullBalance(), this.invoiceRequestId)
+      : this.paymentType() === 'order'
+        ? this.bookingService.createPaymentIntentForOrder(this.orderId(), guestToken)
+        : this.orderService.createPendingUpdatePaymentIntent(this.orderId(), this.orderTotal(), guestToken);
 
     request$.subscribe({
       next: (response: any) => {
         // The server decides the amount; adopt whatever it says it will charge so the Pay button
         // and the breakdown can never name a figure the card is not actually charged.
-        if (this.paymentType === 'partial') {
-          this.orderTotal = response.amount ?? this.orderTotal;
-          this.amountDue = response.amountDue ?? this.amountDue;
-          this.remainingAfterPayment = response.remainingAfterPayment ?? 0;
-          this.isFinalPartialPayment = !!response.isFinalPayment;
+        if (this.paymentType() === 'partial') {
+          this.orderTotal.set(response.amount ?? this.orderTotal());
+          this.amountDue.set(response.amountDue ?? this.amountDue());
+          this.remainingAfterPayment.set(response.remainingAfterPayment ?? 0);
+          this.isFinalPartialPayment.set(!!response.isFinalPayment);
         }
 
         // An earlier attempt on this order was ALREADY PAID but its confirmation never reached us
         // (a closed tab, a dropped connection). Confirm THAT payment — never take a second one.
         if (response.alreadyPaidPaymentIntentId) {
-          this.isLoading = false;
-          this.isProcessing = true;
+          this.isLoading.set(false);
+          this.isProcessing.set(true);
           this.cdr.detectChanges();
           this.confirmCharged(response.alreadyPaidPaymentIntentId);
           return;
@@ -427,8 +427,8 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
 
         // Gift card covers the full amount — server skipped Stripe. Confirm directly, no card form.
         if (response.requiresPayment === false) {
-          this.fullyCovered = true;
-          this.isLoading = false;
+          this.fullyCovered.set(true);
+          this.isLoading.set(false);
           this.cdr.detectChanges();
           return;
         }
@@ -436,7 +436,7 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
         this.paymentClientSecret = response.paymentClientSecret;
         this.paymentIntentId = response.paymentIntentId ?? response.PaymentIntentId ?? null;
         this.intentCanSaveCard = response.canSaveCard === true;
-        this.isLoading = false;
+        this.isLoading.set(false);
 
         // Force change detection to ensure DOM is updated
         this.cdr.detectChanges();
@@ -452,26 +452,26 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
         // Server says consent is still owed (stale tab, or an order that became admin-booked
         // after this page loaded) — fall back to the checkboxes instead of a dead-end error.
         if (error.status === 400 && error.error?.requiresConsent) {
-          this.consentRequired = true;
-          this.consentAccepted = false;
-          this.isLoading = false;
+          this.consentRequired.set(true);
+          this.consentAccepted.set(false);
+          this.isLoading.set(false);
           this.cdr.detectChanges();
           return;
         }
         // The admin cancelled the request between this page loading and the payer acting. Fall
         // back to the whole outstanding balance rather than dead-ending them on an error.
-        if (error.status === 400 && error.error?.noPartialRequest && this.paymentType === 'partial') {
-          this.paymentType = 'order';
-          this.partialRequest = null;
-          this.payFullBalance = false;
-          this.orderTotal = this.amountDue;
-          this.remainingAfterPayment = 0;
-          this.isFinalPartialPayment = true;
+        if (error.status === 400 && error.error?.noPartialRequest && this.paymentType() === 'partial') {
+          this.paymentType.set('order');
+          this.partialRequest.set(null);
+          this.payFullBalance.set(false);
+          this.orderTotal.set(this.amountDue());
+          this.remainingAfterPayment.set(0);
+          this.isFinalPartialPayment.set(true);
           this.createPaymentIntent();
           return;
         }
-        this.errorMessage = error.error?.message || 'Failed to create payment intent';
-        this.isLoading = false;
+        this.errorMessage.set(error.error?.message || 'Failed to create payment intent');
+        this.isLoading.set(false);
         console.error('Error creating payment intent:', error);
       }
     });
@@ -496,7 +496,7 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
             return;
           } else {
             console.error('Card element container not found in DOM after multiple attempts');
-            this.errorMessage = 'Payment form not ready. Please refresh the page.';
+            this.errorMessage.set('Payment form not ready. Please refresh the page.');
             return;
           }
         }
@@ -508,18 +508,18 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
           if (cardElement) {
             // Listen for card errors
             cardElement.on('change', (event: any) => {
-              this.cardError = event.error ? event.error.message : null;
+              this.cardError.set(event.error ? event.error.message : null);
               this.cdr.detectChanges();
             });
             
             console.log('Stripe card element mounted successfully');
           } else {
             console.error('Failed to create card element - element may not exist in DOM');
-            this.errorMessage = 'Failed to initialize payment form. Please refresh the page.';
+            this.errorMessage.set('Failed to initialize payment form. Please refresh the page.');
           }
         } catch (mountError: any) {
           console.error('Error mounting Stripe element:', mountError);
-          this.errorMessage = mountError.message || 'Failed to initialize payment form. Please refresh the page.';
+          this.errorMessage.set(mountError.message || 'Failed to initialize payment form. Please refresh the page.');
         }
       };
       
@@ -528,22 +528,22 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
       this.initApplePay();
     } catch (error: any) {
       console.error('Failed to initialize Stripe elements:', error);
-      this.errorMessage = error.message || 'Failed to initialize payment form. Please refresh the page.';
+      this.errorMessage.set(error.message || 'Failed to initialize payment form. Please refresh the page.');
     }
   }
 
   private async initApplePay() {
     if (!this.paymentClientSecret) return;
-    const pr = await this.stripeService.createPaymentRequest(this.orderTotal, 'Dream Cleaning NYC');
+    const pr = await this.stripeService.createPaymentRequest(this.orderTotal(), 'Dream Cleaning NYC');
     if (!pr) return;
-    this.showApplePay = true;
+    this.showApplePay.set(true);
     this.cdr.detectChanges();
     setTimeout(() => this.stripeService.createPaymentRequestButton(pr, 'payment-request-button'), 0);
 
     pr.on('paymentmethod', async (ev: any) => {
-      if (this.isProcessing) { ev.complete('fail'); return; }
-      this.isProcessing = true;
-      this.errorMessage = '';
+      if (this.isProcessing()) { ev.complete('fail'); return; }
+      this.isProcessing.set(true);
+      this.errorMessage.set('');
       try {
         const paymentIntent = await this.stripeService.confirmPaymentRequest(
           this.paymentClientSecret!, ev.paymentMethod.id
@@ -553,8 +553,8 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
         this.confirmCharged(idForConfirm);
       } catch (payErr: any) {
         ev.complete('fail');
-        this.errorMessage = payErr.message || 'Payment failed. Please try again.';
-        this.isProcessing = false;
+        this.errorMessage.set(payErr.message || 'Payment failed. Please try again.');
+        this.isProcessing.set(false);
         this.cdr.detectChanges();
       }
     });
@@ -562,9 +562,7 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
 
 
   /** All three consents ticked — the only state from which the payer may continue. */
-  get allConsentsChecked(): boolean {
-    return this.smsConsent && this.cancellationConsent && this.termsConsent;
-  }
+  readonly allConsentsChecked = computed<boolean>(() => this.smsConsent() && this.cancellationConsent() && this.termsConsent());
 
   /** The card form / Apple Pay / Pay button are shown only once consent is settled. */
   /**
@@ -572,11 +570,11 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
    * a plain notice and NO payment form: a "Pay $0.00" button under "no pending payments" reads
    * as an invitation to pay again, which is exactly what a revisited payment link must not do.
    */
-  nothingDue = false;
+  readonly nothingDue = signal(false);
 
   get showPaymentSection(): boolean {
-    if (this.nothingDue) return false;
-    return !this.consentRequired || this.consentAccepted;
+    if (this.nothingDue()) return false;
+    return !this.consentRequired() || this.consentAccepted();
   }
 
   /**
@@ -585,27 +583,27 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
    * here leaves the payer on the checkboxes with nothing charged.
    */
   acceptConsentAndContinue(): void {
-    if (!this.allConsentsChecked || this.consentSubmitting) return;
+    if (!this.allConsentsChecked() || this.consentSubmitting()) return;
 
-    this.consentSubmitting = true;
-    this.consentError = '';
+    this.consentSubmitting.set(true);
+    this.consentError.set('');
     this.bookingService.acceptPaymentConsent(
-      this.orderId,
+      this.orderId(),
       { smsConsent: true, cancellationConsent: true, termsConsent: true },
-      this.isGuestMode ? this.guestToken! : undefined
+      this.isGuestMode() ? this.guestToken! : undefined
     ).subscribe({
       next: (res) => {
-        this.consentSubmitting = false;
-        this.consentAccepted = true;
-        this.consentAcceptedAt = res?.acceptedAt ?? new Date().toISOString();
-        this.isLoading = true;
+        this.consentSubmitting.set(false);
+        this.consentAccepted.set(true);
+        this.consentAcceptedAt.set(res?.acceptedAt ?? new Date().toISOString());
+        this.isLoading.set(true);
         this.cdr.detectChanges();
         this.createPaymentIntent();
       },
       error: (err) => {
-        this.consentSubmitting = false;
-        this.consentError = err.error?.message
-          || 'Could not record your agreement. Please try again.';
+        this.consentSubmitting.set(false);
+        this.consentError.set(err.error?.message
+          || 'Could not record your agreement. Please try again.');
         this.cdr.detectChanges();
       }
     });
@@ -621,20 +619,20 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
   async processPayment() {
     // Belt and braces: the template hides the Pay button until consent is recorded, and the
     // backend never issued a client secret without it — but never let a click through here.
-    if (this.consentRequired && !this.consentAccepted) return;
-    if (this.isProcessing) return;
-    if (!this.fullyCovered && ((!this.usingSavedCard && this.cardError) || !this.paymentClientSecret)) return;
+    if (this.consentRequired() && !this.consentAccepted()) return;
+    if (this.isProcessing()) return;
+    if (!this.fullyCovered() && ((!this.usingSavedCard && this.cardError()) || !this.paymentClientSecret)) return;
 
-    this.isProcessing = true;
-    this.errorMessage = '';
+    this.isProcessing.set(true);
+    this.errorMessage.set('');
 
     // Fully covered by gift card — confirm the order with no Stripe charge.
-    if (this.fullyCovered) {
-      this.bookingService.confirmPayment(this.orderId, '', undefined, this.isGuestMode ? this.guestToken! : undefined).subscribe({
+    if (this.fullyCovered()) {
+      this.bookingService.confirmPayment(this.orderId(), '', undefined, this.isGuestMode() ? this.guestToken! : undefined).subscribe({
         next: () => this.handlePaymentSuccess(),
         error: (error) => {
-          this.errorMessage = error.error?.message || error.message || 'Payment confirmation failed';
-          this.isProcessing = false;
+          this.errorMessage.set(error.error?.message || error.message || 'Payment confirmation failed');
+          this.isProcessing.set(false);
           this.cdr.detectChanges();
         }
       });
@@ -663,16 +661,16 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
       // Same as booking-confirmation: use paymentIntent.id from Stripe after confirmCardPayment
       const idForConfirm = paymentIntent?.id ?? (paymentIntent as any)?.paymentIntent?.id ?? this.paymentIntentId;
       if (!idForConfirm) {
-        this.errorMessage = 'Payment succeeded but could not get payment ID. Your order may still be marked paid—please refresh.';
-        this.isProcessing = false;
+        this.errorMessage.set('Payment succeeded but could not get payment ID. Your order may still be marked paid—please refresh.');
+        this.isProcessing.set(false);
         return;
       }
 
       this.confirmCharged(idForConfirm);
     } catch (paymentError: any) {
       // Payment failed
-      this.errorMessage = paymentError.message || 'Payment failed. Please try again.';
-      this.isProcessing = false;
+      this.errorMessage.set(paymentError.message || 'Payment failed. Please try again.');
+      this.isProcessing.set(false);
     }
   }
 
@@ -683,37 +681,37 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
    * finalised, and the Pay button stays down. A definite 4xx answer is reported as before.
    */
   private confirmCharged(paymentIntentId: string, attempt = 1): void {
-    const guestToken = this.isGuestMode ? this.guestToken! : undefined;
-    const confirm$ = this.paymentType === 'partial'
-      ? this.bookingService.confirmPartialPayment(this.orderId, paymentIntentId, guestToken)
-      : this.paymentType === 'order'
-        ? this.bookingService.confirmPayment(this.orderId, paymentIntentId, undefined, guestToken)
-        : this.orderService.confirmPendingUpdatePayment(this.orderId, paymentIntentId, guestToken);
+    const guestToken = this.isGuestMode() ? this.guestToken! : undefined;
+    const confirm$ = this.paymentType() === 'partial'
+      ? this.bookingService.confirmPartialPayment(this.orderId(), paymentIntentId, guestToken)
+      : this.paymentType() === 'order'
+        ? this.bookingService.confirmPayment(this.orderId(), paymentIntentId, undefined, guestToken)
+        : this.orderService.confirmPendingUpdatePayment(this.orderId(), paymentIntentId, guestToken);
 
     confirm$.subscribe({
       next: (res: any) => {
-        this.finalizingPayment = false;
+        this.finalizingPayment.set(false);
         this.recordSavedCard(paymentIntentId);
         this.handlePaymentSuccess(res);
       },
       error: (error) => {
         const transient = !error?.status || error.status === 0 || error.status >= 500;
         if (transient) {
-          this.finalizingPayment = true;
-          this.errorMessage = '';
-          this.isProcessing = true;
+          this.finalizingPayment.set(true);
+          this.errorMessage.set('');
+          this.isProcessing.set(true);
           this.cdr.detectChanges();
           if (attempt < 4) setTimeout(() => this.confirmCharged(paymentIntentId, attempt + 1), 2000 * attempt);
           return;
         }
 
-        this.finalizingPayment = false;
+        this.finalizingPayment.set(false);
         const msg = error.error?.message || error.message || 'Payment confirmation failed';
-        this.errorMessage = msg;
-        this.isProcessing = false;
+        this.errorMessage.set(msg);
+        this.isProcessing.set(false);
         console.error('Confirm payment failed', error.status, msg, error.error);
         if (error.status === 400 && msg.toLowerCase().includes('payment not completed')) {
-          this.errorMessage += ' If you were charged, refresh the page—your order may already be paid.';
+          this.errorMessage.update(v => v + (' If you were charged, refresh the page—your order may already be paid.'));
         }
         this.cdr.detectChanges();
       }
@@ -734,20 +732,20 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
    * here is recovered the next time the Billing tab reconciles with Stripe.
    */
   private recordSavedCard(paymentIntentId: string): void {
-    if (this.saveCardChoice !== true || !paymentIntentId || this.isGuestMode) return;
+    if (this.saveCardChoice !== true || !paymentIntentId || this.isGuestMode()) return;
     this.billingService.saveCardFromPayment(paymentIntentId).subscribe({ next: () => {}, error: () => {} });
   }
 
   private handlePaymentSuccess(response?: any) {
-    this.paymentCompleted = true;
-    this.isProcessing = false;
+    this.paymentCompleted.set(true);
+    this.isProcessing.set(false);
 
     const settledThisOrder = response?.orderFullyPaid !== false;
-    this.partialPaymentRemaining = settledThisOrder
+    this.partialPaymentRemaining.set(settledThisOrder
       ? null
-      : (response?.amountDue ?? this.remainingAfterPayment);
+      : (response?.amountDue ?? this.remainingAfterPayment()));
 
-    if (this.isGuestMode) {
+    if (this.isGuestMode()) {
       // No session to refresh and nowhere to redirect (order pages need login) —
       // stay here and show the success state.
       return;
@@ -761,13 +759,13 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
       }
     });
 
-    if (this.paymentType === 'update') {
+    if (this.paymentType() === 'update') {
       // Additional payment only: stay on this page.
       // The user will click "View Order Now" when they're ready.
       return;
     }
 
-    if (this.partialPaymentRemaining !== null) {
+    if (this.partialPaymentRemaining() !== null) {
       // A deposit landed but the order is not paid for yet. Stay here: booking-success
       // announces a confirmed booking and fires the ads conversion, neither of which is
       // true of an order still carrying a balance.
@@ -776,25 +774,25 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
 
     // Initial order payment: go to booking-success for Google Ads conversion tracking.
     // No auto-redirect; user decides when to navigate.
-    this.router.navigate(['/booking-success', this.orderId], {
+    this.router.navigate(['/booking-success', this.orderId()], {
       state: { paymentSuccess: true }
     });
   }
 
   cancelPayment() {
-    if (this.isGuestMode) {
+    if (this.isGuestMode()) {
       // Guests can't open the order-details page (auth-guarded) — go home instead.
       this.router.navigate(['/']);
       return;
     }
-    this.router.navigate(['/order', this.orderId]);
+    this.router.navigate(['/order', this.orderId()]);
   }
 
   get billingDetails() {
     return {
-      name: this.order ? `${this.order.contactFirstName} ${this.order.contactLastName}` : '',
-      email: this.order?.contactEmail || this.currentUser?.email || '',
-      phone: this.order?.contactPhone || this.currentUser?.phone || ''
+      name: this.order() ? `${this.order()!.contactFirstName} ${this.order()!.contactLastName}` : '',
+      email: this.order()?.contactEmail || this.currentUser?.email || '',
+      phone: this.order()?.contactPhone || this.currentUser?.phone || ''
     };
   }
 
@@ -802,7 +800,7 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
   //    quantities only, never per-item prices; deep cleaning shown as Cleaning Type) ──
 
   getCleaningTypeText(): string {
-    const extras = this.order?.extraServices ?? [];
+    const extras = this.order()?.extraServices ?? [];
     // The Deep / Super Deep flags decide; an unkeyed, un-flagged line by its name as before.
     const hasSuperDeep = extras.some(s => isSuperDeepExtra(s));
     const hasDeep = extras.some(s => isDeepOrSuperDeepExtra(s) && !isSuperDeepExtra(s));
@@ -817,7 +815,7 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
   }
 
   getDisplayExtraServices() {
-    return (this.order?.extraServices ?? []).filter(e => !this.isCleaningTypeExtra(e));
+    return (this.order()?.extraServices ?? []).filter(e => !this.isCleaningTypeExtra(e));
   }
 
   /** Quantity label for a service line: "Studio" for bedrooms=0, hours for cleaners, plain qty otherwise. */

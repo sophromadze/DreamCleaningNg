@@ -92,7 +92,7 @@ describe('ShiftsComponent', () => {
 
     fixture = TestBed.createComponent(ShiftsComponent);
     component = fixture.componentInstance;
-    component.isSuperAdmin = true;
+    component.isSuperAdmin.set(true);
     fixture.detectChanges();
   });
 
@@ -111,8 +111,8 @@ describe('ShiftsComponent', () => {
         ownExistingCustomerRateIsCustom: false
       }));
 
-      expect(component.overrideEdit.ownBookingNewCustomerRate).toBe(12);
-      expect(component.overrideEdit.ownBookingExistingCustomerRate).toBeNull();
+      expect(component.overrideEdit().ownBookingNewCustomerRate).toBe(12);
+      expect(component.overrideEdit().ownBookingExistingCustomerRate).toBeNull();
     });
 
     it('seeds a manager both slots independently', () => {
@@ -123,17 +123,18 @@ describe('ShiftsComponent', () => {
         teamExistingCustomerRate: 18, teamExistingCustomerRateIsCustom: true
       }));
 
-      expect(component.overrideEdit.ownBookingNewCustomerRate).toBe(16);
-      expect(component.overrideEdit.ownBookingExistingCustomerRate).toBeNull();
-      expect(component.overrideEdit.teamBookingNewCustomerRate).toBeNull();
-      expect(component.overrideEdit.teamBookingExistingCustomerRate).toBe(18);
+      expect(component.overrideEdit().ownBookingNewCustomerRate).toBe(16);
+      expect(component.overrideEdit().ownBookingExistingCustomerRate).toBeNull();
+      expect(component.overrideEdit().teamBookingNewCustomerRate).toBeNull();
+      expect(component.overrideEdit().teamBookingExistingCustomerRate).toBe(18);
     });
 
     it('sends null for a blank field, so it goes back to the company default', () => {
       bonusService.setOverride.mockReturnValue(of(row()));
 
       component.startEditingOverride(row());
-      component.overrideEdit.ownBookingNewCustomerRate = 12;
+      component.overrideEdit().ownBookingNewCustomerRate = 12;
+      component.overrideEdit.set(component.overrideEdit());
       component.saveOverride(row());
 
       const [, override] = vi.mocked(bonusService.setOverride).mock.lastCall!;
@@ -147,8 +148,10 @@ describe('ShiftsComponent', () => {
       bonusService.setOverride.mockReturnValue(of(row()));
 
       component.startEditingOverride(row());
-      component.overrideEdit.teamBookingNewCustomerRate = 99;
-      component.overrideEdit.teamBookingExistingCustomerRate = 99;
+      component.overrideEdit().teamBookingNewCustomerRate = 99;
+      component.overrideEdit.set(component.overrideEdit());
+      component.overrideEdit().teamBookingExistingCustomerRate = 99;
+      component.overrideEdit.set(component.overrideEdit());
       component.saveOverride(row());
 
       const [, override] = vi.mocked(bonusService.setOverride).mock.lastCall!;
@@ -160,8 +163,10 @@ describe('ShiftsComponent', () => {
       bonusService.setOverride.mockReturnValue(of(manager()));
 
       component.startEditingOverride(manager());
-      component.overrideEdit.ownBookingNewCustomerRate = 16;
-      component.overrideEdit.teamBookingExistingCustomerRate = 18;
+      component.overrideEdit().ownBookingNewCustomerRate = 16;
+      component.overrideEdit.set(component.overrideEdit());
+      component.overrideEdit().teamBookingExistingCustomerRate = 18;
+      component.overrideEdit.set(component.overrideEdit());
       component.saveOverride(manager());
 
       const [, override] = vi.mocked(bonusService.setOverride).mock.lastCall!;
@@ -175,8 +180,10 @@ describe('ShiftsComponent', () => {
       bonusService.setOverride.mockReturnValue(of(row()));
 
       component.startEditingOverride(row());
-      component.overrideEdit.ownBookingNewCustomerRate = 0;
-      component.overrideEdit.ownBookingExistingCustomerRate = 0;
+      component.overrideEdit().ownBookingNewCustomerRate = 0;
+      component.overrideEdit.set(component.overrideEdit());
+      component.overrideEdit().ownBookingExistingCustomerRate = 0;
+      component.overrideEdit.set(component.overrideEdit());
       component.saveOverride(row());
 
       const [, override] = vi.mocked(bonusService.setOverride).mock.lastCall!;
@@ -205,22 +212,23 @@ describe('ShiftsComponent', () => {
     it('replaces just the edited row rather than refetching the month', () => {
       // The response is already computed over the visible window, so a reload would cost a round
       // trip to arrive at numbers we have been handed.
-      component.bonuses = [row({ adminId: 1 }), manager({ adminId: 2 })];
+      component.bonuses.set([row({ adminId: 1 }), manager({ adminId: 2 })]);
       const updated = manager({ adminId: 2, bonusAmount: 45 });
       bonusService.setOverride.mockReturnValue(of(updated));
       bonusService.getBonuses.mockClear();
 
-      component.startEditingOverride(component.bonuses[1]);
-      component.saveOverride(component.bonuses[1]);
+      component.startEditingOverride(component.bonuses()[1]);
+      component.saveOverride(component.bonuses()[1]);
 
-      expect(component.bonuses[1].bonusAmount).toBe(45);
-      expect(component.bonuses[0].adminId).toBe(1);
+      expect(component.bonuses()[1].bonusAmount).toBe(45);
+      expect(component.bonuses()[0].adminId).toBe(1);
       expect(bonusService.getBonuses).not.toHaveBeenCalled();
     });
 
     it('rejects a negative rate before it reaches the server', () => {
       component.startEditingOverride(row());
-      component.overrideEdit.ownBookingNewCustomerRate = -5;
+      component.overrideEdit().ownBookingNewCustomerRate = -5;
+      component.overrideEdit.set(component.overrideEdit());
       component.saveOverride(row());
 
       expect(bonusService.setOverride).not.toHaveBeenCalled();
@@ -232,8 +240,8 @@ describe('ShiftsComponent', () => {
       component.startEditingOverride(row({ adminId: 7 }));
       component.saveOverride(row({ adminId: 7 }));
 
-      expect(component.editingOverrideAdminId).toBe(7);
-      expect(component.isSavingOverride).toBe(false);
+      expect(component.editingOverrideAdminId()).toBe(7);
+      expect(component.isSavingOverride()).toBe(false);
     });
   });
 
@@ -242,7 +250,7 @@ describe('ShiftsComponent', () => {
     function bootAs(isSuperAdmin: boolean): ShiftsComponent {
       bonusService.getRates.mockClear();
       const f = TestBed.createComponent(ShiftsComponent);
-      f.componentInstance.isSuperAdmin = isSuperAdmin;
+      f.componentInstance.isSuperAdmin.set(isSuperAdmin);
       f.detectChanges();
       return f.componentInstance;
     }
@@ -253,14 +261,14 @@ describe('ShiftsComponent', () => {
       const c = bootAs(false);
 
       expect(bonusService.getRates).not.toHaveBeenCalled();
-      expect(c.bonusRates).toBeNull();
+      expect(c.bonusRates()).toBeNull();
     });
 
     it('loads them for a SuperAdmin', () => {
       const c = bootAs(true);
 
       expect(bonusService.getRates).toHaveBeenCalled();
-      expect(c.bonusRates).toEqual(defaults);
+      expect(c.bonusRates()).toEqual(defaults);
     });
 
     it('still shows a regular admin their own rates', () => {
@@ -270,8 +278,8 @@ describe('ShiftsComponent', () => {
 
       const c = bootAs(false);
 
-      expect(c.bonuses[0].ownNewCustomerRate).toBe(15);
-      expect(c.bonuses[0].teamExistingCustomerRate).toBe(15);
+      expect(c.bonuses()[0].ownNewCustomerRate).toBe(15);
+      expect(c.bonuses()[0].teamExistingCustomerRate).toBe(15);
     });
   });
 
@@ -283,11 +291,12 @@ describe('ShiftsComponent', () => {
       bonusService.getBonuses.mockClear();
 
       component.startEditingRates();
-      component.rateEdit.administratorNewCustomerRate = 11;
+      component.rateEdit().administratorNewCustomerRate = 11;
+      component.rateEdit.set(component.rateEdit());
       component.saveRates();
 
       expect(bonusService.getBonuses).toHaveBeenCalled();
-      expect(component.isEditingRates).toBe(false);
+      expect(component.isEditingRates()).toBe(false);
     });
 
     it('submits all three slots', () => {
@@ -307,7 +316,8 @@ describe('ShiftsComponent', () => {
 
     it('rejects a negative default before it reaches the server', () => {
       component.startEditingRates();
-      component.rateEdit.managerTeamExistingCustomerRate = -1;
+      component.rateEdit().managerTeamExistingCustomerRate = -1;
+      component.rateEdit.set(component.rateEdit());
       component.saveRates();
 
       expect(bonusService.setRates).not.toHaveBeenCalled();

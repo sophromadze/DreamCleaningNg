@@ -72,10 +72,10 @@ describe('OrdersComponent', () => {
      * definition for each row is resolved by index — so the fixture stubs that resolution.
      */
     function seedEditForm(rows: { def: any; quantity: number }[]) {
-      component.editOrderForm = {
+      component.editOrderForm.set({
         services: rows.map(r => ({ orderServiceId: r.def.id, quantity: r.quantity, cost: 0 })),
         extraServices: []
-      } as any;
+      } as any);
       component.editOrderFormPrevServiceQuantities = rows.map(r => r.quantity);
       vi.spyOn(component as any, 'getEditServiceDefinition').mockImplementation((i: any) => rows[i].def);
       vi.spyOn(component as any, 'getEditOrderServiceType').mockReturnValue({
@@ -84,13 +84,14 @@ describe('OrdersComponent', () => {
       vi.spyOn(component as any, 'recalcSubtotalFromServicesAndExtras').mockReturnValue(undefined);
     }
 
-    const rowQuantity = (index: number) => component.editOrderForm.services![index].quantity;
+    const rowQuantity = (index: number) => component.editOrderForm().services![index].quantity;
 
     it('preserves a sq.ft raised above the floor when bedrooms change', () => {
       seedEditForm([{ def: bedroomsDef, quantity: 2 }, { def: sqftDef, quantity: 2650 }]);
 
-      component.editOrderForm.services![0].quantity = 3;
-      component.onEditServiceQuantityChange(component.editOrderForm.services![0], 0);
+      component.editOrderForm().services![0].quantity = 3;
+      component.editOrderForm.set(component.editOrderForm());
+      component.onEditServiceQuantityChange(component.editOrderForm().services![0], 0);
 
       expect(rowQuantity(1)).toBe(2650);
     });
@@ -98,8 +99,9 @@ describe('OrdersComponent', () => {
     it('tracks the floor downward when sq.ft was sitting on the old floor', () => {
       seedEditForm([{ def: bedroomsDef, quantity: 3 }, { def: sqftDef, quantity: 1000 }]);
 
-      component.editOrderForm.services![0].quantity = 2;
-      component.onEditServiceQuantityChange(component.editOrderForm.services![0], 0);
+      component.editOrderForm().services![0].quantity = 2;
+      component.editOrderForm.set(component.editOrderForm());
+      component.onEditServiceQuantityChange(component.editOrderForm().services![0], 0);
 
       expect(rowQuantity(1)).toBe(850);
     });
@@ -111,8 +113,9 @@ describe('OrdersComponent', () => {
     it('still syncs sq.ft when bedrooms drop to 0 (studio)', () => {
       seedEditForm([{ def: bedroomsDef, quantity: 1 }, { def: sqftDef, quantity: 650 }]);
 
-      component.editOrderForm.services![0].quantity = 0;
-      component.onEditServiceQuantityChange(component.editOrderForm.services![0], 0);
+      component.editOrderForm().services![0].quantity = 0;
+      component.editOrderForm.set(component.editOrderForm());
+      component.onEditServiceQuantityChange(component.editOrderForm().services![0], 0);
 
       // 650 was the 1bd floor, so it tracks down to the studio floor of 400.
       expect(rowQuantity(1)).toBe(400);
@@ -121,8 +124,9 @@ describe('OrdersComponent', () => {
     it('keeps a chosen sq.ft when bedrooms drop to 0', () => {
       seedEditForm([{ def: bedroomsDef, quantity: 1 }, { def: sqftDef, quantity: 2650 }]);
 
-      component.editOrderForm.services![0].quantity = 0;
-      component.onEditServiceQuantityChange(component.editOrderForm.services![0], 0);
+      component.editOrderForm().services![0].quantity = 0;
+      component.editOrderForm.set(component.editOrderForm());
+      component.onEditServiceQuantityChange(component.editOrderForm().services![0], 0);
 
       expect(rowQuantity(1)).toBe(2650);
     });
@@ -143,8 +147,9 @@ describe('OrdersComponent', () => {
         { def: otherDef, quantity: 2 }
       ]);
 
-      component.editOrderForm.services![2].quantity = 0;
-      component.onEditServiceQuantityChange(component.editOrderForm.services![2], 2);
+      component.editOrderForm().services![2].quantity = 0;
+      component.editOrderForm.set(component.editOrderForm());
+      component.onEditServiceQuantityChange(component.editOrderForm().services![2], 2);
 
       expect(rowQuantity(1)).toBe(2650);
     });
@@ -153,8 +158,9 @@ describe('OrdersComponent', () => {
       // No min attribute on the input, so the floor is enforced here or nowhere.
       seedEditForm([{ def: bedroomsDef, quantity: 3 }, { def: sqftDef, quantity: 1000 }]);
 
-      component.editOrderForm.services![1].quantity = 500;
-      component.onEditServiceQuantityChange(component.editOrderForm.services![1], 1);
+      component.editOrderForm().services![1].quantity = 500;
+      component.editOrderForm.set(component.editOrderForm());
+      component.onEditServiceQuantityChange(component.editOrderForm().services![1], 1);
 
       expect(rowQuantity(1)).toBe(1000);
     });
@@ -169,46 +175,54 @@ describe('OrdersComponent', () => {
     it('restores a raise-clobbered custom sq.ft when bedrooms return to their original count', () => {
       seedEditForm([{ def: bedroomsDef, quantity: 3 }, { def: sqftDef, quantity: 1200 }]);
 
-      component.editOrderForm.services![0].quantity = 4;
-      component.onEditServiceQuantityChange(component.editOrderForm.services![0], 0);
+      component.editOrderForm().services![0].quantity = 4;
+      component.editOrderForm.set(component.editOrderForm());
+      component.onEditServiceQuantityChange(component.editOrderForm().services![0], 0);
       expect(rowQuantity(1)).toBe(1500); // clobbered by the higher 4bd floor
 
-      component.editOrderForm.services![0].quantity = 3;
-      component.onEditServiceQuantityChange(component.editOrderForm.services![0], 0);
+      component.editOrderForm().services![0].quantity = 3;
+      component.editOrderForm.set(component.editOrderForm());
+      component.onEditServiceQuantityChange(component.editOrderForm().services![0], 0);
       expect(rowQuantity(1)).toBe(1200); // restored, not dropped to the 3bd floor of 1000
     });
 
     it('restores the original custom sq.ft across a multi-step bedroom chain', () => {
       seedEditForm([{ def: bedroomsDef, quantity: 2 }, { def: sqftDef, quantity: 1200 }]);
 
-      component.editOrderForm.services![0].quantity = 4;
-      component.onEditServiceQuantityChange(component.editOrderForm.services![0], 0);
+      component.editOrderForm().services![0].quantity = 4;
+      component.editOrderForm.set(component.editOrderForm());
+      component.onEditServiceQuantityChange(component.editOrderForm().services![0], 0);
       expect(rowQuantity(1)).toBe(1500); // clobbered by the 4bd floor
 
-      component.editOrderForm.services![0].quantity = 3;
-      component.onEditServiceQuantityChange(component.editOrderForm.services![0], 0);
+      component.editOrderForm().services![0].quantity = 3;
+      component.editOrderForm.set(component.editOrderForm());
+      component.onEditServiceQuantityChange(component.editOrderForm().services![0], 0);
       expect(rowQuantity(1)).toBe(1000); // intermediate hop still floor-tracks normally
 
-      component.editOrderForm.services![0].quantity = 2;
-      component.onEditServiceQuantityChange(component.editOrderForm.services![0], 0);
+      component.editOrderForm().services![0].quantity = 2;
+      component.editOrderForm.set(component.editOrderForm());
+      component.onEditServiceQuantityChange(component.editOrderForm().services![0], 0);
       expect(rowQuantity(1)).toBe(1200); // back to the original bedroom count restores 1200
     });
 
     it('lets a direct sq.ft edit made while raised replace the remembered original', () => {
       seedEditForm([{ def: bedroomsDef, quantity: 3 }, { def: sqftDef, quantity: 1200 }]);
 
-      component.editOrderForm.services![0].quantity = 4;
-      component.onEditServiceQuantityChange(component.editOrderForm.services![0], 0);
+      component.editOrderForm().services![0].quantity = 4;
+      component.editOrderForm.set(component.editOrderForm());
+      component.onEditServiceQuantityChange(component.editOrderForm().services![0], 0);
       expect(rowQuantity(1)).toBe(1500);
 
       // Admin types a new Sq.ft value directly while still at 4bd — this is a fresh deliberate
       // choice and must not be discarded in favor of the pre-raise 1200 later.
-      component.editOrderForm.services![1].quantity = 1800;
-      component.onEditServiceQuantityChange(component.editOrderForm.services![1], 1);
+      component.editOrderForm().services![1].quantity = 1800;
+      component.editOrderForm.set(component.editOrderForm());
+      component.onEditServiceQuantityChange(component.editOrderForm().services![1], 1);
       expect(rowQuantity(1)).toBe(1800);
 
-      component.editOrderForm.services![0].quantity = 3;
-      component.onEditServiceQuantityChange(component.editOrderForm.services![0], 0);
+      component.editOrderForm().services![0].quantity = 3;
+      component.editOrderForm.set(component.editOrderForm());
+      component.onEditServiceQuantityChange(component.editOrderForm().services![0], 0);
       expect(rowQuantity(1)).toBe(1800); // preserved, not reverted to the stale 1200
     });
   });
@@ -236,13 +250,13 @@ describe('OrdersComponent', () => {
      * the subtotal source so a quantity step moves it by exactly one bathroom.
      */
     function openEditWith(originalDiscount: number, extras: Partial<any> = {}) {
-      component.selectedOrder = {
+      component.selectedOrder.set({
         id: 306, subTotal: ORIGINAL_SUBTOTAL, discountAmount: originalDiscount,
         pointsRedeemedDiscount: 0, rewardBalanceUsed: 0,
         ...extras
-      } as any;
-      component.editingOrder = true;
-      component.editOrderForm = {
+      } as any);
+      component.editingOrder.set(true);
+      component.editOrderForm.set({
         subTotal: ORIGINAL_SUBTOTAL,
         discountAmount: originalDiscount,
         subscriptionDiscountAmount: extras['subscriptionDiscountAmount'] ?? 0,
@@ -250,14 +264,14 @@ describe('OrdersComponent', () => {
         tips: 0,
         services: [{ orderServiceId: 1, quantity: 2, cost: 0 }],
         extraServices: []
-      } as any;
+      } as any);
       component.editOrderFormOriginalSubTotal = ORIGINAL_SUBTOTAL;
       component.editOrderFormOriginalDiscount = originalDiscount;
       component.editOrderFormOriginalSubscriptionDiscount = extras['subscriptionDiscountAmount'] ?? 0;
       component.editOrderFormOriginalLoyaltyDiscount = extras['loyaltyDiscountAmount'] ?? 0;
-      component.editOrderFormOriginalLoyaltyPercentage = extras['loyaltyDiscountPercentage'] ?? 0;
-      component.editGiftCardAvailableBalance = 0;
-      component.editGiftCardOriginalUsed = extras['giftCardAmountUsed'] ?? 0;
+      component.editOrderFormOriginalLoyaltyPercentage.set(extras['loyaltyDiscountPercentage'] ?? 0);
+      component.editGiftCardAvailableBalance.set(0);
+      component.editGiftCardOriginalUsed.set(extras['giftCardAmountUsed'] ?? 0);
 
       // The subtotal normally comes from the shared quote; drive it straight off the bathroom
       // quantity so these specs exercise the discount chain, not the service pricing.
@@ -269,18 +283,20 @@ describe('OrdersComponent', () => {
 
     /** Set the bathroom count and run the same path a quantity change runs. */
     function setBathrooms(count: number) {
-      component.editOrderForm.services![0].quantity = count;
-      component.editOrderForm.services![0].cost =
+      component.editOrderForm().services![0].quantity = count;
+      component.editOrderForm.set(component.editOrderForm());
+      component.editOrderForm().services![0].cost =
         round2(ORIGINAL_SUBTOTAL + (count - 2) * BATHROOM_UNIT);
+      component.editOrderForm.set(component.editOrderForm());
       component.recalcSubtotalFromServicesAndExtras();
     }
 
     function snapshot() {
       return {
-        subTotal: round2(Number(component.editOrderForm.subTotal)),
-        discount: round2(Number(component.editOrderForm.discountAmount)),
-        tax: round2(Number(component.editOrderForm.tax)),
-        total: round2(Number(component.editOrderForm.total))
+        subTotal: round2(Number(component.editOrderForm().subTotal)),
+        discount: round2(Number(component.editOrderForm().discountAmount)),
+        tax: round2(Number(component.editOrderForm().tax)),
+        total: round2(Number(component.editOrderForm().total))
       };
     }
 
@@ -379,22 +395,24 @@ describe('OrdersComponent', () => {
       it('survives while the subtotal is unchanged', () => {
         setBathrooms(2);
 
-        component.editOrderForm.discountAmount = 200;
+        component.editOrderForm().discountAmount = 200;
+        component.editOrderForm.set(component.editOrderForm());
         component.recalculateEditPricing();
 
-        expect(round2(Number(component.editOrderForm.discountAmount))).toBe(200);
+        expect(round2(Number(component.editOrderForm().discountAmount))).toBe(200);
         // 563.00 − 200 = 363.00; 363.00 × 8.875% = 32.22
-        expect(round2(Number(component.editOrderForm.tax))).toBe(32.22);
+        expect(round2(Number(component.editOrderForm().tax))).toBe(32.22);
       });
 
       it('yields to the ratio once the subtotal moves', () => {
         setBathrooms(2);
-        component.editOrderForm.discountAmount = 200;
+        component.editOrderForm().discountAmount = 200;
+        component.editOrderForm.set(component.editOrderForm());
         component.recalculateEditPricing();
 
         setBathrooms(1);
 
-        expect(round2(Number(component.editOrderForm.discountAmount))).toBe(108.1);
+        expect(round2(Number(component.editOrderForm().discountAmount))).toBe(108.1);
       });
 
       it('yields to the ratio when the subtotal is typed by hand', () => {
@@ -402,15 +420,17 @@ describe('OrdersComponent', () => {
         // quantity change rather than the Discount input's rule.
         setBathrooms(2);
 
-        component.editOrderForm.subTotal = 540.5;
+        component.editOrderForm().subTotal = 540.5;
+        component.editOrderForm.set(component.editOrderForm());
         component.recalculateEditPricing(true);
 
-        expect(round2(Number(component.editOrderForm.discountAmount))).toBe(108.1);
+        expect(round2(Number(component.editOrderForm().discountAmount))).toBe(108.1);
 
-        component.editOrderForm.subTotal = 563;
+        component.editOrderForm().subTotal = 563;
+        component.editOrderForm.set(component.editOrderForm());
         component.recalculateEditPricing(true);
 
-        expect(round2(Number(component.editOrderForm.discountAmount))).toBe(112.6);
+        expect(round2(Number(component.editOrderForm().discountAmount))).toBe(112.6);
       });
     });
 
@@ -447,8 +467,8 @@ describe('OrdersComponent', () => {
       setBathrooms(2);
       const start = {
         ...snapshot(),
-        subscription: round2(Number(component.editOrderForm.subscriptionDiscountAmount)),
-        loyalty: round2(Number(component.editOrderForm.loyaltyDiscountAmount))
+        subscription: round2(Number(component.editOrderForm().subscriptionDiscountAmount)),
+        loyalty: round2(Number(component.editOrderForm().loyaltyDiscountAmount))
       };
 
       setBathrooms(3);
@@ -456,8 +476,8 @@ describe('OrdersComponent', () => {
 
       expect({
         ...snapshot(),
-        subscription: round2(Number(component.editOrderForm.subscriptionDiscountAmount)),
-        loyalty: round2(Number(component.editOrderForm.loyaltyDiscountAmount))
+        subscription: round2(Number(component.editOrderForm().subscriptionDiscountAmount)),
+        loyalty: round2(Number(component.editOrderForm().loyaltyDiscountAmount))
       }).toEqual(start);
       // The $10 points deduction is applied off the end and never re-derived.
       expect(start.total).toBe(round2(start.subTotal - start.discount - start.subscription
@@ -477,12 +497,12 @@ describe('OrdersComponent', () => {
     const orderWith = (extra: any) => ({ id: 5, userId: 9, contactEmail: '', ...extra } as any);
 
     it('flags the account even when the order carries a real-looking address', () => {
-      component.selectedOrder = orderWith({
+      component.selectedOrder.set(orderWith({
         contactEmail: 'typed.on.order@example.com',
         customerHasNoAccountEmail: true,
         customerAccountEmail: null,
         notificationEmailTarget: 'typed.on.order@example.com'
-      });
+      }));
 
       expect(component.customerHasNoAccountEmail).toBe(true);
       // The reminder path still reaches that address, so the panel names it instead of
@@ -491,46 +511,46 @@ describe('OrdersComponent', () => {
     });
 
     it('reports no email target at all when neither the order nor the account has one', () => {
-      component.selectedOrder = orderWith({
+      component.selectedOrder.set(orderWith({
         customerHasNoAccountEmail: true,
         customerAccountEmail: null,
         notificationEmailTarget: null
-      });
+      }));
 
       expect(component.customerHasNoAccountEmail).toBe(true);
       expect(component.notificationEmailTarget).toBe('');
     });
 
     it('opens the payment-link modal with email unchecked for a no-email account', () => {
-      component.selectedOrder = orderWith({ customerHasNoAccountEmail: true });
+      component.selectedOrder.set(orderWith({ customerHasNoAccountEmail: true }));
 
       component.openSendPaymentLinkModal();
 
-      expect(component.sendPaymentLinkChannels).toEqual({ email: false, sms: true });
+      expect(component.sendPaymentLinkChannels()).toEqual({ email: false, sms: true });
     });
 
     it('keeps both channels checked for an ordinary account', () => {
-      component.selectedOrder = orderWith({
+      component.selectedOrder.set(orderWith({
         contactEmail: 'real@example.com',
         customerHasNoAccountEmail: false,
         customerAccountEmail: 'real@example.com',
         notificationEmailTarget: 'real@example.com'
-      });
+      }));
 
       component.openSendPaymentLinkModal();
 
-      expect(component.sendPaymentLinkChannels).toEqual({ email: true, sms: true });
+      expect(component.sendPaymentLinkChannels()).toEqual({ email: true, sms: true });
       // Account and order agree — nothing to point out.
       expect(component.differingAccountEmail).toBeNull();
     });
 
     it('surfaces an account address that disagrees with the order contact', () => {
-      component.selectedOrder = orderWith({
+      component.selectedOrder.set(orderWith({
         contactEmail: 'old.typo@example.com',
         customerHasNoAccountEmail: false,
         customerAccountEmail: 'corrected@example.com',
         notificationEmailTarget: 'old.typo@example.com'
-      });
+      }));
 
       expect(component.differingAccountEmail).toBe('corrected@example.com');
     });
@@ -554,43 +574,43 @@ describe('OrdersComponent', () => {
 
     it('seeds the three controls from the stored 24-hour time', () => {
       setPicker('13:30');
-      expect(component.editTimeHour12).toBe(1);
-      expect(component.editTimeMinute).toBe(30);
-      expect(component.editTimeMeridiem).toBe('PM');
+      expect(component.editTimeHour12()).toBe(1);
+      expect(component.editTimeMinute()).toBe(30);
+      expect(component.editTimeMeridiem()).toBe('PM');
     });
 
     it('leaves the hour unset when the order carries no time', () => {
       setPicker(null);
-      expect(component.editTimeHour12).toBeNull();
+      expect(component.editTimeHour12()).toBeNull();
 
       // Nothing picked yet is not an edit to the time.
-      component.editOrderForm = {} as any;
+      component.editOrderForm.set({} as any);
       component.onEditServiceTimeChange();
-      expect(component.editOrderForm.serviceTime).toBeNull();
+      expect(component.editOrderForm().serviceTime).toBeNull();
     });
 
     it('writes back the 24-hour string the DTO carries', () => {
-      component.editOrderForm = {} as any;
-      component.editTimeHour12 = 6;
-      component.editTimeMinute = 30;
-      component.editTimeMeridiem = 'PM';
+      component.editOrderForm.set({} as any);
+      component.editTimeHour12.set(6);
+      component.editTimeMinute.set(30);
+      component.editTimeMeridiem.set('PM');
       component.onEditServiceTimeChange();
-      expect(component.editOrderForm.serviceTime).toBe('18:30');
+      expect(component.editOrderForm().serviceTime).toBe('18:30');
 
-      component.editTimeHour12 = 12;
-      component.editTimeMinute = 0;
-      component.editTimeMeridiem = 'AM';
+      component.editTimeHour12.set(12);
+      component.editTimeMinute.set(0);
+      component.editTimeMeridiem.set('AM');
       component.onEditServiceTimeChange();
-      expect(component.editOrderForm.serviceTime).toBe('00:00');
+      expect(component.editOrderForm().serviceTime).toBe('00:00');
     });
 
     it('offers an off-grid stored minute rather than rounding it away', () => {
       // A legacy order at 09:07 must still be 09:07 after an edit that never touched the time.
       setPicker('09:07');
-      expect(component.editTimeMinuteOptions).toContain(7);
-      component.editOrderForm = {} as any;
+      expect(component.editTimeMinuteOptions()).toContain(7);
+      component.editOrderForm.set({} as any);
       component.onEditServiceTimeChange();
-      expect(component.editOrderForm.serviceTime).toBe('09:07');
+      expect(component.editOrderForm().serviceTime).toBe('09:07');
     });
 
     it('shows the change confirmation in 12-hour form too', () => {
@@ -664,19 +684,19 @@ describe('OrdersComponent', () => {
 
     /** An Admin with the update permission — canEditOrder's non-SuperAdmin branch. */
     const asAdmin = (canSaveDirectly: boolean) => {
-      component.userRole = 'Admin';
-      component.isSuperAdmin = false;
-      component.userPermissions = {
+      component.userRole.set('Admin');
+      component.isSuperAdmin.set(false);
+      component.userPermissions.set({
         role: 'Admin',
         permissions: {
           canView: true, canCreate: true, canUpdate: true,
           canDelete: false, canActivate: false, canDeactivate: false
         }
-      } as any;
-      component.canSaveOrderEditsDirectly = canSaveDirectly;
-      component.selectedOrder = baseOrder();
-      component.editingOrder = true;
-      component.editOrderForm = { ...baseOrder(), subTotal: 250, total: 267.75 } as any;
+      } as any);
+      component.canSaveOrderEditsDirectly.set(canSaveDirectly);
+      component.selectedOrder.set(baseOrder());
+      component.editingOrder.set(true);
+      component.editOrderForm.set({ ...baseOrder(), subTotal: 250, total: 267.75 } as any);
     };
 
     it('holds the save behind the confirmation modal for a granted admin', () => {
@@ -684,11 +704,11 @@ describe('OrdersComponent', () => {
 
       component.saveOrderEdit();
 
-      expect(component.showSaveConfirm).toBe(true);
+      expect(component.showSaveConfirm()).toBe(true);
       // Still in the editor, nothing sent: the write only happens on confirm.
-      expect(component.savingOrder).toBe(false);
-      expect(component.editingOrder).toBe(true);
-      expect(component.saveConfirmChanges.length).toBeGreaterThan(0);
+      expect(component.savingOrder()).toBe(false);
+      expect(component.editingOrder()).toBe(true);
+      expect(component.saveConfirmChanges().length).toBeGreaterThan(0);
     });
 
     it('discards the pending save when the admin goes back to editing', () => {
@@ -697,10 +717,10 @@ describe('OrdersComponent', () => {
       component.saveOrderEdit();
       component.closeSaveConfirm();
 
-      expect(component.showSaveConfirm).toBe(false);
-      expect(component.saveConfirmChanges).toEqual([]);
+      expect(component.showSaveConfirm()).toBe(false);
+      expect(component.saveConfirmChanges()).toEqual([]);
       // The form stays open so the admin can adjust rather than retype everything.
-      expect(component.editingOrder).toBe(true);
+      expect(component.editingOrder()).toBe(true);
     });
 
     it('sends an ungranted admin straight to approval without a confirmation step', () => {
@@ -709,8 +729,8 @@ describe('OrdersComponent', () => {
       component.saveOrderEdit();
 
       // Their changes are reviewed on the SuperAdmin side; a second review here would be noise.
-      expect(component.showSaveConfirm).toBe(false);
-      expect(component.savingOrder).toBe(true);
+      expect(component.showSaveConfirm()).toBe(false);
+      expect(component.savingOrder()).toBe(true);
     });
 
     it('always shows the Total row, emphasised, even when nothing moved it', () => {
@@ -747,9 +767,9 @@ describe('OrdersComponent', () => {
 
     /** Mirrors what startEditOrder seeds, INCLUDING the discount snapshot the re-scale needs. */
     const openEditorOn = (order: any) => {
-      component.selectedOrder = order;
-      component.editingOrder = true;
-      component.editOrderForm = {
+      component.selectedOrder.set(order);
+      component.editingOrder.set(true);
+      component.editOrderForm.set({
         subTotal: order.subTotal,
         tax: order.tax,
         total: order.total,
@@ -757,13 +777,13 @@ describe('OrdersComponent', () => {
         discountAmount: order.discountAmount ?? 0,
         subscriptionDiscountAmount: order.subscriptionDiscountAmount ?? 0,
         loyaltyDiscountAmount: order.loyaltyDiscountAmount ?? 0
-      } as any;
+      } as any);
       component.editOrderFormOriginalSubTotal = order.subTotal;
       component.editOrderFormOriginalDiscount = order.discountAmount ?? 0;
       component.editOrderFormOriginalSubscriptionDiscount = order.subscriptionDiscountAmount ?? 0;
-      component.editOrderFormOriginalLoyaltyPercentage = order.loyaltyDiscountPercentage ?? 0;
-      component.editGiftCardAmountToUse = 0;
-      component.editGiftCardOriginalUsed = 0;
+      component.editOrderFormOriginalLoyaltyPercentage.set(order.loyaltyDiscountPercentage ?? 0);
+      component.editGiftCardAmountToUse.set(0);
+      component.editGiftCardOriginalUsed.set(0);
       component.editOrderTaxOverride = null;
     };
 
@@ -778,12 +798,12 @@ describe('OrdersComponent', () => {
     it('derives the subtotal from a typed total and charges it to the cent', () => {
       openEditorOn(plainOrder());
 
-      component.editOrderTotalInput = TYPED;
+      component.editOrderTotalInput.set(TYPED);
       component.onEditTotalChange();
 
-      expect(component.editOrderForm.subTotal).toBe(SPLIT_SUBTOTAL);
-      expect(component.editOrderForm.tax).toBe(SPLIT_TAX);
-      expect(component.editOrderForm.total).toBe(TYPED);
+      expect(component.editOrderForm().subTotal).toBe(SPLIT_SUBTOTAL);
+      expect(component.editOrderForm().tax).toBe(SPLIT_TAX);
+      expect(component.editOrderForm().total).toBe(TYPED);
     });
 
     it('re-scales the discount with the new total, exactly as the SubTotal field does', () => {
@@ -791,53 +811,56 @@ describe('OrdersComponent', () => {
       // ends up advertising "25% off" while showing a discount that is no longer 25% of anything.
       openEditorOn(plainOrder({ subTotal: 200, discountAmount: 50 }));
 
-      component.editOrderTotalInput = TYPED;
+      component.editOrderTotalInput.set(TYPED);
       component.onEditTotalChange();
 
-      expect(component.editOrderForm.discountAmount).toBe(91.85);
-      expect(component.editOrderForm.subTotal).toBe(367.40);
+      expect(component.editOrderForm().discountAmount).toBe(91.85);
+      expect(component.editOrderForm().subTotal).toBe(367.40);
       // Still 25%, and the customer still pays exactly what was typed.
-      expect(round2(component.editOrderForm.discountAmount! / component.editOrderForm.subTotal!)).toBe(0.25);
-      expect(component.editOrderForm.total).toBe(TYPED);
+      expect(round2(component.editOrderForm().discountAmount! / component.editOrderForm().subTotal!)).toBe(0.25);
+      expect(component.editOrderForm().total).toBe(TYPED);
     });
 
     it('adds tips on top of a typed total without disturbing it', () => {
       openEditorOn(plainOrder({ tips: 40 }));
-      component.editOrderForm.tips = 40;
+      component.editOrderForm().tips = 40;
+      component.editOrderForm.set(component.editOrderForm());
 
-      component.editOrderTotalInput = TYPED;
+      component.editOrderTotalInput.set(TYPED);
       component.onEditTotalChange();
 
-      expect(component.editOrderForm.tax).toBe(SPLIT_TAX);
-      expect(component.editOrderForm.total).toBe(TYPED + 40);
+      expect(component.editOrderForm().tax).toBe(SPLIT_TAX);
+      expect(component.editOrderForm().total).toBe(TYPED + 40);
       // The input stays tip-free, so what was typed is what is still shown.
-      expect(component.editOrderTotalInput).toBe(TYPED);
+      expect(component.editOrderTotalInput()).toBe(TYPED);
     });
 
     it('drops the typed total once a discount moves', () => {
       openEditorOn(plainOrder());
-      component.editOrderTotalInput = TYPED;
+      component.editOrderTotalInput.set(TYPED);
       component.onEditTotalChange();
       expect(component.editOrderTaxOverride).not.toBeNull();
 
-      component.editOrderForm.discountAmount = 25;
+      component.editOrderForm().discountAmount = 25;
+      component.editOrderForm.set(component.editOrderForm());
       component.onEditDiscountChange();
 
       // The typed figure no longer describes what is owed, so pricing goes back to the rate math.
       expect(component.editOrderTaxOverride).toBeNull();
-      expect(component.editOrderForm.tax).toBe(round2((SPLIT_SUBTOTAL - 25) * 0.08875));
+      expect(component.editOrderForm().tax).toBe(round2((SPLIT_SUBTOTAL - 25) * 0.08875));
     });
 
     it('drops the typed total when a subtotal is typed instead', () => {
       openEditorOn(plainOrder());
-      component.editOrderTotalInput = TYPED;
+      component.editOrderTotalInput.set(TYPED);
       component.onEditTotalChange();
 
-      component.editOrderForm.subTotal = 400;
+      component.editOrderForm().subTotal = 400;
+      component.editOrderForm.set(component.editOrderForm());
       component.onEditSubTotalChange();
 
       expect(component.editOrderTaxOverride).toBeNull();
-      expect(component.editOrderForm.tax).toBe(round2(400 * 0.08875));
+      expect(component.editOrderForm().tax).toBe(round2(400 * 0.08875));
     });
 
     /**
@@ -854,18 +877,18 @@ describe('OrdersComponent', () => {
 
       // Sanity: the order as it stands reads back as what the panel shows.
       component.recalculateEditPricing();
-      expect(component.editOrderForm.tax).toBe(11.32);
-      expect(component.editOrderTotalInput).toBe(128.82);
+      expect(component.editOrderForm().tax).toBe(11.32);
+      expect(component.editOrderTotalInput()).toBe(128.82);
 
       // Now raise what the customer pays to $150.
-      component.editOrderTotalInput = 150;
+      component.editOrderTotalInput.set(150);
       component.onEditTotalChange();
 
       // 150 paid + 10 of points = 160 owed; the 25% promo scales with it.
-      expect(component.editOrderForm.subTotal).toBe(195.95);
-      expect(component.editOrderForm.discountAmount).toBe(48.99);
-      expect(component.editOrderForm.tax).toBe(13.04);
-      expect(component.editOrderTotalInput).toBe(150);
+      expect(component.editOrderForm().subTotal).toBe(195.95);
+      expect(component.editOrderForm().discountAmount).toBe(48.99);
+      expect(component.editOrderForm().tax).toBe(13.04);
+      expect(component.editOrderTotalInput()).toBe(150);
     });
 
     it('inverts through a reward balance the same way', () => {
@@ -873,12 +896,12 @@ describe('OrdersComponent', () => {
 
       expect(component.canEditTotalDirectly()).toBe(true);
 
-      component.editOrderTotalInput = 100;
+      component.editOrderTotalInput.set(100);
       component.onEditTotalChange();
 
       // 100 paid + 25 credit = 125 owed, which is what the tax lives inside.
-      expect(round2(component.editOrderForm.subTotal! + component.editOrderForm.tax!)).toBe(125);
-      expect(component.editOrderTotalInput).toBe(100);
+      expect(round2(component.editOrderForm().subTotal! + component.editOrderForm().tax!)).toBe(125);
+      expect(component.editOrderTotalInput()).toBe(100);
     });
 
     /**
@@ -906,9 +929,9 @@ describe('OrdersComponent', () => {
       it('does not move the total by a cent', () => {
         seedFrom(customOrder());
 
-        expect(component.editOrderForm.tax).toBe(SPLIT_TAX);
-        expect(component.editOrderForm.total).toBe(TYPED);
-        expect(component.editOrderTotalInput).toBe(TYPED);
+        expect(component.editOrderForm().tax).toBe(SPLIT_TAX);
+        expect(component.editOrderForm().total).toBe(TYPED);
+        expect(component.editOrderTotalInput()).toBe(TYPED);
       });
 
       it('carries the stored tax onto the DTO so the save lands on the same figure', () => {
@@ -922,28 +945,30 @@ describe('OrdersComponent', () => {
       it('keeps holding while only tips move, since tips sit outside the taxed amount', () => {
         seedFrom(customOrder());
 
-        component.editOrderForm.tips = 20;
+        component.editOrderForm().tips = 20;
+        component.editOrderForm.set(component.editOrderForm());
         component.recalculateEditPricing();
 
-        expect(component.editOrderForm.tax).toBe(SPLIT_TAX);
-        expect(component.editOrderForm.total).toBe(round2(TYPED + 20));
+        expect(component.editOrderForm().tax).toBe(SPLIT_TAX);
+        expect(component.editOrderForm().total).toBe(round2(TYPED + 20));
       });
 
       it('hands pricing back to the rate math the moment the subtotal moves', () => {
         seedFrom(customOrder());
 
-        component.editOrderForm.subTotal = 400;
+        component.editOrderForm().subTotal = 400;
+        component.editOrderForm.set(component.editOrderForm());
         component.onEditSubTotalChange();
 
         expect(component.editOrderTaxOverride).toBeNull();
-        expect(component.editOrderForm.tax).toBe(round2(400 * 0.08875));
+        expect(component.editOrderForm().tax).toBe(round2(400 * 0.08875));
       });
 
       it('sends nothing for an ordinary order, whose stored tax already IS the rate math', () => {
         seedFrom(plainOrder());
 
         expect(component.editOrderTaxOverride).toBeNull();
-        expect(component.editOrderForm.total).toBe(217.75);
+        expect(component.editOrderForm().total).toBe(217.75);
       });
 
       it('survives an extras change, which on a custom order moves no money at all', () => {
@@ -951,15 +976,15 @@ describe('OrdersComponent', () => {
         // recalcSubtotalFromServicesAndExtras deliberately leaves the subtotal untouched — so
         // nothing invalidates the split tax. Clearing it anyway made ticking an extra onto a
         // $300.00 job re-derive the tax and charge $300.01.
-        component.serviceTypesCache = [{ id: 4, isCustom: true } as any];
+        component.serviceTypesCache.set([{ id: 4, isCustom: true } as any]);
         seedFrom(customOrder({ serviceTypeId: 4, services: [], extraServices: [] }));
 
         component.recalcSubtotalFromServicesAndExtras();
 
         expect(component.editOrderTaxOverride).not.toBeNull();
-        expect(component.editOrderForm.subTotal).toBe(SPLIT_SUBTOTAL);
-        expect(component.editOrderForm.tax).toBe(SPLIT_TAX);
-        expect(component.editOrderForm.total).toBe(TYPED);
+        expect(component.editOrderForm().subTotal).toBe(SPLIT_SUBTOTAL);
+        expect(component.editOrderForm().tax).toBe(SPLIT_TAX);
+        expect(component.editOrderForm().total).toBe(TYPED);
       });
 
       it('still corrects a stored tax that is more than a cent out', () => {
@@ -968,7 +993,7 @@ describe('OrdersComponent', () => {
         seedFrom(customOrder({ tax: 0 }));
 
         expect(component.editOrderTaxOverride).toBeNull();
-        expect(component.editOrderForm.tax).toBe(round2(SPLIT_SUBTOTAL * 0.08875));
+        expect(component.editOrderForm().tax).toBe(round2(SPLIT_SUBTOTAL * 0.08875));
       });
     });
 
@@ -977,14 +1002,14 @@ describe('OrdersComponent', () => {
       // would be solving for — so a typed figure has two equally valid readings. Points and
       // rewards have no such problem.
       openEditorOn(plainOrder());
-      component.editGiftCardAmountToUse = 30;
+      component.editGiftCardAmountToUse.set(30);
       expect(component.canEditTotalDirectly()).toBe(false);
 
-      component.editGiftCardAmountToUse = 0;
-      component.editGiftCardOriginalUsed = 30;
+      component.editGiftCardAmountToUse.set(0);
+      component.editGiftCardOriginalUsed.set(30);
       expect(component.canEditTotalDirectly()).toBe(false);
 
-      component.editGiftCardOriginalUsed = 0;
+      component.editGiftCardOriginalUsed.set(0);
       expect(component.canEditTotalDirectly()).toBe(true);
     });
   });
@@ -999,56 +1024,57 @@ describe('OrdersComponent', () => {
 
     beforeEach(() => {
       adminService = TestBed.inject(AdminService);
-      component.userPermissions = {
+      component.userPermissions.set({
         role: 'Admin',
         permissions: { canView: true, canCreate: true, canUpdate: true, canDelete: false }
-      } as any;
-      component.viewingOrderId = 7;
+      } as any);
+      component.viewingOrderId.set(7);
     });
 
     it('sends null when the box is cleared, so the row is deleted rather than stored empty', () => {
       const save = vi.spyOn(adminService, 'updateOrderAdminNotes').mockReturnValue(of({ orderId: 7 } as any));
-      component.orderNoteDraft = '   ';
-      (component as any).orderNoteSaved = 'gate code 4412';
+      component.orderNoteDraft.set('   ');
+      (component as any).orderNoteSaved.set('gate code 4412');
 
       component.saveOrderNote();
 
       expect(save).toHaveBeenCalledWith(7, null);
-      expect(component.orderNoteDraft).toBe('');
+      expect(component.orderNoteDraft()).toBe('');
     });
 
     it('trims before saving, and a whitespace-only edit of an empty note is not dirty', () => {
       const save = vi.spyOn(adminService, 'updateOrderAdminNotes').mockReturnValue(of({ orderId: 7, notes: 'dog on site' } as any));
 
-      component.orderNoteDraft = '  dog on site  ';
-      expect(component.orderNoteDirty).toBe(true);
+      component.orderNoteDraft.set('  dog on site  ');
+      expect(component.orderNoteDirty()).toBe(true);
 
       component.saveOrderNote();
 
       expect(save).toHaveBeenCalledWith(7, 'dog on site');
       // Saved text is echoed back, so the Save button goes quiet again.
-      expect(component.orderNoteDirty).toBe(false);
+      expect(component.orderNoteDirty()).toBe(false);
     });
 
     it('ignores a response that arrives after the panel moved to another order', () => {
       vi.spyOn(adminService, 'updateOrderAdminNotes').mockImplementation((..._args: any[]) => {
-        component.viewingOrderId = 9;
+        component.viewingOrderId.set(9);
         return of({ orderId: 7, notes: 'stale' } as any);
       });
 
-      component.orderNoteDraft = 'stale';
+      component.orderNoteDraft.set('stale');
       component.saveOrderNote();
 
       // Order 7's text must not be painted into order 9's panel.
-      expect(component.orderNoteDraft).toBe('stale');
-      expect((component as any).orderNoteSaved).toBe('');
+      expect(component.orderNoteDraft()).toBe('stale');
+      expect((component as any).orderNoteSaved()).toBe('');
     });
 
     it('refuses to save without update rights, mirroring the endpoint permission', () => {
       const save = vi.spyOn(adminService, 'updateOrderAdminNotes').mockReturnValue(undefined as any);
-      component.userPermissions.permissions.canUpdate = false;
-      component.isSuperAdmin = false;
-      component.orderNoteDraft = 'not allowed';
+      component.userPermissions().permissions.canUpdate = false;
+      component.userPermissions.set(component.userPermissions());
+      component.isSuperAdmin.set(false);
+      component.orderNoteDraft.set('not allowed');
 
       component.saveOrderNote();
 
@@ -1143,19 +1169,21 @@ describe('OrdersComponent', () => {
    */
   describe('per-cleaner duration', () => {
     const selectOrder = (over: any = {}) => {
-      component.selectedOrder = {
+      component.selectedOrder.set({
         // cleanerTotalSalary carries what the server would have stored for this shape
         // (720 min / 2 cleaners x $21 = $252), because the panel now READS that column rather
         // than recomputing it - see the "cleaners total salary" block below.
         id: 900, totalDuration: 710, maidsCount: 2, cleanerHourlyRate: 21,
         cleanerTotalSalary: 252, hasCleanersService: false, ...over
-      } as any;
+      } as any);
     };
 
     const assign = (orderId: number, count: number) => {
-      component.assignedCleanersCache.set(
+      component.assignedCleanersCache().set(
         orderId, Array.from({ length: count }, (_, i) => ({ cleanerId: i + 1 })) as any);
-      component.cleanersLoadedSet.add(orderId);
+      component.assignedCleanersCache.set(component.assignedCleanersCache());
+      component.cleanersLoadedSet().add(orderId);
+      component.cleanersLoadedSet.set(component.cleanersLoadedSet());
     };
 
     it('halves the total it just displayed, not the raw stored minutes', () => {
@@ -1207,7 +1235,7 @@ describe('OrdersComponent', () => {
     it('widens the edit-form hint by the assignments, not just the typed count', () => {
       selectOrder({ maidsCount: 2, totalDuration: 720 });
       assign(900, 3);
-      component.editOrderForm = { ...(component.editOrderForm as any), totalDuration: 720, maidsCount: 2 } as any;
+      component.editOrderForm.set({ ...(component.editOrderForm() as any), totalDuration: 720, maidsCount: 2 } as any);
 
       // Typing 2 into Maids does not un-assign the third cleaner, and payroll still pays
       // three ways — so the hint must not promise 6h each.
@@ -1227,17 +1255,19 @@ describe('OrdersComponent', () => {
    */
   describe('cleaners total salary', () => {
     const selectOrder = (over: any = {}) => {
-      component.selectedOrder = {
+      component.selectedOrder.set({
         id: 315, totalDuration: 480, maidsCount: 2, cleanerHourlyRate: 25,
         cleanerTotalSalary: 175, hasCleanersService: false, ...over
-      } as any;
-      component.viewingOrderId = component.selectedOrder!.id;
+      } as any);
+      component.viewingOrderId.set(component.selectedOrder()!.id);
     };
 
     const assign = (orderId: number, count: number) => {
-      component.assignedCleanersCache.set(
+      component.assignedCleanersCache().set(
         orderId, Array.from({ length: count }, (_, i) => ({ cleanerId: i + 1 })) as any);
-      component.cleanersLoadedSet.add(orderId);
+      component.assignedCleanersCache.set(component.assignedCleanersCache());
+      component.cleanersLoadedSet().add(orderId);
+      component.cleanersLoadedSet.set(component.cleanersLoadedSet());
     };
 
     const line = (over: any = {}) => ({
@@ -1257,8 +1287,10 @@ describe('OrdersComponent', () => {
 
     it('falls back to the estimate only when the assignment list is known to be empty', () => {
       selectOrder({ cleanerTotalSalary: 0 });
-      component.assignedCleanersCache.set(315, [] as any);
-      component.cleanersLoadedSet.add(315);
+      component.assignedCleanersCache().set(315, [] as any);
+      component.assignedCleanersCache.set(component.assignedCleanersCache());
+      component.cleanersLoadedSet().add(315);
+      component.cleanersLoadedSet.set(component.cleanersLoadedSet());
 
       // Nobody assigned: no per-cleaner rows exist to be wrong about, so the pre-assignment
       // estimate is the best answer available.
@@ -1275,36 +1307,38 @@ describe('OrdersComponent', () => {
     it('does not overwrite the stored figure when the edit form is recalculated', () => {
       selectOrder();
       assign(315, 2);
-      component.editOrderForm = {
+      component.editOrderForm.set({
         totalDuration: 480, maidsCount: 2, cleanerHourlyRate: 25, cleanerTotalSalary: 175
-      } as any;
+      } as any);
 
       component.recalcCleanerTotalSalary();
 
-      expect(component.editOrderForm.cleanerTotalSalary).toBe(175);
+      expect(component.editOrderForm().cleanerTotalSalary).toBe(175);
       expect(component.canEditCleanerTotalSalary()).toBe(false);
     });
 
     it('still recalculates the estimate before anybody is assigned', () => {
       selectOrder({ cleanerTotalSalary: 0 });
-      component.assignedCleanersCache.set(315, [] as any);
-      component.cleanersLoadedSet.add(315);
-      component.editOrderForm = {
+      component.assignedCleanersCache().set(315, [] as any);
+      component.assignedCleanersCache.set(component.assignedCleanersCache());
+      component.cleanersLoadedSet().add(315);
+      component.cleanersLoadedSet.set(component.cleanersLoadedSet());
+      component.editOrderForm.set({
         totalDuration: 480, maidsCount: 2, cleanerHourlyRate: 25, cleanerTotalSalary: 0
-      } as any;
+      } as any);
 
       component.recalcCleanerTotalSalary();
 
-      expect(component.editOrderForm.cleanerTotalSalary).toBe(200);
+      expect(component.editOrderForm().cleanerTotalSalary).toBe(200);
       expect(component.canEditCleanerTotalSalary()).toBe(true);
     });
 
     it('omits cleanerTotalSalary from the save DTO once cleaners are assigned', () => {
       selectOrder();
       assign(315, 2);
-      component.editOrderForm = {
-        ...(component.editOrderForm as any), cleanerTotalSalary: 175, cleanerHourlyRate: 25
-      } as any;
+      component.editOrderForm.set({
+        ...(component.editOrderForm() as any), cleanerTotalSalary: 175, cleanerHourlyRate: 25
+      } as any);
 
       const dto = (component as any).buildOrderEditDto();
 
@@ -1317,23 +1351,25 @@ describe('OrdersComponent', () => {
 
     it('sends cleanerTotalSalary while the order is still unstaffed', () => {
       selectOrder({ cleanerTotalSalary: 0 });
-      component.assignedCleanersCache.set(315, [] as any);
-      component.cleanersLoadedSet.add(315);
-      component.editOrderForm = {
-        ...(component.editOrderForm as any), cleanerTotalSalary: 200, cleanerHourlyRate: 25
-      } as any;
+      component.assignedCleanersCache().set(315, [] as any);
+      component.assignedCleanersCache.set(component.assignedCleanersCache());
+      component.cleanersLoadedSet().add(315);
+      component.cleanersLoadedSet.set(component.cleanersLoadedSet());
+      component.editOrderForm.set({
+        ...(component.editOrderForm() as any), cleanerTotalSalary: 200, cleanerHourlyRate: 25
+      } as any);
 
       expect((component as any).buildOrderEditDto().cleanerTotalSalary).toBe(200);
     });
 
     it('lists the unstaffed slots so the breakdown adds up to the total', () => {
       selectOrder();
-      component.selectedOrderPayroll = {
+      component.selectedOrderPayroll.set({
         orderId: 315, totalSalary: 275, storedTotalSalary: 275, splitCount: 3, assignedCount: 2,
         automaticMinutesPerCleaner: 240, orderHourlyRate: 25,
         lines: [line(), line({ cleanerId: 2, firstName: 'Marekh', billableMinutes: 180, hoursOverridden: true, rateOverridden: true, salary: 75 })],
         unassignedLines: [line({ cleanerId: 0, firstName: '', lastName: '', isUnassignedSlot: true, salary: 100 })]
-      } as any;
+      } as any);
 
       const rows = component.getOrderPayrollLines();
       expect(rows.length).toBe(3);
@@ -1346,14 +1382,15 @@ describe('OrdersComponent', () => {
 
     it('flags a breakdown that disagrees with the column Statistics reads', () => {
       selectOrder();
-      component.selectedOrderPayroll = {
+      component.selectedOrderPayroll.set({
         orderId: 315, totalSalary: 175, storedTotalSalary: 200, splitCount: 2, assignedCount: 2,
         automaticMinutesPerCleaner: 240, orderHourlyRate: 25, lines: [], unassignedLines: []
-      } as any;
+      } as any);
 
       expect(component.payrollDisagreesWithStored()).toBe(true);
 
-      component.selectedOrderPayroll!.storedTotalSalary = 175;
+      component.selectedOrderPayroll()!.storedTotalSalary = 175;
+      component.selectedOrderPayroll.set(component.selectedOrderPayroll());
       expect(component.payrollDisagreesWithStored()).toBe(false);
     });
 
@@ -1375,22 +1412,22 @@ describe('OrdersComponent', () => {
       });
 
       const admin = (role: string, canUpdate = true) => {
-        component.isSuperAdmin = role === 'SuperAdmin';
-        component.userRole = role;
-        component.userPermissions = { role, permissions: { canUpdate } } as any;
+        component.isSuperAdmin.set(role === 'SuperAdmin');
+        component.userRole.set(role);
+        component.userPermissions.set({ role, permissions: { canUpdate } } as any);
       };
 
       it('shows the wages to an Admin, not only to a SuperAdmin', () => {
         // Admins staff the jobs and take the "we worked till six" call, so a breakdown they
         // cannot see is a number they have to ask somebody else to check.
         admin('Admin');
-        expect(component.canViewCleanerPayroll).toBe(true);
+        expect(component.canViewCleanerPayroll()).toBe(true);
         expect(component.canEditCleanerPayroll).toBe(true);
       });
 
       it('keeps a Moderator out — the endpoint answers them 403', () => {
         admin('Moderator', false);
-        expect(component.canViewCleanerPayroll).toBe(false);
+        expect(component.canViewCleanerPayroll()).toBe(false);
         expect(component.canEditCleanerPayroll).toBe(false);
       });
 
@@ -1399,46 +1436,46 @@ describe('OrdersComponent', () => {
         // some other number.
         admin('SuperAdmin');
         selectOrder();
-        component.selectedOrderPayroll = payroll() as any;
+        component.selectedOrderPayroll.set(payroll() as any);
 
-        component.startEditPayrollLine(component.selectedOrderPayroll!.lines[0]);
+        component.startEditPayrollLine(component.selectedOrderPayroll()!.lines[0]);
 
-        expect(component.payrollEditingCleanerId).toBe(11);
-        expect(component.payrollEditHours).toBe(4);   // 240 minutes
-        expect(component.payrollEditRate).toBe(25);
+        expect(component.payrollEditingCleanerId()).toBe(11);
+        expect(component.payrollEditHours()).toBe(4);   // 240 minutes
+        expect(component.payrollEditRate()).toBe(25);
       });
 
       it('never opens an editor on an unstaffed slot — there is no row to override', () => {
         admin('SuperAdmin');
         selectOrder();
-        component.selectedOrderPayroll = payroll() as any;
+        component.selectedOrderPayroll.set(payroll() as any);
 
-        component.startEditPayrollLine(component.selectedOrderPayroll!.unassignedLines[0]);
+        component.startEditPayrollLine(component.selectedOrderPayroll()!.unassignedLines[0]);
 
-        expect(component.payrollEditingCleanerId).toBeNull();
+        expect(component.payrollEditingCleanerId()).toBeNull();
       });
 
       it('sends hours in MINUTES and carries the new stored total back onto the order', () => {
         admin('SuperAdmin');
         selectOrder();
-        component.selectedOrderPayroll = payroll() as any;
+        component.selectedOrderPayroll.set(payroll() as any);
 
         const updated = payroll({ storedTotalSalary: 281.25, totalSalary: 281.25 });
         const svc = TestBed.inject(AdminService);
         const spy = vi.spyOn(svc, 'updateOrderCleanerPayroll').mockReturnValue(of(updated as any));
         vi.spyOn(svc, 'getOrdersStaffingWarnings').mockReturnValue(of({}));
 
-        component.startEditPayrollLine(component.selectedOrderPayroll!.lines[0]);
-        component.payrollEditHours = 4.25;
-        component.savePayrollLine(component.selectedOrderPayroll!.lines[0]);
+        component.startEditPayrollLine(component.selectedOrderPayroll()!.lines[0]);
+        component.payrollEditHours.set(4.25);
+        component.savePayrollLine(component.selectedOrderPayroll()!.lines[0]);
 
         expect(spy).toHaveBeenCalledWith(315, 11, {
           hourlyRate: 25, billableMinutes: 255, updateHourlyRate: true, updateBillableMinutes: true
         });
         // The panel's headline reads Order.CleanerTotalSalary, so leaving it stale would have it
         // contradict the lines directly beneath it.
-        expect(component.selectedOrder!.cleanerTotalSalary).toBe(281.25);
-        expect(component.payrollEditingCleanerId).toBeNull();
+        expect(component.selectedOrder()!.cleanerTotalSalary).toBe(281.25);
+        expect(component.payrollEditingCleanerId()).toBeNull();
       });
 
       it('carries the new figures onto the list row behind the panel', () => {
@@ -1446,7 +1483,7 @@ describe('OrdersComponent', () => {
         // not leave the list quoting the salary from before the edit.
         selectOrder();
         const row = { id: 315, cleanerTotalSalary: 250, cleanerHourlyRate: 25 } as any;
-        component.orders = [row];
+        component.orders.set([row]);
 
         (component as any).applyPayrollTotalsToOrder(315, payroll({
           storedTotalSalary: 281.25, orderHourlyRate: 28
@@ -1454,10 +1491,10 @@ describe('OrdersComponent', () => {
 
         expect(row.cleanerTotalSalary).toBe(281.25);
         expect(row.cleanerHourlyRate).toBe(28);
-        expect(component.selectedOrder!.cleanerHourlyRate).toBe(28);
+        expect(component.selectedOrder()!.cleanerHourlyRate).toBe(28);
 
         // Rendering a partial row through the real table template is not what this test is about.
-        component.orders = [];
+        component.orders.set([]);
       });
 
       it('clears an override with nulls rather than re-typing the automatic figure', () => {
@@ -1465,13 +1502,13 @@ describe('OrdersComponent', () => {
         // does not. That difference is the whole reason "reset" sends null.
         admin('SuperAdmin');
         selectOrder();
-        component.selectedOrderPayroll = payroll() as any;
+        component.selectedOrderPayroll.set(payroll() as any);
 
         const svc = TestBed.inject(AdminService);
         const spy = vi.spyOn(svc, 'updateOrderCleanerPayroll').mockReturnValue(of(payroll() as any));
         vi.spyOn(svc, 'getOrdersStaffingWarnings').mockReturnValue(of({}));
 
-        component.resetPayrollLineToAutomatic(component.selectedOrderPayroll!.lines[1]);
+        component.resetPayrollLineToAutomatic(component.selectedOrderPayroll()!.lines[1]);
 
         expect(spy).toHaveBeenCalledWith(315, 12, {
           hourlyRate: null, billableMinutes: null, updateHourlyRate: true, updateBillableMinutes: true
@@ -1487,7 +1524,7 @@ describe('OrdersComponent', () => {
         beforeEach(() => {
           admin('SuperAdmin');
           selectOrder();
-          component.selectedOrderPayroll = payroll() as any;
+          component.selectedOrderPayroll.set(payroll() as any);
         });
 
         it('seeds hours from the AUTOMATIC split and the rate from the order', () => {
@@ -1495,8 +1532,8 @@ describe('OrdersComponent', () => {
           // one person's exception to the whole crew.
           component.startEditPayrollForAll();
 
-          expect(component.payrollAllHoursInput).toBe(4);   // 240 minutes
-          expect(component.payrollAllRateInput).toBe(25);
+          expect(component.payrollAllHoursInput()).toBe(4);   // 240 minutes
+          expect(component.payrollAllRateInput()).toBe(25);
         });
 
         it('sends ONLY the hours when only the hours moved', () => {
@@ -1509,7 +1546,7 @@ describe('OrdersComponent', () => {
           vi.spyOn(svc, 'getOrdersStaffingWarnings').mockReturnValue(of({}));
 
           component.startEditPayrollForAll();
-          component.payrollAllHoursInput = 4.25;
+          component.payrollAllHoursInput.set(4.25);
           component.savePayrollForAll();
 
           expect(hoursSpy).toHaveBeenCalledWith(315, 255);
@@ -1523,7 +1560,7 @@ describe('OrdersComponent', () => {
           vi.spyOn(svc, 'getOrdersStaffingWarnings').mockReturnValue(of({}));
 
           component.startEditPayrollForAll();
-          component.payrollAllRateInput = 28;
+          component.payrollAllRateInput.set(28);
           component.savePayrollForAll();
 
           expect(rateSpy).toHaveBeenCalledWith(315, 28);
@@ -1546,14 +1583,14 @@ describe('OrdersComponent', () => {
           vi.spyOn(svc, 'getOrdersStaffingWarnings').mockReturnValue(of({}));
 
           component.startEditPayrollForAll();
-          component.payrollAllHoursInput = 4.25;
-          component.payrollAllRateInput = 28;
+          component.payrollAllHoursInput.set(4.25);
+          component.payrollAllRateInput.set(28);
           component.savePayrollForAll();
 
           expect(calls).toEqual(['rate', 'hours']);
           // The LAST response is the state after both changes.
-          expect(component.selectedOrder!.cleanerTotalSalary).toBe(300);
-          expect(component.editingPayrollForAll).toBe(false);
+          expect(component.selectedOrder()!.cleanerTotalSalary).toBe(300);
+          expect(component.editingPayrollForAll()).toBe(false);
         });
 
         it('saving an untouched editor writes nothing at all', () => {
@@ -1567,15 +1604,15 @@ describe('OrdersComponent', () => {
 
           expect(hoursSpy).not.toHaveBeenCalled();
           expect(rateSpy).not.toHaveBeenCalled();
-          expect(component.editingPayrollForAll).toBe(false);
+          expect(component.editingPayrollForAll()).toBe(false);
         });
 
         it('still sets the order rate with nobody assigned, and asks for no hours', () => {
           // There is no assignment row for an override to live on, but the rate is worth setting
           // ahead of staffing the job.
-          component.selectedOrderPayroll = payroll({
+          component.selectedOrderPayroll.set(payroll({
             assignedCount: 0, lines: [], unassignedLines: []
-          }) as any;
+          }) as any);
 
           const svc = TestBed.inject(AdminService);
           const hoursSpy = vi.spyOn(svc, 'updateOrderCleanerHours').mockReturnValue(undefined as any);
@@ -1583,7 +1620,7 @@ describe('OrdersComponent', () => {
           vi.spyOn(svc, 'getOrdersStaffingWarnings').mockReturnValue(of({}));
 
           component.startEditPayrollForAll();
-          component.payrollAllRateInput = 28;
+          component.payrollAllRateInput.set(28);
           component.savePayrollForAll();
 
           expect(rateSpy).toHaveBeenCalledWith(315, 28);
@@ -1592,11 +1629,11 @@ describe('OrdersComponent', () => {
 
         it('opening it closes a half-typed line editor', () => {
           // Two half-typed figures on screen invite saving the wrong one.
-          component.startEditPayrollLine(component.selectedOrderPayroll!.lines[0]);
+          component.startEditPayrollLine(component.selectedOrderPayroll()!.lines[0]);
           component.startEditPayrollForAll();
 
-          expect(component.payrollEditingCleanerId).toBeNull();
-          expect(component.editingPayrollForAll).toBe(true);
+          expect(component.payrollEditingCleanerId()).toBeNull();
+          expect(component.editingPayrollForAll()).toBe(true);
         });
 
         it('reports a rejected write beside the block, not in the page banner', () => {
@@ -1604,11 +1641,11 @@ describe('OrdersComponent', () => {
           vi.spyOn(svc, 'updateOrderCleanerHours').mockReturnValue(throwError(() => ({ error: { message: 'Nobody is assigned to this order yet.' } })));
 
           component.startEditPayrollForAll();
-          component.payrollAllHoursInput = 5;
+          component.payrollAllHoursInput.set(5);
           component.savePayrollForAll();
 
-          expect(component.payrollError).toBe('Nobody is assigned to this order yet.');
-          expect(component.errorMessage).toBe('');
+          expect(component.payrollError()).toBe('Nobody is assigned to this order yet.');
+          expect(component.errorMessage()).toBe('');
         });
       });
 
@@ -1617,7 +1654,7 @@ describe('OrdersComponent', () => {
         beforeEach(() => {
           admin('SuperAdmin');
           selectOrder();
-          component.selectedOrderPayroll = payroll() as any;
+          component.selectedOrderPayroll.set(payroll() as any);
         });
 
         it('writes the new count and copies it back onto the order', () => {
@@ -1627,13 +1664,13 @@ describe('OrdersComponent', () => {
           vi.spyOn(svc, 'getOrdersStaffingWarnings').mockReturnValue(of({}));
 
           component.startEditMaidsCount();
-          expect(component.maidsCountInput).toBe(2);
-          component.maidsCountInput = 3;
+          expect(component.maidsCountInput()).toBe(2);
+          component.maidsCountInput.set(3);
           component.saveMaidsCount();
 
           expect(spy).toHaveBeenCalledWith(315, 3);
-          expect(component.selectedOrder!.maidsCount).toBe(3);
-          expect(component.editingMaidsCount).toBe(false);
+          expect(component.selectedOrder()!.maidsCount).toBe(3);
+          expect(component.editingMaidsCount()).toBe(false);
         });
 
         it('saving the same count writes nothing', () => {
@@ -1643,33 +1680,33 @@ describe('OrdersComponent', () => {
           component.saveMaidsCount();
 
           expect(spy).not.toHaveBeenCalled();
-          expect(component.editingMaidsCount).toBe(false);
+          expect(component.editingMaidsCount()).toBe(false);
         });
 
         it('refuses zero or a fraction without calling the server', () => {
           const spy = vi.spyOn(TestBed.inject(AdminService), 'updateOrderMaidsCount').mockReturnValue(undefined as any);
 
           component.startEditMaidsCount();
-          component.maidsCountInput = 0;
+          component.maidsCountInput.set(0);
           component.saveMaidsCount();
-          component.maidsCountInput = 1.5;
+          component.maidsCountInput.set(1.5);
           component.saveMaidsCount();
 
           expect(spy).not.toHaveBeenCalled();
-          expect(component.payrollError).toContain('whole number');
+          expect(component.payrollError()).toContain('whole number');
         });
 
         it('is not offered on a cleaner+hours order, whose count is its priced Cleaners line', () => {
-          (component.selectedOrder as any).hasCleanersService = true;
+          (component.selectedOrder() as any).hasCleanersService = true;
           expect(component.canEditMaidsCountFromWages()).toBe(false);
         });
       });
 
       it('lets only a SuperAdmin type into the discount boxes in Edit Order', () => {
         admin('SuperAdmin');
-        expect(component.canEditOrderDiscounts).toBe(true);
+        expect(component.canEditOrderDiscounts()).toBe(true);
         admin('Admin');
-        expect(component.canEditOrderDiscounts).toBe(false);
+        expect(component.canEditOrderDiscounts()).toBe(false);
       });
 
       it('says the change reaches everyone, including lines set by hand', () => {
@@ -1677,9 +1714,9 @@ describe('OrdersComponent', () => {
         // dropped back onto the order's. What it still cannot move earns its own sentence — an
         // unstaffed slot has no row for an override, and a paid line keeps what it was paid at.
         selectOrder();
-        component.selectedOrderPayroll = payroll({
+        component.selectedOrderPayroll.set(payroll({
           lines: [line({ orderCleanerId: 11 }), line({ orderCleanerId: 12, rateOverridden: true })]
-        }) as any;
+        }) as any);
 
         const reach = component.payrollForAllReach();
         expect(reach).toContain('including any set by hand');
@@ -1710,17 +1747,17 @@ describe('OrdersComponent', () => {
     } as any);
 
     beforeEach(() => {
-      component.staffingWarningsByOrderId = new Map([[315, [RATE_WARNING, UNPAID_WARNING]]]);
+      component.staffingWarningsByOrderId.set(new Map([[315, [RATE_WARNING, UNPAID_WARNING]]]));
     });
 
     it('renders the server-built warnings verbatim in the detail panel', () => {
-      component.selectedOrder = row();
+      component.selectedOrder.set(row());
 
       expect(component.getOrderStaffingWarnings()).toEqual([RATE_WARNING, UNPAID_WARNING]);
     });
 
     it('shows nothing rather than an all-clear for an order it has no answer for', () => {
-      component.selectedOrder = row({ id: 999 });
+      component.selectedOrder.set(row({ id: 999 }));
 
       // An absent warning list is not the same claim as "nothing is wrong", so the block has to
       // disappear entirely rather than render as a clean bill of health.
@@ -1750,7 +1787,7 @@ describe('OrdersComponent', () => {
     });
 
     it('still shows the marker for the long-job flag alone, exactly as before', () => {
-      component.staffingWarningsByOrderId = new Map();
+      component.staffingWarningsByOrderId.set(new Map());
       const order = row({ totalDuration: 900 });
 
       expect(component.hasStaffingWarnings(order)).toBe(true);
@@ -1759,7 +1796,7 @@ describe('OrdersComponent', () => {
     });
 
     it('hides the marker when nothing is wrong', () => {
-      component.staffingWarningsByOrderId = new Map();
+      component.staffingWarningsByOrderId.set(new Map());
 
       expect(component.hasStaffingWarnings(row({ totalDuration: 300 }))).toBe(false);
     });
@@ -1770,41 +1807,41 @@ describe('OrdersComponent', () => {
      * leave the stale entry showing a problem that no longer exists.
      */
     it('drops a resolved order\'s warnings on a targeted refresh', () => {
-      component.staffingWarningsByOrderId = new Map([[315, [UNPAID_WARNING]], [316, [RATE_WARNING]]]);
+      component.staffingWarningsByOrderId.set(new Map([[315, [UNPAID_WARNING]], [316, [RATE_WARNING]]]));
 
       (component as any).applyStaffingWarnings({}, [315]);
 
-      expect(component.staffingWarningsByOrderId.has(315)).toBe(false);
+      expect(component.staffingWarningsByOrderId().has(315)).toBe(false);
       // An order the refresh did not ask about is left exactly as it was.
-      expect(component.staffingWarningsByOrderId.get(316)).toEqual([RATE_WARNING]);
+      expect(component.staffingWarningsByOrderId().get(316)).toEqual([RATE_WARNING]);
     });
 
     it('replaces the whole cache on a full load', () => {
-      component.staffingWarningsByOrderId = new Map([[999, [UNPAID_WARNING]]]);
+      component.staffingWarningsByOrderId.set(new Map([[999, [UNPAID_WARNING]]]));
 
       (component as any).applyStaffingWarnings({ '315': [RATE_WARNING] });
 
-      expect(component.staffingWarningsByOrderId.get(315)).toEqual([RATE_WARNING]);
-      expect(component.staffingWarningsByOrderId.has(999)).toBe(false);
+      expect(component.staffingWarningsByOrderId().get(315)).toEqual([RATE_WARNING]);
+      expect(component.staffingWarningsByOrderId().has(999)).toBe(false);
     });
 
     /** Moderators are View-only and do not staff orders; the endpoint would 403 them. */
     it('only fetches for Admin and SuperAdmin', () => {
       const spy = vi.spyOn(component['adminService'], 'getOrdersStaffingWarnings')
         .mockReturnValue(of({}));
-      component.orders = [row()];
+      component.orders.set([row()]);
 
-      component.isSuperAdmin = false;
-      component.userRole = 'Moderator';
+      component.isSuperAdmin.set(false);
+      component.userRole.set('Moderator');
       (component as any).preloadStaffingWarnings();
       expect(spy).not.toHaveBeenCalled();
 
-      component.userRole = 'Admin';
+      component.userRole.set('Admin');
       (component as any).preloadStaffingWarnings();
       expect(spy).toHaveBeenCalledTimes(1);
 
-      component.isSuperAdmin = true;
-      component.userRole = 'SuperAdmin';
+      component.isSuperAdmin.set(true);
+      component.userRole.set('SuperAdmin');
       (component as any).preloadStaffingWarnings();
       expect(spy).toHaveBeenCalledTimes(2);
     });
@@ -1824,10 +1861,10 @@ describe('OrdersComponent', () => {
     };
 
     beforeEach(() => {
-      component.availableCleaners = [CLEAN, CONFLICTED] as any;
-      component.assigningOrderId = 315;
-      component.selectedCleaners = [];
-      component.acknowledgeScheduleConflicts = false;
+      component.availableCleaners.set([CLEAN, CONFLICTED] as any);
+      component.assigningOrderId.set(315);
+      component.selectedCleaners.set([]);
+      component.acknowledgeScheduleConflicts.set(false);
     });
 
     it('lets a conflicting cleaner be selected', () => {
@@ -1842,7 +1879,7 @@ describe('OrdersComponent', () => {
       component.toggleCleanerSelection(2);
       expect(component.conflictAcknowledgementOwed).toBe(true);
 
-      component.acknowledgeScheduleConflicts = true;
+      component.acknowledgeScheduleConflicts.set(true);
       expect(component.conflictAcknowledgementOwed).toBe(false);
     });
 
@@ -1859,31 +1896,31 @@ describe('OrdersComponent', () => {
      */
     it('drops the acknowledgement when the last conflicting cleaner is de-selected', () => {
       component.toggleCleanerSelection(2);
-      component.acknowledgeScheduleConflicts = true;
+      component.acknowledgeScheduleConflicts.set(true);
 
       component.toggleCleanerSelection(2);
 
-      expect(component.acknowledgeScheduleConflicts).toBe(false);
+      expect(component.acknowledgeScheduleConflicts()).toBe(false);
     });
 
     it('keeps the acknowledgement while another conflicting cleaner is still picked', () => {
-      component.availableCleaners = [CLEAN, CONFLICTED, { ...CONFLICTED, id: 3 }] as any;
+      component.availableCleaners.set([CLEAN, CONFLICTED, { ...CONFLICTED, id: 3 }] as any);
       component.toggleCleanerSelection(2);
       component.toggleCleanerSelection(3);
-      component.acknowledgeScheduleConflicts = true;
+      component.acknowledgeScheduleConflicts.set(true);
 
       component.toggleCleanerSelection(3);
 
-      expect(component.acknowledgeScheduleConflicts).toBe(true);
+      expect(component.acknowledgeScheduleConflicts()).toBe(true);
     });
 
     it('clears the acknowledgement when the modal is closed', () => {
       component.toggleCleanerSelection(2);
-      component.acknowledgeScheduleConflicts = true;
+      component.acknowledgeScheduleConflicts.set(true);
 
       component.closeCleanerModal();
 
-      expect(component.acknowledgeScheduleConflicts).toBe(false);
+      expect(component.acknowledgeScheduleConflicts()).toBe(false);
     });
 
     /**
@@ -1894,7 +1931,7 @@ describe('OrdersComponent', () => {
       expect(component.availableCleanersFiltered.map(c => c.id)).toEqual([1]);
       expect(component.hiddenBusyCleanersCount).toBe(1);
 
-      component.showBusyCleaners = true;
+      component.showBusyCleaners.set(true);
       expect(component.availableCleanersFiltered.map(c => c.id)).toEqual([1, 2]);
     });
 
@@ -1906,9 +1943,9 @@ describe('OrdersComponent', () => {
       component.assignCleanersToOrder();
       expect(vi.mocked(spy).mock.lastCall![4]).toBe(false);
 
-      component.selectedCleaners = [2];
-      component.acknowledgeScheduleConflicts = true;
-      component.assigningOrderId = 315;
+      component.selectedCleaners.set([2]);
+      component.acknowledgeScheduleConflicts.set(true);
+      component.assigningOrderId.set(315);
       component.assignCleanersToOrder();
       expect(vi.mocked(spy).mock.lastCall![4]).toBe(true);
     });
@@ -1921,7 +1958,7 @@ describe('OrdersComponent', () => {
       component.assignCleanersToOrder();
 
       expect(spy).not.toHaveBeenCalled();
-      expect(component.errorMessage).toContain('Confirm the schedule conflict');
+      expect(component.errorMessage()).toContain('Confirm the schedule conflict');
     });
   });
 
@@ -1939,8 +1976,10 @@ describe('OrdersComponent', () => {
     let removeSpy: MockInstance;
 
     beforeEach(() => {
-      component.assignedCleanersCache.set(315, [NOTIFIED, UNNOTIFIED] as any);
-      component.cleanersLoadedSet.add(315);
+      component.assignedCleanersCache().set(315, [NOTIFIED, UNNOTIFIED] as any);
+      component.assignedCleanersCache.set(component.assignedCleanersCache());
+      component.cleanersLoadedSet().add(315);
+      component.cleanersLoadedSet.set(component.cleanersLoadedSet());
 
       const adminService = TestBed.inject(AdminService);
       vi.spyOn(adminService, 'getAssignedCleanersWithIds').mockReturnValue(of([]));
@@ -1973,7 +2012,7 @@ describe('OrdersComponent', () => {
 
       component.removeCleanerFromOrder(315, 2, 'Marekh Tabidze');
 
-      expect(component.successMessage).toContain('No email was sent');
+      expect(component.successMessage()).toContain('No email was sent');
     });
 
     it('says the cleaner was notified when the server sent the mail', () => {
@@ -1982,7 +2021,7 @@ describe('OrdersComponent', () => {
 
       component.removeCleanerFromOrder(315, 1, 'Maia Niauri');
 
-      expect(component.successMessage).toContain('notified via email');
+      expect(component.successMessage()).toContain('notified via email');
     });
   });
 });
@@ -2029,39 +2068,39 @@ describe('OrdersComponent — part-payments', () => {
   });
 
   it('hides the Payments card on an order with no balance and no history', () => {
-    component.selectedOrder = { id: 7, total: 2743.65 } as any;
-    component.partialBalance = { ...BALANCE, canRequestPartialPayment: false, amountPaid: 0 };
+    component.selectedOrder.set({ id: 7, total: 2743.65 } as any);
+    component.partialBalance.set({ ...BALANCE, canRequestPartialPayment: false, amountPaid: 0 });
 
     expect(component.showPartialPaymentsCard).toBe(false);
   });
 
   it('shows the Payments card once money has arrived in slices', () => {
-    component.selectedOrder = { id: 7, total: 2743.65 } as any;
-    component.partialBalance = {
+    component.selectedOrder.set({ id: 7, total: 2743.65 } as any);
+    component.partialBalance.set({
       ...BALANCE, canRequestPartialPayment: false, amountPaid: 1000, amountDue: 1743.65,
       isPartiallyPaid: true
-    };
+    });
 
     expect(component.showPartialPaymentsCard).toBe(true);
   });
 
   it('refuses an empty amount without troubling the server', () => {
-    component.selectedOrder = { id: 7 } as any;
-    component.partialBalance = BALANCE;
+    component.selectedOrder.set({ id: 7 } as any);
+    component.partialBalance.set(BALANCE);
     const spy = vi.spyOn(adminService, 'requestPartialPayment').mockReturnValue(undefined as any);
 
-    component.partialAmountInput = null;
+    component.partialAmountInput.set(null);
     component.requestPartialPayment();
 
     expect(spy).not.toHaveBeenCalled();
-    expect(component.partialPaymentError).toContain('amount');
+    expect(component.partialPaymentError()).toContain('amount');
   });
 
   it('carries the new balance back to the list row, not just the panel', () => {
-    component.viewingOrderId = 7;
-    component.selectedOrder = { id: 7, total: 2743.65 } as any;
-    component.partialBalance = BALANCE;
-    component.orders = [{ id: 7, total: 2743.65, amountPaid: 0, isPartiallyPaid: false } as any];
+    component.viewingOrderId.set(7);
+    component.selectedOrder.set({ id: 7, total: 2743.65 } as any);
+    component.partialBalance.set(BALANCE);
+    component.orders.set([{ id: 7, total: 2743.65, amountPaid: 0, isPartiallyPaid: false } as any]);
 
     const updated = { ...BALANCE, amountPaid: 1000, amountDue: 1743.65, isPartiallyPaid: true };
     vi.spyOn(adminService, 'requestPartialPayment').mockReturnValue(of({
@@ -2075,25 +2114,25 @@ describe('OrdersComponent — part-payments', () => {
       id: 7, total: 2743.65, amountPaid: 1000, amountDue: 1743.65, isPartiallyPaid: true
     }) as any);
 
-    component.partialAmountInput = 1000;
+    component.partialAmountInput.set(1000);
     component.requestPartialPayment();
 
-    expect(component.partialBalance!.amountDue).toBe(1743.65);
-    expect(component.orders[0].amountPaid).toBe(1000);
-    expect(component.orders[0].isPartiallyPaid).toBe(true);
+    expect(component.partialBalance()!.amountDue).toBe(1743.65);
+    expect(component.orders()[0].amountPaid).toBe(1000);
+    expect(component.orders()[0].isPartiallyPaid).toBe(true);
     // The form is cleared so the same amount can't be sent twice by a second click.
-    expect(component.partialAmountInput).toBeNull();
+    expect(component.partialAmountInput()).toBeNull();
   });
 
   it('surfaces the server\'s reason when a request is refused', () => {
-    component.selectedOrder = { id: 7 } as any;
-    component.partialBalance = BALANCE;
+    component.selectedOrder.set({ id: 7 } as any);
+    component.partialBalance.set(BALANCE);
     vi.spyOn(adminService, 'requestPartialPayment').mockReturnValue(throwError(() => ({ error: { message: 'That is more than the $1743.65 still owed on this order.' } })));
 
-    component.partialAmountInput = 5000;
+    component.partialAmountInput.set(5000);
     component.requestPartialPayment();
 
-    expect(component.partialPaymentError).toContain('1743.65');
+    expect(component.partialPaymentError()).toContain('1743.65');
   });
 
   it('labels a part-paid row with both figures', () => {
@@ -2133,7 +2172,7 @@ describe('OrdersComponent — additional amount owed after a down-then-up edit',
 
   /** The order as it stands now: initialTotal is what was actually PAID ($500.00). */
   function seedOrder359(history: any[]): void {
-    component.selectedOrder = {
+    component.selectedOrder.set({
       id: 359,
       total: 2743.65,
       tips: 0,
@@ -2144,8 +2183,8 @@ describe('OrdersComponent — additional amount owed after a down-then-up edit',
       isPaid: true,
       status: 'Pending',
       paymentMethod: 'Normal'
-    } as any;
-    component.orderUpdateHistory = history as any;
+    } as any);
+    component.orderUpdateHistory.set(history as any);
   }
 
   const DOWN_ROW_LEGACY = {
@@ -2173,15 +2212,15 @@ describe('OrdersComponent — additional amount owed after a down-then-up edit',
   });
 
   it('still deducts an additional the customer genuinely paid', () => {
-    component.selectedOrder = {
+    component.selectedOrder.set({
       id: 360, total: 650, tips: 0, companyDevelopmentTips: 0,
       initialTotal: 300, initialTips: 0, initialCompanyDevelopmentTips: 0,
       isPaid: true, status: 'Pending', paymentMethod: 'Normal'
-    } as any;
-    component.orderUpdateHistory = [
+    } as any);
+    component.orderUpdateHistory.set([
       { id: 1, originalTotal: 300, newTotal: 500, additionalAmount: 200, isPaid: true },
       { id: 2, originalTotal: 500, newTotal: 650, additionalAmount: 150, isPaid: false }
-    ] as any;
+    ] as any);
 
     expect(component.getUnpaidAdditionalAmount()).toBe(150);
   });
@@ -2189,27 +2228,27 @@ describe('OrdersComponent — additional amount owed after a down-then-up edit',
   /** Order #386: a tip added after payment is owed like any other increase — the tip-free sum
    * read $0.00, so no Send button appeared for the "Unpaid +$270.00" row. */
   it('counts a tip added after payment as money owed', () => {
-    component.selectedOrder = {
+    component.selectedOrder.set({
       id: 386, total: 1750, tips: 270, companyDevelopmentTips: 0,
       initialTotal: 1150, initialTips: 0, initialCompanyDevelopmentTips: 0,
       isPaid: true, status: 'Pending', paymentMethod: 'Normal'
-    } as any;
-    component.orderUpdateHistory = [
+    } as any);
+    component.orderUpdateHistory.set([
       { id: 1, originalTotal: 1150, newTotal: 1480, additionalAmount: 330, isPaid: true },
       { id: 2, originalTotal: 1480, newTotal: 1750, additionalAmount: 270, isPaid: false }
-    ] as any;
+    ] as any);
 
     expect(component.getUnpaidAdditionalAmount()).toBe(270);
     expect(component.shouldShowPaymentReminderRow()).toBe(true);
   });
 
   it('never reports a negative amount owed on an order that only got cheaper', () => {
-    component.selectedOrder = {
+    component.selectedOrder.set({
       id: 361, total: 500, tips: 0, companyDevelopmentTips: 0,
       initialTotal: 2743.65, initialTips: 0, initialCompanyDevelopmentTips: 0,
       isPaid: true, status: 'Active', paymentMethod: 'Normal'
-    } as any;
-    component.orderUpdateHistory = [DOWN_ROW_LEGACY] as any;
+    } as any);
+    component.orderUpdateHistory.set([DOWN_ROW_LEGACY] as any);
 
     expect(component.getUnpaidAdditionalAmount()).toBe(0);
     expect(component.shouldShowPaymentReminderRow()).toBe(false);
@@ -2288,8 +2327,8 @@ describe('OrdersComponent — levels price like booking', () => {
     fixture = TestBed.createComponent(OrdersComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
-    component.isSuperAdmin = true;
-    component.serviceTypesCache = [RESIDENTIAL, MOVE, HEAVY];
+    component.isSuperAdmin.set(true);
+    component.serviceTypesCache.set([RESIDENTIAL, MOVE, HEAVY]);
   });
 
   /** An apartment order exactly as booking stores it: bedrooms, bathrooms, sq.ft - no levels line. */
@@ -2301,14 +2340,14 @@ describe('OrdersComponent — levels price like booking', () => {
       { service: def('sqft'), quantity: sqft }
     ];
     const quote = calculateQuote(buildQuoteInputFromSelections(st, selections, []));
-    component.selectedOrder = {
+    component.selectedOrder.set({
       id: 77, serviceTypeId: st.id, propertyType: 'Apartment', levelsQuantity: null,
       services: selections.map((sel, i) => ({ id: 1000 + i, serviceId: sel.service.id, serviceName: sel.service.name,
         serviceKey: sel.service.serviceKey, quantity: sel.quantity, cost: quote.serviceLines[i].cost })),
       extraServices: [], subTotal: quote.subTotal, tax: 0, total: quote.subTotal, tips: 0,
       discountAmount: 0, subscriptionDiscountAmount: 0, loyaltyDiscountAmount: 0, totalDuration: quote.displayDuration,
       maidsCount: 1, serviceDate: '2026-11-02T00:00:00', serviceTime: '10:00:00', status: 'Active'
-    } as any;
+    } as any);
     component.startEditOrder();
     return selections;
   }
@@ -2320,13 +2359,14 @@ describe('OrdersComponent — levels price like booking', () => {
     return calculateQuote(buildQuoteInputFromSelections(st, all, [])).subTotal;
   }
 
-  const levelsRowIndex = () => component.editOrderForm.services!.findIndex((_r, i) =>
+  const levelsRowIndex = () => component.editOrderForm().services!.findIndex((_r, i) =>
     component.getEditServiceDefinition(i)?.serviceKey === 'levels');
 
   function setLevels(n: number) {
     const i = levelsRowIndex();
-    const row = component.editOrderForm.services![i];
+    const row = component.editOrderForm().services![i];
     row.quantity = n;
+    component.editOrderForm.set(component.editOrderForm());
     component.onEditServiceQuantityChange(row, i);
   }
 
@@ -2334,28 +2374,30 @@ describe('OrdersComponent — levels price like booking', () => {
     describe(st.name, () => {
       it('adds the priced Levels row on House, and every level count prices like booking', () => {
         const selections = openApartmentOrder(st, 2, 1, 850);
-        const apartmentSubTotal = component.editOrderForm.subTotal;
+        const apartmentSubTotal = component.editOrderForm().subTotal;
         expect(apartmentSubTotal).toBe(bookingSubTotal(st, selections, null));
 
-        component.editOrderForm.propertyType = 'House';
+        component.editOrderForm().propertyType = 'House';
+        component.editOrderForm.set(component.editOrderForm());
         component.onEditPropertyTypeChange();
 
         expect(levelsRowIndex()).toBe(3); // appended after the order's own rows
         expect(component.showEditInformationalLevels()).toBe(false);
         // One level is included: a one-level house costs exactly what the apartment did.
-        expect(component.editOrderForm.subTotal).toBe(bookingSubTotal(st, selections, 1));
-        expect(component.editOrderForm.subTotal).toBe(apartmentSubTotal);
+        expect(component.editOrderForm().subTotal).toBe(bookingSubTotal(st, selections, 1));
+        expect(component.editOrderForm().subTotal).toBe(apartmentSubTotal);
 
         [2, 3, 4].forEach(n => {
           setLevels(n);
-          expect(component.editOrderForm.subTotal).toBe(bookingSubTotal(st, selections, n));
+          expect(component.editOrderForm().subTotal).toBe(bookingSubTotal(st, selections, n));
         });
-        expect(component.editOrderForm.subTotal).toBe(round2(apartmentSubTotal! + 3 * 35));
+        expect(component.editOrderForm().subTotal).toBe(round2(apartmentSubTotal! + 3 * 35));
       });
 
       it('sends the added row so the server can persist it, and diff-lists it', () => {
         openApartmentOrder(st, 2, 1, 850);
-        component.editOrderForm.propertyType = 'House';
+        component.editOrderForm().propertyType = 'House';
+        component.editOrderForm.set(component.editOrderForm());
         component.onEditPropertyTypeChange();
         setLevels(3);
 
@@ -2363,81 +2405,88 @@ describe('OrdersComponent — levels price like booking', () => {
         const added = dto.services.find((s: any) => !s.orderServiceId);
         expect(added).toEqual(expect.objectContaining({ orderServiceId: 0, serviceId: LEVELS_ID + st.id, quantity: 3, cost: 70 }));
         expect(added.duration).toBe(50);
-        expect(dto.subTotal).toBe(component.editOrderForm.subTotal);
+        expect(dto.subTotal).toBe(component.editOrderForm().subTotal);
 
-        const changes = component.computeOrderEditChanges(component.selectedOrder, dto);
+        const changes = component.computeOrderEditChanges(component.selectedOrder(), dto);
         expect(changes.find(c => c.field === 'Levels')).toEqual(expect.objectContaining({ current: '—', proposed: '3' }));
         expect(changes.some(c => c.field === 'Levels (new) (qty/cost)')).toBe(true);
       });
 
       it('takes the added row away again on Apartment, back to the apartment price', () => {
         const selections = openApartmentOrder(st, 2, 1, 850);
-        component.editOrderForm.propertyType = 'House';
+        component.editOrderForm().propertyType = 'House';
+        component.editOrderForm.set(component.editOrderForm());
         component.onEditPropertyTypeChange();
         setLevels(4);
 
-        component.editOrderForm.propertyType = 'Apartment';
+        component.editOrderForm().propertyType = 'Apartment';
+        component.editOrderForm.set(component.editOrderForm());
         component.onEditPropertyTypeChange();
 
         expect(levelsRowIndex()).toBe(-1);
-        expect(component.editOrderForm.services!.length).toBe(3);
-        expect(component.editOrderForm.subTotal).toBe(bookingSubTotal(st, selections, null));
+        expect(component.editOrderForm().services!.length).toBe(3);
+        expect(component.editOrderForm().subTotal).toBe(bookingSubTotal(st, selections, null));
       });
 
       it('keeps levels inside the range booking offers (1-4)', () => {
         openApartmentOrder(st, 2, 1, 850);
-        component.editOrderForm.propertyType = 'House';
+        component.editOrderForm().propertyType = 'House';
+        component.editOrderForm.set(component.editOrderForm());
         component.onEditPropertyTypeChange();
         setLevels(9);
-        expect(component.editOrderForm.services![levelsRowIndex()].quantity).toBe(4);
+        expect(component.editOrderForm().services![levelsRowIndex()].quantity).toBe(4);
         setLevels(0);
-        expect(component.editOrderForm.services![levelsRowIndex()].quantity).toBe(1);
+        expect(component.editOrderForm().services![levelsRowIndex()].quantity).toBe(1);
       });
 
       it('turns a studio into 1 bedroom on House, like booking', () => {
         const selections = openApartmentOrder(st, 0, 1, 400);
-        component.editOrderForm.propertyType = 'House';
+        component.editOrderForm().propertyType = 'House';
+        component.editOrderForm.set(component.editOrderForm());
         component.onEditPropertyTypeChange();
 
-        expect(component.editOrderForm.services![0].quantity).toBe(1);
+        expect(component.editOrderForm().services![0].quantity).toBe(1);
         // Sq.ft follows the bedroom floor (400 -> 650), exactly as booking's linkage does.
-        expect(component.editOrderForm.services![2].quantity).toBe(650);
+        expect(component.editOrderForm().services![2].quantity).toBe(650);
         const house = [{ ...selections[0], quantity: 1 }, selections[1], { ...selections[2], quantity: 650 }];
-        expect(component.editOrderForm.subTotal).toBe(bookingSubTotal(st, house, 1));
+        expect(component.editOrderForm().subTotal).toBe(bookingSubTotal(st, house, 1));
       });
     });
   });
 
   it('leaves levels informational, and the price alone, on a type that does not price them', () => {
     const selections = openApartmentOrder(HEAVY, 2, 1, 850);
-    component.editOrderForm.propertyType = 'House';
+    component.editOrderForm().propertyType = 'House';
+    component.editOrderForm.set(component.editOrderForm());
     component.onEditPropertyTypeChange();
 
     expect(levelsRowIndex()).toBe(-1);
     expect(component.showEditInformationalLevels()).toBe(true);
     expect(component.editLevelsArePriced()).toBe(false);
-    component.editOrderForm.levelsQuantity = 3;
+    component.editOrderForm().levelsQuantity = 3;
+    component.editOrderForm.set(component.editOrderForm());
     component.onEditInformationalLevelsChange();
-    expect(component.editOrderForm.subTotal).toBe(bookingSubTotal(HEAVY, selections, null));
+    expect(component.editOrderForm().subTotal).toBe(bookingSubTotal(HEAVY, selections, null));
   });
 
   it('turns a house order saved WITHOUT its Levels row priced the moment the count changes', () => {
     // Only the old bug could produce this: a house on a priced type with an informational count.
     const selections = openApartmentOrder(RESIDENTIAL, 2, 1, 850);
-    (component.selectedOrder as any).propertyType = 'House';
-    (component.selectedOrder as any).levelsQuantity = 3;
+    (component.selectedOrder() as any).propertyType = 'House';
+    (component.selectedOrder() as any).levelsQuantity = 3;
     component.startEditOrder();
 
     // Opening the editor moves nothing...
     expect(component.showEditInformationalLevels()).toBe(true);
     expect(component.editLevelsArePriced()).toBe(true);
-    expect(component.editOrderForm.subTotal).toBe(bookingSubTotal(RESIDENTIAL, selections, null));
+    expect(component.editOrderForm().subTotal).toBe(bookingSubTotal(RESIDENTIAL, selections, null));
 
     // ...and touching the count adds the priced row at that count.
-    component.editOrderForm.levelsQuantity = 2;
+    component.editOrderForm().levelsQuantity = 2;
+    component.editOrderForm.set(component.editOrderForm());
     component.onEditInformationalLevelsChange();
     expect(component.showEditInformationalLevels()).toBe(false);
-    expect(component.editOrderForm.subTotal).toBe(bookingSubTotal(RESIDENTIAL, selections, 2));
+    expect(component.editOrderForm().subTotal).toBe(bookingSubTotal(RESIDENTIAL, selections, 2));
   });
 });
 
@@ -2456,8 +2505,8 @@ describe('OrdersComponent — edits price like booking (2026-10)', () => {
     const fixture = TestBed.createComponent(OrdersComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
-    component.isSuperAdmin = true;
-    component.serviceTypesCache = [ST];
+    component.isSuperAdmin.set(true);
+    component.serviceTypesCache.set([ST]);
   });
 
   const subTotalOf = (bed: number, bath: number) => calculateQuote(buildQuoteInputFromSelections(ST,
@@ -2467,7 +2516,7 @@ describe('OrdersComponent — edits price like booking (2026-10)', () => {
   function open(discount: { amount: number; percent?: number | null; fixed?: number | null }) {
     const quote = calculateQuote(buildQuoteInputFromSelections(ST,
       [{ service: BED, quantity: 2 }, { service: BATH, quantity: 1 }], []));
-    component.selectedOrder = {
+    component.selectedOrder.set({
       id: 88, serviceTypeId: 1, propertyType: 'Apartment', levelsQuantity: null,
       services: [{ id: 1, serviceId: 10, serviceName: 'Bedrooms', serviceKey: 'bedrooms', quantity: 2, cost: quote.serviceLines[0].cost },
                  { id: 2, serviceId: 20, serviceName: 'Bathrooms', serviceKey: 'bathrooms', quantity: 1, cost: quote.serviceLines[1].cost }],
@@ -2475,13 +2524,14 @@ describe('OrdersComponent — edits price like booking (2026-10)', () => {
       discountAmount: discount.amount, discountPercent: discount.percent ?? null, discountFixedAmount: discount.fixed ?? null,
       subscriptionDiscountAmount: 0, loyaltyDiscountAmount: 0, totalDuration: quote.displayDuration,
       maidsCount: 1, serviceDate: '2026-11-02T00:00:00', serviceTime: '10:00:00', status: 'Active'
-    } as any;
+    } as any);
     component.startEditOrder();
   }
 
   function setQuantity(index: number, quantity: number) {
-    const row = component.editOrderForm.services![index];
+    const row = component.editOrderForm().services![index];
     row.quantity = quantity;
+    component.editOrderForm.set(component.editOrderForm());
     component.onEditServiceQuantityChange(row, index);
   }
 
@@ -2490,45 +2540,47 @@ describe('OrdersComponent — edits price like booking (2026-10)', () => {
   it('keeps a FIXED promo fixed when the job grows (it used to scale with the subtotal)', () => {
     open({ amount: 30, fixed: 30 });
     setQuantity(1, 3);
-    expect(component.editOrderForm.subTotal).toBe(subTotalOf(2, 3));
-    expect(component.editOrderForm.discountAmount).toBe(30);
+    expect(component.editOrderForm().subTotal).toBe(subTotalOf(2, 3));
+    expect(component.editOrderForm().discountAmount).toBe(30);
   });
 
   it('recomputes a PERCENTAGE promo exactly like booking', () => {
     open({ amount: percentOf(subTotalOf(2, 1), 20), percent: 20 });
     setQuantity(0, 4);
-    expect(component.editOrderForm.discountAmount).toBe(percentOf(subTotalOf(4, 1), 20));
+    expect(component.editOrderForm().discountAmount).toBe(percentOf(subTotalOf(4, 1), 20));
   });
 
   it('keeps the proportional re-scale for an order with no recorded rule', () => {
     open({ amount: 30 });
     setQuantity(1, 3);
-    expect(component.editOrderForm.discountAmount).toBe(round2(subTotalOf(2, 3) * (30 / subTotalOf(2, 1))));
+    expect(component.editOrderForm().discountAmount).toBe(round2(subTotalOf(2, 3) * (30 / subTotalOf(2, 1))));
   });
 
   it('holds every stepper inside the range booking allows', () => {
     open({ amount: 0 });
     setQuantity(1, 9);   // bathrooms max 5
-    expect(component.editOrderForm.services![1].quantity).toBe(5);
+    expect(component.editOrderForm().services![1].quantity).toBe(5);
     setQuantity(1, 0);   // bathrooms min 1
-    expect(component.editOrderForm.services![1].quantity).toBe(1);
+    expect(component.editOrderForm().services![1].quantity).toBe(1);
     setQuantity(0, 12);  // bedrooms max 6
-    expect(component.editOrderForm.services![0].quantity).toBe(6);
-    expect(component.editOrderForm.subTotal).toBe(subTotalOf(6, 1));
+    expect(component.editOrderForm().services![0].quantity).toBe(6);
+    expect(component.editOrderForm().subTotal).toBe(subTotalOf(6, 1));
   });
 
   it('a house never steps below one bedroom', () => {
     open({ amount: 0 });
-    component.editOrderForm.propertyType = 'House';
+    component.editOrderForm().propertyType = 'House';
+    component.editOrderForm.set(component.editOrderForm());
     setQuantity(0, 0);
-    expect(component.editOrderForm.services![0].quantity).toBe(1);
+    expect(component.editOrderForm().services![0].quantity).toBe(1);
   });
 
   it('tells the server when the admin TYPED the price, and stops once the lines re-price it', () => {
     open({ amount: 0 });
     expect(dto().priceTypedByAdmin).toBeUndefined();
 
-    component.editOrderForm.subTotal = 400;
+    component.editOrderForm().subTotal = 400;
+    component.editOrderForm.set(component.editOrderForm());
     component.onEditSubTotalChange();
     expect(dto().priceTypedByAdmin).toBe(true);
     expect(dto().subTotal).toBe(400);
@@ -2540,7 +2592,7 @@ describe('OrdersComponent — edits price like booking (2026-10)', () => {
 
   it('a typed Total also counts as a typed price', () => {
     open({ amount: 0 });
-    component.editOrderTotalInput = 250;
+    component.editOrderTotalInput.set(250);
     component.onEditTotalChange();
     expect(dto().priceTypedByAdmin).toBe(true);
   });

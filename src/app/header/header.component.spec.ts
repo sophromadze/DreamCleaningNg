@@ -45,7 +45,7 @@ describe('HeaderComponent — stable layout from the first paint', () => {
 
   it('renders an admin\'s time pill and the WHOLE points badge before auth has resolved', async () => {
     const { header, el } = await create('ua');
-    expect(header.showAuthUI).toBe(false);
+    expect(header.showAuthUI()).toBe(false);
     expect(el.querySelector('.ny-time-clock')?.textContent?.trim()).toMatch(/^\d{1,2}:\d{2}$/);
     // Drawn, not just reserved (2026-10): frame, bubbles and "POINTS" are there; only the number
     // slot is empty until the summary loads.
@@ -89,8 +89,8 @@ describe('HeaderComponent — stable layout from the first paint', () => {
 
   it('switches to the real state once auth has resolved', async () => {
     const { fixture, header, el } = await create('ua');
-    header.showAuthUI = true;   // auth resolved: nobody is signed in after all
-    header.currentUser = null;
+    header.showAuthUI.set(true);   // auth resolved: nobody is signed in after all
+    header.currentUser.set(null);
     fixture.detectChanges();
     expect(el.querySelector('app-bubble-badge')).toBeNull();
     expect(header.clockVisible).toBe(false);
@@ -98,8 +98,8 @@ describe('HeaderComponent — stable layout from the first paint', () => {
 
   it('drops the badge slot when the points system turns out to be off', async () => {
     const { fixture, header, el } = await create('ua');
-    header.showAuthUI = true;
-    header.currentUser = { role: 'Admin', firstName: 'A', lastName: 'B' };
+    header.showAuthUI.set(true);
+    header.currentUser.set({ role: 'Admin', firstName: 'A', lastName: 'B' });
     header.onPointsBadgeAvailability(false);
     fixture.detectChanges();
     expect(el.querySelector('app-bubble-badge')).toBeNull();

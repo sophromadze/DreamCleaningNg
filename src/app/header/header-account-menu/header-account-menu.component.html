@@ -9,7 +9,7 @@
           </g>
         </svg>
       </div>
-      @if (header.isLoginMenuOpen) {
+      @if (header.isLoginMenuOpen()) {
       <div class="dropdown-menu" (click)="$event.stopPropagation()">
         <div class="guest-menu-header">
           <span>Theme</span>
@@ -38,23 +38,23 @@
   @if (header.shouldShowUserMenu()) {
   <div class="user-menu" (click)="header.toggleUserMenu($event)">
   <div class="user-avatar">
-    @if (header.currentUser?.profilePictureUrl) {
+    @if (header.currentUser()?.profilePictureUrl) {
     <img 
-         [src]="header.currentUser.profilePictureUrl" 
-         [alt]="header.currentUser.firstName + ' ' + header.currentUser.lastName"
+         [src]="header.currentUser().profilePictureUrl" 
+         [alt]="header.currentUser().firstName + ' ' + header.currentUser().lastName"
          class="user-avatar-img">
     }
-    @if (!header.currentUser?.profilePictureUrl) {
+    @if (!header.currentUser()?.profilePictureUrl) {
     <span class="user-initials">
-      {{ header.userInitials }}
+      {{ header.userInitials() }}
     </span>
     }
     <!-- Unpaid orders notification indicator -->
-    @if (header.hasUnpaidOrders) {
+    @if (header.hasUnpaidOrders()) {
     <span class="unpaid-orders-indicator"></span>
     }
     <!-- New order indicator for admins -->
-    @if (header.hasUnviewedNewOrders && header.isAdminOrSuperAdmin) {
+    @if (header.hasUnviewedNewOrders() && header.isAdminOrSuperAdmin) {
     <span class="new-order-indicator"></span>
     }
     <!--
@@ -76,17 +76,17 @@
       </g>
     </svg>
   </div>
-  @if (header.isUserMenuOpen) {
+  @if (header.isUserMenuOpen()) {
   <div class="dropdown-menu" (click)="$event.stopPropagation()">
     <div class="user-info">
       <div class="user-info__name">
-        {{ header.currentUser?.firstName }}
+        {{ header.currentUser()?.firstName }}
         <small class="user-role"
-               [class.role-superadmin]="header.currentUser?.role === 'SuperAdmin'"
-               [class.role-admin]="header.currentUser?.role === 'Admin'"
-               [class.role-moderator]="header.currentUser?.role === 'Moderator'"
-               [class.role-customer]="header.currentUser?.role === 'Customer'">
-          {{ header.displayRole($safeNavigationMigration(header.currentUser?.role)) }}
+               [class.role-superadmin]="header.currentUser()?.role === 'SuperAdmin'"
+               [class.role-admin]="header.currentUser()?.role === 'Admin'"
+               [class.role-moderator]="header.currentUser()?.role === 'Moderator'"
+               [class.role-customer]="header.currentUser()?.role === 'Customer'">
+          {{ header.displayRole($safeNavigationMigration(header.currentUser()?.role)) }}
         </small>
       </div>
       <button type="button" class="theme-toggle theme-toggle--inline" (click)="header.toggleTheme(); $event.stopPropagation()" [attr.aria-label]="header.isDark ? 'Switch to light mode' : 'Switch to dark mode'">
@@ -116,7 +116,7 @@
     @if (!header.isCleanerAccount) {
     <a routerLink="/profile" (click)="header.closeAllMenus(); $event.stopPropagation()" class="orders-menu-item">
       My Orders
-      @if (header.hasUnpaidOrders) {
+      @if (header.hasUnpaidOrders()) {
       <span class="unpaid-orders-menu-indicator"></span>
       }
     </a>
@@ -127,7 +127,7 @@
     <!-- Business customers only, and only once they actually have a contract. Driven
          by one cheap boolean endpoint that applies both halves of that rule, so a
          residential customer and a business with nothing on file both see nothing. -->
-    @if (!header.isCleanerAccount && header.hasContracts) {
+    @if (!header.isCleanerAccount && header.hasContracts()) {
     <a routerLink="/profile/contracts"
        (click)="header.closeAllMenus(); $event.stopPropagation()"
       >
@@ -137,24 +137,24 @@
     <!-- Its own boolean, not a reuse of hasContracts: commercial work is routinely
          invoiced without a signed agreement, and an agreement may have nothing billed
          against it yet. Each entry appears on its own evidence. -->
-    @if (!header.isCleanerAccount && header.hasInvoices) {
+    @if (!header.isCleanerAccount && header.hasInvoices()) {
     <a routerLink="/profile/invoices"
        (click)="header.closeAllMenus(); $event.stopPropagation()"
       >
       My Invoices
     </a>
     }
-    @if (header.currentUser?.role === 'SuperAdmin' || header.currentUser?.role === 'Admin' || header.currentUser?.role === 'Moderator') {
+    @if (header.currentUser()?.role === 'SuperAdmin' || header.currentUser()?.role === 'Admin' || header.currentUser()?.role === 'Moderator') {
     <a routerLink="/admin"
        (click)="header.closeAllMenus(); $event.stopPropagation()"
        class="admin-panel-menu-item">
       Admin Panel
-      @if (header.hasUnviewedNewOrders) {
+      @if (header.hasUnviewedNewOrders()) {
       <span class="new-order-menu-indicator"></span>
       }
     </a>
     }
-    @if (header.currentUser?.role === 'SuperAdmin' || header.currentUser?.role === 'Admin' || header.currentUser?.role === 'Moderator') {
+    @if (header.currentUser()?.role === 'SuperAdmin' || header.currentUser()?.role === 'Admin' || header.currentUser()?.role === 'Moderator') {
     <a routerLink="/admin/crm"
        (click)="header.closeAllMenus(); $event.stopPropagation()"
       >
@@ -165,7 +165,7 @@
          and Clients under Commercial. Role-gated the same way as CRM here; the
          Contracts permission matrix and the invoicing role checks are both enforced
          server-side on every action inside it. -->
-    @if (header.currentUser?.role === 'SuperAdmin' || header.currentUser?.role === 'Admin') {
+    @if (header.currentUser()?.role === 'SuperAdmin' || header.currentUser()?.role === 'Admin') {
     <a routerLink="/admin/commercial"
        (click)="header.closeAllMenus(); $event.stopPropagation()"
       >
@@ -184,24 +184,24 @@
     }
     <!-- SuperAdmin only: cleaner wages and the record of paying them. Gated on the
          role here and by superAdminGuard on the route. -->
-    @if (header.currentUser?.role === 'SuperAdmin') {
+    @if (header.currentUser()?.role === 'SuperAdmin') {
     <a routerLink="/admin/outgoing-payments"
        (click)="header.closeAllMenus(); $event.stopPropagation()"
       >
       Outgoing Payments
     </a>
     }
-    @if (header.currentUser?.role === 'SuperAdmin' || header.currentUser?.role === 'Admin' || header.currentUser?.role === 'Moderator') {
+    @if (header.currentUser()?.role === 'SuperAdmin' || header.currentUser()?.role === 'Admin' || header.currentUser()?.role === 'Moderator') {
     <a routerLink="/admin/blog"
        (click)="header.closeAllMenus(); $event.stopPropagation()"
        class="blog-menu-item">
       Blog
-      @if (header.pendingBlogDrafts > 0) {
-      <span class="pending-drafts-badge">{{ header.pendingBlogDrafts }}</span>
+      @if (header.pendingBlogDrafts() > 0) {
+      <span class="pending-drafts-badge">{{ header.pendingBlogDrafts() }}</span>
       }
     </a>
     }
-    @if (header.currentUser?.role === 'SuperAdmin' || header.currentUser?.role === 'Admin' || header.currentUser?.role === 'Moderator') {
+    @if (header.currentUser()?.role === 'SuperAdmin' || header.currentUser()?.role === 'Admin' || header.currentUser()?.role === 'Moderator') {
     <a routerLink="/cleaners-dashboard"
        (click)="header.closeAllMenus(); $event.stopPropagation()"
       >
@@ -230,7 +230,7 @@
         <span class="done-task-menu-indicator" *ngIf="header.hasUncheckedDoneTasks && !header.hasPendingPersonalTasks"></span>
       </a>
     -->
-    @if (header.currentUser?.role === 'SuperAdmin' || header.currentUser?.role === 'Admin') {
+    @if (header.currentUser()?.role === 'SuperAdmin' || header.currentUser()?.role === 'Admin') {
     <a routerLink="/admin/shifts"
        (click)="header.closeAllMenus(); $event.stopPropagation()"
       >

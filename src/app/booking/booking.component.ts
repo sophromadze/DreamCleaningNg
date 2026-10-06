@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ChangeDetectorRef, NgZone, PLATFORM_ID, afterNextRender, Injector, runInInjectionContext, ViewChild, ElementRef, inject, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef, NgZone, PLATFORM_ID, afterNextRender, Injector, runInInjectionContext, ElementRef, inject, ChangeDetectionStrategy, viewChild, signal, computed } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, FormControl, Validators, AbstractControl, ValidationErrors } from '@angular/forms';
 import { Router, RouterModule, ActivatedRoute } from '@angular/router';
@@ -132,6 +132,7 @@ import { faUserShield } from '../shared/icons/glyphs/faUserShield';
 import { faXmark } from '../shared/icons/glyphs/faXmark';
 import { setIntervalOutsideZone } from '../shared/zone-free-timers';
 import { debugTimersPaused } from '../shared/debug-timers';
+import { formViewRefresher } from '../shared/forms/form-view-refresher';
 
 /** Address-name presets. Anything that isn't one of the fixed labels is "Other" (free text). */
 type AddressNameType = 'Home' | 'Office' | 'Other';
@@ -193,10 +194,12 @@ export function adminMethodIsSettled(method: AdminBookingPaymentMethod): boolean
   // with no interceptors, so the service's calls skipped refresh-on-401 and session revocation.
   providers: [BookingService],
   templateUrl: './booking.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './booking.component.scss'
 })
 export class BookingComponent implements OnInit, OnDestroy {
+  /** Re-renders when a form changes outside a template event (see form-view-refresher). */
+  private readonly watchForm = formViewRefresher();
   private fb = inject(FormBuilder);
   private bookingService = inject(BookingService);
   private authService = inject(AuthService);
@@ -231,14 +234,14 @@ export class BookingComponent implements OnInit, OnDestroy {
   Math = Math;
 
   // Custom pricing properties - initialized with default values
-  showCustomPricing = false;
+  readonly showCustomPricing = signal(false);
   customAmount: FormControl = new FormControl('', [Validators.required, Validators.min(0.01)]);
   customCleaners: FormControl = new FormControl(1, [Validators.required, Validators.min(1), Validators.max(10)]);
   customDuration: FormControl = new FormControl(60, [Validators.required, Validators.min(60), Validators.max(480)]);
   // Admin-chosen display name for the custom ("Pre-Arranged") service type. Required while custom
   // pricing is shown. Options are built from the live DB service types (Residential -> Regular/Deep).
   customServiceName: FormControl = new FormControl('', [Validators.required]);
-  customServiceNameOptions: string[] = [];
+  readonly customServiceNameOptions = signal<string[]>([]);
   bedroomsQuantityControl: FormControl = new FormControl(0, [Validators.required, Validators.min(0), Validators.max(10)]);
   /** Custom pricing only: share the bedroom/bathroom counts with the customer (off by default). */
   showRoomCountsToCustomer: FormControl<boolean> = new FormControl(false, { nonNullable: true });
@@ -248,10 +251,10 @@ export class BookingComponent implements OnInit, OnDestroy {
   serviceTypeControl: FormControl = new FormControl('', [Validators.required]);
 
   // Data
-  serviceTypes: ServiceType[] = [];
+  readonly serviceTypes = signal<ServiceType[]>([]);
   /** Service types to show in the dropdown: Custom only for Admin/SuperAdmin. */
   get visibleServiceTypes(): ServiceType[] {
-    return this.serviceTypes.filter(st => !st.isCustom || this.isAdminOrSuperAdmin);
+    return this.serviceTypes().filter(st => !st.isCustom || this.isAdminOrSuperAdmin);
   }
 
   /**
@@ -285,24 +288,24 @@ export class BookingComponent implements OnInit, OnDestroy {
    * name money nobody is charging.
    */
   get showExtraServicePrices(): boolean {
-    return this.isAdminOrSuperAdmin && !this.showCustomPricing;
+    return this.isAdminOrSuperAdmin && !this.showCustomPricing();
   }
-  subscriptions: Subscription[] = [];
-  currentUser: any = null;
-  userApartments: any[] = [];
+  readonly subscriptions = signal<Subscription[]>([]);
+  readonly currentUser = signal<any>(null);
+  readonly userApartments = signal<any[]>([], { equal: () => false });
   adminOriginalApartments: any[] = []; // Store admin's apartments when selecting a user
   
   // Selected values
-  selectedServiceType: ServiceType | null = null;
-  selectedServices: SelectedService[] = [];
-  selectedExtraServices: SelectedExtraService[] = [];
+  readonly selectedServiceType = signal<ServiceType | null>(null);
+  readonly selectedServices = signal<SelectedService[]>([], { equal: () => false });
+  readonly selectedExtraServices = signal<SelectedExtraService[]>([], { equal: () => false });
 
   /**
    * Apartment/condo vs house/townhouse. NO DEFAULT - null means "not answered yet" and step 1
    * stays blocked until the customer picks one. Only asked when the selected service type
    * actually has a levels service (see serviceTypeHasLevels).
    */
-  propertyType: PropertyType | null = null;
+  readonly propertyType = signal<PropertyType | null>(null);
 
   /**
    * Levels to clean, for a house. NO DEFAULT, and deliberately NOT a member of selectedServices
@@ -315,7 +318,7 @@ export class BookingComponent implements OnInit, OnDestroy {
    * and a pre-feature saved session both arrive with null and are forced to answer, with no
    * special legacy branch anywhere.
    */
-  levelsQuantity: number | null = null;
+  readonly levelsQuantity = signal<number | null>(null);
 
   /**
    * Stands in for FormControl.touched on the property-type block.
@@ -329,41 +332,41 @@ export class BookingComponent implements OnInit, OnDestroy {
    * Cleared by clearCurrentStepValidationErrors alongside formSubmitted, so stepping back to
    * step 1 does not re-show a stale error.
    */
-  propertyTypeTouched = false;
+  readonly propertyTypeTouched = signal(false);
 
   readonly levelOptions = LEVEL_OPTIONS;
   readonly propertyTypeApartment = PROPERTY_TYPE_APARTMENT;
   readonly propertyTypeHouse = PROPERTY_TYPE_HOUSE;
-  selectedSubscription: Subscription | null = null;
+  readonly selectedSubscription = signal<Subscription | null>(null);
   // Saving a card is no longer asked on this form (2026-09): the question is put once, between
   // the Pay click and the charge, by the pre-payment "Save your card?" modal on the confirmation
   // page — where the card being saved is the card being typed.
   private billingService = inject(BillingService);
 
   // Special offers
-  userSpecialOffers: UserSpecialOffer[] = [];
+  readonly userSpecialOffers = signal<UserSpecialOffer[]>([]);
   firstTimeDiscountPercentage: number = 0; 
   hasFirstTimeDiscountOffer: boolean = false;
-  selectedSpecialOffer: UserSpecialOffer | null = null;
-  specialOfferApplied = false;
-  showGuestOfferLoginModal = false;
+  readonly selectedSpecialOffer = signal<UserSpecialOffer | null>(null);
+  readonly specialOfferApplied = signal(false);
+  readonly showGuestOfferLoginModal = signal(false);
 
   // Form
   bookingForm: FormGroup;
   
   // Calculation
-  calculation: BookingCalculation = {
+  readonly calculation = signal<BookingCalculation>({
     subTotal: 0,
     tax: 0,
     discountAmount: 0,
     tips: 0,
     total: 0,
     totalDuration: 0
-  };
+  });
   
   // UI state
   /** Granular loading flags for per-section shimmer (SSR: all start true so placeholders render). */
-  loading = {
+  readonly loading = signal({
     previousOrders: true,
     promoBanner: true,
     serviceTypes: true,
@@ -375,16 +378,16 @@ export class BookingComponent implements OnInit, OnDestroy {
     extras: true,
     summary: true,
     pricing: true,
-  };
+  }, { equal: () => false });
 
   // Step 1 confirmation: user didn't select Cleaning Supplies
-  showCleaningSuppliesConfirm = false;
+  readonly showCleaningSuppliesConfirm = signal(false);
   /** Used for extra-services shimmer placeholder count (matches card layout). */
   readonly shimmerExtraCardCount = [1, 2, 3, 4, 5];
   /** Number of service field shimmers to show (matches selected type, saved form, or default). */
   get serviceShimmerPlaceholderCount(): number[] {
-    if (this.selectedServiceType?.services?.length) {
-      const n = this.selectedServiceType.services.length;
+    if (this.selectedServiceType()?.services?.length) {
+      const n = this.selectedServiceType()!.services.length;
       return Array.from({ length: Math.min(Math.max(n, 1), 5) });
     }
     const saved = this.formPersistenceService.getFormData();
@@ -399,40 +402,40 @@ export class BookingComponent implements OnInit, OnDestroy {
 
   /** Default service type used for shimmer count when none selected yet (e.g. initial load → residential). */
   private getDefaultServiceTypeForShimmer(): ServiceType | null {
-    if (!this.serviceTypes?.length) return null;
+    if (!this.serviceTypes()?.length) return null;
     const saved = this.formPersistenceService.getFormData();
     if (saved?.selectedServiceTypeId) {
-      const st = this.serviceTypes.find(st => String(st.id) === String(saved.selectedServiceTypeId));
+      const st = this.serviceTypes().find(st => String(st.id) === String(saved.selectedServiceTypeId));
       if (st) return st;
     }
-    const residential = findResidentialServiceType(this.serviceTypes);
-    return residential ?? this.serviceTypes[0] ?? null;
+    const residential = findResidentialServiceType(this.serviceTypes());
+    return residential ?? this.serviceTypes()[0] ?? null;
   }
-  isLoading = false;
-  errorMessage = '';
-  isSameDaySelected = false;
-  serviceTypeDropdownOpen = false;
-  entryMethodDropdownOpen = false;
+  readonly isLoading = signal(false);
+  readonly errorMessage = signal('');
+  readonly isSameDaySelected = signal(false);
+  readonly serviceTypeDropdownOpen = signal(false);
+  readonly entryMethodDropdownOpen = signal(false);
   hasFirstTimeDiscount = false;
   firstTimeDiscountApplied = false;
-  promoCodeApplied = false;
-  promoDiscount = 0;
-  promoIsPercentage = true;
-  calculatedMaidsCount = 1;
+  readonly promoCodeApplied = signal(false);
+  readonly promoDiscount = signal(0);
+  readonly promoIsPercentage = signal(true);
+  readonly calculatedMaidsCount = signal(1);
   actualTotalDuration: number = 0;
   
   // Form step tracking
-  currentStep = 1;
+  readonly currentStep = signal(1);
   totalSteps = 3;
 
   // When arriving via ?cleaningType=deep (e.g. "most requested service" CTAs), preselect Deep Cleaning
   preselectDeepCleaning = false;
 
   // Google Places Autocomplete (step 3 address)
-  @ViewChild('addressAutocompleteContainer') addressContainer!: ElementRef;
+  readonly addressContainer = viewChild<ElementRef>('addressAutocompleteContainer');
   autocompleteLoaded = false;
-  autocompleteError = false;
-  showAddressFallbackAfterDelay = false;
+  readonly autocompleteError = signal(false);
+  readonly showAddressFallbackAfterDelay = signal(false);
   private addressFallbackTimer: ReturnType<typeof setTimeout> | null = null;
   private autocompleteInitRetryCount = 0;
   private static readonly AUTOCOMPLETE_INIT_MAX_RETRIES = 3;
@@ -444,7 +447,7 @@ export class BookingComponent implements OnInit, OnDestroy {
   // Extra services toggle
   showAllExtraServices = false;
   extraServicesToShow = 4; // Default for desktop, will be updated based on screen size
-  extraServicesContainerMaxWidth = 950; // Initial max-width in pixels (stays fixed above 1510px)
+  readonly extraServicesContainerMaxWidth = signal(950); // Initial max-width in pixels (stays fixed above 1510px)
   private resizeHandler = () => {
     this.updateExtraServicesToShow();
     this.updateExtraServicesContainerMaxWidth();
@@ -454,23 +457,23 @@ export class BookingComponent implements OnInit, OnDestroy {
   // Debug flags to prevent duplicate logs
 
 
-  uploadedPhotos: Array<{
+  readonly uploadedPhotos = signal<Array<{
     file: File;
     preview: SafeUrl;
     base64: string;
-  }> = [];
+  }>>([], { equal: () => false });
   maxPhotos = 12;
   maxFileSize = 15 * 1024 * 1024; // 15MB per photo
   readonly specialInstructionsMaxLength = 2000;
   // Must match Order.EntryMethod / CreateBookingDto.EntryMethod (500) on the backend.
   readonly entryMethodMaxLength = 500;
   acceptedFormats = 'image/jpeg,image/jpg,image/png,image/webp,image/gif,image/bmp,image/heic,image/heif';
-  isUploadingPhoto = false;
-  photoUploadError = '';
+  readonly isUploadingPhoto = signal(false);
+  readonly photoUploadError = signal('');
   isMobileDevice = false; // Will be updated in ngOnInit
   
   // Subscription-related properties
-  userSubscription: any = null;
+  readonly userSubscription = signal<any>(null, { equal: () => false });
 
   /**
    * The plan the customer chose on their profile's Plan tab. A PREFERENCE, not an entitlement:
@@ -481,35 +484,35 @@ export class BookingComponent implements OnInit, OnDestroy {
    * See DreamCleaningBackend/Helpers/PlanSelectionPolicy.
    */
   preferredSubscriptionId: number | null = null;
-  hasActiveSubscription = false;
-  nextOrderDiscount = 0;
-  nextOrderTotal = 0;
-  subscriptionDiscountAmount = 0;
-  promoOrFirstTimeDiscountAmount = 0;
+  readonly hasActiveSubscription = signal(false);
+  readonly nextOrderDiscount = signal(0);
+  readonly nextOrderTotal = signal(0);
+  readonly subscriptionDiscountAmount = signal(0);
+  readonly promoOrFirstTimeDiscountAmount = signal(0);
 
   // Loyalty Discount (re-engagement). Source-of-truth percentage lives on the user's account;
   // we fetch it once per user-context change (self login OR admin target switch). The booking
   // page never tells the customer WHY they have it — spec section 2.6 framing rules.
-  loyaltyDiscountPercentage = 0;
+  readonly loyaltyDiscountPercentage = signal(0);
   // Computed each calculateTotal() pass after stacking. Zero when subscription/promo/special
   // beats it.
-  loyaltyDiscountAmount = 0;
+  readonly loyaltyDiscountAmount = signal(0);
 
   // Gift card specific properties
-  giftCardApplied = false;
-  giftCardBalance = 0;
-  giftCardAmountToUse = 0;
-  isGiftCard = false;
+  readonly giftCardApplied = signal(false);
+  readonly giftCardBalance = signal(0);
+  readonly giftCardAmountToUse = signal(0);
+  readonly isGiftCard = signal(false);
 
   // Bubble Points redemption
-  bubblePointsOptions: RedemptionOption[] = [];
-  selectedPointsToRedeem = 0;
-  pointsDiscountAmount = 0;
-  userBubblePoints = 0;
-  userBubbleCredits = 0;
-  useCredits = false;
-  bubblePointsPerDollar = 0;
-  bubblePointsEnabled = false;
+  readonly bubblePointsOptions = signal<RedemptionOption[]>([]);
+  readonly selectedPointsToRedeem = signal(0);
+  readonly pointsDiscountAmount = signal(0);
+  readonly userBubblePoints = signal(0);
+  readonly userBubbleCredits = signal(0);
+  readonly useCredits = signal(false);
+  readonly bubblePointsPerDollar = signal(0);
+  readonly bubblePointsEnabled = signal(false);
   
   // Mobile tooltip management
   // Mobile tooltip state — shared machinery in shared/booking/extra-service-display.utils
@@ -517,28 +520,28 @@ export class BookingComponent implements OnInit, OnDestroy {
   mobileTooltips = new MobileTooltipManager(() => this.isCurrentlyMobile(), 3000);
   
   // Tip dropdown state
-  tipDropdownOpen = false;
+  readonly tipDropdownOpen = signal(false);
 
   // Address name: a Home / Office / Other picker sitting next to Zip Code. Home is the default;
   // "Other" swaps in a free-text field. The select is DERIVED from the apartmentName control
   // (see syncAddressNameType) because that control is also written programmatically by the
   // saved-address fill, reorder and the restored session — none of which fire (change).
-  addressNameType: AddressNameType = 'Home';
-  addressNameDropdownOpen = false;
-  cityDropdownOpen = false;
-  stateDropdownOpen = false;
-  savedAddressDropdownOpen = false;
-  @ViewChild('addressNameOtherInput') addressNameOtherInput?: ElementRef<HTMLInputElement>;
+  readonly addressNameType = signal<AddressNameType>('Home');
+  readonly addressNameDropdownOpen = signal(false);
+  readonly cityDropdownOpen = signal(false);
+  readonly stateDropdownOpen = signal(false);
+  readonly savedAddressDropdownOpen = signal(false);
+  readonly addressNameOtherInput = viewChild<ElementRef<HTMLInputElement>>('addressNameOtherInput');
 
   /**
    * The admin-mode customer search. Present only while admin mode is on (it sits inside an
    * `*ngIf`), which is why every use is optional-chained. Needed so a customer registered from
    * this page is in the list the admin is about to search.
    */
-  @ViewChild(AdminUserSearchComponent) adminUserSearch?: AdminUserSearchComponent;
+  readonly adminUserSearch = viewChild(AdminUserSearchComponent);
   
   // Booking summary collapse state
-  isSummaryCollapsed = true;
+  readonly isSummaryCollapsed = signal(true);
   /** When true, scroll handler won't close summary (avoids closing on open-button scrollIntoView). */
   private summaryJustOpened = false;
   /** When true, scroll handler won't close summary (avoids closing on promo/gift card apply/remove layout shift). */
@@ -546,7 +549,7 @@ export class BookingComponent implements OnInit, OnDestroy {
   
   
   // Extra info expansion state
-  isExtraInfoExpanded = false;
+  readonly isExtraInfoExpanded = signal(false);
   
   // Saved data for restoration
   savedCustomPricingData: any = null;
@@ -566,38 +569,38 @@ export class BookingComponent implements OnInit, OnDestroy {
   ];
 
   // Floor types
-  floorTypes: string[] = [];
-  floorTypeOther: string = '';
+  readonly floorTypes = signal<string[]>([]);
+  readonly floorTypeOther = signal<string>('');
 
-  pollQuestions: PollQuestion[] = [];
-  pollAnswers: { [key: number]: string } = {};
-  showPollForm = false;
-  pollFormSubmitted = false;
-  formSubmitted = false;
+  readonly pollQuestions = signal<PollQuestion[]>([]);
+  readonly pollAnswers = signal<{ [key: number]: string }>({}, { equal: () => false });
+  readonly showPollForm = signal(false);
+  readonly pollFormSubmitted = signal(false);
+  readonly formSubmitted = signal(false);
   
   // States and Cities - will be loaded from backend
-  states: string[] = [];
-  cities: string[] = [];
+  readonly states = signal<string[]>([]);
+  readonly cities = signal<string[]>([]);
 
   // Same Day Service availability properties
-  isSameDayServiceAvailable = true;
-  sameDayServiceDisabledReason = '';
+  readonly isSameDayServiceAvailable = signal(true);
+  readonly sameDayServiceDisabledReason = signal('');
 
   // Reorder functionality (widget UI lives in ReorderSectionComponent)
-  previousOrders: OrderList[] = [];
-  isLoadingOrders = false;
-  reorderingOrderId: number | null = null;
+  readonly previousOrders = signal<OrderList[]>([]);
+  readonly isLoadingOrders = signal(false);
+  readonly reorderingOrderId = signal<number | null>(null);
 
   // Blocked time slots (scheduling restrictions for non-admin users)
-  blockedTimeSlots: BlockedTimeSlot[] = [];
-  blockedFullDays: Set<string> = new Set();     // YYYY-MM-DD strings
-  blockedHoursMap: Map<string, Set<string>> = new Map(); // date -> set of "HH:mm"
+  readonly blockedTimeSlots = signal<BlockedTimeSlot[]>([]);
+  readonly blockedFullDays = signal<Set<string>>(new Set(), { equal: () => false });     // YYYY-MM-DD strings
+  readonly blockedHoursMap = signal<Map<string, Set<string>>>(new Map(), { equal: () => false }); // date -> set of "HH:mm"
 
   // Admin functionality
-  isAdmin = false;
+  readonly isAdmin = signal(false);
   isSuperAdmin = false;
-  isModerator = false;
-  isAdminMode = false;
+  readonly isModerator = signal(false);
+  readonly isAdminMode = signal(false);
 
   /**
    * Whether to offer the header's "Register Customer" button — the same action as the admin
@@ -605,10 +608,10 @@ export class BookingComponent implements OnInit, OnDestroy {
    * `GET api/admin/permissions` grants Create to Admin and SuperAdmin only (Moderators have
    * View), which is exactly who may see this, and it is the flag the endpoint itself enforces.
    */
-  canRegisterCustomers = false;
-  showRegisterCustomerModal = false;
+  readonly canRegisterCustomers = signal(false);
+  readonly showRegisterCustomerModal = signal(false);
   /** Transient confirmation after a customer is registered from this page. */
-  registeredCustomerMessage = '';
+  readonly registeredCustomerMessage = signal('');
 
   /**
    * Customers registered from this page during this session, fed to the admin search as
@@ -619,7 +622,7 @@ export class BookingComponent implements OnInit, OnDestroy {
    * the freshly created search box picks the list up from here. Session-scoped on purpose — after
    * a reload the server's own list is authoritative and these are redundant.
    */
-  registeredCustomers: UserAdmin[] = [];
+  readonly registeredCustomers = signal<UserAdmin[]>([]);
 
   // Consent copy — shared with the payment page's gate for admin-created orders, so both
   // surfaces always show the same wording (see shared/booking/consent-texts.ts).
@@ -627,9 +630,9 @@ export class BookingComponent implements OnInit, OnDestroy {
   readonly cancellationConsentText = CANCELLATION_CONSENT_TEXT;
   readonly termsConsentLead = TERMS_CONSENT_LEAD;
   // Search box UI lives in AdminUserSearchComponent; the page owns the selection.
-  selectedTargetUser: UserAdmin | null = null;
+  readonly selectedTargetUser = signal<UserAdmin | null>(null);
   /** True after an admin-mode / target-user change wiped applied discounts, so the admin is told to re-apply. */
-  discountsClearedForAccountSwitch = false;
+  readonly discountsClearedForAccountSwitch = signal(false);
 
   // Phase 1 manual payment tracking — admin-only. Reset to defaults whenever admin mode is
   // toggled off or the target user changes so a previous selection doesn't leak across users.
@@ -642,13 +645,12 @@ export class BookingComponent implements OnInit, OnDestroy {
    * automatically. Rebuilt by refreshAdminPaymentMethodOptions(), never a getter — a new array on
    * every change detection would re-render the radios under the admin's cursor.
    */
-  paymentMethodOptions: { value: AdminBookingPaymentMethod; label: string }[] =
-    AdminBookingPaymentOptions(false);
-  adminPaymentMethod: AdminBookingPaymentMethod = 'Normal';
+  readonly paymentMethodOptions = signal<{ value: AdminBookingPaymentMethod; label: string }[]>(AdminBookingPaymentOptions(false));
+  readonly adminPaymentMethod = signal<AdminBookingPaymentMethod>('Normal');
   /** The selected customer's linked commercial client, when they have one. */
-  adminBusinessClient: InvoiceClientOption | null = null;
-  adminPaymentReference = '';
-  adminPaymentNotes = '';
+  readonly adminBusinessClient = signal<InvoiceClientOption | null>(null);
+  readonly adminPaymentReference = signal('');
+  readonly adminPaymentNotes = signal('');
 
   /**
    * The commercial client an INVOICE-method booking is billed to.
@@ -663,7 +665,7 @@ export class BookingComponent implements OnInit, OnDestroy {
   loadingContractClients = false;
 
   /** Set by discardAdminDraftIfPresent() — drives the "session was not restored" banner. */
-  adminDraftDiscarded = false;
+  readonly adminDraftDiscarded = signal(false);
 
   constructor() {
     this.isBrowser = isPlatformBrowser(this.platformId);
@@ -704,6 +706,7 @@ export class BookingComponent implements OnInit, OnDestroy {
       cancellationConsent: [false, [Validators.requiredTrue]],
       termsConsent: [false, [Validators.requiredTrue]]
     });
+    this.watchForm(this.bookingForm, this.customAmount, this.customCleaners, this.customDuration, this.customServiceName, this.bedroomsQuantityControl, this.showRoomCountsToCustomer, this.bathroomsQuantityControl, this.serviceTypeControl);
   }
 
   ngOnInit() {
@@ -716,22 +719,33 @@ export class BookingComponent implements OnInit, OnDestroy {
     const stepParam = this.route.snapshot.queryParamMap.get('step');
     const stepNum = stepParam ? parseInt(stepParam, 10) : NaN;
     if (stepNum >= 1 && stepNum <= this.totalSteps) {
-      this.currentStep = stepNum;
+      this.currentStep.set(stepNum);
       // Clear all loading flags on step 2/3 so SSR HTML matches client state
-      if (this.currentStep === 2 || this.currentStep === 3) {
-        this.loading.previousOrders = false;
-        this.loading.promoBanner = false;
-        this.loading.serviceTypes = false;
-        this.loading.serviceDetails = false;
-        this.loading.partnership = false;
-        this.loading.availableDates = false;
-        this.loading.timeSlots = false;
-        this.loading.cleaningTypes = false;
-        this.loading.extras = false;
-        this.loading.summary = false;
-        this.loading.pricing = false;
+      if (this.currentStep() === 2 || this.currentStep() === 3) {
+        this.loading().previousOrders = false;
+        this.loading.set(this.loading());
+        this.loading().promoBanner = false;
+        this.loading.set(this.loading());
+        this.loading().serviceTypes = false;
+        this.loading.set(this.loading());
+        this.loading().serviceDetails = false;
+        this.loading.set(this.loading());
+        this.loading().partnership = false;
+        this.loading.set(this.loading());
+        this.loading().availableDates = false;
+        this.loading.set(this.loading());
+        this.loading().timeSlots = false;
+        this.loading.set(this.loading());
+        this.loading().cleaningTypes = false;
+        this.loading.set(this.loading());
+        this.loading().extras = false;
+        this.loading.set(this.loading());
+        this.loading().summary = false;
+        this.loading.set(this.loading());
+        this.loading().pricing = false;
+        this.loading.set(this.loading());
       }
-      if (this.isBrowser && this.currentStep === 3) {
+      if (this.isBrowser && this.currentStep() === 3) {
         runInInjectionContext(this.injector, () => {
           afterNextRender(() => {
             this.autocompleteInitRetryCount = 0;
@@ -841,7 +855,8 @@ export class BookingComponent implements OnInit, OnDestroy {
           this.setupFormListeners();
           this.loadSpecialOffers();
           this.loadOrders();
-          this.loading.partnership = false;
+          this.loading().partnership = false;
+          this.loading.set(this.loading());
           this.cdr.markForCheck();
         };
         if (this.isBrowser) {
@@ -869,7 +884,7 @@ export class BookingComponent implements OnInit, OnDestroy {
           takeUntil(this.destroy$)
         )
         .subscribe(() => {
-          if (this.showCustomPricing) {
+          if (this.showCustomPricing()) {
             this.calculateTotal();
             this.saveFormData(); // Save form data when custom amount changes
           }
@@ -882,7 +897,7 @@ export class BookingComponent implements OnInit, OnDestroy {
         takeUntil(this.destroy$)
       )
       .subscribe(() => {
-        if (this.showCustomPricing) {
+        if (this.showCustomPricing()) {
           this.calculateTotal();
           this.saveFormData(); // Save form data when custom cleaners changes
         }
@@ -894,7 +909,7 @@ export class BookingComponent implements OnInit, OnDestroy {
         takeUntil(this.destroy$)
       )
       .subscribe(() => {
-        if (this.showCustomPricing) {
+        if (this.showCustomPricing()) {
           this.calculateTotal();
           this.saveFormData(); // Save form data when custom duration changes
         }
@@ -909,7 +924,7 @@ export class BookingComponent implements OnInit, OnDestroy {
 
   ngOnDestroy() {
     // Persist current form state when leaving so returning to booking restores it (unless we just cleared / went to confirmation)
-    if (this.isBrowser && !this.skipSaveOnDestroy && this.selectedServiceType) {
+    if (this.isBrowser && !this.skipSaveOnDestroy && this.selectedServiceType()) {
       this.saveFormData();
     }
     // Clean up window listeners
@@ -943,26 +958,26 @@ export class BookingComponent implements OnInit, OnDestroy {
     document.addEventListener('click', (event) => {
       const target = event.target as HTMLElement;
       if (!target.closest('.service-type-dropdown')) {
-        this.serviceTypeDropdownOpen = false;
+        this.serviceTypeDropdownOpen.set(false);
       }
       if (!target.closest('.entry-method-dropdown')) {
-        this.entryMethodDropdownOpen = false;
+        this.entryMethodDropdownOpen.set(false);
       }
       if (!target.closest('.tip-dropdown')) {
-        this.tipDropdownOpen = false;
+        this.tipDropdownOpen.set(false);
       }
       // Clicks INSIDE this menu (including the "Other" text field) must not close it.
       if (!target.closest('.address-name-dropdown')) {
-        this.addressNameDropdownOpen = false;
+        this.addressNameDropdownOpen.set(false);
       }
       if (!target.closest('.city-dropdown')) {
-        this.cityDropdownOpen = false;
+        this.cityDropdownOpen.set(false);
       }
       if (!target.closest('.state-dropdown')) {
-        this.stateDropdownOpen = false;
+        this.stateDropdownOpen.set(false);
       }
       if (!target.closest('.saved-address-dropdown')) {
-        this.savedAddressDropdownOpen = false;
+        this.savedAddressDropdownOpen.set(false);
       }
     });
   }
@@ -1004,11 +1019,11 @@ export class BookingComponent implements OnInit, OnDestroy {
     if (!savedData?.wasAdminMode) return;
 
     this.formPersistenceService.clearFormData();
-    this.adminDraftDiscarded = true;
+    this.adminDraftDiscarded.set(true);
 
     // Start over from the top rather than dropping the admin onto a step-3 form that no longer
     // has any data behind it.
-    this.currentStep = 1;
+    this.currentStep.set(1);
     if (this.route.snapshot.queryParamMap.get('step')) {
       this.router.navigate([], {
         relativeTo: this.route,
@@ -1082,19 +1097,19 @@ export class BookingComponent implements OnInit, OnDestroy {
 
     // Restore floor types
     if (savedData.floorTypes && savedData.floorTypes.length > 0) {
-      this.floorTypes = [...savedData.floorTypes];
-      this.floorTypeOther = savedData.floorTypeOther || '';
+      this.floorTypes.set([...savedData.floorTypes]);
+      this.floorTypeOther.set(savedData.floorTypeOther || '');
     }
   }
 
   /** Apply loaded service types: sort, restore saved selection or default. */
   private applyServiceTypes(serviceTypes: ServiceType[]) {
-    this.serviceTypes = serviceTypes.sort((a, b) => {
+    this.serviceTypes.set(serviceTypes.sort((a, b) => {
       const orderA = a.displayOrder || 999;
       const orderB = b.displayOrder || 999;
       return orderA - orderB;
-    });
-    this.serviceTypes.forEach(serviceType => {
+    }));
+    this.serviceTypes().forEach(serviceType => {
       if (serviceType.services) {
         serviceType.services.sort((a, b) => {
           const orderA = a.displayOrder || 999;
@@ -1110,11 +1125,11 @@ export class BookingComponent implements OnInit, OnDestroy {
         });
       }
     });
-    if (this.errorMessage === 'Failed to load service types') this.errorMessage = '';
+    if (this.errorMessage() === 'Failed to load service types') this.errorMessage.set('');
     // Re-hydrate from sessionStorage so we use persisted state (user may have come from main or returned to booking)
     this.formPersistenceService.loadFormData();
     const savedData = this.formPersistenceService.getFormData();
-    const savedServiceType = savedData?.selectedServiceTypeId ? this.serviceTypes.find(st => String(st.id) === String(savedData.selectedServiceTypeId)) : null;
+    const savedServiceType = savedData?.selectedServiceTypeId ? this.serviceTypes().find(st => String(st.id) === String(savedData.selectedServiceTypeId)) : null;
     if (savedData?.selectedServiceTypeId && savedServiceType) {
         this.serviceTypeControl.setValue(savedServiceType.id);
         const savedServices = savedData.selectedServices || [];
@@ -1124,12 +1139,13 @@ export class BookingComponent implements OnInit, OnDestroy {
           savedServices.forEach(ss => {
             const service = savedServiceType.services.find(s => String(s.id) === String(ss.serviceId));
             if (service) {
-              const existingIndex = this.selectedServices.findIndex(s => String(s.service.id) === String(service.id));
+              const existingIndex = this.selectedServices().findIndex(s => String(s.service.id) === String(service.id));
               if (existingIndex >= 0) {
-                this.selectedServices[existingIndex].quantity = ss.quantity;
+                this.selectedServices()[existingIndex].quantity = ss.quantity;
               }
             }
           });
+          this.selectedServices.set(this.selectedServices());
           // Restore is NOT a bedroom change: the saved Sq.ft is an explicit customer value and
           // there is no previous bedroom count. Floor it once, after every quantity has landed,
           // so the result doesn't depend on whether bedrooms happened to precede sqft here.
@@ -1137,7 +1153,7 @@ export class BookingComponent implements OnInit, OnDestroy {
         }
         this.restorePropertyTypeSelection(savedData);
         if (savedExtraServices.length > 0) {
-          this.selectedExtraServices = [];
+          this.selectedExtraServices.set([]);
           savedExtraServices.forEach(ses => {
             const extraService = savedServiceType.extraServices.find(es => String(es.id) === String(ses.extraServiceId));
             // Extra Cleaners is admin-only now — drop it from restored drafts so an
@@ -1146,26 +1162,28 @@ export class BookingComponent implements OnInit, OnDestroy {
               return;
             }
             if (extraService) {
-              this.selectedExtraServices.push({
+              this.selectedExtraServices().push({
                 extraService,
                 quantity: ses.quantity || 1,
                 hours: ses.hours || (extraService.hasHours ? 0.5 : 0)
               });
             }
           });
+          this.selectedExtraServices.set(this.selectedExtraServices());
           this.cleaningType.setValue(this.getCurrentCleaningType());
         } else if ((savedData.cleaningType === 'deep' || this.preselectDeepCleaning) && this.canSelectDeepCleaning) {
           // Main page only saves cleaningType, not selectedExtraServices. Add deep cleaning extra
           // so the booking price uses the correct multiplier.
-          const hasDeep = this.selectedExtraServices.some(s => s.extraService.isDeepCleaning);
+          const hasDeep = this.selectedExtraServices().some(s => s.extraService.isDeepCleaning);
           if (!hasDeep) {
             const deepExtra = this.getActiveDeepCleaningExtraService();
             if (deepExtra) {
-              this.selectedExtraServices.push({
+              this.selectedExtraServices().push({
                 extraService: deepExtra,
                 quantity: 1,
                 hours: deepExtra.hasHours ? 0.5 : 0
               });
+              this.selectedExtraServices.set(this.selectedExtraServices());
             }
           }
           this.cleaningType.setValue(this.getCurrentCleaningType());
@@ -1174,21 +1192,22 @@ export class BookingComponent implements OnInit, OnDestroy {
         this.calculateTotal();
         this.saveFormData(); // Persist restored state (quantities + deep extra) so it's not overwritten by defaults
     } else {
-      const residentialCleaning = findResidentialServiceType(this.serviceTypes);
+      const residentialCleaning = findResidentialServiceType(this.serviceTypes());
       if (residentialCleaning) {
         this.serviceTypeControl.setValue(residentialCleaning.id);
         this.selectServiceType(residentialCleaning);
         // Honor ?cleaningType=deep (e.g. "most requested service" CTA) on a fresh booking
         if (this.preselectDeepCleaning && this.canSelectDeepCleaning) {
-          const hasDeep = this.selectedExtraServices.some(s => s.extraService.isDeepCleaning);
+          const hasDeep = this.selectedExtraServices().some(s => s.extraService.isDeepCleaning);
           if (!hasDeep) {
             const deepExtra = this.getActiveDeepCleaningExtraService();
             if (deepExtra) {
-              this.selectedExtraServices.push({
+              this.selectedExtraServices().push({
                 extraService: deepExtra,
                 quantity: 1,
                 hours: deepExtra.hasHours ? 0.5 : 0
               });
+              this.selectedExtraServices.set(this.selectedExtraServices());
             }
           }
           this.cleaningType.setValue(this.getCurrentCleaningType());
@@ -1202,32 +1221,46 @@ export class BookingComponent implements OnInit, OnDestroy {
 
   private loadInitialData() {
     if (!this.isBrowser) return;
-    this.errorMessage = '';
+    this.errorMessage.set('');
 
     this.bookingService.getServiceTypes().pipe(
       takeUntil(this.destroy$)
     ).subscribe({
       next: (serviceTypes) => {
         this.applyServiceTypes(serviceTypes);
-        this.loading.serviceTypes = false;
-        this.loading.serviceDetails = false;
-        this.loading.cleaningTypes = false;
-        this.loading.extras = false;
-        this.loading.availableDates = false;
-        this.loading.timeSlots = false;
-        this.loading.summary = false;
-        this.loading.pricing = false;
+        this.loading().serviceTypes = false;
+        this.loading.set(this.loading());
+        this.loading().serviceDetails = false;
+        this.loading.set(this.loading());
+        this.loading().cleaningTypes = false;
+        this.loading.set(this.loading());
+        this.loading().extras = false;
+        this.loading.set(this.loading());
+        this.loading().availableDates = false;
+        this.loading.set(this.loading());
+        this.loading().timeSlots = false;
+        this.loading.set(this.loading());
+        this.loading().summary = false;
+        this.loading.set(this.loading());
+        this.loading().pricing = false;
+        this.loading.set(this.loading());
         this.cdr.markForCheck();
       },
       error: (error) => {
         console.error('Failed to load service types:', error);
-        this.errorMessage = 'Failed to load service types';
-        this.loading.serviceTypes = false;
-        this.loading.serviceDetails = false;
-        this.loading.extras = false;
-        this.loading.cleaningTypes = false;
-        this.loading.availableDates = false;
-        this.loading.timeSlots = false;
+        this.errorMessage.set('Failed to load service types');
+        this.loading().serviceTypes = false;
+        this.loading.set(this.loading());
+        this.loading().serviceDetails = false;
+        this.loading.set(this.loading());
+        this.loading().extras = false;
+        this.loading.set(this.loading());
+        this.loading().cleaningTypes = false;
+        this.loading.set(this.loading());
+        this.loading().availableDates = false;
+        this.loading.set(this.loading());
+        this.loading().timeSlots = false;
+        this.loading.set(this.loading());
         this.cdr.markForCheck();
       }
     });
@@ -1236,7 +1269,7 @@ export class BookingComponent implements OnInit, OnDestroy {
       takeUntil(this.destroy$)
     ).subscribe({
       next: (states) => {
-        this.states = states;
+        this.states.set(states);
         if (states.length === 0) return;
 
         const savedState = this.bookingForm.get('state')?.value;
@@ -1258,32 +1291,32 @@ export class BookingComponent implements OnInit, OnDestroy {
       takeUntil(this.destroy$)
     ).subscribe({
       next: (subscriptions) => {
-        this.subscriptions = subscriptions.sort((a, b) => {
+        this.subscriptions.set(subscriptions.sort((a, b) => {
           const orderA = a.displayOrder || 999;
           const orderB = b.displayOrder || 999;
           return orderA - orderB;
-        });
-        if (this.errorMessage === 'Failed to load subscriptions') this.errorMessage = '';
-        if (this.isAdminMode && this.selectedTargetUser) {
-          this.loadUserSubscription(this.selectedTargetUser.id);
-          this.loadLoyaltyDiscount(this.selectedTargetUser.id);
+        }));
+        if (this.errorMessage() === 'Failed to load subscriptions') this.errorMessage.set('');
+        if (this.isAdminMode() && this.selectedTargetUser()) {
+          this.loadUserSubscription(this.selectedTargetUser()!.id);
+          this.loadLoyaltyDiscount(this.selectedTargetUser()!.id);
           return;
         }
-        if (this.hasActiveSubscription && this.userSubscription) {
+        if (this.hasActiveSubscription() && this.userSubscription()) {
           this.updateSelectedSubscription();
           return;
         }
         const savedData = this.formPersistenceService.getFormData();
         if (savedData?.selectedSubscriptionId) {
-          const savedSubscription = this.subscriptions.find(s => String(s.id) === String(savedData.selectedSubscriptionId));
+          const savedSubscription = this.subscriptions().find(s => String(s.id) === String(savedData.selectedSubscriptionId));
           if (savedSubscription) {
-            this.selectedSubscription = savedSubscription;
+            this.selectedSubscription.set(savedSubscription);
             return;
           }
         }
-        if (this.subscriptions.length > 0) {
+        if (this.subscriptions().length > 0) {
           const oneTimeSubscription = this.findOneTimeSubscription();
-          this.selectedSubscription = oneTimeSubscription;
+          this.selectedSubscription.set(oneTimeSubscription);
         }
         // Last, so a draft in progress always wins over a standing preference. The two loads
         // race, so this is attempted from both of them and is a no-op once one has landed.
@@ -1291,7 +1324,7 @@ export class BookingComponent implements OnInit, OnDestroy {
       },
       error: (error) => {
         console.error('Failed to load subscriptions:', error);
-        this.errorMessage = 'Failed to load subscriptions';
+        this.errorMessage.set('Failed to load subscriptions');
       }
     });
     
@@ -1299,7 +1332,7 @@ export class BookingComponent implements OnInit, OnDestroy {
     this.authService.currentUser.pipe(
       takeUntil(this.destroy$)
     ).subscribe(user => {
-      this.currentUser = user;
+      this.currentUser.set(user);
       // Re-evaluate same-day availability once we know the role — Admin/SuperAdmin are exempt
       // from the time restriction, so the flag must reflect the user even if it was set before
       // the user resolved during early init.
@@ -1334,7 +1367,7 @@ export class BookingComponent implements OnInit, OnDestroy {
           takeUntil(this.destroy$)
         ).subscribe({
           next: (apartments) => {
-            this.userApartments = apartments;
+            this.userApartments.set(apartments);
             
             // Only auto-fill with first apartment if no saved apartment selection
             if (apartments.length > 0 && !savedData?.selectedApartmentId) {
@@ -1362,7 +1395,7 @@ export class BookingComponent implements OnInit, OnDestroy {
   loadCities(state: string) {
     this.locationService.getCities(state).subscribe({
       next: (cities) => {
-        this.cities = cities;
+        this.cities.set(cities);
       }
     });
   }
@@ -1374,7 +1407,7 @@ export class BookingComponent implements OnInit, OnDestroy {
    */
   private syncCitiesToState(state: string | null | undefined) {
     if (!state) {
-      this.cities = [];
+      this.cities.set([]);
       return;
     }
 
@@ -1383,8 +1416,8 @@ export class BookingComponent implements OnInit, OnDestroy {
     // its only valid answers are boroughs, so an empty list is what blocks the booking. Also
     // drop a stale borough left over from a previous address, or the form would stay valid
     // claiming e.g. Brooklyn for a New Jersey street.
-    if (this.states.length > 0 && !this.states.includes(state)) {
-      this.cities = [];
+    if (this.states().length > 0 && !this.states().includes(state)) {
+      this.cities.set([]);
       if (this.bookingForm.get('city')?.value) {
         this.bookingForm.patchValue({ city: '' });
       }
@@ -1405,13 +1438,13 @@ export class BookingComponent implements OnInit, OnDestroy {
   }
 
   toggleStateDropdown(): void {
-    this.stateDropdownOpen = !this.stateDropdownOpen;
-    this.cityDropdownOpen = false;
+    this.stateDropdownOpen.set(!this.stateDropdownOpen());
+    this.cityDropdownOpen.set(false);
   }
 
   /** Only ever called from a click on an option, so onStateChange's city reset stays user-driven. */
   selectState(value: string): void {
-    this.stateDropdownOpen = false;
+    this.stateDropdownOpen.set(false);
     this.state.markAsDirty();
     this.state.markAsTouched();
     if (this.state.value === value) return;
@@ -1421,12 +1454,12 @@ export class BookingComponent implements OnInit, OnDestroy {
   }
 
   toggleCityDropdown(): void {
-    this.cityDropdownOpen = !this.cityDropdownOpen;
-    this.stateDropdownOpen = false;
+    this.cityDropdownOpen.set(!this.cityDropdownOpen());
+    this.stateDropdownOpen.set(false);
   }
 
   selectCity(value: string): void {
-    this.cityDropdownOpen = false;
+    this.cityDropdownOpen.set(false);
     this.city.setValue(value);
     this.city.markAsDirty();
     this.city.markAsTouched();
@@ -1440,7 +1473,7 @@ export class BookingComponent implements OnInit, OnDestroy {
       const apartmentNameControl = this.bookingForm.get('apartmentName');
       if (!apartmentNameControl) return;
       if (apartmentId) {
-        const apartment = this.userApartments.find(a => a.id === +apartmentId);
+        const apartment = this.userApartments().find(a => a.id === +apartmentId);
         apartmentNameControl.setValue(apartment?.name || DEFAULT_ADDRESS_NAME);
       } else {
         apartmentNameControl.setValue(DEFAULT_ADDRESS_NAME);
@@ -1472,7 +1505,7 @@ export class BookingComponent implements OnInit, OnDestroy {
     this.bookingForm.get('serviceDate')?.valueChanges.subscribe(newDate => {
       // Admins / SuperAdmins may keep Same Day Service on any date — never auto-remove it for them.
       // (Customer flow/timing below is unchanged.)
-      if (this.isSameDaySelected && newDate && !this.isAdminOrSuperAdmin) {
+      if (this.isSameDaySelected() && newDate && !this.isAdminOrSuperAdmin) {
         const today = new Date();
         
         // Parse the selected date without timezone issues
@@ -1488,7 +1521,7 @@ export class BookingComponent implements OnInit, OnDestroy {
         if (newDate !== todayFormatted) {
           
           // Find and remove the same day service
-          const sameDayService = this.selectedExtraServices.find(s => s.extraService.isSameDayService);
+          const sameDayService = this.selectedExtraServices().find(s => s.extraService.isSameDayService);
           if (sameDayService) {
             // Use skipDateChange=true to preserve the user's selected date
             this.toggleExtraService(sameDayService.extraService, true);
@@ -1512,16 +1545,16 @@ export class BookingComponent implements OnInit, OnDestroy {
     // Never overwrite storage with empty state: selectedServiceType is only set after
     // applyServiceTypes() runs (when API returns). If we save before that (e.g. after
     // loadSavedFormData() patched the form and valueChanges fired), we'd wipe good data.
-    if (!this.selectedServiceType) return;
+    if (!this.selectedServiceType()) return;
 
     const formData: BookingFormData = {
       // Service Type and Services
-      selectedServiceTypeId: this.selectedServiceType.id ? String(this.selectedServiceType.id) : undefined,
-      selectedServices: this.selectedServices.map(s => ({
+      selectedServiceTypeId: this.selectedServiceType()!.id ? String(this.selectedServiceType()!.id) : undefined,
+      selectedServices: this.selectedServices().map(s => ({
         serviceId: String(s.service.id),
         quantity: s.quantity
       })),
-      selectedExtraServices: this.selectedExtraServices.map(es => ({
+      selectedExtraServices: this.selectedExtraServices().map(es => ({
         extraServiceId: String(es.extraService.id),
         quantity: es.quantity,
         hours: es.hours
@@ -1535,7 +1568,7 @@ export class BookingComponent implements OnInit, OnDestroy {
       tips: normalizeTipAmount(this.tips.value),
 
       // Selected Subscription
-      selectedSubscriptionId: this.selectedSubscription?.id ? String(this.selectedSubscription.id) : undefined,
+      selectedSubscriptionId: this.selectedSubscription()?.id ? String(this.selectedSubscription()!.id) : undefined,
       
       // Consent checkboxes
       smsConsent: this.smsConsent.value,
@@ -1543,42 +1576,42 @@ export class BookingComponent implements OnInit, OnDestroy {
       termsConsent: this.termsConsent.value,
 
       // Custom Pricing Data
-      customAmount: this.showCustomPricing ? this.customAmount.value : undefined,
-      customCleaners: this.showCustomPricing ? this.customCleaners.value : undefined,
-      customDuration: this.showCustomPricing ? this.customDuration.value : undefined,
-      customServiceName: this.showCustomPricing ? this.customServiceName.value : undefined,
+      customAmount: this.showCustomPricing() ? this.customAmount.value : undefined,
+      customCleaners: this.showCustomPricing() ? this.customCleaners.value : undefined,
+      customDuration: this.showCustomPricing() ? this.customDuration.value : undefined,
+      customServiceName: this.showCustomPricing() ? this.customServiceName.value : undefined,
       bedroomsQuantity: this.getSelectedBedroomsQuantity(),
       bathroomsQuantity: this.getSelectedBathroomsQuantity(),
 
       // Property type + levels. Persisted separately from selectedServices because the levels
       // line is absent from that array until a chip is clicked, so the restore loop (which only
       // writes into entries that already exist) could never bring it back on its own.
-      propertyType: this.propertyType ?? undefined,
-      levelsQuantity: this.levelsQuantity,
+      propertyType: this.propertyType() ?? undefined,
+      levelsQuantity: this.levelsQuantity(),
 
       // Poll Data
-      pollAnswers: this.showPollForm ? this.pollAnswers : undefined,
+      pollAnswers: this.showPollForm() ? this.pollAnswers() : undefined,
 
       // Floor Types
-      floorTypes: this.floorTypes.length > 0 ? this.floorTypes : undefined,
-      floorTypeOther: this.floorTypeOther || undefined,
+      floorTypes: this.floorTypes().length > 0 ? this.floorTypes() : undefined,
+      floorTypeOther: this.floorTypeOther() || undefined,
 
       // Marker only — the admin context itself is never persisted. A draft carrying this can
       // only be discarded on reload, never silently resumed as a customer booking.
       // See discardAdminDraftIfPresent() and BookingFormData.wasAdminMode.
-      wasAdminMode: this.isAdminMode || undefined
+      wasAdminMode: this.isAdminMode() || undefined
     };
 
     this.formPersistenceService.saveFormData(formData);
     
     // Mark booking as in progress if user is making changes
-    if (this.selectedServiceType) {
+    if (this.selectedServiceType()) {
       this.formPersistenceService.markBookingInProgress();
     }
     
     // Also save the service type control value
-    if (this.selectedServiceType) {
-      this.serviceTypeControl.setValue(this.selectedServiceType.id);
+    if (this.selectedServiceType()) {
+      this.serviceTypeControl.setValue(this.selectedServiceType()!.id);
     }
   }
 
@@ -1589,50 +1622,50 @@ export class BookingComponent implements OnInit, OnDestroy {
       
       // Reset service type selection
       this.serviceTypeControl.setValue('');
-      this.selectedServiceType = null;
-      this.selectedServices = [];
-      this.selectedExtraServices = [];
+      this.selectedServiceType.set(null);
+      this.selectedServices.set([]);
+      this.selectedExtraServices.set([]);
       this.resetPropertyTypeSelection();
       
       // Reset form to default values
       this.bookingForm.reset();
       
       // Reset floor types
-      this.floorTypes = [];
-      this.floorTypeOther = '';
+      this.floorTypes.set([]);
+      this.floorTypeOther.set('');
 
       // Reset custom pricing
-      this.showCustomPricing = false;
+      this.showCustomPricing.set(false);
       this.customAmount.setValue('');
       this.customCleaners.setValue(1);
       this.customDuration.setValue(60);
       
       // Reset special offers and discounts (+ the first-time marker the offer sets)
-      this.selectedSpecialOffer = null;
-      this.specialOfferApplied = false;
+      this.selectedSpecialOffer.set(null);
+      this.specialOfferApplied.set(false);
       this.firstTimeDiscountApplied = false;
-      this.promoCodeApplied = false;
-      this.promoDiscount = 0;
-      this.promoIsPercentage = true;
-      this.selectedPointsToRedeem = 0;
-      this.pointsDiscountAmount = 0;
-      this.useCredits = false;
-      this.userBubbleCredits = 0;
+      this.promoCodeApplied.set(false);
+      this.promoDiscount.set(0);
+      this.promoIsPercentage.set(true);
+      this.selectedPointsToRedeem.set(0);
+      this.pointsDiscountAmount.set(0);
+      this.useCredits.set(false);
+      this.userBubbleCredits.set(0);
 
       // Reset calculation
-      this.calculation = {
+      this.calculation.set({
         subTotal: 0,
         tax: 0,
         discountAmount: 0,
         tips: 0,
         total: 0,
         totalDuration: 0
-      };
+      });
       
       // Reset UI state
-      this.serviceTypeDropdownOpen = false;
-      this.entryMethodDropdownOpen = false;
-      this.isSummaryCollapsed = false;
+      this.serviceTypeDropdownOpen.set(false);
+      this.entryMethodDropdownOpen.set(false);
+      this.isSummaryCollapsed.set(false);
       
       // Set default date and time
       const tomorrow = new Date();
@@ -1722,12 +1755,12 @@ export class BookingComponent implements OnInit, OnDestroy {
   get savedAddressLabel(): string {
     const selectedId = this.selectedApartmentId.value;
     if (!selectedId) return 'Enter new address';
-    const apartment = this.userApartments.find(a => a.id === +selectedId);
+    const apartment = this.userApartments().find(a => a.id === +selectedId);
     return apartment ? this.getSavedAddressLabel(apartment) : 'Enter new address';
   }
 
   toggleSavedAddressDropdown(): void {
-    this.savedAddressDropdownOpen = !this.savedAddressDropdownOpen;
+    this.savedAddressDropdownOpen.set(!this.savedAddressDropdownOpen());
   }
 
   /**
@@ -1737,7 +1770,7 @@ export class BookingComponent implements OnInit, OnDestroy {
    * before; wiping the typed address stays the Clear button's job.
    */
   selectSavedAddress(apartmentId: number | string): void {
-    this.savedAddressDropdownOpen = false;
+    this.savedAddressDropdownOpen.set(false);
     const value = apartmentId === '' ? '' : String(apartmentId);
     this.selectedApartmentId.setValue(value);
     this.selectedApartmentId.markAsDirty();
@@ -1759,13 +1792,13 @@ export class BookingComponent implements OnInit, OnDestroy {
       serviceAddress: '',
       aptSuite: '',
       city: '',
-      state: this.states.length > 0 ? this.states[0] : '',
+      state: this.states().length > 0 ? this.states()[0] : '',
       zipCode: ''
     });
     
     // Load cities for the default state
-    if (this.states.length > 0) {
-      this.loadCities(this.states[0]);
+    if (this.states().length > 0) {
+      this.loadCities(this.states()[0]);
     }
 
     this.reinitAddressAutocomplete();
@@ -1776,12 +1809,12 @@ export class BookingComponent implements OnInit, OnDestroy {
    * torn down and the customer is left with the plain fallback input.
    */
   private reinitAddressAutocomplete(): void {
-    if (!this.isBrowser || this.currentStep !== 3) return;
+    if (!this.isBrowser || this.currentStep() !== 3) return;
     this.autocompleteLoaded = false;
-    this.autocompleteError = false;
-    this.showAddressFallbackAfterDelay = false;
+    this.autocompleteError.set(false);
+    this.showAddressFallbackAfterDelay.set(false);
     this.autocompleteInitRetryCount = 0;
-    const container = this.addressContainer?.nativeElement;
+    const container = this.addressContainer()?.nativeElement;
     if (container) {
       container.innerHTML = '';
     }
@@ -1916,7 +1949,8 @@ export class BookingComponent implements OnInit, OnDestroy {
 
   async initAddressAutocomplete(): Promise<void> {
     if (!isPlatformBrowser(this.platformId)) return;
-    const container = this.addressContainer?.nativeElement;
+    const addressContainer = this.addressContainer();
+    const container = addressContainer?.nativeElement;
     if (container && !container.querySelector('gmp-place-autocomplete')) {
       this.autocompleteLoaded = false;
     }
@@ -1927,8 +1961,8 @@ export class BookingComponent implements OnInit, OnDestroy {
       this.addressFallbackTimer = null;
     }
     this.addressFallbackTimer = setTimeout(() => {
-      if (!this.autocompleteLoaded && !this.autocompleteError) {
-        this.showAddressFallbackAfterDelay = true;
+      if (!this.autocompleteLoaded && !this.autocompleteError()) {
+        this.showAddressFallbackAfterDelay.set(true);
         this.cdr.markForCheck();
       }
       this.addressFallbackTimer = null;
@@ -1950,14 +1984,14 @@ export class BookingComponent implements OnInit, OnDestroy {
       placeAutocomplete.style.display = 'block';
       placeAutocomplete.setAttribute('placeholder', 'Address *');
 
-      const containerEl = this.addressContainer?.nativeElement;
+      const containerEl = addressContainer?.nativeElement;
       if (containerEl) {
         containerEl.innerHTML = '';
         containerEl.appendChild(placeAutocomplete);
         this.autocompleteElement = placeAutocomplete;
         this.autocompleteLoaded = true;
         this.autocompleteInitRetryCount = 0;
-        this.showAddressFallbackAfterDelay = false;
+        this.showAddressFallbackAfterDelay.set(false);
         if (this.addressFallbackTimer) {
           clearTimeout(this.addressFallbackTimer);
           this.addressFallbackTimer = null;
@@ -1971,13 +2005,13 @@ export class BookingComponent implements OnInit, OnDestroy {
       }
     } catch (error) {
       console.warn('Google Places Autocomplete failed to load:', error);
-      this.autocompleteError = true;
+      this.autocompleteError.set(true);
     }
   }
 
   private scheduleAddressAutocompleteRetry(): void {
     if (this.autocompleteInitRetryCount >= BookingComponent.AUTOCOMPLETE_INIT_MAX_RETRIES) return;
-    if (this.currentStep !== 3 || this.selectedApartmentId?.value) return;
+    if (this.currentStep() !== 3 || this.selectedApartmentId?.value) return;
     this.autocompleteInitRetryCount++;
     setTimeout(() => this.initAddressAutocomplete(), 400);
   }
@@ -2051,13 +2085,13 @@ export class BookingComponent implements OnInit, OnDestroy {
     const next: AddressNameType = ADDRESS_NAME_PRESETS.includes(value)
       ? (value as AddressNameType)
       : 'Other';
-    if (next === this.addressNameType) return;
-    this.addressNameType = next;
+    if (next === this.addressNameType()) return;
+    this.addressNameType.set(next);
     this.cdr.markForCheck();
   }
 
   toggleAddressNameDropdown(): void {
-    this.addressNameDropdownOpen = !this.addressNameDropdownOpen;
+    this.addressNameDropdownOpen.set(!this.addressNameDropdownOpen());
   }
 
   /**
@@ -2066,8 +2100,8 @@ export class BookingComponent implements OnInit, OnDestroy {
    * sitting next to the dropdown. Leaving that field blank is fine — it books as "Other".
    */
   selectAddressNameType(type: AddressNameType): void {
-    this.addressNameType = type;
-    this.addressNameDropdownOpen = false;
+    this.addressNameType.set(type);
+    this.addressNameDropdownOpen.set(false);
     // Picking from the menu IS interacting with the field — setValue() alone would leave the
     // control pristine/untouched, so it looked untouched however many times it was changed.
     this.apartmentName.markAsDirty();
@@ -2088,7 +2122,7 @@ export class BookingComponent implements OnInit, OnDestroy {
   /** Waits a tick so *ngIf has rendered the field before it takes focus. */
   private focusAddressNameInput(): void {
     if (!this.isBrowser) return;
-    setTimeout(() => this.addressNameOtherInput?.nativeElement.focus(), 0);
+    setTimeout(() => this.addressNameOtherInput()?.nativeElement.focus(), 0);
   }
 
   /**
@@ -2111,28 +2145,28 @@ export class BookingComponent implements OnInit, OnDestroy {
     const newName = resolveAddressName(this.apartmentName.value);
     const selectedId = this.bookingForm.get('selectedApartmentId')?.value;
     if (!selectedId) return;
-    const apartment = this.userApartments.find((a: { id: number }) => a.id === +selectedId);
+    const apartment = this.userApartments().find((a: { id: number }) => a.id === +selectedId);
     if (!apartment || apartment.name === newName) return;
     const updated = { ...apartment, name: newName };
-    const update$ = this.selectedTargetUser
-      ? this.adminService.updateUserApartment(this.selectedTargetUser.id, apartment.id, updated)
+    const update$ = this.selectedTargetUser()
+      ? this.adminService.updateUserApartment(this.selectedTargetUser()!.id, apartment.id, updated)
       : this.profileService.updateApartment(apartment.id, updated);
     update$.subscribe({
       next: (saved) => {
-        const idx = this.userApartments.findIndex((a: { id: number }) => a.id === saved.id);
-        if (idx !== -1) this.userApartments[idx] = saved;
-        this.errorMessage = '';
+        const idx = this.userApartments().findIndex((a: { id: number }) => a.id === saved.id);
+        if (idx !== -1) { this.userApartments()[idx] = saved; this.userApartments.set(this.userApartments()); }
+        this.errorMessage.set('');
         this.cdr.markForCheck();
       },
       error: () => {
-        this.errorMessage = 'Could not save address name. Please try again.';
+        this.errorMessage.set('Could not save address name. Please try again.');
         this.cdr.markForCheck();
       }
     });
   }
 
   toggleServiceTypeDropdown() {
-    this.serviceTypeDropdownOpen = !this.serviceTypeDropdownOpen;
+    this.serviceTypeDropdownOpen.set(!this.serviceTypeDropdownOpen());
   }
 
   /** Icon for a service type in the dropdown — see shared/icons/service-type-icon.ts. */
@@ -2143,30 +2177,33 @@ export class BookingComponent implements OnInit, OnDestroy {
   /** @param skipSave When true, do not persist to storage (e.g. when restoring from main page). Caller should save after restoring. */
   selectServiceType(serviceType: ServiceType, skipSave?: boolean) {
     // Don't show shimmer when restoring saved data on step 2/3 — shimmers are already off there
-    if (this.currentStep === 1) {
-      this.loading.serviceDetails = true;
-      this.loading.extras = true;
-      this.loading.pricing = true;
+    if (this.currentStep() === 1) {
+      this.loading().serviceDetails = true;
+      this.loading.set(this.loading());
+      this.loading().extras = true;
+      this.loading.set(this.loading());
+      this.loading().pricing = true;
+      this.loading.set(this.loading());
       this.cdr.markForCheck();
     }
-    this.selectedServiceType = serviceType;
+    this.selectedServiceType.set(serviceType);
     this.serviceTypeControl.setValue(serviceType.id);
-    this.serviceTypeDropdownOpen = false;
-    this.selectedServices = [];
-    this.selectedExtraServices = [];
+    this.serviceTypeDropdownOpen.set(false);
+    this.selectedServices.set([]);
+    this.selectedExtraServices.set([]);
     // The levels line belongs to a specific service type's catalogue row, so a level count can
     // never carry across a type change - and a type without levels must not keep a property type.
     this.resetPropertyTypeSelection();
-    this.showPollForm = false;
-    this.showCustomPricing = false;
+    this.showPollForm.set(false);
+    this.showCustomPricing.set(false);
 
     // Check if this service type has custom pricing
     if (serviceType.isCustom) {
-      this.showCustomPricing = true;
+      this.showCustomPricing.set(true);
 
       // Build the name options from the live service types (Residential -> Regular/Deep) and
       // restore any previously chosen name.
-      this.customServiceNameOptions = buildCustomServiceTypeNameOptions(this.serviceTypes);
+      this.customServiceNameOptions.set(buildCustomServiceTypeNameOptions(this.serviceTypes()));
       this.customServiceName.setValue(this.savedCustomPricingData?.customServiceName || '');
 
       // Restore saved custom pricing data if available
@@ -2209,7 +2246,7 @@ export class BookingComponent implements OnInit, OnDestroy {
     
     // Check if this service type has poll functionality
    else if (serviceType.hasPoll) {
-      this.showPollForm = true;
+      this.showPollForm.set(true);
       this.loadPollQuestions(serviceType.id);
       
       // DISABLE validation for fields not needed in poll forms
@@ -2233,9 +2270,9 @@ export class BookingComponent implements OnInit, OnDestroy {
       }
       
       // Initialize subscription and cleaning type for consistency
-      if (!this.selectedSubscription && this.subscriptions && this.subscriptions.length > 0) {
-        if (!this.hasActiveSubscription) {
-          this.selectedSubscription = this.subscriptions[0];
+      if (!this.selectedSubscription() && this.subscriptions() && this.subscriptions().length > 0) {
+        if (!this.hasActiveSubscription()) {
+          this.selectedSubscription.set(this.subscriptions()[0]);
         } else {
           this.updateSelectedSubscription();
         }
@@ -2245,7 +2282,7 @@ export class BookingComponent implements OnInit, OnDestroy {
         this.cleaningType.setValue('normal');
       }
     } else {
-      this.showPollForm = false;
+      this.showPollForm.set(false);
       
       // RESTORE validation for regular booking forms
       this.entryMethod.setValidators([Validators.required]);
@@ -2290,17 +2327,19 @@ export class BookingComponent implements OnInit, OnDestroy {
               defaultQuantity = 400; // Default for Studio
             }
             
-            this.selectedServices.push({
+            this.selectedServices().push({
               service: service,
               quantity: defaultQuantity
             });
           }
         });
+        this.selectedServices.set(this.selectedServices());
         
         // Set square feet based on bedrooms after all services are initialized
-        const sqftService = this.selectedServices.find(s => s.service.serviceKey === 'sqft');
+        const sqftService = this.selectedServices().find(s => s.service.serviceKey === 'sqft');
         if (sqftService) {
           sqftService.quantity = this.getSquareFeetForBedrooms(bedroomsQuantity);
+          this.selectedServices.set(this.selectedServices());
         }
         this.syncStandaloneBedroomBathroomFromServices();
         const persisted = this.formPersistenceService.getFormData();
@@ -2308,11 +2347,11 @@ export class BookingComponent implements OnInit, OnDestroy {
         if (persisted?.bathroomsQuantity !== undefined) this.bathroomsQuantityControl.setValue(persisted.bathroomsQuantity);
       }
       
-      this.selectedExtraServices = [];
+      this.selectedExtraServices.set([]);
       
-      if (!this.selectedSubscription && this.subscriptions && this.subscriptions.length > 0) {
-        if (!this.hasActiveSubscription) {
-          this.selectedSubscription = this.subscriptions[0];
+      if (!this.selectedSubscription() && this.subscriptions() && this.subscriptions().length > 0) {
+        if (!this.hasActiveSubscription()) {
+          this.selectedSubscription.set(this.subscriptions()[0]);
         } else {
           this.updateSelectedSubscription();
         }
@@ -2328,40 +2367,44 @@ export class BookingComponent implements OnInit, OnDestroy {
     if (!skipSave) {
       this.saveFormData();
     }
-    this.loading.serviceDetails = false;
-    this.loading.extras = false;
-    this.loading.pricing = false;
-    this.loading.summary = false;
+    this.loading().serviceDetails = false;
+    this.loading.set(this.loading());
+    this.loading().extras = false;
+    this.loading.set(this.loading());
+    this.loading().pricing = false;
+    this.loading.set(this.loading());
+    this.loading().summary = false;
+    this.loading.set(this.loading());
     this.cdr.markForCheck();
   }
 
   onServiceTypeChange(event: any) {
     const serviceTypeId = event.target.value;
     if (serviceTypeId) {
-      const selectedType = this.serviceTypes.find(type => type.id === parseInt(serviceTypeId));
+      const selectedType = this.serviceTypes().find(type => type.id === parseInt(serviceTypeId));
       if (selectedType) {
         this.selectServiceType(selectedType);
       }
     } else {
       // Reset when no service type is selected
-      this.selectedServiceType = null;
-      this.selectedServices = [];
-      this.selectedExtraServices = [];
+      this.selectedServiceType.set(null);
+      this.selectedServices.set([]);
+      this.selectedExtraServices.set([]);
       this.resetPropertyTypeSelection();
-      this.showPollForm = false;
-      this.showCustomPricing = false;
+      this.showPollForm.set(false);
+      this.showCustomPricing.set(false);
       this.calculateTotal();
       this.saveFormData();
     }
   }
 
   toggleEntryMethodDropdown() {
-    this.entryMethodDropdownOpen = !this.entryMethodDropdownOpen;
+    this.entryMethodDropdownOpen.set(!this.entryMethodDropdownOpen());
   }
 
   selectEntryMethod(method: string) {
     this.entryMethod.setValue(method);
-    this.entryMethodDropdownOpen = false; // Close dropdown after selection
+    this.entryMethodDropdownOpen.set(false); // Close dropdown after selection
     this.saveFormData(); // Save the selection
   }
 
@@ -2370,8 +2413,8 @@ export class BookingComponent implements OnInit, OnDestroy {
   // slider minimum and the billing allowance are the SAME data — a customer can never sit
   // below their included amount. Falls back to the shared defaults before the catalog loads.
   private getSquareFeetForBedrooms(bedrooms: number): number {
-    const sqftService = this.selectedServices.find(s => s.service.serviceKey === 'sqft');
-    const bedroomsService = this.selectedServices.find(s => s.service.serviceKey === 'bedrooms');
+    const sqftService = this.selectedServices().find(s => s.service.serviceKey === 'sqft');
+    const bedroomsService = this.selectedServices().find(s => s.service.serviceKey === 'bedrooms');
     return getSquareFeetForBedrooms(
       bedrooms,
       sqftService?.service?.thresholds,
@@ -2380,7 +2423,7 @@ export class BookingComponent implements OnInit, OnDestroy {
   }
 
   getSquareFeetMinForBedrooms(): number {
-    const bedroomsService = this.selectedServices.find(s => s.service.serviceKey === 'bedrooms');
+    const bedroomsService = this.selectedServices().find(s => s.service.serviceKey === 'bedrooms');
     if (bedroomsService) {
       return this.getSquareFeetForBedrooms(bedroomsService.quantity);
     }
@@ -2393,12 +2436,13 @@ export class BookingComponent implements OnInit, OnDestroy {
    * result depends on the order the saved services happen to arrive in.
    */
   private clampSquareFeetToBedroomMinimum(): void {
-    const sqftService = this.selectedServices.find(s => s.service.serviceKey === 'sqft');
+    const sqftService = this.selectedServices().find(s => s.service.serviceKey === 'sqft');
     if (!sqftService) return;
     sqftService.quantity = clampRestoredSquareFeet(
       sqftService.quantity,
       this.getSquareFeetMinForBedrooms()
     );
+    this.selectedServices.set(this.selectedServices());
   }
 
   // ===== Sq.ft slider =====
@@ -2416,7 +2460,7 @@ export class BookingComponent implements OnInit, OnDestroy {
     if (this.sqftOptionsCache?.key !== key) {
       this.sqftOptionsCache = { key, options: getSquareFeetOptions(min, max, step) };
     }
-    return this.sqftOptionsCache.options;
+    return this.sqftOptionsCache!.options;
   }
 
   getSquareFeetSliderMaxIndex(service: Service): number {
@@ -2441,22 +2485,24 @@ export class BookingComponent implements OnInit, OnDestroy {
   }
 
   updateServiceQuantity(service: Service, quantity: number) {
-    const selectedService = this.selectedServices.find(s => s.service.id === service.id);
+    const selectedService = this.selectedServices().find(s => s.service.id === service.id);
     if (selectedService) {
       // Captured BEFORE the write below — the bedrooms→sqft rule needs the floor of the
       // OUTGOING bedroom count to tell an inherited sqft from a chosen one.
       const previousQuantity = selectedService.quantity;
       selectedService.quantity = quantity;
+      this.selectedServices.set(this.selectedServices());
 
       // Update square feet when bedrooms change
       if (service.serviceKey === 'bedrooms') {
-        const sqftService = this.selectedServices.find(s => s.service.serviceKey === 'sqft');
+        const sqftService = this.selectedServices().find(s => s.service.serviceKey === 'sqft');
         if (sqftService) {
           sqftService.quantity = resolveSquareFeetForBedroomChange(
             sqftService.quantity,
             this.getSquareFeetForBedrooms(previousQuantity),
             this.getSquareFeetForBedrooms(quantity)
           );
+          this.selectedServices.set(this.selectedServices());
         }
       }
 
@@ -2465,6 +2511,7 @@ export class BookingComponent implements OnInit, OnDestroy {
         const minSquareFeet = this.getSquareFeetMinForBedrooms();
         if (quantity < minSquareFeet) {
           selectedService.quantity = minSquareFeet;
+          this.selectedServices.set(this.selectedServices());
           quantity = minSquareFeet;
         }
       }
@@ -2472,7 +2519,7 @@ export class BookingComponent implements OnInit, OnDestroy {
       // When cleaners or hours change, update the display for both
       if (service.serviceKey === 'cleaners' || service.serviceKey === 'hours') {
         // Force Angular to detect changes
-        this.selectedServices = [...this.selectedServices];
+        this.selectedServices.set(this.selectedServices());
       }
       this.calculateTotal();
     }
@@ -2480,7 +2527,7 @@ export class BookingComponent implements OnInit, OnDestroy {
   }
 
   incrementServiceQuantity(service: Service) {
-    const selectedService = this.selectedServices.find(s => s.service.id === service.id);
+    const selectedService = this.selectedServices().find(s => s.service.id === service.id);
     if (selectedService) {
       const maxValue = service.maxValue || 10;
       const stepValue = service.stepValue || 1;
@@ -2490,7 +2537,7 @@ export class BookingComponent implements OnInit, OnDestroy {
   }
 
   decrementServiceQuantity(service: Service) {
-    const selectedService = this.selectedServices.find(s => s.service.id === service.id);
+    const selectedService = this.selectedServices().find(s => s.service.id === service.id);
     if (selectedService) {
       const minValue = this.getServiceMinValue(service);
       const stepValue = service.stepValue || 1;
@@ -2509,7 +2556,7 @@ export class BookingComponent implements OnInit, OnDestroy {
     }
     // A house has no studio. Raising the floor here is what greys out the minus button at one
     // bedroom and stops the "Studio" label ever appearing, without a second rule in the template.
-    if (service.serviceKey === 'bedrooms' && isHouse(this.propertyType)) {
+    if (service.serviceKey === 'bedrooms' && isHouse(this.propertyType())) {
       return Math.max(baseMin, 1);
     }
     return baseMin;
@@ -2532,12 +2579,12 @@ export class BookingComponent implements OnInit, OnDestroy {
 
   /** Property type is asked but unanswered. Drives the inline error under the two cards. */
   isPropertyTypeMissing(): boolean {
-    return this.showPropertyTypeSelector() && this.propertyType === null;
+    return this.showPropertyTypeSelector() && this.propertyType() === null;
   }
 
   /** Levels are rendered but unanswered. Drives the inline error under the chips. */
   isLevelsMissing(): boolean {
-    return this.showLevelsSelector() && this.levelsQuantity === null;
+    return this.showLevelsSelector() && this.levelsQuantity() === null;
   }
 
   /** Template helper: levels has its own gated block, never the generic service grid. */
@@ -2557,8 +2604,8 @@ export class BookingComponent implements OnInit, OnDestroy {
    * request and never creates an Order, so there is nothing to persist a property type onto.
    */
   showPropertyTypeSelector(): boolean {
-    if (this.showPollForm) return false;
-    return serviceTypeCollectsPropertyType(this.selectedServiceType);
+    if (this.showPollForm()) return false;
+    return serviceTypeCollectsPropertyType(this.selectedServiceType());
   }
 
   /**
@@ -2580,7 +2627,7 @@ export class BookingComponent implements OnInit, OnDestroy {
    * there are three flights to carry equipment up.
    */
   showLevelsSelector(): boolean {
-    return this.showPropertyTypeSelector() && isHouse(this.propertyType);
+    return this.showPropertyTypeSelector() && isHouse(this.propertyType());
   }
 
   /**
@@ -2590,7 +2637,7 @@ export class BookingComponent implements OnInit, OnDestroy {
    * nothing reaches the calculator and the price cannot move.
    */
   private getPricedLevelsService(): Service | null {
-    return findLevelsService(this.selectedServiceType);
+    return findLevelsService(this.selectedServiceType());
   }
 
   /** True when a chosen level count would actually be charged for. */
@@ -2599,7 +2646,7 @@ export class BookingComponent implements OnInit, OnDestroy {
   }
 
   isPropertyTypeSelected(type: PropertyType): boolean {
-    return this.propertyType === type;
+    return this.propertyType() === type;
   }
 
   selectPropertyType(type: PropertyType): void {
@@ -2607,8 +2654,8 @@ export class BookingComponent implements OnInit, OnDestroy {
     // answer, not finishing: marking it here fired "Please choose how many levels" the instant
     // they clicked, before a single chip existed to click. Errors surface on a blocked Continue,
     // which is the same moment every other required step-1 control reveals its own.
-    if (this.propertyType === type) return;
-    this.propertyType = type;
+    if (this.propertyType() === type) return;
+    this.propertyType.set(type);
 
     if (type === PROPERTY_TYPE_HOUSE) {
       // Studio is not offered for a house, so a customer who had it selected is raised to one
@@ -2637,24 +2684,24 @@ export class BookingComponent implements OnInit, OnDestroy {
    * subtotal it sits above.
    */
   getAdditionalLevelsCost(): number {
-    if (!isHouse(this.propertyType) || this.levelsQuantity == null) return 0;
+    if (!isHouse(this.propertyType()) || this.levelsQuantity() == null) return 0;
 
     // Zero on an unpriced service type, because no line was ever added. That is what keeps the
     // "Additional levels" summary row off an informational order, the same way it stays off a
     // single-level house whose line prices to $0.
-    const levels = this.selectedServices.find(s => isLevelsService(s.service));
+    const levels = this.selectedServices().find(s => isLevelsService(s.service));
     if (!levels) return 0;
 
     return getServiceDisplayPrice(
-      levels.service, levels.quantity, this.getSelectedPriceMultiplier(), this.selectedServices);
+      levels.service, levels.quantity, this.getSelectedPriceMultiplier(), this.selectedServices());
   }
 
   isLevelsSelected(levels: number): boolean {
-    return this.levelsQuantity === levels;
+    return this.levelsQuantity() === levels;
   }
 
   selectLevels(levels: number): void {
-    this.levelsQuantity = levels;
+    this.levelsQuantity.set(levels);
     this.applyLevelsToSelectedServices(levels);
     this.calculateTotal();
     this.saveFormData();
@@ -2671,15 +2718,15 @@ export class BookingComponent implements OnInit, OnDestroy {
     const definition = this.getPricedLevelsService();
     if (!definition) return;
 
-    const existing = this.selectedServices.find(s => s.service.id === definition.id);
-    if (existing) existing.quantity = levels;
-    else this.selectedServices.push({ service: definition, quantity: levels });
+    const existing = this.selectedServices().find(s => s.service.id === definition.id);
+    if (existing) { existing.quantity = levels; this.selectedServices.set(this.selectedServices()); }
+    else { this.selectedServices().push({ service: definition, quantity: levels }); this.selectedServices.set(this.selectedServices()); }
   }
 
   /** Forgets the level count AND removes the priced line. Both, or the charge survives. */
   private clearLevelsSelection(): void {
-    this.levelsQuantity = null;
-    this.selectedServices = this.selectedServices.filter(s => !isLevelsService(s.service));
+    this.levelsQuantity.set(null);
+    this.selectedServices.set(this.selectedServices().filter(s => !isLevelsService(s.service)));
   }
 
   /**
@@ -2691,7 +2738,7 @@ export class BookingComponent implements OnInit, OnDestroy {
    * OrderPricingInputBuilder.ClampBedroomsToPropertyType.
    */
   private raiseBedroomsToHouseMinimum(): void {
-    const bedrooms = this.selectedServices.find(s => s.service.serviceKey === 'bedrooms');
+    const bedrooms = this.selectedServices().find(s => s.service.serviceKey === 'bedrooms');
     if (!bedrooms || bedrooms.quantity >= 1) return;
 
     // updateServiceQuantity captures the outgoing count itself before writing the new one, so
@@ -2717,21 +2764,20 @@ export class BookingComponent implements OnInit, OnDestroy {
       return;
     }
 
-    this.propertyType = normalizePropertyType(savedData?.propertyType);
+    this.propertyType.set(normalizePropertyType(savedData?.propertyType));
 
     // Only a house has levels at all. Restoring is safe on an unpriced type too: the count comes
     // back as an informational value and applyLevelsToSelectedServices adds no line.
-    if (!isHouse(this.propertyType)) {
+    if (!isHouse(this.propertyType())) {
       this.clearLevelsSelection();
       return;
     }
 
     const stored = savedData?.levelsQuantity;
     const restored = stored == null ? null : Math.round(Number(stored));
-    this.levelsQuantity =
-      restored != null && LEVEL_OPTIONS.includes(restored) ? restored : null;
+    this.levelsQuantity.set(restored != null && LEVEL_OPTIONS.includes(restored) ? restored : null);
 
-    if (this.levelsQuantity != null) this.applyLevelsToSelectedServices(this.levelsQuantity);
+    if (this.levelsQuantity() != null) this.applyLevelsToSelectedServices(this.levelsQuantity()!);
   }
 
   /**
@@ -2742,12 +2788,12 @@ export class BookingComponent implements OnInit, OnDestroy {
    * across, because the levels line belongs to a specific service type's catalogue row.
    */
   private resetPropertyTypeSelection(): void {
-    this.propertyType = null;
+    this.propertyType.set(null);
     this.clearLevelsSelection();
   }
 
   hasExtraCleanersSelected(): boolean {
-    return this.selectedExtraServices.some(
+    return this.selectedExtraServices().some(
       s => isExtraCleaners(s.extraService)
     );
   }
@@ -2756,7 +2802,7 @@ export class BookingComponent implements OnInit, OnDestroy {
   // toggles Extra Cleaners on while hours sits below it. Without this, the +/- control
   // would simply be disabled at a too-low value and the user couldn't tell why.
   private enforceHoursMinForExtraCleaners() {
-    const hoursSelected = this.selectedServices.find(
+    const hoursSelected = this.selectedServices().find(
       s => s.service.serviceRelationType === 'hours'
     );
     if (!hoursSelected) return;
@@ -2770,7 +2816,7 @@ export class BookingComponent implements OnInit, OnDestroy {
   onExtraServiceCardClick(extraService: ExtraService) {
     // If it's a disabled same day service and on mobile, show tooltip.
     // Admins / SuperAdmins are never restricted, so they always fall through to the toggle.
-    if (extraService.isSameDayService && !this.isSameDayServiceAvailable && !this.isAdminOrSuperAdmin && this.isCurrentlyMobile()) {
+    if (extraService.isSameDayService && !this.isSameDayServiceAvailable() && !this.isAdminOrSuperAdmin && this.isCurrentlyMobile()) {
       this.clearAllMobileTooltips();
       this.showMobileTooltip(extraService.id);
       return;
@@ -2783,15 +2829,16 @@ export class BookingComponent implements OnInit, OnDestroy {
     
     // Prevent selecting same day service if it's not available.
     // Admins / SuperAdmins are never blocked (no same-day restrictions for them).
-    if (extraService.isSameDayService && !this.isSameDayServiceAvailable && !this.isAdminOrSuperAdmin) {
+    if (extraService.isSameDayService && !this.isSameDayServiceAvailable() && !this.isAdminOrSuperAdmin) {
       return;
     }
     
-    const index = this.selectedExtraServices.findIndex(s => s.extraService.id === extraService.id);
+    const index = this.selectedExtraServices().findIndex(s => s.extraService.id === extraService.id);
     
     if (index > -1) {
       // Remove if already selected
-      this.selectedExtraServices.splice(index, 1);
+      this.selectedExtraServices().splice(index, 1);
+      this.selectedExtraServices.set(this.selectedExtraServices());
 
       // On mobile, briefly re-show this service's tooltip so a deselect
       // tap still reveals the description (matches desktop hover behaviour).
@@ -2799,7 +2846,7 @@ export class BookingComponent implements OnInit, OnDestroy {
       this.showMobileTooltip(extraService.id);
 
       if (extraService.isSameDayService) {
-        this.isSameDaySelected = false;
+        this.isSameDaySelected.set(false);
         // Only set date to tomorrow if this is a manual uncheck (not from date selection)
         if (!skipDateChange) {
           const tomorrow = new Date();
@@ -2821,23 +2868,24 @@ export class BookingComponent implements OnInit, OnDestroy {
       // If selecting a cleaning type, remove other cleaning types
       if (extraService.isDeepCleaning || extraService.isSuperDeepCleaning) {
         // Remove any existing deep cleaning or super deep cleaning
-        this.selectedExtraServices = this.selectedExtraServices.filter(
+        this.selectedExtraServices.set(this.selectedExtraServices().filter(
           s => !s.extraService.isDeepCleaning && !s.extraService.isSuperDeepCleaning
-        );
+        ));
       }
       
       // Add new selection
-      this.selectedExtraServices.push({
+      this.selectedExtraServices().push({
         extraService: extraService,
         quantity: 1,
         hours: extraService.hasHours ? 0.5 : 0
       });
+      this.selectedExtraServices.set(this.selectedExtraServices());
 
       // Show mobile tooltip for this service
       this.showMobileTooltip(extraService.id);
 
       if (extraService.isSameDayService) {
-        this.isSameDaySelected = true;
+        this.isSameDaySelected.set(true);
         this.updateDateRestrictions();
       }
     }
@@ -2872,39 +2920,41 @@ export class BookingComponent implements OnInit, OnDestroy {
   }
 
   updateExtraServiceQuantity(extraService: ExtraService, quantity: number) {
-    const selected = this.selectedExtraServices.find(s => s.extraService.id === extraService.id);
+    const selected = this.selectedExtraServices().find(s => s.extraService.id === extraService.id);
     if (selected && quantity >= 1) {
       selected.quantity = quantity;
+      this.selectedExtraServices.set(this.selectedExtraServices());
       this.calculateTotal();
       this.saveFormData(); // Save form data immediately when quantity changes
     }
   }
 
   updateExtraServiceHours(extraService: ExtraService, hours: number) {
-    const selected = this.selectedExtraServices.find(s => s.extraService.id === extraService.id);
+    const selected = this.selectedExtraServices().find(s => s.extraService.id === extraService.id);
     if (selected && hours >= 0.5) {
       selected.hours = hours;
+      this.selectedExtraServices.set(this.selectedExtraServices());
       this.calculateTotal();
       this.saveFormData(); // Save form data immediately when hours change
     }
   }
 
   isExtraServiceSelected(extraService: ExtraService): boolean {
-    return this.selectedExtraServices.some(s => s.extraService.id === extraService.id);
+    return this.selectedExtraServices().some(s => s.extraService.id === extraService.id);
   }
 
   getExtraServiceQuantity(extraService: ExtraService): number {
-    const selected = this.selectedExtraServices.find(s => s.extraService.id === extraService.id);
+    const selected = this.selectedExtraServices().find(s => s.extraService.id === extraService.id);
     return selected ? selected.quantity : 1;
   }
 
   getExtraServiceHours(extraService: ExtraService): number {
-    const selected = this.selectedExtraServices.find(s => s.extraService.id === extraService.id);
+    const selected = this.selectedExtraServices().find(s => s.extraService.id === extraService.id);
     return selected ? selected.hours : 0.5;
   }
 
   getExtraServicePrice(extraService: ExtraService): number {
-    const selected = this.selectedExtraServices.find(s => s.extraService.id === extraService.id);
+    const selected = this.selectedExtraServices().find(s => s.extraService.id === extraService.id);
     // Defaults for not-yet-selected cards: 0.5h / qty 1. Math lives in the shared calculator.
     const hours = selected ? selected.hours : 0.5;
     const quantity = selected ? selected.quantity : 1;
@@ -2912,7 +2962,7 @@ export class BookingComponent implements OnInit, OnDestroy {
   }
 
   getExtraServiceDuration(extraService: ExtraService): number {
-    const selected = this.selectedExtraServices.find(s => s.extraService.id === extraService.id);
+    const selected = this.selectedExtraServices().find(s => s.extraService.id === extraService.id);
     
     // Calculate duration based on type
     if (extraService.hasHours) {
@@ -2932,13 +2982,13 @@ export class BookingComponent implements OnInit, OnDestroy {
     // Zero-quantity rule, thresholds, tiers and the multiplier all live in the shared
     // calculator. selectedServices is passed so threshold sources (e.g. bedrooms for sqft)
     // resolve exactly as they do in the summary.
-    return getServiceDisplayPrice(service, quantity, this.getSelectedPriceMultiplier(), this.selectedServices);
+    return getServiceDisplayPrice(service, quantity, this.getSelectedPriceMultiplier(), this.selectedServices());
   }
 
 
 
   selectSubscription(subscription: Subscription) {
-    this.selectedSubscription = subscription;
+    this.selectedSubscription.set(subscription);
     this.calculateTotal();
     this.saveFormData(); // Persist selected subscription
 
@@ -2951,17 +3001,17 @@ export class BookingComponent implements OnInit, OnDestroy {
   // candidate that loyalty would beat anyway (the stacking gate inside calculateTotal would
   // zero it out — better UX to block up front with a clear message). Returns 0 when no loyalty.
   private currentLoyaltyDollarValue(): number {
-    if (this.loyaltyDiscountPercentage <= 0) return 0;
-    const sub = this.calculation.subTotal || 0;
+    if (this.loyaltyDiscountPercentage() <= 0) return 0;
+    const sub = this.calculation().subTotal || 0;
     if (sub <= 0) return 0;
-    return round2(sub * (this.loyaltyDiscountPercentage / 100));
+    return round2(sub * (this.loyaltyDiscountPercentage() / 100));
   }
 
   // Compute what a candidate discount would be worth in $ on the current subTotal, matching
   // the math used by calculateTotal so the pre-flight comparison stays consistent with what
   // the stacking gate actually does. Gift cards aren't checked here — they stack with loyalty.
   private candidateDollarValue(value: number, isPercentage: boolean): number {
-    const sub = this.calculation.subTotal || 0;
+    const sub = this.calculation().subTotal || 0;
     if (sub <= 0) return 0;
     if (isPercentage) {
       return round2(sub * (value / 100));
@@ -2982,21 +3032,21 @@ export class BookingComponent implements OnInit, OnDestroy {
     setTimeout(() => { this.summaryCodeActionInProgress = false; }, 1500);
 
     // If special offer is already applied, show error
-    if (this.specialOfferApplied) {
-      this.errorMessage = 'Cannot apply promo code when a special offer is already applied. Please remove the special offer first.';
+    if (this.specialOfferApplied()) {
+      this.errorMessage.set('Cannot apply promo code when a special offer is already applied. Please remove the special offer first.');
       return;
     }
 
     // Keep your existing first-time discount check as is
     if (this.firstTimeDiscountApplied) {
-      this.errorMessage = 'Cannot apply promo code when first-time discount is already applied. Please remove the first-time discount first.';
+      this.errorMessage.set('Cannot apply promo code when first-time discount is already applied. Please remove the first-time discount first.');
       return;
     }
 
     // Clear any previous error
-    this.errorMessage = '';
+    this.errorMessage.set('');
 
-    this.bookingService.validatePromoCode(code, this.calculation.subTotal).subscribe({
+    this.bookingService.validatePromoCode(code, this.calculation().subTotal).subscribe({
       next: (validation) => {
         if (validation.isValid) {
           // Ensure the promo code value is preserved in the FormControl
@@ -3004,14 +3054,14 @@ export class BookingComponent implements OnInit, OnDestroy {
             this.promoCode.setValue(code, { emitEvent: false });
           }
 
-          this.discountsClearedForAccountSwitch = false;
+          this.discountsClearedForAccountSwitch.set(false);
 
           if (validation.isGiftCard) {
             // Handle gift card
-            this.isGiftCard = true;
-            this.giftCardApplied = true;
-            this.giftCardBalance = validation.availableBalance || 0;
-            this.promoCodeApplied = false; // Gift cards don't use promo system
+            this.isGiftCard.set(true);
+            this.giftCardApplied.set(true);
+            this.giftCardBalance.set(validation.availableBalance || 0);
+            this.promoCodeApplied.set(false); // Gift cards don't use promo system
           } else {
             // Pre-flight loyalty check (non-gift-card promos only). If the user's existing
             // loyalty discount is worth more than this promo, refuse to apply and tell them
@@ -3019,33 +3069,32 @@ export class BookingComponent implements OnInit, OnDestroy {
             const loyaltyDollars = this.currentLoyaltyDollarValue();
             const promoDollars = this.candidateDollarValue(validation.discountValue, validation.isPercentage);
             if (loyaltyDollars > promoDollars) {
-              this.errorMessage =
-                `You already have a Loyalty Discount of ${this.loyaltyDiscountPercentage}% on your account — ` +
-                `it's better than this promo code, so they can't be used together.`;
+              this.errorMessage.set(`You already have a Loyalty Discount of ${this.loyaltyDiscountPercentage()}% on your account — ` +
+                `it's better than this promo code, so they can't be used together.`);
               return;
             }
 
             // Your existing promo code logic stays exactly the same
-            this.isGiftCard = false;
-            this.giftCardApplied = false;
-            this.promoCodeApplied = true;
-            this.promoDiscount = validation.discountValue;
-            this.promoIsPercentage = validation.isPercentage;
+            this.isGiftCard.set(false);
+            this.giftCardApplied.set(false);
+            this.promoCodeApplied.set(true);
+            this.promoDiscount.set(validation.discountValue);
+            this.promoIsPercentage.set(validation.isPercentage);
           }
 
           this.calculateTotal();
         } else {
-          this.errorMessage = validation.message || 'Invalid promo code';
+          this.errorMessage.set(validation.message || 'Invalid promo code');
         }
       },
       error: () => {
-        this.errorMessage = 'Failed to validate promo code';
+        this.errorMessage.set('Failed to validate promo code');
       }
     });
   }
 
 private updateDateRestrictions() {
-    if (this.isSameDaySelected) {
+    if (this.isSameDaySelected()) {
       const today = this.getNowInNewYork();
 
       // Format date properly for HTML date input (YYYY-MM-DD)
@@ -3077,7 +3126,7 @@ private updateDateRestrictions() {
   }
 
   private fillApartmentAddress(apartmentId: string) {
-    const apartment = this.userApartments.find(a => a.id === +apartmentId);
+    const apartment = this.userApartments().find(a => a.id === +apartmentId);
     if (apartment) {
       // First set the state and load cities
       this.bookingForm.patchValue({
@@ -3087,7 +3136,7 @@ private updateDateRestrictions() {
       // Load cities for the state, then set the rest of the address
       this.locationService.getCities(apartment.state).subscribe({
         next: (cities) => {
-          this.cities = cities;
+          this.cities.set(cities);
           
           // Now set all address fields including city and address name (required)
           this.bookingForm.patchValue({
@@ -3110,16 +3159,16 @@ private updateDateRestrictions() {
     // customAmount, so an empty (or cleared) Total Amount fell through to the ordinary path and
     // priced the selections normally — which is how informational extras started charging the
     // customer in the summary. A custom order with no amount typed is simply $0 until one is.
-    if (this.showCustomPricing) {
+    if (this.showCustomPricing()) {
       return {
-        basePrice: this.selectedServiceType?.basePrice ?? 0,
-        baseDuration: this.selectedServiceType?.timeDuration ?? 0,
+        basePrice: this.selectedServiceType()?.basePrice ?? 0,
+        baseDuration: this.selectedServiceType()?.timeDuration ?? 0,
         services: [],
         // Extras ARE passed on a custom-priced order even though they cost nothing: the
         // calculator's custom branch turns them into $0 / 0-minute lines so they get persisted
         // for the admin panel and the cleaner's job email. Passing [] here would diverge from
         // the backend, which prices the same DTO with its extras attached.
-        extraServices: mapSelectedExtraInputs(this.selectedExtraServices),
+        extraServices: mapSelectedExtraInputs(this.selectedExtraServices()),
         isCustomPricing: true,
         customAmount: parseFloat(this.customAmount.value) || 0,
         customCleaners: parseInt(this.customCleaners.value) || 1,
@@ -3127,32 +3176,32 @@ private updateDateRestrictions() {
       };
     }
 
-    return buildQuoteInputFromSelections(this.selectedServiceType, this.selectedServices, this.selectedExtraServices);
+    return buildQuoteInputFromSelections(this.selectedServiceType(), this.selectedServices(), this.selectedExtraServices());
   }
 
   /** Current cleaning-type multiplier (super deep > deep > 1) from the shared calculator. */
   getSelectedPriceMultiplier(): number {
-    return resolvePriceMultiplier(mapSelectedExtraInputs(this.selectedExtraServices)).multiplier;
+    return resolvePriceMultiplier(mapSelectedExtraInputs(this.selectedExtraServices())).multiplier;
   }
 
   calculateTotal() {
     // Single source of truth: the shared pricing calculator (mirrored by the backend).
     const quote = calculateQuote(this.buildQuoteInput());
 
-    this.calculatedMaidsCount = quote.maidsCount;
+    this.calculatedMaidsCount.set(quote.maidsCount);
     this.actualTotalDuration = quote.totalDuration;
     const subTotal = quote.subTotal;
 
     // Reset discount amounts
-    this.subscriptionDiscountAmount = 0;
-    this.promoOrFirstTimeDiscountAmount = 0;
+    this.subscriptionDiscountAmount.set(0);
+    this.promoOrFirstTimeDiscountAmount.set(0);
 
     // Subscription discount: only when the user's active subscription matches the selection.
-    if (this.hasActiveSubscription && this.userSubscription && this.selectedSubscription) {
-      const userSubscriptionDays = this.getUserSubscriptionDays(this.userSubscription);
-      const selectedSubscriptionDays = this.selectedSubscription.subscriptionDays || 0;
+    if (this.hasActiveSubscription() && this.userSubscription() && this.selectedSubscription()) {
+      const userSubscriptionDays = this.getUserSubscriptionDays(this.userSubscription());
+      const selectedSubscriptionDays = this.selectedSubscription()!.subscriptionDays || 0;
       if (userSubscriptionDays === selectedSubscriptionDays && selectedSubscriptionDays > 0) {
-        this.subscriptionDiscountAmount = percentOf(subTotal, this.selectedSubscription.discountPercentage);
+        this.subscriptionDiscountAmount.set(percentOf(subTotal, this.selectedSubscription()!.discountPercentage));
       }
     }
 
@@ -3161,17 +3210,17 @@ private updateDateRestrictions() {
     // percentOf, a fixed amount is its face value capped at the subtotal (2026-10: a fixed promo
     // CODE is capped too now, like a fixed special offer always was).
     let fixedPromoFace: number | null = null;
-    if (this.specialOfferApplied && this.selectedSpecialOffer) {
-      const offer = this.selectedSpecialOffer;
+    if (this.specialOfferApplied() && this.selectedSpecialOffer()) {
+      const offer = this.selectedSpecialOffer()!;
       if (!offer.isPercentage) fixedPromoFace = offer.discountValue;
-      this.promoOrFirstTimeDiscountAmount = offer.isPercentage
+      this.promoOrFirstTimeDiscountAmount.set(offer.isPercentage
         ? percentOf(subTotal, offer.discountValue)
-        : capFixedDiscount(offer.discountValue, subTotal, 0);
-    } else if (this.promoCodeApplied && !this.giftCardApplied) {
-      if (!this.promoIsPercentage) fixedPromoFace = this.promoDiscount;
-      this.promoOrFirstTimeDiscountAmount = this.promoIsPercentage
-        ? percentOf(subTotal, this.promoDiscount)
-        : capFixedDiscount(this.promoDiscount, subTotal, 0);
+        : capFixedDiscount(offer.discountValue, subTotal, 0));
+    } else if (this.promoCodeApplied() && !this.giftCardApplied()) {
+      if (!this.promoIsPercentage()) fixedPromoFace = this.promoDiscount();
+      this.promoOrFirstTimeDiscountAmount.set(this.promoIsPercentage()
+        ? percentOf(subTotal, this.promoDiscount())
+        : capFixedDiscount(this.promoDiscount(), subTotal, 0));
     }
 
     // Loyalty Discount stacking — mutates the three discount slots in place.
@@ -3179,13 +3228,13 @@ private updateDateRestrictions() {
 
     // A surviving fixed amount is capped once more against the other survivors (subscription and
     // promo can stack), exactly as BookingCreationService.RecordDiscountRules does server-side.
-    if (fixedPromoFace != null && this.promoOrFirstTimeDiscountAmount > 0) {
-      this.promoOrFirstTimeDiscountAmount = capFixedDiscount(
-        fixedPromoFace, subTotal, this.subscriptionDiscountAmount + this.loyaltyDiscountAmount);
+    if (fixedPromoFace != null && this.promoOrFirstTimeDiscountAmount() > 0) {
+      this.promoOrFirstTimeDiscountAmount.set(capFixedDiscount(
+        fixedPromoFace, subTotal, this.subscriptionDiscountAmount() + this.loyaltyDiscountAmount()));
     }
 
     // Total discount is the sum of all three slots; after stacking at most two are non-zero.
-    const totalDiscountAmount = this.subscriptionDiscountAmount + this.promoOrFirstTimeDiscountAmount + this.loyaltyDiscountAmount;
+    const totalDiscountAmount = this.subscriptionDiscountAmount() + this.promoOrFirstTimeDiscountAmount() + this.loyaltyDiscountAmount();
 
     const tips = this.tipsAmount;
 
@@ -3194,49 +3243,49 @@ private updateDateRestrictions() {
       // Custom Pricing: keeps the quoted total equal to the tax-inclusive amount the admin
       // typed (null for every other quote).
       taxOverride: quote.taxOverride,
-      discountAmount: this.promoOrFirstTimeDiscountAmount,
-      subscriptionDiscountAmount: this.subscriptionDiscountAmount,
-      loyaltyDiscountAmount: this.loyaltyDiscountAmount,
+      discountAmount: this.promoOrFirstTimeDiscountAmount(),
+      subscriptionDiscountAmount: this.subscriptionDiscountAmount(),
+      loyaltyDiscountAmount: this.loyaltyDiscountAmount(),
       tips
     });
 
     // Gift card / bubble points / bubble credits come off the very end.
     let finalTotal = totals.totalBeforeGiftCard;
-    if (this.giftCardApplied && this.isGiftCard) {
-      this.giftCardAmountToUse = resolveGiftCardAmountToUse(this.giftCardBalance, totals.totalBeforeGiftCard);
-      finalTotal = Math.max(0, finalTotal - this.giftCardAmountToUse);
+    if (this.giftCardApplied() && this.isGiftCard()) {
+      this.giftCardAmountToUse.set(resolveGiftCardAmountToUse(this.giftCardBalance(), totals.totalBeforeGiftCard));
+      finalTotal = Math.max(0, finalTotal - this.giftCardAmountToUse());
     }
-    if (this.selectedPointsToRedeem > 0 && this.pointsDiscountAmount > 0) {
-      finalTotal = Math.max(0, finalTotal - this.pointsDiscountAmount);
+    if (this.selectedPointsToRedeem() > 0 && this.pointsDiscountAmount() > 0) {
+      finalTotal = Math.max(0, finalTotal - this.pointsDiscountAmount());
     }
-    if (this.useCredits && this.userBubbleCredits > 0) {
-      finalTotal = Math.max(0, finalTotal - this.userBubbleCredits);
+    if (this.useCredits() && this.userBubbleCredits() > 0) {
+      finalTotal = Math.max(0, finalTotal - this.userBubbleCredits());
     }
 
-    this.calculation = {
+    this.calculation.set({
       subTotal: round2(subTotal),
       tax: totals.tax,
       discountAmount: totalDiscountAmount,
       tips,
       total: round2(finalTotal),
       totalDuration: quote.displayDuration
-    };
+    });
 
     // Next order's total with the subscription discount applied (no tips/gift card).
-    if (this.selectedSubscription && this.selectedSubscription.subscriptionDays > 0 && !this.hasActiveSubscription) {
-      this.nextOrderDiscount = round2(subTotal * (this.selectedSubscription.discountPercentage / 100));
-      const nextTotals = calculateTotals({ subTotal, discountAmount: this.nextOrderDiscount });
-      this.nextOrderTotal = nextTotals.discountedSubTotal + nextTotals.tax;
+    if (this.selectedSubscription() && this.selectedSubscription()!.subscriptionDays > 0 && !this.hasActiveSubscription()) {
+      this.nextOrderDiscount.set(round2(subTotal * (this.selectedSubscription()!.discountPercentage / 100)));
+      const nextTotals = calculateTotals({ subTotal, discountAmount: this.nextOrderDiscount() });
+      this.nextOrderTotal.set(nextTotals.discountedSubTotal + nextTotals.tax);
     } else {
-      this.nextOrderDiscount = 0;
-      this.nextOrderTotal = 0;
+      this.nextOrderDiscount.set(0);
+      this.nextOrderTotal.set(0);
     }
   }
 
   // Get cleaner pricing text
   getCleanerPricingText(): string {
-    const deepCleaning = this.selectedExtraServices.find(s => s.extraService.isDeepCleaning);
-    const superDeepCleaning = this.selectedExtraServices.find(s => s.extraService.isSuperDeepCleaning);
+    const deepCleaning = this.selectedExtraServices().find(s => s.extraService.isDeepCleaning);
+    const superDeepCleaning = this.selectedExtraServices().find(s => s.extraService.isSuperDeepCleaning);
     const pricePerHour = this.getCleanerPricePerHour();
     
     if (superDeepCleaning) {
@@ -3250,7 +3299,7 @@ private updateDateRestrictions() {
   // Get cleaner cost display
   getCleanerCostDisplay(cleanerCount: number): string {
     const pricePerHour = this.getCleanerPricePerHour();
-    const hoursService = this.selectedServices.find(s => s.service.serviceRelationType === 'hours');
+    const hoursService = this.selectedServices().find(s => s.service.serviceRelationType === 'hours');
     const hours = hoursService ? hoursService.quantity : 0;
     
     if (hours === 0) {
@@ -3264,7 +3313,7 @@ private updateDateRestrictions() {
   // Get hours cost display
   getHoursCostDisplay(hours: number): string {
     const pricePerHour = this.getCleanerPricePerHour();
-    const cleanersService = this.selectedServices.find(s => s.service.serviceRelationType === 'cleaner');
+    const cleanersService = this.selectedServices().find(s => s.service.serviceRelationType === 'cleaner');
     const cleaners = cleanersService ? cleanersService.quantity : 0;
     
     if (cleaners === 0) {
@@ -3277,47 +3326,47 @@ private updateDateRestrictions() {
 
   // Check if we have cleaner services
   hasCleanerServices(): boolean {
-    return this.selectedServices.some(s => s.service.serviceRelationType === 'cleaner');
+    return this.selectedServices().some(s => s.service.serviceRelationType === 'cleaner');
   }
 
   hasBedroomsService(): boolean {
-    return this.selectedServices.some(s => s.service.serviceKey === 'bedrooms');
+    return this.selectedServices().some(s => s.service.serviceKey === 'bedrooms');
   }
 
   hasBathroomsService(): boolean {
-    return this.selectedServices.some(s => s.service.serviceKey === 'bathrooms');
+    return this.selectedServices().some(s => s.service.serviceKey === 'bathrooms');
   }
 
   shouldShowStandaloneBedroomBathroom(): boolean {
-    if (!this.selectedServiceType || this.showPollForm || this.showCustomPricing) return false;
+    if (!this.selectedServiceType() || this.showPollForm() || this.showCustomPricing()) return false;
     if (this.isOfficeCleaningServiceType()) return false;
-    const hasCleaner = this.selectedServices.some(s => s.service.serviceRelationType === 'cleaner');
-    const hasHours = this.selectedServices.some(s => s.service.serviceRelationType === 'hours');
+    const hasCleaner = this.selectedServices().some(s => s.service.serviceRelationType === 'cleaner');
+    const hasHours = this.selectedServices().some(s => s.service.serviceRelationType === 'hours');
     return hasCleaner && hasHours && !this.hasBedroomsService() && !this.hasBathroomsService();
   }
 
   private syncStandaloneBedroomBathroomFromServices(): void {
-    const bedrooms = this.selectedServices.find(s => s.service.serviceKey === 'bedrooms');
-    const bathrooms = this.selectedServices.find(s => s.service.serviceKey === 'bathrooms');
+    const bedrooms = this.selectedServices().find(s => s.service.serviceKey === 'bedrooms');
+    const bathrooms = this.selectedServices().find(s => s.service.serviceKey === 'bathrooms');
     if (bedrooms) this.bedroomsQuantityControl.setValue(bedrooms.quantity, { emitEvent: false });
     if (bathrooms) this.bathroomsQuantityControl.setValue(bathrooms.quantity, { emitEvent: false });
   }
 
   getSelectedBedroomsQuantity(): number | undefined {
-    if (this.showPollForm) return undefined;
-    if (this.showCustomPricing || this.shouldShowStandaloneBedroomBathroom()) {
+    if (this.showPollForm()) return undefined;
+    if (this.showCustomPricing() || this.shouldShowStandaloneBedroomBathroom()) {
       return Number(this.bedroomsQuantityControl.value);
     }
-    const bedrooms = this.selectedServices.find(s => s.service.serviceKey === 'bedrooms');
+    const bedrooms = this.selectedServices().find(s => s.service.serviceKey === 'bedrooms');
     return bedrooms ? bedrooms.quantity : undefined;
   }
 
   getSelectedBathroomsQuantity(): number | undefined {
-    if (this.showPollForm) return undefined;
-    if (this.showCustomPricing || this.shouldShowStandaloneBedroomBathroom()) {
+    if (this.showPollForm()) return undefined;
+    if (this.showCustomPricing() || this.shouldShowStandaloneBedroomBathroom()) {
       return Number(this.bathroomsQuantityControl.value);
     }
-    const bathrooms = this.selectedServices.find(s => s.service.serviceKey === 'bathrooms');
+    const bathrooms = this.selectedServices().find(s => s.service.serviceKey === 'bathrooms');
     return bathrooms ? bathrooms.quantity : undefined;
   }
 
@@ -3328,13 +3377,13 @@ private updateDateRestrictions() {
   // Get cleaner price per hour based on cleaning type
   getCleanerPricePerHour(): number {
     // Get the actual cleaner service cost from the selected services
-    const cleanerService = this.selectedServices.find(s => s.service.serviceRelationType === 'cleaner');
+    const cleanerService = this.selectedServices().find(s => s.service.serviceRelationType === 'cleaner');
     const basePrice = cleanerService ? cleanerService.service.cost : 40; // fallback to 40 if no cleaner service found
     return basePrice * this.getSelectedPriceMultiplier();
   }
 
   getExtraCleanersCount(): number {
-    const extraCleanersService = this.selectedExtraServices.find(s => isExtraCleaners(s.extraService));
+    const extraCleanersService = this.selectedExtraServices().find(s => isExtraCleaners(s.extraService));
     return extraCleanersService ? extraCleanersService.quantity : 0;
   }
 
@@ -3343,7 +3392,7 @@ private updateDateRestrictions() {
     const baseFormat = DurationUtils.formatDurationRounded(minutes);
     
     // Preserve your "per maid" logic
-    if (this.calculatedMaidsCount > 1) {
+    if (this.calculatedMaidsCount() > 1) {
       return `${baseFormat} per maid`;
     }
     return baseFormat;
@@ -3374,22 +3423,22 @@ private updateDateRestrictions() {
 
   getSummaryDetailLines(mobile: boolean): SummaryLine[] {
     const lines: SummaryLine[] = [];
-    if (mobile && !this.selectedServiceType) return lines;
+    if (mobile && !this.selectedServiceType()) return lines;
 
-    lines.push({ label: 'Service Type:', value: this.selectedServiceType?.name || (mobile ? '' : '—'), shimmer: !mobile && this.loading.serviceTypes });
+    lines.push({ label: 'Service Type:', value: this.selectedServiceType()?.name || (mobile ? '' : '—'), shimmer: !mobile && this.loading().serviceTypes });
 
-    if (this.showCustomPricing) {
-      lines.push({ label: 'Number of Cleaners:', value: `${this.customCleaners.value}`, shimmer: !mobile && this.loading.serviceTypes });
-      lines.push({ label: 'Duration:', value: this.formatDuration(this.customDuration.value), shimmer: !mobile && this.loading.serviceTypes });
+    if (this.showCustomPricing()) {
+      lines.push({ label: 'Number of Cleaners:', value: `${this.customCleaners.value}`, shimmer: !mobile && this.loading().serviceTypes });
+      lines.push({ label: 'Duration:', value: this.formatDuration(this.customDuration.value), shimmer: !mobile && this.loading().serviceTypes });
     } else {
-      if (this.selectedSubscription) {
-        lines.push({ label: 'Cleaning frequency:', value: this.selectedSubscription.name || (mobile ? '' : '—'), shimmer: !mobile && this.loading.summary });
+      if (this.selectedSubscription()) {
+        lines.push({ label: 'Cleaning frequency:', value: this.selectedSubscription()!.name || (mobile ? '' : '—'), shimmer: !mobile && this.loading().summary });
       }
-      lines.push({ label: 'Duration:', value: this.formatDuration(this.calculation.totalDuration), shimmer: !mobile && this.loading.summary });
+      lines.push({ label: 'Duration:', value: this.formatDuration(this.calculation().totalDuration), shimmer: !mobile && this.loading().summary });
       // Cleaner count is only a customer-facing concept for cleaner+hours service
       // types; for regular types the team decides staffing (admin-set, never shown).
       if (this.hasCleanerServices()) {
-        lines.push({ label: 'Number of Cleaners:', value: `${this.calculatedMaidsCount}`, shimmer: !mobile && this.loading.summary });
+        lines.push({ label: 'Number of Cleaners:', value: `${this.calculatedMaidsCount()}`, shimmer: !mobile && this.loading().summary });
       }
     }
 
@@ -3398,14 +3447,14 @@ private updateDateRestrictions() {
       lines.push({
         label: 'Date & Time:',
         value: hasDateTime ? `${formatDate(this.serviceDate.value, 'MMM d', 'en-US')} at ${this.formatTime(this.serviceTime.value)}` : '—',
-        shimmer: !mobile && this.loading.summary
+        shimmer: !mobile && this.loading().summary
       });
     }
     return lines;
   }
 
   getSummaryPriceLines(mobile: boolean): SummaryLine[] {
-    const shimmer = !mobile && this.loading.pricing;
+    const shimmer = !mobile && this.loading().pricing;
     const lines: SummaryLine[] = [];
 
     // Additional levels, shown ONLY when they cost something. A one-level house and an apartment
@@ -3413,41 +3462,41 @@ private updateDateRestrictions() {
     const additionalLevelsCost = this.getAdditionalLevelsCost();
     if (additionalLevelsCost > 0) {
       lines.push({
-        label: `Additional levels (${(this.levelsQuantity ?? 1) - 1}):`,
+        label: `Additional levels (${(this.levelsQuantity() ?? 1) - 1}):`,
         value: `$${additionalLevelsCost.toFixed(2)}`,
         shimmer
       });
     }
 
-    lines.push({ label: 'Subtotal:', value: `$${this.calculation.subTotal.toFixed(2)}`, shimmer });
+    lines.push({ label: 'Subtotal:', value: `$${this.calculation().subTotal.toFixed(2)}`, shimmer });
 
-    if (this.subscriptionDiscountAmount > 0) {
+    if (this.subscriptionDiscountAmount() > 0) {
       lines.push({
-        label: `Plan discount (${this.userSubscription?.discountPercentage}%):`,
-        value: `-$${this.subscriptionDiscountAmount.toFixed(2)}`,
+        label: `Plan discount (${this.userSubscription()?.discountPercentage}%):`,
+        value: `-$${this.subscriptionDiscountAmount().toFixed(2)}`,
         rowClass: 'subscription-discount', valueClass: 'discount', shimmer
       });
     }
 
-    if (this.loyaltyDiscountAmount > 0) {
+    if (this.loyaltyDiscountAmount() > 0) {
       lines.push({
-        label: `Loyalty Discount (${this.loyaltyDiscountPercentage}%):`,
-        value: `-$${this.loyaltyDiscountAmount.toFixed(2)}`,
+        label: `Loyalty Discount (${this.loyaltyDiscountPercentage()}%):`,
+        value: `-$${this.loyaltyDiscountAmount().toFixed(2)}`,
         valueClass: 'discount', shimmer
       });
     }
 
-    if (this.promoOrFirstTimeDiscountAmount > 0) {
+    if (this.promoOrFirstTimeDiscountAmount() > 0) {
       let label = '';
-      if (this.specialOfferApplied && this.selectedSpecialOffer) {
-        label = this.selectedSpecialOffer.name + (this.selectedSpecialOffer.isPercentage ? ` (${this.selectedSpecialOffer.discountValue}%)` : '');
-      } else if (this.promoCodeApplied) {
-        label = 'Promo Code Discount' + (this.promoIsPercentage ? ` (${this.promoDiscount}%)` : '');
+      if (this.specialOfferApplied() && this.selectedSpecialOffer()) {
+        label = this.selectedSpecialOffer()!.name + (this.selectedSpecialOffer()!.isPercentage ? ` (${this.selectedSpecialOffer()!.discountValue}%)` : '');
+      } else if (this.promoCodeApplied()) {
+        label = 'Promo Code Discount' + (this.promoIsPercentage() ? ` (${this.promoDiscount()}%)` : '');
       }
-      lines.push({ label, value: `-$${this.promoOrFirstTimeDiscountAmount.toFixed(2)}`, valueClass: 'discount', shimmer });
+      lines.push({ label, value: `-$${this.promoOrFirstTimeDiscountAmount().toFixed(2)}`, valueClass: 'discount', shimmer });
     }
 
-    if (this.giftCardApplied) {
+    if (this.giftCardApplied()) {
       lines.push({
         label: 'Gift Card Discount:',
         value: `-$${this.getGiftCardDisplayInfo().amountToUse.toFixed(2)}`,
@@ -3455,23 +3504,23 @@ private updateDateRestrictions() {
       });
     }
 
-    if (this.selectedPointsToRedeem > 0) {
+    if (this.selectedPointsToRedeem() > 0) {
       lines.push({
-        label: `${mobile ? 'Bubble Points' : 'Points'} (${formatNumber(this.selectedPointsToRedeem, 'en-US')} pts):`,
-        value: `-$${formatNumber(this.pointsDiscountAmount, 'en-US', '1.2-2')}`,
+        label: `${mobile ? 'Bubble Points' : 'Points'} (${formatNumber(this.selectedPointsToRedeem(), 'en-US')} pts):`,
+        value: `-$${formatNumber(this.pointsDiscountAmount(), 'en-US', '1.2-2')}`,
         rowClass: 'points-discount', valueClass: 'discount', shimmer
       });
     }
 
-    if (this.useCredits && this.userBubbleCredits > 0) {
+    if (this.useCredits() && this.userBubbleCredits() > 0) {
       lines.push({
         label: 'Reward Balance:',
-        value: `-$${this.userBubbleCredits.toFixed(2)}`,
+        value: `-$${this.userBubbleCredits().toFixed(2)}`,
         rowClass: 'points-discount', valueClass: 'discount', shimmer
       });
     }
 
-    lines.push({ label: 'Sales Tax (8.875%):', value: `$${this.calculation.tax.toFixed(2)}`, shimmer });
+    lines.push({ label: 'Sales Tax (8.875%):', value: `$${this.calculation().tax.toFixed(2)}`, shimmer });
 
     if (this.tipsAmount > 0) {
       lines.push({ label: 'Tips for Cleaners:', value: `$${this.tipsAmount.toFixed(2)}`, shimmer });
@@ -3482,7 +3531,7 @@ private updateDateRestrictions() {
 
   /** Pts-earn preview value for the summary card; null hides the block. */
   getEstimatedPointsDisplay(): string | null {
-    return this.currentUser && this.bubblePointsEnabled && this.estimatedPoints > 0
+    return this.currentUser() && this.bubblePointsEnabled() && this.estimatedPoints > 0
       ? formatNumber(this.estimatedPoints, 'en-US')
       : null;
   }
@@ -3491,25 +3540,25 @@ private updateDateRestrictions() {
     // Per-service display duration is NOT multiplier-scaled (bug B1) — it now matches the
     // summary exactly. The multiplier is still passed for signature symmetry.
     const quantity = this.getServiceQuantity(service);
-    return getServiceDisplayDuration(service, quantity, this.getSelectedPriceMultiplier(), this.selectedServices);
+    return getServiceDisplayDuration(service, quantity, this.getSelectedPriceMultiplier(), this.selectedServices());
   }
 
   getServiceQuantity(service: Service): number {
-    const selected = this.selectedServices.find(s => s.service.id === service.id);
+    const selected = this.selectedServices().find(s => s.service.id === service.id);
     return selected ? selected.quantity : (service.minValue || 0);
   }
 
   isFormValid(): boolean {
-    if (this.showPollForm) {
+    if (this.showPollForm()) {
       return this.isPollFormValid();
     }
     
     // Check custom pricing validation if applicable
-    if (this.showCustomPricing) {
+    if (this.showCustomPricing()) {
       return this.bookingForm.valid && 
              this.serviceTypeControl.valid &&
-             this.selectedServiceType !== null && 
-             this.selectedSubscription !== null && 
+             this.selectedServiceType() !== null && 
+             this.selectedSubscription() !== null && 
              this.cleaningType.value !== null &&
              this.consentsSatisfied &&
              this.customServiceName.valid &&
@@ -3521,8 +3570,8 @@ private updateDateRestrictions() {
     
     return this.bookingForm.valid && 
            this.serviceTypeControl.valid &&
-           this.selectedServiceType !== null && 
-           this.selectedSubscription !== null && 
+           this.selectedServiceType() !== null && 
+           this.selectedSubscription() !== null && 
            this.cleaningType.value !== null &&
            this.consentsSatisfied;
   }
@@ -3536,10 +3585,10 @@ private updateDateRestrictions() {
   ): BookingDiagnosticsSnapshot {
     return {
       trigger,
-      currentStep: this.currentStep,
+      currentStep: this.currentStep(),
       bookingForm: this.bookingForm,
       serviceTypeControl: this.serviceTypeControl,
-      customPricingControls: this.showCustomPricing
+      customPricingControls: this.showCustomPricing()
         ? {
             customServiceName: this.customServiceName,
             customAmount: this.customAmount,
@@ -3547,15 +3596,15 @@ private updateDateRestrictions() {
             customDuration: this.customDuration
           }
         : null,
-      selectedServiceType: this.selectedServiceType,
-      selectedSubscription: this.selectedSubscription,
-      showPollForm: this.showPollForm,
-      showCustomPricing: this.showCustomPricing,
-      pollQuestions: this.pollQuestions,
-      pollAnswers: this.pollAnswers,
-      isAdminMode: this.isAdminMode,
-      selectedTargetUser: this.selectedTargetUser,
-      sameDayFullyBooked: this.isSameDaySelected && this.isSameDayFullyBooked(),
+      selectedServiceType: this.selectedServiceType(),
+      selectedSubscription: this.selectedSubscription(),
+      showPollForm: this.showPollForm(),
+      showCustomPricing: this.showCustomPricing(),
+      pollQuestions: this.pollQuestions(),
+      pollAnswers: this.pollAnswers(),
+      isAdminMode: this.isAdminMode(),
+      selectedTargetUser: this.selectedTargetUser(),
+      sameDayFullyBooked: this.isSameDaySelected() && this.isSameDayFullyBooked(),
       dateTimeBlocked: this.isSelectedDateTimeBlocked(),
       // Same two predicates the inline error messages read, so the console table and the screen
       // can never disagree about why Continue is disabled.
@@ -3579,7 +3628,7 @@ private updateDateRestrictions() {
    * (see booking-blockers.diagnostics.ts). Customers never see this log.
    */
   private logWhyButtonDisabled(trigger: BookingDiagnosticsSnapshot['trigger']): void {
-    if (!this.isBrowser || !this.isAdmin) return;
+    if (!this.isBrowser || !this.isAdmin()) return;
     logBookingBlockers(this.buildBookingDiagnosticsSnapshot(trigger));
   }
 
@@ -3592,7 +3641,7 @@ private updateDateRestrictions() {
     (window as any).bookingWhyDisabled = () => {
       logBookingBlockers(
         this.buildBookingDiagnosticsSnapshot(
-          this.currentStep === 3 || this.showPollForm ? 'Book Now' : 'Continue'
+          this.currentStep() === 3 || this.showPollForm() ? 'Book Now' : 'Continue'
         )
       );
     };
@@ -3610,23 +3659,23 @@ private updateDateRestrictions() {
    * chosen once, explicitly, and every "shouldn't happen" case is a loud stop.
    */
   private resolveSubmitTarget(): BookingSubmitTarget | null {
-    if (this.isAdminMode) {
-      if (!this.selectedTargetUser) {
-        this.errorMessage = 'Please select a user to create booking for';
+    if (this.isAdminMode()) {
+      if (!this.selectedTargetUser()) {
+        this.errorMessage.set('Please select a user to create booking for');
         this.scrollToFirstError();
         return null;
       }
       // Admins/Moderators don't need to be logged in as themselves, but they need to be authenticated
-      if (!this.authService.isLoggedIn() || !this.isAdmin) {
-        this.errorMessage = 'You must be logged in as an admin or moderator to create bookings for users';
+      if (!this.authService.isLoggedIn() || !this.isAdmin()) {
+        this.errorMessage.set('You must be logged in as an admin or moderator to create bookings for users');
         return null;
       }
       return 'admin-for-user';
     }
 
     // Half-present admin context is not a customer booking. Block rather than guess.
-    if (this.selectedTargetUser) {
-      this.errorMessage = 'A customer is selected but Admin Mode is off. Nothing was booked — turn Admin Mode back on, or clear the selected customer.';
+    if (this.selectedTargetUser()) {
+      this.errorMessage.set('A customer is selected but Admin Mode is off. Nothing was booked — turn Admin Mode back on, or clear the selected customer.');
       console.error(
         '[booking] Blocked submit: selectedTargetUser is set while isAdminMode is false. ' +
         'This would have created the booking under the admin\'s own account.'
@@ -3638,8 +3687,8 @@ private updateDateRestrictions() {
     // discardAdminDraftIfPresent() somehow did not run (SSR, a restore path added later).
     // Belt and braces for the 2026-08 "admin sent to Stripe" incident.
     if (this.formPersistenceService.getFormData()?.wasAdminMode) {
-      this.errorMessage = 'This booking was started in Admin Mode, which was not restored. Nothing was booked — please start the booking again.';
-      this.adminDraftDiscarded = true;
+      this.errorMessage.set('This booking was started in Admin Mode, which was not restored. Nothing was booked — please start the booking again.');
+      this.adminDraftDiscarded.set(true);
       console.error(
         '[booking] Blocked submit: the saved draft is flagged wasAdminMode but Admin Mode is off.'
       );
@@ -3657,23 +3706,23 @@ private updateDateRestrictions() {
   private confirmAdminBookingTarget(): boolean {
     if (!this.isBrowser) return true;
 
-    const user = this.selectedTargetUser;
+    const user = this.selectedTargetUser();
     if (!user) return false;
 
     const emailLabel = user.isNoEmailUser ? 'no email on file' : user.email;
-    const methodLabel = this.paymentMethodOptions.find(o => o.value === this.adminPaymentMethod)?.label
-      ?? this.adminPaymentMethod;
+    const methodLabel = this.paymentMethodOptions().find(o => o.value === this.adminPaymentMethod())?.label
+      ?? this.adminPaymentMethod();
     // Three outcomes, not two: Invoice is handled outside Stripe like cash, but the money has
     // NOT arrived — saying "recorded as already paid" for it would be plainly false, and the
     // admin confirming this dialog is the last person who can catch that.
     const client = this.adminContractClients.find(c => c.id === this.adminContractClientId);
     const paymentLine =
-      this.adminPaymentMethod === 'Normal'
+      this.adminPaymentMethod() === 'Normal'
         ? `Payment: ${methodLabel} — a Pay Now link will be sent to the customer. Nothing is charged to you.`
-        : this.adminPaymentMethod === 'RegularInvoice'
+        : this.adminPaymentMethod() === 'RegularInvoice'
           ? `Payment: Invoice — an invoice is created and sent to the customer. They can pay it by card `
             + `or bank transfer; the order stays Pending Payment until it is paid.`
-        : this.adminPaymentMethod === 'Invoice'
+        : this.adminPaymentMethod() === 'Invoice'
           ? `Payment: Invoice${client ? ` to ${client.legalEntityName}` : ''} — the order stays `
             + `Pending Payment until an invoice covering it is paid in full. No payment link is sent.`
           : `Payment: ${methodLabel} — recorded as already paid. The customer gets a booking confirmation only.`;
@@ -3694,11 +3743,11 @@ private updateDateRestrictions() {
   get submitButtonLabel(): string {
     // A poll is a quote request, never a payment — it outranks admin mode, matching the order
     // of the branches in onSubmit().
-    if (this.showPollForm) return 'Send for Quote';
+    if (this.showPollForm()) return 'Send for Quote';
 
-    if (this.isAdminMode && this.selectedTargetUser) {
-      if (this.adminPaymentMethod === 'RegularInvoice') return 'Send Invoice';
-      return this.adminPaymentMethod === 'Normal' ? 'Send Payment' : 'Book for User';
+    if (this.isAdminMode() && this.selectedTargetUser()) {
+      if (this.adminPaymentMethod() === 'RegularInvoice') return 'Send Invoice';
+      return this.adminPaymentMethod() === 'Normal' ? 'Send Payment' : 'Book for User';
     }
 
     return 'Book Now';
@@ -3707,11 +3756,11 @@ private updateDateRestrictions() {
   onSubmit() {
     if (!this.isFormValid()) {
       // Reveal the property-type / levels errors on a blocked submit too, not only on Continue.
-      this.propertyTypeTouched = true;
-      this.logWhyButtonDisabled(this.showPollForm ? 'Send for Quote' : 'Book Now');
+      this.propertyTypeTouched.set(true);
+      this.logWhyButtonDisabled(this.showPollForm() ? 'Send for Quote' : 'Book Now');
     }
 
-    if (this.showPollForm) {
+    if (this.showPollForm()) {
       this.submitPollForm();
       return;
     }
@@ -3722,16 +3771,16 @@ private updateDateRestrictions() {
     if (!submitTarget) return;
 
     // Set form submitted flag
-    this.formSubmitted = true;
+    this.formSubmitted.set(true);
     
     // Check if the form is valid
-    if (!this.bookingForm.valid || !this.selectedServiceType || !this.selectedSubscription || !this.cleaningType.value) {
+    if (!this.bookingForm.valid || !this.selectedServiceType() || !this.selectedSubscription() || !this.cleaningType.value) {
       this.scrollToFirstError();
       return;
     }
     
     // Also check custom pricing fields if applicable
-    if (this.showCustomPricing && (!this.customAmount.valid || !this.customCleaners.valid || !this.customDuration.valid || !this.entryMethod.value || !this.customServiceName.value)) {
+    if (this.showCustomPricing() && (!this.customAmount.valid || !this.customCleaners.valid || !this.customDuration.valid || !this.entryMethod.value || !this.customServiceName.value)) {
       this.customServiceName.markAsTouched();
       this.scrollToFirstError();
       return;
@@ -3741,7 +3790,7 @@ private updateDateRestrictions() {
     // after, so the admin fixes the field instead of reading a dialog that names no client — and
     // the server refuses it either way.
     if (submitTarget === 'admin-for-user' && this.invoiceClientMissing) {
-      this.errorMessage = 'Choose the commercial client this invoice order is billed to.';
+      this.errorMessage.set('Choose the commercial client this invoice order is billed to.');
       this.scrollToFirstError();
       return;
     }
@@ -3752,15 +3801,15 @@ private updateDateRestrictions() {
       return;
     }
 
-    this.isLoading = true;
+    this.isLoading.set(true);
     
     // Get form values, including disabled fields
     const formValue = this.bookingForm.getRawValue();
     
     // Check if serviceDate exists
     if (!formValue.serviceDate) {
-      this.errorMessage = 'Please select a service date';
-      this.isLoading = false;
+      this.errorMessage.set('Please select a service date');
+      this.isLoading.set(false);
       return;
     }
     
@@ -3773,15 +3822,15 @@ private updateDateRestrictions() {
         const [year, month, day] = dateParts.map(Number);
         serviceDate = new Date(year, month - 1, day); // month is 0-indexed in JS Date
       } else {
-        this.errorMessage = 'Invalid date format';
-        this.isLoading = false;
+        this.errorMessage.set('Invalid date format');
+        this.isLoading.set(false);
         return;
       }
     } else if (formValue.serviceDate instanceof Date) {
       serviceDate = formValue.serviceDate;
     } else {
-      this.errorMessage = 'Invalid date format';
-      this.isLoading = false;
+      this.errorMessage.set('Invalid date format');
+      this.isLoading.set(false);
       return;
     }
     
@@ -3794,24 +3843,24 @@ private updateDateRestrictions() {
       ? Number(formValue.selectedApartmentId)
       : null;
 
-    const shouldApplySubscriptionDiscount = this.hasActiveSubscription && 
-    this.userSubscription && 
-    this.userSubscription.discountPercentage > 0;
+    const shouldApplySubscriptionDiscount = this.hasActiveSubscription() && 
+    this.userSubscription() && 
+    this.userSubscription().discountPercentage > 0;
 
     
     const bookingData = {
-      serviceTypeId: this.selectedServiceType.id,
+      serviceTypeId: this.selectedServiceType()!.id,
       orderDate: new Date(), 
-      services: this.selectedServices.map(s => ({
+      services: this.selectedServices().map(s => ({
         serviceId: s.service.id,
         quantity: s.quantity
       })),
-      extraServices: this.selectedExtraServices.map(s => ({
+      extraServices: this.selectedExtraServices().map(s => ({
         extraServiceId: s.extraService.id,
         quantity: s.quantity,
         hours: s.hours
       })),
-      subscriptionId: this.selectedSubscription.id,
+      subscriptionId: this.selectedSubscription()!.id,
       serviceDate: formValue.serviceDate,
       serviceTime: formValue.serviceTime,
       entryMethod: formValue.entryMethod === 'Other' 
@@ -3832,60 +3881,60 @@ private updateDateRestrictions() {
       apartmentId: apartmentId,
       apartmentName: apartmentName,
       promoCode: this.resolveSubmittedPromoCode(formValue.promoCode),
-      specialOfferId: this.specialOfferApplied ? this.selectedSpecialOffer?.specialOfferId : undefined,
-      userSpecialOfferId: this.specialOfferApplied && this.selectedSpecialOffer && this.authService.isLoggedIn() ? this.selectedSpecialOffer.id : undefined,
+      specialOfferId: this.specialOfferApplied() ? this.selectedSpecialOffer()?.specialOfferId : undefined,
+      userSpecialOfferId: this.specialOfferApplied() && this.selectedSpecialOffer() && this.authService.isLoggedIn() ? this.selectedSpecialOffer()!.id : undefined,
       // Normalized, never raw: the API's Tips is a non-nullable decimal, so a cleared
       // number input would otherwise post null and fail model binding with a 400.
       tips: this.tipsAmount,
-      maidsCount: this.showCustomPricing ? parseInt(this.customCleaners.value) : this.calculatedMaidsCount,
-      discountAmount: this.promoOrFirstTimeDiscountAmount,
-      subscriptionDiscountAmount: shouldApplySubscriptionDiscount ? this.subscriptionDiscountAmount : 0,
+      maidsCount: this.showCustomPricing() ? parseInt(this.customCleaners.value) : this.calculatedMaidsCount(),
+      discountAmount: this.promoOrFirstTimeDiscountAmount(),
+      subscriptionDiscountAmount: shouldApplySubscriptionDiscount ? this.subscriptionDiscountAmount() : 0,
       // Loyalty Discount the frontend computed for the breakdown preview. Backend re-evaluates
       // from the target user's actual LoyaltyDiscountPercentage and re-runs the stacking gate —
       // this field is sent so the request body is complete, but never trusted server-side.
-      loyaltyDiscountAmount: this.loyaltyDiscountAmount,
-      subTotal: this.calculation.subTotal,
+      loyaltyDiscountAmount: this.loyaltyDiscountAmount(),
+      subTotal: this.calculation().subTotal,
       // ADD THESE FIELDS TO FIX THE ISSUE:
-      tax: this.calculation.tax,
-      total: this.calculation.total,
-      calculation: this.calculation, // Add the full calculation object
+      tax: this.calculation().tax,
+      total: this.calculation().total,
+      calculation: this.calculation(), // Add the full calculation object
       // TOTAL cleaner-minutes from the shared calculator (custom pricing included — the
       // calculator already stores per-cleaner × cleaners with the 1h floor). The booking
       // summary shows this same total for regular types (auto-staffing is disabled);
       // custom/cleaner-hours summaries still show per-cleaner.
       totalDuration: this.actualTotalDuration,
-      hasActiveSubscription: this.hasActiveSubscription,
-      userSubscriptionId: this.userSubscription?.subscriptionId,
-      giftCardCode: this.giftCardApplied && this.isGiftCard ? this.promoCode.value : null,
-      giftCardAmountToUse: this.giftCardApplied ? this.giftCardAmountToUse : 0,
-      isCustomPricing: this.showCustomPricing,
-      customAmount: this.showCustomPricing ? parseFloat(this.customAmount.value) : undefined,
-      customCleaners: this.showCustomPricing ? parseInt(this.customCleaners.value) : undefined,
-      customDuration: this.showCustomPricing ? parseInt(this.customDuration.value) : undefined,
+      hasActiveSubscription: this.hasActiveSubscription(),
+      userSubscriptionId: this.userSubscription()?.subscriptionId,
+      giftCardCode: this.giftCardApplied() && this.isGiftCard() ? this.promoCode.value : null,
+      giftCardAmountToUse: this.giftCardApplied() ? this.giftCardAmountToUse() : 0,
+      isCustomPricing: this.showCustomPricing(),
+      customAmount: this.showCustomPricing() ? parseFloat(this.customAmount.value) : undefined,
+      customCleaners: this.showCustomPricing() ? parseInt(this.customCleaners.value) : undefined,
+      customDuration: this.showCustomPricing() ? parseInt(this.customDuration.value) : undefined,
       // Admin-chosen display name for the custom service type — replaces "Pre-Arranged Cleaning".
-      customServiceDisplayName: this.showCustomPricing ? (this.customServiceName.value || null) : undefined,
+      customServiceDisplayName: this.showCustomPricing() ? (this.customServiceName.value || null) : undefined,
       bedroomsQuantity: this.getSelectedBedroomsQuantity(),
       bathroomsQuantity: this.getSelectedBathroomsQuantity(),
-      showRoomCountsToCustomer: this.showCustomPricing && this.showRoomCountsToCustomer.value,
+      showRoomCountsToCustomer: this.showCustomPricing() && this.showRoomCountsToCustomer.value,
       // Property type is sent even on a custom order (where levels are hidden and unpriced), so
       // the admin panel and the cleaner's job details still know what kind of building it is.
       // The LEVEL COUNT travels as an ordinary service line in `services`, not as its own field:
       // the OrderServices row is the pricing source of truth, and Order.LevelsQuantity is a
       // display-only column the server derives from that same line.
-      propertyType: this.propertyType ?? null,
+      propertyType: this.propertyType() ?? null,
       // Informational fallback ONLY. On a priced service type the level count also travels as an
       // ordinary line in `services`, and the server prefers that line, so this can never override
       // what was charged. On an unpriced type it is the only record of the answer.
-      levelsQuantity: this.levelsQuantity,
+      levelsQuantity: this.levelsQuantity(),
       smsConsent: formValue.smsConsent,
       cancellationConsent: formValue.cancellationConsent,
       termsConsent: formValue.termsConsent,
       uploadedPhotos: this.preparePhotosForSubmission(),
       floorTypes: this.buildFloorTypesString(),
-      floorTypeOther: this.floorTypeOther || null,
-      pointsToRedeem: this.selectedPointsToRedeem,
-      useCredits: this.useCredits && this.userBubbleCredits > 0,
-      creditsToApply: this.useCredits ? Math.min(this.userBubbleCredits, this.calculation.total + this.userBubbleCredits) : 0,
+      floorTypeOther: this.floorTypeOther() || null,
+      pointsToRedeem: this.selectedPointsToRedeem(),
+      useCredits: this.useCredits() && this.userBubbleCredits() > 0,
+      creditsToApply: this.useCredits() ? Math.min(this.userBubbleCredits(), this.calculation().total + this.userBubbleCredits()) : 0,
       referralCode: this.isBrowser
         ? (localStorage.getItem('dreamcleaning_referral') ?? undefined)
         : undefined,
@@ -3899,13 +3948,13 @@ private updateDateRestrictions() {
     // ride along — for Normal they're effectively no-ops, for Cash/Zelle/Check/Other the
     // backend records the payment and skips the Pay Now reminder.
     if (submitTarget === 'admin-for-user') {
-      const targetUser = this.selectedTargetUser;
+      const targetUser = this.selectedTargetUser();
       if (!targetUser) {
         // Unreachable: resolveSubmitTarget() only returns 'admin-for-user' with a target, and
         // nothing between there and here is async. Fail loudly anyway — the whole point of this
         // rewrite is that losing the target can never silently become a self-booking.
-        this.isLoading = false;
-        this.errorMessage = 'The selected customer was lost before the booking was sent. Nothing was booked — please re-select the customer and try again.';
+        this.isLoading.set(false);
+        this.errorMessage.set('The selected customer was lost before the booking was sent. Nothing was booked — please re-select the customer and try again.');
         console.error('[booking] submitTarget was admin-for-user but selectedTargetUser is null. Submit aborted.');
         return;
       }
@@ -3913,32 +3962,32 @@ private updateDateRestrictions() {
       this.bookingService.createBookingForUser(
         targetUser.id,
         bookingData,
-        this.adminPaymentMethod,
+        this.adminPaymentMethod(),
         // Reference and notes describe money that has ALREADY changed hands, so they travel for
         // cash/Zelle/cheque/other and not for Invoice — which is unpaid by definition.
-        adminMethodIsSettled(this.adminPaymentMethod) ? this.adminPaymentReference : null,
-        adminMethodIsSettled(this.adminPaymentMethod) ? this.adminPaymentNotes : null,
+        adminMethodIsSettled(this.adminPaymentMethod()) ? this.adminPaymentReference() : null,
+        adminMethodIsSettled(this.adminPaymentMethod()) ? this.adminPaymentNotes() : null,
         { contractClientId: this.adminContractClientId }
       ).subscribe({
         next: (response) => {
-          this.isLoading = false;
-          this.errorMessage = '';
+          this.isLoading.set(false);
+          this.errorMessage.set('');
           
           // Show success message. The follow-up sentence has to match what the backend actually
           // did: Normal leaves the order Pending and sends a Pay Now link, manual methods mark
           // it Active and send a booking confirmation only.
           const outcome =
-            this.adminPaymentMethod === 'Normal'
+            this.adminPaymentMethod() === 'Normal'
               ? 'A payment request has been sent to them; the order also appears in their profile.'
-              : this.adminPaymentMethod === 'RegularInvoice'
+              : this.adminPaymentMethod() === 'RegularInvoice'
                 ? 'An invoice was created and sent to them (Admin → Invoices). The order stays Pending '
                   + 'Payment until the invoice is paid by card, or you mark it paid for a bank transfer.'
-              : this.adminPaymentMethod === 'Invoice'
+              : this.adminPaymentMethod() === 'Invoice'
                 // Invoice is handled outside Stripe but is NOT settled: saying "recorded as paid"
                 // would be false, and this alert is where an admin would believe it.
                 ? 'Billed by invoice. The order stays Pending Payment until an invoice covering it '
                   + 'is paid in full — no payment request was sent.'
-                : `Recorded as paid by ${this.adminPaymentMethod}. They were sent a booking confirmation — no payment request.`;
+                : `Recorded as paid by ${this.adminPaymentMethod()}. They were sent a booking confirmation — no payment request.`;
           alert(`Booking created successfully for ${targetUser.firstName} ${targetUser.lastName}. Order ID: ${response.orderId}. ${outcome}`);
           
           // Reset form
@@ -3946,8 +3995,8 @@ private updateDateRestrictions() {
           this.formPersistenceService.markBookingCompleted();
           this.formPersistenceService.clearFormData();
           this.bookingForm.reset();
-          this.selectedTargetUser = null;
-          this.isAdminMode = false;
+          this.selectedTargetUser.set(null);
+          this.isAdminMode.set(false);
           this.applyConsentValidators();
           this.resetAdminPaymentFields();
           
@@ -3957,8 +4006,8 @@ private updateDateRestrictions() {
           });
         },
         error: (error) => {
-          this.isLoading = false;
-          this.errorMessage = error.error?.message || 'Failed to create booking for user';
+          this.isLoading.set(false);
+          this.errorMessage.set(error.error?.message || 'Failed to create booking for user');
           console.error('Error creating booking for user:', error);
         }
       });
@@ -3966,14 +4015,14 @@ private updateDateRestrictions() {
     }
 
     // If the user changed their phone number during booking, update their profile
-    if (this.currentUser && formValue.contactPhone) {
-      const currentPhone = normalizePhone10(this.currentUser.phone) ?? '';
+    if (this.currentUser() && formValue.contactPhone) {
+      const currentPhone = normalizePhone10(this.currentUser().phone) ?? '';
       const newPhone = normalizePhone10(formValue.contactPhone) ?? '';
       if (newPhone && newPhone !== currentPhone) {
         this.profileService.updateProfile({
-          firstName: this.currentUser.firstName,
-          lastName: this.currentUser.lastName,
-          email: this.currentUser.email,
+          firstName: this.currentUser().firstName,
+          lastName: this.currentUser().lastName,
+          email: this.currentUser().email,
           phone: newPhone
         }).pipe(takeUntil(this.destroy$)).subscribe();
       }
@@ -3981,7 +4030,7 @@ private updateDateRestrictions() {
 
     // Regular flow: Store booking data in service instead of creating order immediately
     this.bookingDataService.setBookingData(bookingData);
-    this.isLoading = false;
+    this.isLoading.set(false);
 
     // Mark booking as completed and clear form data
     this.skipSaveOnDestroy = true;
@@ -4005,7 +4054,7 @@ private updateDateRestrictions() {
     this.serviceTypeControl.markAsTouched();
     
     // Also mark custom pricing controls if applicable
-    if (this.showCustomPricing) {
+    if (this.showCustomPricing()) {
       this.customServiceName.markAsTouched();
       this.customAmount.markAsTouched();
       this.customCleaners.markAsTouched();
@@ -4053,8 +4102,8 @@ private updateDateRestrictions() {
 
   private scrollToFirstErrorInCurrentStep() {
     // For poll step 1: show which questions are missing so error messages and styling appear
-    if (this.showPollForm && this.currentStep === 1) {
-      this.pollFormSubmitted = true;
+    if (this.showPollForm() && this.currentStep() === 1) {
+      this.pollFormSubmitted.set(true);
     }
 
     // Mark all form controls as touched to trigger validation
@@ -4064,7 +4113,7 @@ private updateDateRestrictions() {
     this.serviceTypeControl.markAsTouched();
     
     // Also mark custom pricing controls if applicable
-    if (this.showCustomPricing) {
+    if (this.showCustomPricing()) {
       this.customServiceName.markAsTouched();
       this.customAmount.markAsTouched();
       this.customCleaners.markAsTouched();
@@ -4077,7 +4126,7 @@ private updateDateRestrictions() {
     setTimeout(() => {
       let firstErrorElement: Element | null = null;
       // Poll step 1: scroll to first unanswered required question (error message or its input)
-      if (this.showPollForm && this.currentStep === 1) {
+      if (this.showPollForm() && this.currentStep() === 1) {
         firstErrorElement = document.querySelector('.form-step.active .poll-error-message');
         if (firstErrorElement) {
           firstErrorElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -4209,50 +4258,50 @@ private updateDateRestrictions() {
     this.summaryCodeActionInProgress = true;
     setTimeout(() => { this.summaryCodeActionInProgress = false; }, 1500);
 
-    this.promoCodeApplied = false;
-    this.promoDiscount = 0;
+    this.promoCodeApplied.set(false);
+    this.promoDiscount.set(0);
     this.promoCode.setValue('');
-    this.errorMessage = ''; // Clear any error messages
-    this.giftCardApplied = false;
-    this.isGiftCard = false;
-    this.giftCardBalance = 0;
-    this.giftCardAmountToUse = 0;
+    this.errorMessage.set(''); // Clear any error messages
+    this.giftCardApplied.set(false);
+    this.isGiftCard.set(false);
+    this.giftCardBalance.set(0);
+    this.giftCardAmountToUse.set(0);
     this.calculateTotal();
   }
 
   getGiftCardDisplayInfo(): { amountToUse: number; remainingBalance: number } {
-    if (!this.giftCardApplied) {
+    if (!this.giftCardApplied()) {
       return { amountToUse: 0, remainingBalance: 0 };
     }
     return { 
-      amountToUse: this.giftCardAmountToUse, 
-      remainingBalance: this.giftCardBalance - this.giftCardAmountToUse 
+      amountToUse: this.giftCardAmountToUse(), 
+      remainingBalance: this.giftCardBalance() - this.giftCardAmountToUse() 
     };
   }
   
 loadBubblePointsOptions(): void {
-    if (this.isAdminMode && this.selectedTargetUser) {
+    if (this.isAdminMode() && this.selectedTargetUser()) {
       // Load target user's points, not admin's
-      this.bubbleRewardsService.getAdminUserSummary(this.selectedTargetUser.id).subscribe({
+      this.bubbleRewardsService.getAdminUserSummary(this.selectedTargetUser()!.id).subscribe({
         next: (summary: any) => {
-          this.bubblePointsEnabled = !!summary.pointsSystemEnabled;
-          this.bubblePointsPerDollar = summary.guide?.pointsPerDollar ?? 0;
-          if (!summary.pointsSystemEnabled) { this.bubblePointsOptions = []; return; }
-          this.userBubblePoints = summary.currentPoints;
-          this.userBubbleCredits = summary.bubbleCredits ?? 0;
-          this.bubblePointsOptions = summary.availableRedemptions ?? [];
+          this.bubblePointsEnabled.set(!!summary.pointsSystemEnabled);
+          this.bubblePointsPerDollar.set(summary.guide?.pointsPerDollar ?? 0);
+          if (!summary.pointsSystemEnabled) { this.bubblePointsOptions.set([]); return; }
+          this.userBubblePoints.set(summary.currentPoints);
+          this.userBubbleCredits.set(summary.bubbleCredits ?? 0);
+          this.bubblePointsOptions.set(summary.availableRedemptions ?? []);
         },
-        error: () => { this.bubblePointsOptions = []; }
+        error: () => { this.bubblePointsOptions.set([]); }
       });
     } else {
       this.bubbleRewardsService.getSummary().subscribe({
         next: (summary) => {
-          this.bubblePointsEnabled = !!summary.pointsSystemEnabled;
-          this.bubblePointsPerDollar = summary.guide?.pointsPerDollar ?? 0;
+          this.bubblePointsEnabled.set(!!summary.pointsSystemEnabled);
+          this.bubblePointsPerDollar.set(summary.guide?.pointsPerDollar ?? 0);
           if (!summary.pointsSystemEnabled) return;
-          this.userBubblePoints = summary.currentPoints;
-          this.userBubbleCredits = summary.bubbleCredits ?? 0;
-          this.bubblePointsOptions = summary.availableRedemptions;
+          this.userBubblePoints.set(summary.currentPoints);
+          this.userBubbleCredits.set(summary.bubbleCredits ?? 0);
+          this.bubblePointsOptions.set(summary.availableRedemptions);
         },
         error: () => {}
       });
@@ -4260,37 +4309,38 @@ loadBubblePointsOptions(): void {
   }
 
   selectPointsToRedeem(points: number): void {
-    if (this.selectedPointsToRedeem === points) {
+    if (this.selectedPointsToRedeem() === points) {
       // toggle off
-      this.selectedPointsToRedeem = 0;
-      this.pointsDiscountAmount = 0;
+      this.selectedPointsToRedeem.set(0);
+      this.pointsDiscountAmount.set(0);
     } else {
-      const opt = this.bubblePointsOptions.find(o => o.points === points);
+      const opt = this.bubblePointsOptions().find(o => o.points === points);
       if (!opt || !opt.available) return;
-      this.selectedPointsToRedeem = points;
-      this.pointsDiscountAmount = opt.dollarValue;
+      this.selectedPointsToRedeem.set(points);
+      this.pointsDiscountAmount.set(opt.dollarValue);
     }
     this.calculateTotal();
   }
 
   /** Estimated points for this booking: (total - tax - tips) * pointsPerDollar */
   get estimatedPoints(): number {
-    if (!this.bubblePointsEnabled || this.bubblePointsPerDollar <= 0) return 0;
-    const base = (this.calculation?.total ?? 0)
-      - (this.calculation?.tax ?? 0)
+    if (!this.bubblePointsEnabled() || this.bubblePointsPerDollar() <= 0) return 0;
+    const base = (this.calculation()?.total ?? 0)
+      - (this.calculation()?.tax ?? 0)
       - this.tipsAmount;
-    return Math.floor(Math.max(0, base) * this.bubblePointsPerDollar);
+    return Math.floor(Math.max(0, base) * this.bubblePointsPerDollar());
   }
 
   loadSpecialOffers() {
     const setPromoLoaded = () => {
-      this.loading.promoBanner = false;
+      this.loading().promoBanner = false;
+      this.loading.set(this.loading());
       this.cdr.markForCheck();
     };
-    if (this.isAdminMode && this.selectedTargetUser) {
-      this.adminService.getUserSpecialOffers(this.selectedTargetUser.id).subscribe({
+    if (this.isAdminMode() && this.selectedTargetUser()) {
+      this.adminService.getUserSpecialOffers(this.selectedTargetUser()!.id).subscribe({
         next: (offers) => {
-          this.userSpecialOffers = offers;
+          this.userSpecialOffers.set(offers);
           const firstTimeOffer = findFirstTimeOffer(offers, BookingComponent.legacyFirstTimeOfferCased);
           if (firstTimeOffer) {
             this.firstTimeDiscountPercentage = firstTimeOffer.discountValue;
@@ -4304,14 +4354,14 @@ loadBubblePointsOptions(): void {
         error: (error) => {
           console.error('Error loading user special offers:', error);
           this.hasFirstTimeDiscountOffer = false;
-          this.userSpecialOffers = [];
+          this.userSpecialOffers.set([]);
           setPromoLoaded();
         }
       });
     } else if (this.authService.isLoggedIn()) {
       this.specialOfferService.getMySpecialOffers().subscribe({
         next: (offers) => {
-          this.userSpecialOffers = offers;
+          this.userSpecialOffers.set(offers);
           const firstTimeOffer = findFirstTimeOffer(offers, BookingComponent.legacyFirstTimeOfferCased);
           if (firstTimeOffer) {
             this.firstTimeDiscountPercentage = firstTimeOffer.discountValue;
@@ -4325,7 +4375,7 @@ loadBubblePointsOptions(): void {
         error: (error) => {
           console.error('Error loading special offers:', error);
           this.hasFirstTimeDiscountOffer = false;
-          this.userSpecialOffers = [];
+          this.userSpecialOffers.set([]);
           setPromoLoaded();
         }
       });
@@ -4335,7 +4385,7 @@ loadBubblePointsOptions(): void {
           if (offers && offers.length > 0) {
             const randomIndex = Math.floor(Math.random() * offers.length);
             const randomOffer = offers[randomIndex];
-            this.userSpecialOffers = [{
+            this.userSpecialOffers.set([{
               id: randomOffer.id,
               specialOfferId: randomOffer.id,
               name: randomOffer.name,
@@ -4347,15 +4397,15 @@ loadBubblePointsOptions(): void {
               icon: randomOffer.icon,
               badgeColor: randomOffer.badgeColor,
               minimumOrderAmount: randomOffer.minimumOrderAmount
-            }];
+            }]);
           } else {
-            this.userSpecialOffers = [];
+            this.userSpecialOffers.set([]);
           }
           setPromoLoaded();
         },
         error: (error) => {
           console.error('Error loading public special offers:', error);
-          this.userSpecialOffers = [];
+          this.userSpecialOffers.set([]);
           setPromoLoaded();
         }
       });
@@ -4364,30 +4414,33 @@ loadBubblePointsOptions(): void {
 
   loadOrders() {
     if (!this.authService.isLoggedIn()) {
-      this.previousOrders = [];
-      this.loading.previousOrders = false;
+      this.previousOrders.set([]);
+      this.loading().previousOrders = false;
+      this.loading.set(this.loading());
       this.cdr.markForCheck();
       return;
     }
-    this.isLoadingOrders = true;
+    this.isLoadingOrders.set(true);
 
     // In admin mode with a selected user, load that user's orders instead of admin's
-    const orders$ = this.isAdminMode && this.selectedTargetUser
-      ? this.adminService.getUserOrders(this.selectedTargetUser.id)
+    const orders$ = this.isAdminMode() && this.selectedTargetUser()
+      ? this.adminService.getUserOrders(this.selectedTargetUser()!.id)
       : this.orderService.getUserOrders();
 
     orders$.subscribe({
       next: (orders) => {
-        this.previousOrders = orders.filter(order => !order.isCustomServiceType);
-        this.isLoadingOrders = false;
-        this.loading.previousOrders = false;
+        this.previousOrders.set(orders.filter(order => !order.isCustomServiceType));
+        this.isLoadingOrders.set(false);
+        this.loading().previousOrders = false;
+        this.loading.set(this.loading());
         this.cdr.markForCheck();
       },
       error: (error) => {
         console.error('Error loading orders:', error);
-        this.previousOrders = [];
-        this.isLoadingOrders = false;
-        this.loading.previousOrders = false;
+        this.previousOrders.set([]);
+        this.isLoadingOrders.set(false);
+        this.loading().previousOrders = false;
+        this.loading.set(this.loading());
         this.cdr.markForCheck();
       }
     });
@@ -4395,7 +4448,7 @@ loadBubblePointsOptions(): void {
 
   /** Reorder widget opened — lazy-load orders if none are loaded yet. */
   onReorderOpened() {
-    if (this.previousOrders.length === 0) {
+    if (this.previousOrders().length === 0) {
       this.loadOrders();
     }
   }
@@ -4404,15 +4457,15 @@ loadBubblePointsOptions(): void {
   checkAdminStatus() {
     if (this.authService.isLoggedIn()) {
       const user = this.authService.currentUserValue;
-      this.isAdmin = user?.role === 'Admin' || user?.role === 'SuperAdmin' || user?.role === 'Moderator';
+      this.isAdmin.set(user?.role === 'Admin' || user?.role === 'SuperAdmin' || user?.role === 'Moderator');
       this.isSuperAdmin = user?.role === 'SuperAdmin';
-      this.isModerator = user?.role === 'Moderator';
+      this.isModerator.set(user?.role === 'Moderator');
       this.loadRegisterCustomerPermission();
     } else {
-      this.isAdmin = false;
+      this.isAdmin.set(false);
       this.isSuperAdmin = false;
-      this.isModerator = false;
-      this.canRegisterCustomers = false;
+      this.isModerator.set(false);
+      this.canRegisterCustomers.set(false);
     }
   }
 
@@ -4422,30 +4475,30 @@ loadBubblePointsOptions(): void {
    * page must not hold a second, drifting copy of it.
    */
   private loadRegisterCustomerPermission(): void {
-    if (!this.isBrowser || !this.isAdmin) {
-      this.canRegisterCustomers = false;
+    if (!this.isBrowser || !this.isAdmin()) {
+      this.canRegisterCustomers.set(false);
       return;
     }
 
     this.adminService.getUserPermissions().subscribe({
       next: (permissions) => {
-        this.canRegisterCustomers = !!permissions?.permissions?.canCreate;
+        this.canRegisterCustomers.set(!!permissions?.permissions?.canCreate);
       },
       error: () => {
         // Hiding the button is the safe failure: the endpoint would reject the call anyway.
-        this.canRegisterCustomers = false;
+        this.canRegisterCustomers.set(false);
       }
     });
   }
 
   openRegisterCustomerModal(): void {
-    if (!this.canRegisterCustomers) return;
-    this.registeredCustomerMessage = '';
-    this.showRegisterCustomerModal = true;
+    if (!this.canRegisterCustomers()) return;
+    this.registeredCustomerMessage.set('');
+    this.showRegisterCustomerModal.set(true);
   }
 
   closeRegisterCustomerModal(): void {
-    this.showRegisterCustomerModal = false;
+    this.showRegisterCustomerModal.set(false);
   }
 
   /**
@@ -4483,22 +4536,21 @@ loadBubblePointsOptions(): void {
     };
 
     // New array reference — `seedUsers` is an @Input, and mutating in place would not notify.
-    this.registeredCustomers = [
+    this.registeredCustomers.set([
       newUser,
-      ...this.registeredCustomers.filter(user => user.id !== newUser.id)
-    ];
+      ...this.registeredCustomers().filter(user => user.id !== newUser.id)
+    ]);
 
-    this.registeredCustomerMessage =
-      `${customer.firstName} ${customer.lastName} was registered and added to the customer list.`;
+    this.registeredCustomerMessage.set(`${customer.firstName} ${customer.lastName} was registered and added to the customer list.`);
 
-    this.adminUserSearch?.loadUsers(true);
+    this.adminUserSearch()?.loadUsers(true);
 
-    if (this.isAdminMode) {
+    if (this.isAdminMode()) {
       this.selectUser(newUser);
-      this.registeredCustomerMessage += ' They are now selected for this booking.';
+      this.registeredCustomerMessage.update(v => v + (' They are now selected for this booking.'));
     }
 
-    setTimeout(() => { this.registeredCustomerMessage = ''; }, 8000);
+    setTimeout(() => { this.registeredCustomerMessage.set(''); }, 8000);
   }
 
   /**
@@ -4513,37 +4565,37 @@ loadBubblePointsOptions(): void {
    * order with "The selected special offer is not available on this account."
    */
   private clearAppliedDiscountsForAccountSwitch() {
-    const hadDiscount = this.specialOfferApplied || this.promoCodeApplied || this.giftCardApplied
-      || this.firstTimeDiscountApplied || this.selectedPointsToRedeem > 0 || this.useCredits;
+    const hadDiscount = this.specialOfferApplied() || this.promoCodeApplied() || this.giftCardApplied()
+      || this.firstTimeDiscountApplied || this.selectedPointsToRedeem() > 0 || this.useCredits();
 
     // Special offer (+ the legacy first-time marker it also sets)
-    this.selectedSpecialOffer = null;
-    this.specialOfferApplied = false;
+    this.selectedSpecialOffer.set(null);
+    this.specialOfferApplied.set(false);
     this.firstTimeDiscountApplied = false;
 
     // Promo code
-    this.promoCodeApplied = false;
-    this.promoDiscount = 0;
-    this.promoIsPercentage = true;
+    this.promoCodeApplied.set(false);
+    this.promoDiscount.set(0);
+    this.promoIsPercentage.set(true);
 
     // Gift card
-    this.giftCardApplied = false;
-    this.isGiftCard = false;
-    this.giftCardBalance = 0;
-    this.giftCardAmountToUse = 0;
+    this.giftCardApplied.set(false);
+    this.isGiftCard.set(false);
+    this.giftCardBalance.set(0);
+    this.giftCardAmountToUse.set(0);
 
     // Bubble points / credits are balances on the previous account too
-    this.selectedPointsToRedeem = 0;
-    this.pointsDiscountAmount = 0;
-    this.useCredits = false;
+    this.selectedPointsToRedeem.set(0);
+    this.pointsDiscountAmount.set(0);
+    this.useCredits.set(false);
 
     // Re-enable the promo input first (it is disabled while a special offer is applied),
     // then blank it — setting a disabled control would leave a stale value behind.
     this.updatePromoCodeDisabledState();
     this.promoCode.setValue('', { emitEvent: false });
 
-    this.errorMessage = '';
-    this.discountsClearedForAccountSwitch = hadDiscount;
+    this.errorMessage.set('');
+    this.discountsClearedForAccountSwitch.set(hadDiscount);
     this.calculateTotal();
     this.cdr.markForCheck();
   }
@@ -4561,8 +4613,8 @@ loadBubblePointsOptions(): void {
     const saved = this.formPersistenceService.getFormData();
     // Nothing persisted yet — saveFormData() stamps it on the first change.
     if (!saved) return;
-    if (!!saved.wasAdminMode === this.isAdminMode) return;
-    this.formPersistenceService.updateFormData({ wasAdminMode: this.isAdminMode || undefined });
+    if (!!saved.wasAdminMode === this.isAdminMode()) return;
+    this.formPersistenceService.updateFormData({ wasAdminMode: this.isAdminMode() || undefined });
   }
 
   /**
@@ -4571,12 +4623,10 @@ loadBubblePointsOptions(): void {
    * instead (PaymentConsentPolicy gates an admin-created order until they do). Poll forms don't
    * ask either. One place decides, so the validators and the template can't disagree.
    */
-  get consentsWaived(): boolean {
-    return this.showPollForm || this.isAdminMode;
-  }
+  readonly consentsWaived = computed<boolean>(() => this.showPollForm() || this.isAdminMode());
 
   get consentsSatisfied(): boolean {
-    return this.consentsWaived || (
+    return this.consentsWaived() || (
       this.smsConsent.value === true &&
       this.cancellationConsent.value === true &&
       this.termsConsent.value === true);
@@ -4584,7 +4634,7 @@ loadBubblePointsOptions(): void {
 
   applyConsentValidators(): void {
     for (const control of [this.smsConsent, this.cancellationConsent, this.termsConsent]) {
-      control.setValidators(this.consentsWaived ? [] : [Validators.requiredTrue]);
+      control.setValidators(this.consentsWaived() ? [] : [Validators.requiredTrue]);
       control.updateValueAndValidity();
     }
   }
@@ -4592,22 +4642,22 @@ loadBubblePointsOptions(): void {
   toggleAdminMode() {
     // Admin mode changes who the order belongs to — drop discounts before anything else.
     this.clearAppliedDiscountsForAccountSwitch();
-    this.isAdminMode = !this.isAdminMode;
+    this.isAdminMode.set(!this.isAdminMode());
     this.applyConsentValidators();
     this.syncAdminDraftMarker();
     // Turning the toggle back on is the admin acknowledging the discarded-draft notice.
-    if (this.isAdminMode) this.adminDraftDiscarded = false;
+    if (this.isAdminMode()) this.adminDraftDiscarded.set(false);
     // (User search/list loading is owned by AdminUserSearchComponent, which
     // initializes itself when admin mode renders it.)
-    if (!this.isAdminMode) {
+    if (!this.isAdminMode()) {
       // Restore admin's apartments if a user was selected
-      if (this.selectedTargetUser) {
-        this.userApartments = [...this.adminOriginalApartments];
+      if (this.selectedTargetUser()) {
+        this.userApartments.set([...this.adminOriginalApartments]);
         this.adminOriginalApartments = [];
         
         // Restore admin's address if they have apartments
-        if (this.userApartments.length > 0) {
-          const firstApartment = this.userApartments[0];
+        if (this.userApartments().length > 0) {
+          const firstApartment = this.userApartments()[0];
           this.bookingForm.patchValue({
             selectedApartmentId: firstApartment.id.toString()
           });
@@ -4615,7 +4665,7 @@ loadBubblePointsOptions(): void {
         }
       }
       
-      this.selectedTargetUser = null;
+      this.selectedTargetUser.set(null);
       this.resetAdminPaymentFields();
 
       // Restore the standard email requirement (may have been relaxed for a no-email customer).
@@ -4627,13 +4677,13 @@ loadBubblePointsOptions(): void {
       this.loadLoyaltyDiscount();
 
       // Reload admin's own previous orders
-      this.previousOrders = [];
+      this.previousOrders.set([]);
       this.loadOrders();
 
       // The offer list on screen belongs to the customer that was selected — swap it back to
       // the admin's own offers/points so nothing from that account stays clickable.
       this.loadSpecialOffers();
-      this.bubblePointsOptions = [];
+      this.bubblePointsOptions.set([]);
       if (this.isBrowser) this.loadBubblePointsOptions();
     }
   }
@@ -4644,13 +4694,13 @@ loadBubblePointsOptions(): void {
     // this user's own offers.
     this.clearAppliedDiscountsForAccountSwitch();
 
-    this.selectedTargetUser = user;
+    this.selectedTargetUser.set(user);
     // A different customer: "Commercial invoice" is only offered when THIS one has a business client.
-    if (this.adminPaymentMethod === 'Invoice') this.adminPaymentMethod = 'Normal';
+    if (this.adminPaymentMethod() === 'Invoice') this.adminPaymentMethod.set('Normal');
     this.loadAdminBusinessClient(user);
 
     // Store admin's original apartments before loading user's apartments
-    this.adminOriginalApartments = [...this.userApartments];
+    this.adminOriginalApartments = [...this.userApartments()];
 
     // Pre-fill form with the selected user's contact information. Every field is OVERWRITTEN,
     // blank included: a field the customer has no value for must come up empty, never keep
@@ -4690,7 +4740,7 @@ loadBubblePointsOptions(): void {
     if (this.isBrowser) this.loadBubblePointsOptions();
 
     // Reload previous orders for the selected user (so reorder modal shows their orders)
-    this.previousOrders = [];
+    this.previousOrders.set([]);
     this.loadOrders();
   }
   
@@ -4698,7 +4748,7 @@ loadBubblePointsOptions(): void {
     this.adminService.getUserApartments(userId).subscribe({
       next: (apartments) => {
         // Update userApartments with selected user's apartments
-        this.userApartments = apartments;
+        this.userApartments.set(apartments);
         
         if (apartments && apartments.length > 0) {
           // User has apartments - select the first one and fill address
@@ -4727,13 +4777,13 @@ loadBubblePointsOptions(): void {
       apartmentName: DEFAULT_ADDRESS_NAME,
       aptSuite: '',
       city: '',
-      state: this.states.length > 0 ? this.states[0] : '',
+      state: this.states().length > 0 ? this.states()[0] : '',
       zipCode: ''
     });
     
     // Load cities for the default state
-    if (this.states.length > 0) {
-      this.loadCities(this.states[0]);
+    if (this.states().length > 0) {
+      this.loadCities(this.states()[0]);
     }
   }
 
@@ -4741,9 +4791,9 @@ loadBubblePointsOptions(): void {
   // off, target user changes, or booking submission completes — keeps stale Zelle/Cash values
   // from leaking onto the next booking.
   resetAdminPaymentFields(): void {
-    this.adminPaymentMethod = 'Normal';
-    this.adminPaymentReference = '';
-    this.adminPaymentNotes = '';
+    this.adminPaymentMethod.set('Normal');
+    this.adminPaymentReference.set('');
+    this.adminPaymentNotes.set('');
     this.adminContractClientId = null;
   }
 
@@ -4753,8 +4803,8 @@ loadBubblePointsOptions(): void {
    * other method clears it. The regular Invoice needs no client at all.
    */
   onAdminPaymentMethodChange(): void {
-    this.adminContractClientId = this.adminPaymentMethod === 'Invoice'
-      ? (this.adminBusinessClient?.id ?? null)
+    this.adminContractClientId = this.adminPaymentMethod() === 'Invoice'
+      ? (this.adminBusinessClient()?.id ?? null)
       : null;
   }
 
@@ -4764,21 +4814,21 @@ loadBubblePointsOptions(): void {
    * always available.
    */
   private loadAdminBusinessClient(user: UserAdmin): void {
-    this.adminBusinessClient = null;
-    this.paymentMethodOptions = AdminBookingPaymentOptions(false);
+    this.adminBusinessClient.set(null);
+    this.paymentMethodOptions.set(AdminBookingPaymentOptions(false));
     this.loadingContractClients = true;
     this.invoiceService.clientForUser(user.id)
       .pipe(finalize(() => { this.loadingContractClients = false; }))
       .subscribe({
         next: client => {
-          if (this.selectedTargetUser?.id !== user.id) return;   // switched customer meanwhile
-          this.adminBusinessClient = client ?? null;
+          if (this.selectedTargetUser()?.id !== user.id) return;   // switched customer meanwhile
+          this.adminBusinessClient.set(client ?? null);
           this.adminContractClients = client ? [client] : [];
-          this.paymentMethodOptions = AdminBookingPaymentOptions(!!client);
+          this.paymentMethodOptions.set(AdminBookingPaymentOptions(!!client));
           this.onAdminPaymentMethodChange();
         },
         error: () => {
-          this.adminBusinessClient = null;
+          this.adminBusinessClient.set(null);
           this.adminContractClients = [];
         }
       });
@@ -4786,7 +4836,7 @@ loadBubblePointsOptions(): void {
 
   /** True when the admin has chosen Invoice but not said who is billed. Blocks submit. */
   get invoiceClientMissing(): boolean {
-    return this.adminPaymentMethod === 'Invoice' && !this.adminContractClientId;
+    return this.adminPaymentMethod() === 'Invoice' && !this.adminContractClientId;
   }
 
   clearSelectedUser() {
@@ -4794,31 +4844,31 @@ loadBubblePointsOptions(): void {
     // clearAppliedDiscountsForAccountSwitch).
     this.clearAppliedDiscountsForAccountSwitch();
 
-    this.selectedTargetUser = null;
+    this.selectedTargetUser.set(null);
     this.resetAdminPaymentFields();
-    this.adminBusinessClient = null;
+    this.adminBusinessClient.set(null);
     this.adminContractClients = [];
-    this.paymentMethodOptions = AdminBookingPaymentOptions(false);
+    this.paymentMethodOptions.set(AdminBookingPaymentOptions(false));
 
     // Restore the standard email requirement (may have been relaxed for a no-email customer).
     this.applyContactEmailValidators();
 
     // Restore admin's apartments
-    this.userApartments = [...this.adminOriginalApartments];
+    this.userApartments.set([...this.adminOriginalApartments]);
     this.adminOriginalApartments = [];
     
     // Clear contact information and restore admin's info if available
-    if (this.currentUser) {
+    if (this.currentUser()) {
       this.bookingForm.patchValue({
-        contactFirstName: this.currentUser.firstName || '',
-        contactLastName: this.currentUser.lastName || '',
-        contactEmail: this.currentUser.email || '',
-        contactPhone: this.currentUser.phone ? this.currentUser.phone.replace(/\D/g, '').slice(0, 10) : ''
+        contactFirstName: this.currentUser().firstName || '',
+        contactLastName: this.currentUser().lastName || '',
+        contactEmail: this.currentUser().email || '',
+        contactPhone: this.currentUser().phone ? this.currentUser().phone.replace(/\D/g, '').slice(0, 10) : ''
       });
       
       // Restore admin's address if they have apartments
-      if (this.userApartments.length > 0) {
-        const firstApartment = this.userApartments[0];
+      if (this.userApartments().length > 0) {
+        const firstApartment = this.userApartments()[0];
         this.bookingForm.patchValue({
           selectedApartmentId: firstApartment.id.toString()
         });
@@ -4846,34 +4896,34 @@ loadBubblePointsOptions(): void {
     this.loadSpecialOffers();
 
     // Reset points selection and reload admin's own points
-    this.selectedPointsToRedeem = 0;
-    this.pointsDiscountAmount = 0;
-    this.bubblePointsOptions = [];
+    this.selectedPointsToRedeem.set(0);
+    this.pointsDiscountAmount.set(0);
+    this.bubblePointsOptions.set([]);
     if (this.isBrowser) this.loadBubblePointsOptions();
   }
 
   selectOrderToReorder(orderId: number) {
-    this.reorderingOrderId = orderId;
+    this.reorderingOrderId.set(orderId);
 
     // In admin mode, use admin endpoint to fetch order details
-    const order$ = this.isAdminMode && this.selectedTargetUser
+    const order$ = this.isAdminMode() && this.selectedTargetUser()
       ? this.adminService.getOrderDetails(orderId)
       : this.orderService.getOrderById(orderId);
 
     order$.subscribe({
       next: (order: Order) => {
         // Make sure service types are loaded before proceeding
-        if (this.serviceTypes.length === 0) {
-          this.errorMessage = 'Service types are still loading. Please try again in a moment.';
-          this.reorderingOrderId = null;
+        if (this.serviceTypes().length === 0) {
+          this.errorMessage.set('Service types are still loading. Please try again in a moment.');
+          this.reorderingOrderId.set(null);
           return;
         }
 
         // Find the service type
-        const serviceType = this.serviceTypes.find(st => st.id === order.serviceTypeId);
+        const serviceType = this.serviceTypes().find(st => st.id === order.serviceTypeId);
         if (!serviceType) {
-          this.errorMessage = 'Service type not found. Please try again.';
-          this.reorderingOrderId = null;
+          this.errorMessage.set('Service type not found. Please try again.');
+          this.reorderingOrderId.set(null);
           return;
         }
 
@@ -4908,7 +4958,7 @@ loadBubblePointsOptions(): void {
           bookingProgress: 'started' as const,
           // This call REPLACES the stored draft, so the admin marker has to be re-stamped here
           // or an admin reorder would write a draft that looks like a customer's.
-          wasAdminMode: this.isAdminMode || undefined
+          wasAdminMode: this.isAdminMode() || undefined
         };
 
         // Save form data
@@ -4916,11 +4966,11 @@ loadBubblePointsOptions(): void {
         this.formPersistenceService.markBookingStarted();
 
         // Clear photos, promo codes, gift cards, and special offers before restoring
-        this.uploadedPhotos = [];
-        this.promoCodeApplied = false;
-        this.giftCardApplied = false;
-        this.specialOfferApplied = false;
-        this.selectedSpecialOffer = null;
+        this.uploadedPhotos.set([]);
+        this.promoCodeApplied.set(false);
+        this.giftCardApplied.set(false);
+        this.specialOfferApplied.set(false);
+        this.selectedSpecialOffer.set(null);
         this.firstTimeDiscountApplied = false;
         if (this.promoCode) {
           this.promoCode.setValue('');
@@ -4935,12 +4985,13 @@ loadBubblePointsOptions(): void {
           order.services.forEach(orderService => {
             const service = serviceType.services.find(s => s.id === orderService.serviceId);
             if (service) {
-              const existingIndex = this.selectedServices.findIndex(s => s.service.id === service.id);
+              const existingIndex = this.selectedServices().findIndex(s => s.service.id === service.id);
               if (existingIndex >= 0) {
-                this.selectedServices[existingIndex].quantity = orderService.quantity;
+                this.selectedServices()[existingIndex].quantity = orderService.quantity;
               }
             }
           });
+          this.selectedServices.set(this.selectedServices());
           // Same rule as the session restore: the reordered order's Sq.ft is what the customer
           // actually bought, so it is floored and never lowered. Doing it here rather than
           // inside the loop matters — order.services arrives in DB order, so a sqft row ahead
@@ -4951,7 +5002,7 @@ loadBubblePointsOptions(): void {
         // Restore selected extra services
         if (order.extraServices && order.extraServices.length > 0) {
           // Clear any extra services that might have been added by selectServiceType
-          this.selectedExtraServices = [];
+          this.selectedExtraServices.set([]);
           
           order.extraServices.forEach(orderExtraService => {
             const extraService = serviceType.extraServices.find(es => es.id === orderExtraService.extraServiceId);
@@ -4961,13 +5012,14 @@ loadBubblePointsOptions(): void {
               return;
             }
             if (extraService) {
-              this.selectedExtraServices.push({
+              this.selectedExtraServices().push({
                 extraService,
                 quantity: orderExtraService.quantity || 1,
                 hours: orderExtraService.hours || (extraService.hasHours ? 0.5 : 0)
               });
             }
           });
+          this.selectedExtraServices.set(this.selectedExtraServices());
         }
 
         // Sync cleaning type with restored extra services (deep vs normal) so UI matches price
@@ -5001,13 +5053,13 @@ loadBubblePointsOptions(): void {
         // Calculate total
         this.calculateTotal();
         
-        this.reorderingOrderId = null;
-        this.errorMessage = '';
+        this.reorderingOrderId.set(null);
+        this.errorMessage.set('');
       },
       error: (error) => {
         console.error('Error loading order details:', error);
-        this.errorMessage = 'Failed to load order details. Please try again.';
-        this.reorderingOrderId = null;
+        this.errorMessage.set('Failed to load order details. Please try again.');
+        this.reorderingOrderId.set(null);
       }
     });
   }
@@ -5030,14 +5082,14 @@ loadBubblePointsOptions(): void {
 
   applySpecialOffer(offer: UserSpecialOffer) {
     // Check if promo code is already applied (but NOT gift card)
-    if (this.promoCodeApplied && !this.isGiftCard) {
-      this.errorMessage = 'Cannot apply special offer when a promo code is already applied. Please remove the promo code first.';
+    if (this.promoCodeApplied() && !this.isGiftCard()) {
+      this.errorMessage.set('Cannot apply special offer when a promo code is already applied. Please remove the promo code first.');
       return;
     }
 
     // Check if another special offer is already applied
-    if (this.specialOfferApplied && this.selectedSpecialOffer?.id !== offer.id) {
-      this.errorMessage = 'Only one special offer can be applied at a time. Please remove the current offer first.';
+    if (this.specialOfferApplied() && this.selectedSpecialOffer()?.id !== offer.id) {
+      this.errorMessage.set('Only one special offer can be applied at a time. Please remove the current offer first.');
       return;
     }
 
@@ -5047,19 +5099,18 @@ loadBubblePointsOptions(): void {
     const loyaltyDollars = this.currentLoyaltyDollarValue();
     const offerDollars = this.candidateDollarValue(offer.discountValue, offer.isPercentage);
     if (loyaltyDollars > offerDollars) {
-      this.errorMessage =
-        `You already have a Loyalty Discount of ${this.loyaltyDiscountPercentage}% on your account — ` +
-        `it's better than this offer, so they can't be used together.`;
+      this.errorMessage.set(`You already have a Loyalty Discount of ${this.loyaltyDiscountPercentage()}% on your account — ` +
+        `it's better than this offer, so they can't be used together.`);
       return;
     }
 
     // Clear any previous error
-    this.errorMessage = '';
-    this.discountsClearedForAccountSwitch = false;
+    this.errorMessage.set('');
+    this.discountsClearedForAccountSwitch.set(false);
 
     // Apply the special offer
-    this.selectedSpecialOffer = offer;
-    this.specialOfferApplied = true;
+    this.selectedSpecialOffer.set(offer);
+    this.specialOfferApplied.set(true);
     
     // Update promo code disabled state
     this.updatePromoCodeDisabledState();
@@ -5079,32 +5130,32 @@ loadBubblePointsOptions(): void {
    * first-time flag, and the server refused it).
    */
   resolveSubmittedPromoCode(formPromoCode: string | null | undefined): string | null | undefined {
-    if (this.giftCardApplied && this.isGiftCard) return null;
-    if (this.specialOfferApplied && this.selectedSpecialOffer) return null;
+    if (this.giftCardApplied() && this.isGiftCard()) return null;
+    if (this.specialOfferApplied() && this.selectedSpecialOffer()) return null;
     return formPromoCode;
   }
 
   removeSpecialOffer() {
-    this.selectedSpecialOffer = null;
-    this.specialOfferApplied = false;
+    this.selectedSpecialOffer.set(null);
+    this.specialOfferApplied.set(false);
     this.firstTimeDiscountApplied = false;
     
     // Update promo code disabled state
     this.updatePromoCodeDisabledState();
-    this.errorMessage = '';
+    this.errorMessage.set('');
     
     this.calculateTotal();
   }
 
   /** Called when user clicks anywhere on a special offer card: apply or remove the offer. */
   onSpecialOfferCardClick(offer: UserSpecialOffer) {
-    const isThisOfferApplied = this.specialOfferApplied && this.selectedSpecialOffer?.id === offer.id;
+    const isThisOfferApplied = this.specialOfferApplied() && this.selectedSpecialOffer()?.id === offer.id;
     if (isThisOfferApplied) {
       this.removeSpecialOffer();
       return;
     }
     if (!this.authService.isLoggedIn()) {
-      this.showGuestOfferLoginModal = true;
+      this.showGuestOfferLoginModal.set(true);
       this.setBodyScrollLock(true);
       return;
     }
@@ -5112,12 +5163,12 @@ loadBubblePointsOptions(): void {
   }
 
   closeGuestOfferLoginModal() {
-    this.showGuestOfferLoginModal = false;
+    this.showGuestOfferLoginModal.set(false);
     this.setBodyScrollLock(false);
   }
 
   openLoginFromGuestOfferModal() {
-    this.showGuestOfferLoginModal = false;
+    this.showGuestOfferLoginModal.set(false);
     this.setBodyScrollLock(false);
     // navigateAfterLogin in auth-modal reads from BOTH localStorage.returnUrl and
     // authModalService.getReturnUrl(); set both to the current booking URL so the modal
@@ -5132,24 +5183,25 @@ loadBubblePointsOptions(): void {
   loadPollQuestions(serviceTypeId: number) {
     this.pollService.getPollQuestions(serviceTypeId).subscribe({
       next: (questions) => {
-        this.pollQuestions = questions;
+        this.pollQuestions.set(questions);
         
         // Initialize poll answers
         if (this.savedPollData) {
           // Restore saved poll answers
-          this.pollAnswers = { ...this.savedPollData };
+          this.pollAnswers.set({ ...this.savedPollData });
           // Clear saved data after restoration
           this.savedPollData = null;
         } else {
           // Initialize with empty answers
-          this.pollAnswers = {};
+          this.pollAnswers.set({});
           
           // Initialize dropdown and checkbox questions with empty string
           questions.forEach(question => {
             if (question.questionType === 'dropdown' || question.questionType === 'checkbox') {
-              this.pollAnswers[question.id] = '';
+              this.pollAnswers()[question.id] = '';
             }
           });
+          this.pollAnswers.set(this.pollAnswers());
         }
       },
       error: (error) => {
@@ -5189,30 +5241,32 @@ loadBubblePointsOptions(): void {
             defaultQuantity = 400; // Default for Studio
           }
           
-          this.selectedServices.push({
+          this.selectedServices().push({
             service: service,
             quantity: defaultQuantity
           });
         }
       });
+      this.selectedServices.set(this.selectedServices());
       
       // Set square feet based on bedrooms after all services are initialized
-      const sqftService = this.selectedServices.find(s => s.service.serviceKey === 'sqft');
+      const sqftService = this.selectedServices().find(s => s.service.serviceKey === 'sqft');
       if (sqftService) {
         sqftService.quantity = this.getSquareFeetForBedrooms(bedroomsQuantity);
+        this.selectedServices.set(this.selectedServices());
       }
     }
     
     // Clear any previously selected extra services
-    this.selectedExtraServices = [];
+    this.selectedExtraServices.set([]);
   }
   
   isPollFormValid(): boolean {
-    if (!this.showPollForm) return true;
+    if (!this.showPollForm()) return true;
     
     // Check required questions
-    for (const question of this.pollQuestions) {
-      if (question.isRequired && (!this.pollAnswers[question.id] || this.pollAnswers[question.id].trim() === '')) {
+    for (const question of this.pollQuestions()) {
+      if (question.isRequired && (!this.pollAnswers()[question.id] || this.pollAnswers()[question.id].trim() === '')) {
         return false;
       }
     }
@@ -5235,23 +5289,23 @@ loadBubblePointsOptions(): void {
   }
 
   submitPollForm() {
-    this.pollFormSubmitted = true;
+    this.pollFormSubmitted.set(true);
     
     if (!this.isPollFormValid()) {
       this.scrollToFirstError();
       return;
     }
   
-    this.isLoading = true;
+    this.isLoading.set(true);
     const formValue = this.bookingForm.getRawValue();
   
-    const answers: PollAnswer[] = this.pollQuestions.map(question => ({
+    const answers: PollAnswer[] = this.pollQuestions().map(question => ({
       pollQuestionId: question.id,
-      answer: this.pollAnswers[question.id] || ''
+      answer: this.pollAnswers()[question.id] || ''
     })).filter(answer => answer.answer.trim() !== '');
   
     const submission: PollSubmission = {
-      serviceTypeId: this.selectedServiceType!.id,
+      serviceTypeId: this.selectedServiceType()!.id,
       contactFirstName: formValue.contactFirstName,
       contactLastName: formValue.contactLastName,
       contactEmail: formValue.contactEmail,
@@ -5270,21 +5324,21 @@ loadBubblePointsOptions(): void {
   
     this.pollService.submitPoll(submission).subscribe({
       next: (response) => {
-        this.isLoading = false;
+        this.isLoading.set(false);
         this.router.navigate(['/poll-success'], { 
-          queryParams: { serviceType: this.selectedServiceType!.name } 
+          queryParams: { serviceType: this.selectedServiceType()!.name } 
         });
       },
       error: (error) => {
-        this.isLoading = false;
-        this.errorMessage = error.error?.message || 'Failed to submit poll. Please try again.';
+        this.isLoading.set(false);
+        this.errorMessage.set(error.error?.message || 'Failed to submit poll. Please try again.');
       }
     });
   }
 
   /** True when an admin is booking for a cash customer without an email account. */
   get isNoEmailTargetUser(): boolean {
-    return this.isAdminMode && !!this.selectedTargetUser?.isNoEmailUser;
+    return this.isAdminMode() && !!this.selectedTargetUser()?.isNoEmailUser;
   }
 
   // Single place that decides whether the contact email is required. Every code path
@@ -5348,16 +5402,16 @@ loadBubblePointsOptions(): void {
   get termsConsent() { return this.bookingForm.get('termsConsent') as FormControl; }
 
   onFloorTypeSelectionChange(selection: FloorTypeSelection): void {
-    this.floorTypes = selection.types;
-    this.floorTypeOther = selection.otherText;
+    this.floorTypes.set(selection.types);
+    this.floorTypeOther.set(selection.otherText);
     this.saveFormData();
   }
 
   private buildFloorTypesString(): string | null {
-    if (!this.floorTypes.length) return null;
-    return this.floorTypes.map(t => {
-      if (t === 'other' && this.floorTypeOther) {
-        return `other:${this.floorTypeOther}`;
+    if (!this.floorTypes().length) return null;
+    return this.floorTypes().map(t => {
+      if (t === 'other' && this.floorTypeOther()) {
+        return `other:${this.floorTypeOther()}`;
       }
       return t;
     }).join(',');
@@ -5365,12 +5419,12 @@ loadBubblePointsOptions(): void {
 
   // Check if promo code should be disabled
   isPromoCodeDisabled(): boolean {
-    return this.specialOfferApplied || this.promoCode.disabled;
+    return this.specialOfferApplied() || this.promoCode.disabled;
   }
 
   // Update promo code disabled state based on special offer
   updatePromoCodeDisabledState() {
-    if (this.specialOfferApplied) {
+    if (this.specialOfferApplied()) {
       this.promoCode.disable();
     } else {
       this.promoCode.enable();
@@ -5379,7 +5433,7 @@ loadBubblePointsOptions(): void {
 
   private loadUserSubscription(userId?: number) {
     // If userId is provided (admin mode), load that user's subscription
-    if (userId && this.isAdminMode) {
+    if (userId && this.isAdminMode()) {
       this.adminService.getUserProfile(userId).subscribe({
         next: (userProfile) => {
           const rawExpiry = userProfile?.subscriptionExpiryDate;
@@ -5387,45 +5441,45 @@ loadBubblePointsOptions(): void {
           const isExpired = rawExpiry && !Number.isNaN(expiryMs) && expiryMs <= Date.now();
 
           if (userProfile?.subscriptionId && !isExpired) {
-            this.hasActiveSubscription = true;
-            this.userSubscription = {
+            this.hasActiveSubscription.set(true);
+            this.userSubscription.set({
               hasSubscription: true,
               subscriptionId: userProfile.subscriptionId,
               subscriptionName: userProfile.subscriptionName,
               discountPercentage: 0, // Will be set from subscription list
               expiryDate: userProfile.subscriptionExpiryDate
-            };
+            });
             
             // If subscription is already loaded, update the selection
-            if (this.subscriptions && this.subscriptions.length > 0) {
+            if (this.subscriptions() && this.subscriptions().length > 0) {
               this.updateSelectedSubscription();
             }
           } else {
-            this.hasActiveSubscription = false;
-            this.userSubscription = null;
+            this.hasActiveSubscription.set(false);
+            this.userSubscription.set(null);
             // Set default subscription if user has no active subscription
-            if (this.subscriptions && this.subscriptions.length > 0) {
+            if (this.subscriptions() && this.subscriptions().length > 0) {
               const oneTimeSubscription = this.findOneTimeSubscription();
-              this.selectedSubscription = oneTimeSubscription;
+              this.selectedSubscription.set(oneTimeSubscription);
               // Recalculate total to clear any previous discount
               this.calculateTotal();
             } else {
-              this.selectedSubscription = null;
+              this.selectedSubscription.set(null);
             }
           }
         },
         error: (error) => {
           console.error('Error loading user subscription:', error);
-          this.hasActiveSubscription = false;
-          this.userSubscription = null;
+          this.hasActiveSubscription.set(false);
+          this.userSubscription.set(null);
           // Set default subscription on error
-          if (this.subscriptions && this.subscriptions.length > 0) {
+          if (this.subscriptions() && this.subscriptions().length > 0) {
             const oneTimeSubscription = this.findOneTimeSubscription();
-            this.selectedSubscription = oneTimeSubscription;
+            this.selectedSubscription.set(oneTimeSubscription);
             // Recalculate total to clear any previous discount
             this.calculateTotal();
           } else {
-            this.selectedSubscription = null;
+            this.selectedSubscription.set(null);
           }
         }
       });
@@ -5435,8 +5489,8 @@ loadBubblePointsOptions(): void {
     // Regular flow: load subscription for logged-in user
     // Only call getUserSubscription if user is logged in
     if (!this.authService.isLoggedIn()) {
-      this.hasActiveSubscription = false;
-      this.userSubscription = null;
+      this.hasActiveSubscription.set(false);
+      this.userSubscription.set(null);
       return;
     }
   
@@ -5456,16 +5510,16 @@ loadBubblePointsOptions(): void {
         this.preferredSubscriptionId = data?.preferredSubscriptionId ?? null;
 
         if (data?.hasSubscription && !isExpired) {
-          this.hasActiveSubscription = true;
-          this.userSubscription = data;
+          this.hasActiveSubscription.set(true);
+          this.userSubscription.set(data);
 
           // If subscription is already loaded, update the selection
-          if (this.subscriptions && this.subscriptions.length > 0) {
+          if (this.subscriptions() && this.subscriptions().length > 0) {
             this.updateSelectedSubscription();
           }
         } else {
-          this.hasActiveSubscription = false;
-          this.userSubscription = null;
+          this.hasActiveSubscription.set(false);
+          this.userSubscription.set(null);
           this.applyPreferredSubscription();
         }
       },
@@ -5474,8 +5528,8 @@ loadBubblePointsOptions(): void {
         if (error.status !== 401) {
           console.error('Error loading subscription:', error);
         }
-        this.hasActiveSubscription = false;
-        this.userSubscription = null;
+        this.hasActiveSubscription.set(false);
+        this.userSubscription.set(null);
       }
     });
   }
@@ -5491,16 +5545,16 @@ loadBubblePointsOptions(): void {
    * It changes no price: it selects a chip the customer could have tapped themselves.
    */
   private applyPreferredSubscription(): void {
-    if (this.isAdminMode) return;
-    if (this.hasActiveSubscription) return;
+    if (this.isAdminMode()) return;
+    if (this.hasActiveSubscription()) return;
     if (!this.preferredSubscriptionId) return;
-    if (!this.subscriptions || this.subscriptions.length === 0) return;
+    if (!this.subscriptions() || this.subscriptions().length === 0) return;
     if (this.formPersistenceService.getFormData()?.selectedSubscriptionId) return;
 
-    const preferred = this.subscriptions.find(s => s.id === this.preferredSubscriptionId);
-    if (!preferred || preferred.id === this.selectedSubscription?.id) return;
+    const preferred = this.subscriptions().find(s => s.id === this.preferredSubscriptionId);
+    if (!preferred || preferred.id === this.selectedSubscription()?.id) return;
 
-    this.selectedSubscription = preferred;
+    this.selectedSubscription.set(preferred);
     this.calculateTotal();
   }
 
@@ -5518,21 +5572,21 @@ loadBubblePointsOptions(): void {
   // this.promoOrFirstTimeDiscountAmount in place so existing callers' totalDiscountAmount sum
   // continues to work without any rewiring downstream.
   private applyLoyaltyStacking(subTotal: number): void {
-    this.loyaltyDiscountAmount = 0;
-    if (this.isAdminMode && (this.adminPaymentMethod === 'Invoice' || this.adminContractClientId)) return;
-    if (this.loyaltyDiscountPercentage <= 0 || subTotal <= 0) return;
+    this.loyaltyDiscountAmount.set(0);
+    if (this.isAdminMode() && (this.adminPaymentMethod() === 'Invoice' || this.adminContractClientId)) return;
+    if (this.loyaltyDiscountPercentage() <= 0 || subTotal <= 0) return;
 
     // Single stacking implementation lives in the shared calculator (mirrored by the backend).
-    const loyaltyCandidate = percentOf(subTotal, this.loyaltyDiscountPercentage);
+    const loyaltyCandidate = percentOf(subTotal, this.loyaltyDiscountPercentage());
     const stacked = resolveLoyaltyStacking(
       loyaltyCandidate,
-      this.loyaltyDiscountPercentage,
-      this.subscriptionDiscountAmount,
-      this.promoOrFirstTimeDiscountAmount
+      this.loyaltyDiscountPercentage(),
+      this.subscriptionDiscountAmount(),
+      this.promoOrFirstTimeDiscountAmount()
     );
-    this.loyaltyDiscountAmount = stacked.loyaltyAmount;
-    this.subscriptionDiscountAmount = stacked.subscriptionAmount;
-    this.promoOrFirstTimeDiscountAmount = stacked.promoAmount;
+    this.loyaltyDiscountAmount.set(stacked.loyaltyAmount);
+    this.subscriptionDiscountAmount.set(stacked.subscriptionAmount);
+    this.promoOrFirstTimeDiscountAmount.set(stacked.promoAmount);
   }
 
   // Load the user's current loyalty discount percentage. In admin mode this MUST read from
@@ -5540,15 +5594,15 @@ loadBubblePointsOptions(): void {
   // Self-mode uses the profile endpoint, which now exposes loyaltyDiscountPercentage.
   // Errors are swallowed (set to 0) so a flaky lookup doesn't block the booking page.
   private loadLoyaltyDiscount(userId?: number) {
-    const before = this.loyaltyDiscountPercentage;
+    const before = this.loyaltyDiscountPercentage();
     const resetAndRecalc = (pct: number) => {
-      this.loyaltyDiscountPercentage = pct || 0;
-      if (this.loyaltyDiscountPercentage !== before) {
+      this.loyaltyDiscountPercentage.set(pct || 0);
+      if (this.loyaltyDiscountPercentage() !== before) {
         this.calculateTotal();
       }
     };
 
-    if (userId && this.isAdminMode) {
+    if (userId && this.isAdminMode()) {
       this.adminService.getUserLoyaltyDiscount(userId).subscribe({
         next: (dto) => resetAndRecalc(dto?.percentage ?? 0),
         error: () => resetAndRecalc(0),
@@ -5568,21 +5622,22 @@ loadBubblePointsOptions(): void {
   }
 
   private updateSelectedSubscription() {
-    if (this.userSubscription && this.subscriptions) {
-      const matchingSubscription = this.subscriptions.find(s => s.id === this.userSubscription.subscriptionId);
+    if (this.userSubscription() && this.subscriptions()) {
+      const matchingSubscription = this.subscriptions().find(s => s.id === this.userSubscription().subscriptionId);
 
       if (matchingSubscription) {
-        this.selectedSubscription = matchingSubscription;
+        this.selectedSubscription.set(matchingSubscription);
         // Update discount percentage from subscription list
-        if (this.userSubscription) {
-          this.userSubscription.discountPercentage = matchingSubscription.discountPercentage;
+        if (this.userSubscription()) {
+          this.userSubscription().discountPercentage = matchingSubscription.discountPercentage;
+          this.userSubscription.set(this.userSubscription());
         }
         // Trigger calculation when subscription is updated
         this.calculateTotal();
         this.saveFormData(); // Persist updated selection so it doesn't revert to "One Time"
       } else {
         // If subscription not found in list, clear selection
-        this.selectedSubscription = null;
+        this.selectedSubscription.set(null);
       }
     }
   }
@@ -5608,14 +5663,14 @@ loadBubblePointsOptions(): void {
 
   /** The one-off plan a fresh form starts on: the plan with no period (subscriptionDays 0), else the first. */
   private findOneTimeSubscription(): Subscription | null {
-    return this.subscriptions.find(s => s.subscriptionDays === 0) || this.subscriptions[0] || null;
+    return this.subscriptions().find(s => s.subscriptionDays === 0) || this.subscriptions()[0] || null;
   }
 
   // Get filtered extra services (excluding deep cleaning and super deep cleaning)
   getFilteredExtraServices(): ExtraService[] {
-    if (!this.selectedServiceType) return [];
+    if (!this.selectedServiceType()) return [];
 
-    return this.selectedServiceType.extraServices.filter(extra => {
+    return this.selectedServiceType()!.extraServices.filter(extra => {
       // Show all extra services except deep cleaning and super deep cleaning — those are a
       // cleaning TYPE, presented as the Cleaning Type buttons, never as an extras card. That
       // holds for Custom Pricing too, where the agreed cleaning type belongs in the service-type
@@ -5646,7 +5701,7 @@ loadBubblePointsOptions(): void {
       // of the arrangement is not informational: CleanerJobView.RequiresCleanerToBringEssentials
       // reads the order's extras by NAME, whatever the service type, so that row is what puts
       // the Essentials line in the assignment email and SMS and the banner in the portal.
-      if (isCleaningEssentialsExtra(extra) && !this.showCustomPricing) {
+      if (isCleaningEssentialsExtra(extra) && !this.showCustomPricing()) {
         return false;
       }
 
@@ -5654,7 +5709,7 @@ loadBubblePointsOptions(): void {
       // the admin panel and the cleaner's job email and are priced at $0 / 0 min. Same Day
       // Service is neither of those: it is a scheduling modifier that forces the calendar to
       // today, and the admin already picks the exact date here, so it has no meaning at $0.
-      if (this.showCustomPricing && extra.isSameDayService) {
+      if (this.showCustomPricing() && extra.isSameDayService) {
         return false;
       }
 
@@ -5705,32 +5760,32 @@ loadBubblePointsOptions(): void {
     
     if (windowWidth >= 1510) {
       // If window width is 1510px or MORE, keep max-width at 950px (fixed)
-      this.extraServicesContainerMaxWidth = 950;
+      this.extraServicesContainerMaxWidth.set(950);
     } else if (windowWidth >= 1200) {
       // Between 1200px and 1510px: proportional reduction
       // At 1510px → 950px
       // At 1201px → 758px
       // Linear interpolation
       const ratio = (windowWidth - 1510) / (1201 - 1510); // ratio from 0 at 1510px to 1 at 1201px
-      this.extraServicesContainerMaxWidth = 950 + (697 - 950) * ratio;
+      this.extraServicesContainerMaxWidth.set(950 + (697 - 950) * ratio);
       
       // At exactly 1200px, jump to 1140px
       if (windowWidth >= 1200 && windowWidth < 1201) {
-        this.extraServicesContainerMaxWidth = 1140;
+        this.extraServicesContainerMaxWidth.set(1140);
       }
     } else {
       // Below 1200px: resize reducing by 1px for each 1px window reduction
       // At 1200px → 1140px
       // For each 1px decrease in window width, reduce container max-width by 1px (but keep min at 300px)
       const widthDifference = 1200 - windowWidth; // How much smaller than 1200px
-      this.extraServicesContainerMaxWidth = Math.max(1140 - widthDifference, 300);
+      this.extraServicesContainerMaxWidth.set(Math.max(1140 - widthDifference, 300));
     }
   }
 
   getExtraServiceTooltip(extra: ExtraService): string {
     // Booking-specific: a disabled Same Day Service explains why instead.
-    if (extra.isSameDayService && !this.isSameDayServiceAvailable) {
-      return this.sameDayServiceDisabledReason;
+    if (extra.isSameDayService && !this.isSameDayServiceAvailable()) {
+      return this.sameDayServiceDisabledReason();
     }
     return getExtraServiceTooltip(extra);
   }
@@ -5740,14 +5795,14 @@ loadBubblePointsOptions(): void {
   }
 
   private getActiveDeepCleaningExtraService(): ExtraService | null {
-    if (!this.selectedServiceType?.extraServices) return null;
+    if (!this.selectedServiceType()?.extraServices) return null;
     // A Custom Pricing type is served the WHOLE extras catalogue (it records extras purely as
     // information), so it "has" a deep-cleaning row even though it offers no Cleaning Type
     // buttons and no deep-cleaning card. Reporting that as available would let the restore path
     // push a deep extra the admin can neither see nor remove — the hidden-but-active pattern.
-    if (this.showCustomPricing) return null;
+    if (this.showCustomPricing()) return null;
     return (
-      this.selectedServiceType.extraServices.find(
+      this.selectedServiceType()!.extraServices.find(
         (extra) => extra.isDeepCleaning && extra.isActive !== false
       ) || null
     );
@@ -5759,18 +5814,18 @@ loadBubblePointsOptions(): void {
 
   /** Show move in/out checklist when this service type is selected (name from API). */
   isMoveInOutCleaningServiceType(): boolean {
-    return serviceTypeIs(this.selectedServiceType, 'move-in-out',
+    return serviceTypeIs(this.selectedServiceType(), 'move-in-out',
       name => name.includes('move') && name.includes('in') && name.includes('out'));
   }
 
   /** Cleaning-type + what's-included UI only for Residential Cleaning (name from API). */
   isResidentialCleaningServiceType(): boolean {
-    return isResidentialServiceType(this.selectedServiceType);
+    return isResidentialServiceType(this.selectedServiceType());
   }
 
   /** Offices don't have bedrooms/bathrooms — suppress the standalone inputs for this service type. */
   isOfficeCleaningServiceType(): boolean {
-    return serviceTypeIs(this.selectedServiceType, 'office', name => name.includes('office'));
+    return serviceTypeIs(this.selectedServiceType(), 'office', name => name.includes('office'));
   }
 
   private normalizeCleaningTypeForSelectedServiceType(): void {
@@ -5778,9 +5833,9 @@ loadBubblePointsOptions(): void {
     // and remove any deep-cleaning extra that might have been restored from saved data.
     if (this.canSelectDeepCleaning) return;
 
-    this.selectedExtraServices = this.selectedExtraServices.filter(
+    this.selectedExtraServices.set(this.selectedExtraServices().filter(
       (s) => !s.extraService.isDeepCleaning
-    );
+    ));
 
     if (this.cleaningType.value === 'deep') {
       this.cleaningType.setValue('normal');
@@ -5790,9 +5845,9 @@ loadBubblePointsOptions(): void {
   // Handle cleaning type selection
   onCleaningTypeChange(cleaningType: string) {
     // Remove any existing deep cleaning services
-    this.selectedExtraServices = this.selectedExtraServices.filter(
+    this.selectedExtraServices.set(this.selectedExtraServices().filter(
       s => !s.extraService.isDeepCleaning
-    );
+    ));
 
     // Add the selected cleaning type if not normal
     if (cleaningType !== 'normal') {
@@ -5809,11 +5864,12 @@ loadBubblePointsOptions(): void {
       }
 
       if (cleaningService) {
-        this.selectedExtraServices.push({
+        this.selectedExtraServices().push({
           extraService: cleaningService,
           quantity: 1,
           hours: cleaningService.hasHours ? 0.5 : 0
         });
+        this.selectedExtraServices.set(this.selectedExtraServices());
       }
     }
 
@@ -5837,12 +5893,12 @@ loadBubblePointsOptions(): void {
   }
 
   toggleTipDropdown() {
-    this.tipDropdownOpen = !this.tipDropdownOpen;
+    this.tipDropdownOpen.set(!this.tipDropdownOpen());
   }
 
   selectTipPreset(amount: number) {
     this.tips.setValue(amount);
-    this.tipDropdownOpen = false;
+    this.tipDropdownOpen.set(false);
     this.calculateTotal();
     this.saveFormData();
   }
@@ -5851,14 +5907,14 @@ loadBubblePointsOptions(): void {
   
   onPollAnswerChange() {
     // Save form data when poll answers change
-    if (this.showPollForm) {
+    if (this.showPollForm()) {
       this.saveFormData();
     }
   }
 
   /** Whether the given option is selected for a checkbox-type poll question (comma-separated stored value). */
   isPollCheckboxChecked(questionId: number, option: string): boolean {
-    const value = (this.pollAnswers[questionId] || '').trim();
+    const value = (this.pollAnswers()[questionId] || '').trim();
     if (!value) return false;
     const selected = value.split(',').map(s => s.trim()).filter(Boolean);
     return selected.includes(option);
@@ -5866,7 +5922,7 @@ loadBubblePointsOptions(): void {
 
   /** Toggle an option for a checkbox-type poll question. Stores selected values as comma-separated. */
   togglePollCheckbox(questionId: number, option: string): void {
-    const value = (this.pollAnswers[questionId] || '').trim();
+    const value = (this.pollAnswers()[questionId] || '').trim();
     const selected = value ? value.split(',').map(s => s.trim()).filter(Boolean) : [];
     const idx = selected.indexOf(option);
     if (idx >= 0) {
@@ -5874,22 +5930,25 @@ loadBubblePointsOptions(): void {
     } else {
       selected.push(option);
     }
-    this.pollAnswers[questionId] = selected.join(', ');
+    this.pollAnswers()[questionId] = selected.join(', ');
+    this.pollAnswers.set(this.pollAnswers());
   }
 
   loadBlockedTimeSlots() {
     this.bookingService.getBlockedTimeSlots().pipe(takeUntil(this.destroy$)).subscribe({
       next: (slots) => {
-        this.blockedTimeSlots = slots;
-        this.blockedFullDays = new Set<string>();
-        this.blockedHoursMap = new Map<string, Set<string>>();
+        this.blockedTimeSlots.set(slots);
+        this.blockedFullDays.set(new Set<string>());
+        this.blockedHoursMap.set(new Map<string, Set<string>>());
         for (const slot of slots) {
           if (slot.isFullDay) {
-            this.blockedFullDays.add(slot.date);
+            this.blockedFullDays().add(slot.date);
           } else if (slot.blockedHours) {
-            this.blockedHoursMap.set(slot.date, new Set(slot.blockedHours.split(',')));
+            this.blockedHoursMap().set(slot.date, new Set(slot.blockedHours.split(',')));
           }
         }
+        this.blockedFullDays.set(this.blockedFullDays());
+        this.blockedHoursMap.set(this.blockedHoursMap());
         // After loading blocked slots, adjust default date/time if currently on a blocked slot
         this.adjustDefaultDateIfBlocked();
       }
@@ -5899,20 +5958,20 @@ loadBubblePointsOptions(): void {
   /** If the current default date is fully blocked, advance to the next available date.
    *  Also ensure the selected time is not blocked. */
   private adjustDefaultDateIfBlocked() {
-    if (this.isAdminMode) return;
+    if (this.isAdminMode()) return;
     const currentDate = this.serviceDate.value;
     if (!currentDate) return;
 
     let dateStr = typeof currentDate === 'string' ? currentDate.split('T')[0] : currentDate;
 
     // If current date is fully blocked, find the next available date (up to 60 days out)
-    if (this.blockedFullDays.has(dateStr)) {
+    if (this.blockedFullDays().has(dateStr)) {
       const [y, m, d] = dateStr.split('-').map(Number);
       const date = new Date(y, m - 1, d);
       for (let i = 0; i < 60; i++) {
         date.setDate(date.getDate() + 1);
         const nextStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-        if (!this.blockedFullDays.has(nextStr)) {
+        if (!this.blockedFullDays().has(nextStr)) {
           dateStr = nextStr;
           this.serviceDate.setValue(nextStr);
           break;
@@ -5933,31 +5992,31 @@ loadBubblePointsOptions(): void {
 
   /** Get the blocked-slot reason for a given date (if any). */
   getBlockedReasonForDate(dateStr: string): string | null {
-    const slot = this.blockedTimeSlots.find(s => s.date === dateStr);
+    const slot = this.blockedTimeSlots().find(s => s.date === dateStr);
     return slot?.reason || null;
   }
 
   /** Admins / SuperAdmins (and admin-mode bookings) bypass all blocked-date / busy restrictions. */
   get bypassBlockedDates(): boolean {
-    return this.isAdminMode || this.isAdminOrSuperAdmin;
+    return this.isAdminMode() || this.isAdminOrSuperAdmin;
   }
 
   /** Returns list of fully blocked date strings (YYYY-MM-DD) for the date-selector. */
   getBlockedDates(): string[] {
     if (this.bypassBlockedDates) return [];
-    return Array.from(this.blockedFullDays);
+    return Array.from(this.blockedFullDays());
   }
 
   /** Returns list of partially blocked date strings (YYYY-MM-DD) for the date-selector. */
   getPartiallyBlockedDates(): string[] {
     if (this.bypassBlockedDates) return [];
-    return Array.from(this.blockedHoursMap.keys());
+    return Array.from(this.blockedHoursMap().keys());
   }
 
   /** Returns set of blocked hours for a specific date (empty if admin mode). */
   getBlockedHoursForDate(dateStr: string): Set<string> {
     if (this.bypassBlockedDates) return new Set();
-    return this.blockedHoursMap.get(dateStr) || new Set();
+    return this.blockedHoursMap().get(dateStr) || new Set();
   }
 
   /** Returns blocked hours array for the currently selected date (for time-selector input). */
@@ -5967,7 +6026,7 @@ loadBubblePointsOptions(): void {
     if (!dateStr) return [];
     const cleanDate = typeof dateStr === 'string' ? dateStr.split('T')[0] : dateStr;
     // If the date is fully blocked, all hours are blocked
-    if (this.blockedFullDays.has(cleanDate)) {
+    if (this.blockedFullDays().has(cleanDate)) {
       return getAllServiceTimeSlots(this.hasExtendedBookingHours);
     }
     return Array.from(this.getBlockedHoursForDate(cleanDate));
@@ -5980,9 +6039,9 @@ loadBubblePointsOptions(): void {
     if (!dateStr) return false;
     const cleanDate = typeof dateStr === 'string' ? dateStr.split('T')[0] : dateStr;
     // Fully blocked day
-    if (this.blockedFullDays.has(cleanDate)) return true;
+    if (this.blockedFullDays().has(cleanDate)) return true;
     // Partially blocked - check the specific time
-    const blockedHours = this.blockedHoursMap.get(cleanDate);
+    const blockedHours = this.blockedHoursMap().get(cleanDate);
     if (blockedHours && this.serviceTime.value) {
       return blockedHours.has(this.serviceTime.value);
     }
@@ -6001,7 +6060,7 @@ loadBubblePointsOptions(): void {
 
     // If same day service is selected, filter time slots based on current time.
     // Admins / SuperAdmins skip this filter — they can pick any time for same-day.
-    if (this.isSameDaySelected && !this.isAdminOrSuperAdmin) {
+    if (this.isSameDaySelected() && !this.isAdminOrSuperAdmin) {
       const today = this.getNowInNewYork();
 
       // Check if selected date is today (in NY time)
@@ -6027,7 +6086,7 @@ loadBubblePointsOptions(): void {
     // Let user manually select time from available slots
     
     // If same day service is selected, check availability again
-    if (this.isSameDaySelected) {
+    if (this.isSameDaySelected()) {
       this.checkSameDayServiceAvailability();
     }
 
@@ -6057,7 +6116,7 @@ loadBubblePointsOptions(): void {
     // Admins / SuperAdmins are exempt — they may keep Same Day Service on any date.
     if (date !== todayFormatted && !this.isAdminOrSuperAdmin) {
       // Find and uncheck the same day service
-      const sameDayService = this.selectedExtraServices.find(s => s.extraService.isSameDayService);
+      const sameDayService = this.selectedExtraServices().find(s => s.extraService.isSameDayService);
       if (sameDayService) {
         this.toggleExtraService(sameDayService.extraService, true); // Skip date change since user selected a specific date
       }
@@ -6068,7 +6127,7 @@ loadBubblePointsOptions(): void {
 
   // Get current cleaning type from form
   getCurrentCleaningType(): string {
-    const deepCleaning = this.selectedExtraServices.find(s => s.extraService.isDeepCleaning);
+    const deepCleaning = this.selectedExtraServices().find(s => s.extraService.isDeepCleaning);
     
     if (deepCleaning) {
       return 'deep';
@@ -6078,54 +6137,55 @@ loadBubblePointsOptions(): void {
 
   // Photo upload methods
   async onPhotoSelect(event: any) {
-    this.photoUploadError = '';
+    this.photoUploadError.set('');
     const files = event.target.files;
     
     if (!files || files.length === 0) return;
     
     // Check if adding these files would exceed the limit
-    if (this.uploadedPhotos.length + files.length > this.maxPhotos) {
-      this.photoUploadError = `You can upload a maximum of ${this.maxPhotos} photos`;
+    if (this.uploadedPhotos().length + files.length > this.maxPhotos) {
+      this.photoUploadError.set(`You can upload a maximum of ${this.maxPhotos} photos`);
       return;
     }
     
-    this.isUploadingPhoto = true;
+    this.isUploadingPhoto.set(true);
     
     const fileList = Array.from(files as FileList);
     for (const file of fileList) {
       try {
         // Validate file type
         if (!file.type.startsWith('image/') && !file.name.toLowerCase().match(/\.(heic|heif)$/)) {
-          this.photoUploadError = 'Only image files are allowed';
-          this.isUploadingPhoto = false;
+          this.photoUploadError.set('Only image files are allowed');
+          this.isUploadingPhoto.set(false);
           return;
         }
         
         // Validate file size (15MB limit)
         if (file.size > this.maxFileSize) {
-          this.photoUploadError = `File ${file.name} is too large. Maximum size is 15MB`;
-          this.isUploadingPhoto = false;
+          this.photoUploadError.set(`File ${file.name} is too large. Maximum size is 15MB`);
+          this.isUploadingPhoto.set(false);
           return;
         }
         
         // Compress and convert to base64
         const result = await this.compressAndConvertToBase64(file);
-        this.uploadedPhotos.push({
+        this.uploadedPhotos().push({
           file: file,
           preview: this.sanitizer.bypassSecurityTrustUrl(result.preview),
           base64: result.base64
         });
         
-        this.isUploadingPhoto = false;
+        this.isUploadingPhoto.set(false);
         
         // Clear the input to allow re-selection of the same file
         event.target.value = '';
       } catch (error) {
         console.error('Error processing photo:', error);
-        this.photoUploadError = 'Error processing photo';
-        this.isUploadingPhoto = false;
+        this.photoUploadError.set('Error processing photo');
+        this.isUploadingPhoto.set(false);
       }
     }
+    this.uploadedPhotos.set(this.uploadedPhotos());
   }
 
   private compressAndConvertToBase64(file: File): Promise<{preview: string, base64: string}> {
@@ -6192,11 +6252,12 @@ loadBubblePointsOptions(): void {
   }
 
   removePhoto(index: number) {
-    this.uploadedPhotos.splice(index, 1);
+    this.uploadedPhotos().splice(index, 1);
+    this.uploadedPhotos.set(this.uploadedPhotos());
   }
 
   private preparePhotosForSubmission(): any[] {
-    return this.uploadedPhotos.map(photo => ({
+    return this.uploadedPhotos().map(photo => ({
       fileName: photo.file.name,
       base64Data: photo.base64,
       contentType: photo.file.type
@@ -6209,12 +6270,12 @@ loadBubblePointsOptions(): void {
   }
 
   toggleBookingSummary() {
-    this.isSummaryCollapsed = !this.isSummaryCollapsed;
+    this.isSummaryCollapsed.set(!this.isSummaryCollapsed());
     
     if (!this.isBrowser) return;
     
     // When opening, ignore scroll events briefly so scrollIntoView doesn't trigger close
-    if (!this.isSummaryCollapsed) {
+    if (!this.isSummaryCollapsed()) {
       this.summaryJustOpened = true;
       const clearFlag = () => { this.summaryJustOpened = false; };
       setTimeout(clearFlag, 900); // Slightly longer than smooth scroll
@@ -6237,12 +6298,12 @@ loadBubblePointsOptions(): void {
    * Users often don't notice the close button; scroll-to-close improves UX.
    */
   private summaryScrollCloseHandler = () => {
-    if (!this.isBrowser || this.isSummaryCollapsed) return;
+    if (!this.isBrowser || this.isSummaryCollapsed()) return;
     if (this.summaryJustOpened) return; // Don't close on scroll from open-button scrollIntoView
     if (this.summaryCodeActionInProgress) return; // Don't close on layout shift from promo/gift card apply/remove
     if (typeof window === 'undefined' || window.innerWidth > 1200) return;
     this.ngZone.run(() => {
-      this.isSummaryCollapsed = true;
+      this.isSummaryCollapsed.set(true);
       this.cdr.detectChanges();
     });
   };
@@ -6265,8 +6326,8 @@ loadBubblePointsOptions(): void {
   private checkSameDayServiceAvailability(): void {
     // Admins / SuperAdmins bypass the same-day restriction entirely — always available.
     if (this.isAdminOrSuperAdmin) {
-      this.isSameDayServiceAvailable = true;
-      this.sameDayServiceDisabledReason = '';
+      this.isSameDayServiceAvailable.set(true);
+      this.sameDayServiceDisabledReason.set('');
       return;
     }
 
@@ -6286,7 +6347,7 @@ loadBubblePointsOptions(): void {
     
     // Check if current time + preparation time would exceed latest start time
     if (currentTimeInMinutes + minPreparationTimeInMinutes > latestStartTimeInMinutes) {
-      this.isSameDayServiceAvailable = false;
+      this.isSameDayServiceAvailable.set(false);
       
       // Calculate when same day service will be available again (next day)
       const tomorrow = this.getNowInNewYork();
@@ -6299,22 +6360,22 @@ loadBubblePointsOptions(): void {
 
       const minStartTimeTomorrow = this.getMinimumStartTimeForDate(tomorrow);
       const minStartTimeTomorrowLabel = this.formatTimeSlot(minStartTimeTomorrow);
-      this.sameDayServiceDisabledReason = `Requires 4 hours notice. Available again on ${tomorrowString} at ${minStartTimeTomorrowLabel}.`;
+      this.sameDayServiceDisabledReason.set(`Requires 4 hours notice. Available again on ${tomorrowString} at ${minStartTimeTomorrowLabel}.`);
     } else {
-      this.isSameDayServiceAvailable = true;
-      this.sameDayServiceDisabledReason = '';
+      this.isSameDayServiceAvailable.set(true);
+      this.sameDayServiceDisabledReason.set('');
     }
   }
 
   /** Returns true when same-day service is selected but today has no available (non-blocked) time slots. */
   isSameDayFullyBooked(): boolean {
     if (this.bypassBlockedDates) return false;
-    if (!this.isSameDaySelected) return false;
+    if (!this.isSameDaySelected()) return false;
     const dateStr = this.serviceDate.value;
     if (!dateStr) return false;
     const cleanDate = typeof dateStr === 'string' ? dateStr.split('T')[0] : dateStr;
     // Fully blocked day
-    if (this.blockedFullDays.has(cleanDate)) return true;
+    if (this.blockedFullDays().has(cleanDate)) return true;
     // Check if all available time slots are blocked
     const slots = this.getAvailableTimeSlots();
     const blockedSet = new Set(this.getBlockedHoursForSelectedDate());
@@ -6372,14 +6433,14 @@ loadBubblePointsOptions(): void {
 
 
   toggleExtraInfoExpansion() {
-    this.isExtraInfoExpanded = !this.isExtraInfoExpanded;
+    this.isExtraInfoExpanded.set(!this.isExtraInfoExpanded());
   }
 
 
   getServiceSpecificInfo(): string {
-    if (!this.selectedServiceType) return '';
+    if (!this.selectedServiceType()) return '';
     
-    const type = this.selectedServiceType;
+    const type = this.selectedServiceType();
     if (serviceTypeIs(type, 'move-in-out', n =>
       n.includes('move in') || n.includes('move out') || n.includes('move-in') || n.includes('move-out'))) {
       return 'move-in-out';
@@ -6391,18 +6452,18 @@ loadBubblePointsOptions(): void {
   }
 
   isDeepCleaningSelected(): boolean {
-    return this.selectedExtraServices.some(service => service.extraService.isDeepCleaning);
+    return this.selectedExtraServices().some(service => service.extraService.isDeepCleaning);
   }
 
   // Form step navigation methods
   nextStep() {
-    if (this.currentStep < this.totalSteps) {
+    if (this.currentStep() < this.totalSteps) {
       // Check if current step is valid before proceeding
       if (this.canProceedToNextStep()) {
         // Clear validation errors from current step before moving to next
         this.clearCurrentStepValidationErrors();
-        this.currentStep++;
-        if (this.currentStep === 3) {
+        this.currentStep.update(v => v + 1);
+        if (this.currentStep() === 3) {
           this.autocompleteInitRetryCount = 0;
           setTimeout(() => this.initAddressAutocomplete(), 100);
         }
@@ -6412,7 +6473,7 @@ loadBubblePointsOptions(): void {
       } else {
         // Reveal the property-type / levels errors too. They are not FormControls, so
         // clearCurrentStepValidationErrors and markAsTouched do not reach them.
-        this.propertyTypeTouched = true;
+        this.propertyTypeTouched.set(true);
         // If step is invalid, scroll to first error
         this.scrollToFirstErrorInCurrentStep();
       }
@@ -6424,21 +6485,21 @@ loadBubblePointsOptions(): void {
     // Check if current step is valid before proceeding
     if (this.canProceedToNextStep()) {
       if (this.shouldConfirmCleaningSuppliesBeforeContinuing()) {
-        this.showCleaningSuppliesConfirm = true;
+        this.showCleaningSuppliesConfirm.set(true);
         this.setBodyScrollLock(true);
         return;
       }
       this.nextStep();
     } else {
       // If step is invalid, log why (admins only) and scroll to first error in current step
-      this.propertyTypeTouched = true;
+      this.propertyTypeTouched.set(true);
       this.logWhyButtonDisabled('Continue');
       this.scrollToFirstErrorInCurrentStep();
     }
   }
 
   closeCleaningSuppliesConfirm(): void {
-    this.showCleaningSuppliesConfirm = false;
+    this.showCleaningSuppliesConfirm.set(false);
     this.setBodyScrollLock(false);
   }
 
@@ -6453,7 +6514,7 @@ loadBubblePointsOptions(): void {
   }
 
   continueFromCleaningSuppliesConfirm(): void {
-    this.showCleaningSuppliesConfirm = false;
+    this.showCleaningSuppliesConfirm.set(false);
     this.setBodyScrollLock(false);
     this.nextStep();
   }
@@ -6469,7 +6530,7 @@ loadBubblePointsOptions(): void {
    */
   get suppliesRequireOvenCleaner(): boolean {
     if (this.cleaningType?.value === 'deep') return true;
-    return requiresOvenCleaner(this.selectedExtraServices.map(s => s.extraService));
+    return requiresOvenCleaner(this.selectedExtraServices().map(s => s.extraService));
   }
 
   get cleaningSuppliesExtra(): ExtraService | null {
@@ -6509,7 +6570,7 @@ loadBubblePointsOptions(): void {
    * in the modal itself, which is the point: the customer sees the list shrink as they add.
    */
   get modalSupplyChecklistItems(): string[] {
-    const extras = this.selectedExtraServices.map(s => s.extraService);
+    const extras = this.selectedExtraServices().map(s => s.extraService);
     // The cleaning TYPE is a form control here rather than an extra, so fold it in — the
     // stored order will carry the Deep Cleaning extra and reach the same answer.
     const facts = resolveSupplyChecklistFacts(extras, false);
@@ -6540,9 +6601,9 @@ loadBubblePointsOptions(): void {
    */
   private shouldConfirmCleaningSuppliesBeforeContinuing(): boolean {
     // Only applies to regular bookings on step 1 (not poll, not custom pricing)
-    if (this.currentStep !== 1) return false;
-    if (this.showPollForm || this.showCustomPricing) return false;
-    if (!this.selectedServiceType) return false;
+    if (this.currentStep() !== 1) return false;
+    if (this.showPollForm() || this.showCustomPricing()) return false;
+    if (!this.selectedServiceType()) return false;
 
     const offered = [this.getCleaningSuppliesExtraService(), this.getCleaningEssentialsExtraService()]
       .filter((e): e is ExtraService => !!e);
@@ -6551,12 +6612,12 @@ loadBubblePointsOptions(): void {
   }
 
   private getCleaningSuppliesExtraService(): ExtraService | null {
-    const extras = this.selectedServiceType?.extraServices || [];
+    const extras = this.selectedServiceType()?.extraServices || [];
     return extras.find(e => isCleaningSuppliesExtra(e)) || null;
   }
 
   private getCleaningEssentialsExtraService(): ExtraService | null {
-    const extras = this.selectedServiceType?.extraServices || [];
+    const extras = this.selectedServiceType()?.extraServices || [];
     return extras.find(e => isCleaningEssentialsExtra(e)) || null;
   }
 
@@ -6566,8 +6627,8 @@ loadBubblePointsOptions(): void {
   }
 
   previousStep() {
-    if (this.currentStep > 1) {
-      this.currentStep--;
+    if (this.currentStep() > 1) {
+      this.currentStep.update(v => v - 1);
       this.updateBookingStepUrl();
       // Scroll to top when navigating to previous step
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -6578,10 +6639,10 @@ loadBubblePointsOptions(): void {
   private updateBookingStepUrl(): void {
     if (!this.isBrowser) return;
     const currentStepInUrl = this.route.snapshot.queryParamMap.get('step');
-    if (currentStepInUrl === String(this.currentStep)) return; // already in sync, avoid extra navigation
+    if (currentStepInUrl === String(this.currentStep())) return; // already in sync, avoid extra navigation
     this.router.navigate([], {
       relativeTo: this.route,
-      queryParams: { step: this.currentStep },
+      queryParams: { step: this.currentStep() },
       queryParamsHandling: 'merge',
       replaceUrl: true
     });
@@ -6589,20 +6650,20 @@ loadBubblePointsOptions(): void {
 
   // Validation methods for each step
   isStep1Valid(): boolean {
-    if (!this.selectedServiceType) return false;
+    if (!this.selectedServiceType()) return false;
 
-    if (this.showPollForm) {
+    if (this.showPollForm()) {
       // For step 1, only check poll questions
       // Contact info, address, and consent will be checked on step 3
-      for (const question of this.pollQuestions) {
-        if (question.isRequired && (!this.pollAnswers[question.id] || this.pollAnswers[question.id].trim() === '')) {
+      for (const question of this.pollQuestions()) {
+        if (question.isRequired && (!this.pollAnswers()[question.id] || this.pollAnswers()[question.id].trim() === '')) {
           return false;
         }
       }
       return true;
     }
 
-    if (this.showCustomPricing) {
+    if (this.showCustomPricing()) {
       // Custom orders answer the property type too - it is informational there, but it is still
       // an Order and the crew still needs to know what building they are going to.
       return this.isPropertyTypeAnswered() &&
@@ -6614,7 +6675,7 @@ loadBubblePointsOptions(): void {
     }
 
     // Block continue if same-day service is selected but today is fully booked
-    if (this.isSameDaySelected && this.isSameDayFullyBooked()) {
+    if (this.isSameDaySelected() && this.isSameDayFullyBooked()) {
       return false;
     }
 
@@ -6631,9 +6692,9 @@ loadBubblePointsOptions(): void {
   }
 
   isStep2Valid(): boolean {
-    if (!this.selectedServiceType) return false;
+    if (!this.selectedServiceType()) return false;
     
-    if (this.showPollForm) {
+    if (this.showPollForm()) {
       // For poll forms on step 2, check contact info (name, phone, email, service address)
       return this.isPollContactValid();
     }
@@ -6641,16 +6702,16 @@ loadBubblePointsOptions(): void {
     // Block continue if selected date/time is blocked (for non-admin users)
     if (this.isSelectedDateTimeBlocked()) return false;
 
-    return this.selectedSubscription !== null &&
+    return this.selectedSubscription() !== null &&
            this.serviceDate.valid &&
            this.serviceTime.valid &&
            this.entryMethod.valid;
   }
 
   isStep3Valid(): boolean {
-    if (!this.selectedServiceType) return false;
+    if (!this.selectedServiceType()) return false;
     
-    if (this.showPollForm) {
+    if (this.showPollForm()) {
       // For poll forms on step 3, check everything including contact info, address, and consent
       return this.isPollFormValid();
     }
@@ -6668,7 +6729,7 @@ loadBubblePointsOptions(): void {
 
   // Check if we can proceed to next step
   canProceedToNextStep(): boolean {
-    switch (this.currentStep) {
+    switch (this.currentStep()) {
       case 1:
         return this.isStep1Valid();
       case 2:
@@ -6689,7 +6750,7 @@ loadBubblePointsOptions(): void {
     this.serviceTypeControl.markAsUntouched();
     
     // Mark custom pricing controls as untouched if applicable
-    if (this.showCustomPricing) {
+    if (this.showCustomPricing()) {
       this.customServiceName.markAsUntouched();
       this.customAmount.markAsUntouched();
       this.customCleaners.markAsUntouched();
@@ -6697,10 +6758,10 @@ loadBubblePointsOptions(): void {
     }
     
     // Reset form submitted flag
-    this.formSubmitted = false;
+    this.formSubmitted.set(false);
 
     // Same reset for the property-type block, which has no FormControl to untouch.
-    this.propertyTypeTouched = false;
+    this.propertyTypeTouched.set(false);
   }
 
 }

@@ -213,7 +213,7 @@ describe('OutgoingPaymentsComponent', () => {
     beforeEach(() => render());
 
     it('stays closed until a row is clicked', () => {
-      expect(component.selectedOrder).toBeNull();
+      expect(component.selectedOrder()).toBeNull();
       expect(fixture.nativeElement.querySelector('.order-detail-panel.open')).toBeNull();
     });
 
@@ -221,7 +221,7 @@ describe('OutgoingPaymentsComponent', () => {
       fixture.nativeElement.querySelector('table.data-table tbody tr').click();
       fixture.detectChanges();
 
-      expect(component.selectedOrderId).toBe(501);
+      expect(component.selectedOrderId()).toBe(501);
       const panel = fixture.nativeElement.querySelector('.order-detail-panel.open');
       expect(panel).not.toBeNull();
       // The per-cleaner working exists only in the panel, never in the row.
@@ -233,8 +233,8 @@ describe('OutgoingPaymentsComponent', () => {
      * drops out of it. The panel holds its own copy so it cannot be slammed shut mid-job.
      */
     it('keeps the panel open on the refreshed order after a write', () => {
-      component.openPanel(component.data!.orders[0]);
-      const o = component.selectedOrder!;
+      component.openPanel(component.data()!.orders[0]);
+      const o = component.selectedOrder()!;
 
       component.openPayCleaner(o, o.cleaners[0]);
       component.confirmPay();
@@ -247,8 +247,8 @@ describe('OutgoingPaymentsComponent', () => {
       // The reload comes back with the order filtered out of the list entirely.
       flushLoad(list([]));
 
-      expect(component.selectedOrderId).toBe(501);
-      expect(component.selectedOrder!.cleaners[0].isPaid).toBe(true);
+      expect(component.selectedOrderId()).toBe(501);
+      expect(component.selectedOrder()!.cleaners[0].isPaid).toBe(true);
     });
   });
 
@@ -308,19 +308,19 @@ describe('OutgoingPaymentsComponent', () => {
     it('seeds the rate from the order and the hours from the AUTOMATIC split', () => {
       // Seeding hours from a line that already carries an override would silently re-apply one
       // person's exception to the crew.
-      component.startEditOrderDefaults(component.data!.orders[0]);
+      component.startEditOrderDefaults(component.data()!.orders[0]);
 
-      expect(component.editingOrderDefaults).toBe(true);
-      expect(component.orderRateInput).toBe(21);
-      expect(component.orderHoursInput).toBe(4.5); // 270 minutes
+      expect(component.editingOrderDefaults()).toBe(true);
+      expect(component.orderRateInput()).toBe(21);
+      expect(component.orderHoursInput()).toBe(4.5); // 270 minutes
     });
 
     it('writes the new rate through to the order, and sends no hours', () => {
       // Re-sending the seeded HOURS would pin the automatic figure onto every line as an explicit
       // override, and an explicit value stops tracking the order when it is re-priced.
-      const o = component.data!.orders[0];
+      const o = component.data()!.orders[0];
       component.startEditOrderDefaults(o);
-      component.orderRateInput = 25;
+      component.orderRateInput.set(25);
       component.saveOrderDefaults(o);
 
       const req = httpMock.expectOne(r => r.method === 'PUT' && r.url.endsWith('/hourly-rate'));
@@ -330,16 +330,16 @@ describe('OutgoingPaymentsComponent', () => {
       req.flush(order({ orderHourlyRate: 25, totalSalary: 225 }));
       flushLoad(list([order({ orderHourlyRate: 25 })]));
 
-      expect(component.editingOrderDefaults).toBe(false);
+      expect(component.editingOrderDefaults()).toBe(false);
     });
 
     it('sends both when both moved, rate first', () => {
       // The rate call pins already-paid lines to the OLD rate before the order moves, and
       // rate-then-hours is the order the two decisions were made in.
-      const o = component.data!.orders[0];
+      const o = component.data()!.orders[0];
       component.startEditOrderDefaults(o);
-      component.orderRateInput = 25;
-      component.orderHoursInput = 4.75;
+      component.orderRateInput.set(25);
+      component.orderHoursInput.set(4.75);
       component.saveOrderDefaults(o);
 
       const rateReq = httpMock.expectOne(r => r.method === 'PUT' && r.url.endsWith('/hourly-rate'));
@@ -352,27 +352,27 @@ describe('OutgoingPaymentsComponent', () => {
       hoursReq.flush(order({ orderHourlyRate: 25 }));
       flushLoad(list([order({ orderHourlyRate: 25 })]));
 
-      expect(component.editingOrderDefaults).toBe(false);
+      expect(component.editingOrderDefaults()).toBe(false);
     });
 
     it('saving an untouched editor writes nothing at all', () => {
       // Two no-op writes would put two rows in the audit log saying nothing happened.
-      const o = component.data!.orders[0];
+      const o = component.data()!.orders[0];
       component.startEditOrderDefaults(o);
       component.saveOrderDefaults(o);
 
       httpMock.expectNone(r => r.method === 'PUT');
-      expect(component.editingOrderDefaults).toBe(false);
+      expect(component.editingOrderDefaults()).toBe(false);
     });
 
     it('rejects a negative rate before it reaches the server', () => {
-      const o = component.data!.orders[0];
+      const o = component.data()!.orders[0];
       component.startEditOrderDefaults(o);
-      component.orderRateInput = -1;
+      component.orderRateInput.set(-1);
       component.saveOrderDefaults(o);
 
       httpMock.expectNone(r => r.method === 'PUT');
-      expect(component.error).toContain('zero or more');
+      expect(component.error()).toContain('zero or more');
     });
 
     /**
@@ -389,9 +389,9 @@ describe('OutgoingPaymentsComponent', () => {
     });
 
     it('sends the hours in MINUTES, for every assigned cleaner at once', () => {
-      const o = component.data!.orders[0];
+      const o = component.data()!.orders[0];
       component.startEditOrderDefaults(o);
-      component.orderHoursInput = 4.75;
+      component.orderHoursInput.set(4.75);
       component.saveOrderDefaults(o);
 
       const req = httpMock.expectOne(r => r.method === 'PUT' && r.url.endsWith('/cleaner-hours'));
@@ -400,7 +400,7 @@ describe('OutgoingPaymentsComponent', () => {
       req.flush(order({ cleaners: [cleaner({ billableMinutes: 285, hoursOverridden: true })] }));
       flushLoad(list([order()]));
 
-      expect(component.editingOrderDefaults).toBe(false);
+      expect(component.editingOrderDefaults()).toBe(false);
     });
 
     it('resets with a NULL rather than re-sending the automatic figure', () => {
@@ -417,13 +417,13 @@ describe('OutgoingPaymentsComponent', () => {
     });
 
     it('rejects negative hours before they reach the server', () => {
-      const o = component.data!.orders[0];
+      const o = component.data()!.orders[0];
       component.startEditOrderDefaults(o);
-      component.orderHoursInput = -1;
+      component.orderHoursInput.set(-1);
       component.saveOrderDefaults(o);
 
       httpMock.expectNone(r => r.method === 'PUT');
-      expect(component.error).toContain('zero or more');
+      expect(component.error()).toContain('zero or more');
     });
 
     it('counts the lines carrying manual hours, so "reset" only offers itself when it would do something', () => {
@@ -483,7 +483,7 @@ describe('OutgoingPaymentsComponent', () => {
       const writeText = vi.fn().mockName('writeText').mockReturnValue(Promise.resolve());
       Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
 
-      const c = component.data!.orders[0].cleaners[0];
+      const c = component.data()!.orders[0].cleaners[0];
       component.copyPaymentDetails(c);
       await Promise.resolve();
 
@@ -497,7 +497,7 @@ describe('OutgoingPaymentsComponent', () => {
         configurable: true
       });
 
-      const [first, second] = component.data!.orders[0].cleaners;
+      const [first, second] = component.data()!.orders[0].cleaners;
       component.copyPaymentDetails(first);
       await Promise.resolve();
 
@@ -512,7 +512,7 @@ describe('OutgoingPaymentsComponent', () => {
       component.copyPaymentDetails({ ...cleaner(), paymentDetails: null });
 
       expect(writeText).not.toHaveBeenCalled();
-      expect(component.copiedCleanerId).toBeNull();
+      expect(component.copiedCleanerId()).toBeNull();
     });
   });
 
@@ -647,7 +647,7 @@ describe('OutgoingPaymentsComponent', () => {
       const o = heavy();
       component.openPanel(o);
       component.openPayCleaner(o, o.unassignedCleaners[0]);
-      component.payNote = 'Paid Mariam in cash';
+      component.payNote.set('Paid Mariam in cash');
       component.confirmPay();
 
       const req = httpMock.expectOne(r => r.method === 'POST' && r.url.endsWith('/unassigned/0/pay'));
@@ -695,28 +695,28 @@ describe('OutgoingPaymentsComponent', () => {
     it('opens an editor on an already-paid line', () => {
       const o = order();
       component.startEdit(o, cleaner({ isPaid: true }));
-      expect(component.editingKey).not.toBeNull();
+      expect(component.editingKey()).not.toBeNull();
     });
 
     /** An unassigned slot has no per-cleaner row to hang an override on — still not editable. */
     it('refuses to open an editor on an unassigned staffing slot', () => {
       component.startEdit(order(), cleaner({ isUnassigned: true, slotIndex: 0, orderCleanerId: 0 }));
-      expect(component.editingKey).toBeNull();
+      expect(component.editingKey()).toBeNull();
     });
 
     it('seeds the editor with the rate and hours IN FORCE, not with the override', () => {
       const o = order();
       component.startEdit(o, o.cleaners[0]);
 
-      expect(component.editRate).toBe(21);
-      expect(component.editHours).toBe(4.5);
+      expect(component.editRate()).toBe(21);
+      expect(component.editHours()).toBe(4.5);
     });
 
     it('sends hours as minutes and applies both fields', () => {
-      const o = component.data!.orders[0];
+      const o = component.data()!.orders[0];
       component.startEdit(o, o.cleaners[0]);
-      component.editRate = 25;
-      component.editHours = 5;
+      component.editRate.set(25);
+      component.editHours.set(5);
       component.saveEdit(o, o.cleaners[0]);
 
       const req = httpMock.expectOne(r => r.method === 'PUT');
@@ -736,7 +736,7 @@ describe('OutgoingPaymentsComponent', () => {
      * pin them, which looks identical today and diverges the moment the order is re-priced.
      */
     it('clears both overrides rather than re-sending the current values', () => {
-      const o = component.data!.orders[0];
+      const o = component.data()!.orders[0];
       component.resetToAutomatic(o, o.cleaners[0]);
 
       const req = httpMock.expectOne(r => r.method === 'PUT');
@@ -752,13 +752,13 @@ describe('OutgoingPaymentsComponent', () => {
     });
 
     it('rejects a negative rate before it reaches the server', () => {
-      const o = component.data!.orders[0];
+      const o = component.data()!.orders[0];
       component.startEdit(o, o.cleaners[0]);
-      component.editRate = -5;
+      component.editRate.set(-5);
       component.saveEdit(o, o.cleaners[0]);
 
       httpMock.expectNone(r => r.method === 'PUT');
-      expect(component.error).toContain('zero or more');
+      expect(component.error()).toContain('zero or more');
     });
   });
 
@@ -766,17 +766,17 @@ describe('OutgoingPaymentsComponent', () => {
     beforeEach(() => render());
 
     it('defaults the method to the cleaner\'s saved one', () => {
-      const o = component.data!.orders[0];
+      const o = component.data()!.orders[0];
       component.openPayCleaner(o, o.cleaners[0]);
-      expect(component.payVia).toBe('Zelle');
+      expect(component.payVia()).toBe('Zelle');
       expect(component.payModalTotal).toBe(94.5);
       component.closePayModal();
     });
 
     it('sends the chosen method as its numeric enum value', () => {
-      const o = component.data!.orders[0];
+      const o = component.data()!.orders[0];
       component.openPayCleaner(o, o.cleaners[0]);
-      component.payVia = 'Check';
+      component.payVia.set('Check');
       component.confirmPay();
 
       const req = httpMock.expectOne(r => r.method === 'POST' && r.url.endsWith('/pay'));
@@ -791,9 +791,9 @@ describe('OutgoingPaymentsComponent', () => {
      * saved method, so the modal must not send a single method for everybody.
      */
     it('sends no method when paying the whole order', () => {
-      const o = component.data!.orders[0];
+      const o = component.data()!.orders[0];
       component.openPayOrder(o);
-      expect(component.payVia).toBe('');
+      expect(component.payVia()).toBe('');
       expect(component.payModalTotal).toBe(189);
 
       component.confirmPay();
@@ -875,7 +875,7 @@ describe('OutgoingPaymentsComponent', () => {
 
     it('shows the working on the line — paid, worth now, and what is left', () => {
       render([grownOrder()]);
-      component.openPanel(component.data!.orders[0]);
+      component.openPanel(component.data()!.orders[0]);
       fixture.detectChanges();
 
       const row = fixture.nativeElement.querySelector('.cleaner-row.needs-topup');
@@ -902,7 +902,7 @@ describe('OutgoingPaymentsComponent', () => {
 
     it('renders no top-up markup on a plainly unpaid order', () => {
       render([order()]);
-      component.openPanel(component.data!.orders[0]);
+      component.openPanel(component.data()!.orders[0]);
       fixture.detectChanges();
 
       expect(fixture.nativeElement.querySelector('.topup-banner')).toBeNull();
@@ -933,7 +933,7 @@ describe('OutgoingPaymentsComponent', () => {
     });
 
     it('sends the month as local yyyy-MM-dd, not a UTC-shifted ISO string', () => {
-      component.monthAnchor = new Date(2026, 7, 1); // August 2026
+      component.monthAnchor.set(new Date(2026, 7, 1)); // August 2026
       component.load();
 
       const req = httpMock.expectOne(r => r.method === 'GET');
@@ -944,26 +944,26 @@ describe('OutgoingPaymentsComponent', () => {
 
     it('debounces the search box and resets to the first page', async () => {
       vi.useFakeTimers();
-      component.page = 3;
+      component.page.set(3);
       component.onSearchChange('Irma');
       httpMock.expectNone(r => r.method === 'GET');
 
       await vi.advanceTimersByTimeAsync(300);
       const req = httpMock.expectOne(r => r.method === 'GET');
       expect(req.request.params.get('search')).toBe('Irma');
-      expect(component.page).toBe(1);
+      expect(component.page()).toBe(1);
       req.flush(list([]));
     });
 
     it('pages a 60-cleaning month into three pages of 20', () => {
-      component.data = list([order()], 60);
+      component.data.set(list([order()], 60));
       expect(component.totalPages).toBe(3);
       expect(component.pageWindow).toEqual([1, 2, 3]);
     });
 
     it('windows the pager to 7 buttons around the current page on a long range', () => {
-      component.data = list([order()], 400); // 20 pages
-      component.page = 10;
+      component.data.set(list([order()], 400)); // 20 pages
+      component.page.set(10);
       expect(component.pageWindow).toEqual([7, 8, 9, 10, 11, 12, 13]);
     });
   });
@@ -1047,9 +1047,9 @@ describe('OutgoingPaymentsComponent', () => {
       // A salary can be owed to somebody with no account at all, so the key is what addresses it.
       renderEmployees(salaryMonth([payee()]));
 
-      const p = component.salaries!.payees[0];
+      const p = component.salaries()!.payees[0];
       component.startPayInstalment(p, p.instalments[0]);
-      component.salaryPaymentNote = 'Bank transfer';
+      component.salaryPaymentNote.set('Bank transfer');
       component.confirmPayInstalment(p, p.instalments[0]);
 
       const req = httpMock.expectOne(r => r.method === 'POST' && r.url.includes('/salaries/'));
@@ -1059,18 +1059,18 @@ describe('OutgoingPaymentsComponent', () => {
 
       // The write answers with the whole month, so the section redraws from one response.
       req.flush(salaryMonth([payee({ isPartiallyPaid: true })]));
-      expect(component.payingInstalmentKey).toBeNull();
+      expect(component.payingInstalmentKey()).toBeNull();
     });
 
     it('does not record anything until the payment is confirmed', () => {
       renderEmployees(salaryMonth([payee()]));
 
-      const p = component.salaries!.payees[0];
+      const p = component.salaries()!.payees[0];
       component.startPayInstalment(p, p.instalments[0]);
       component.cancelPayInstalment();
 
       httpMock.expectNone(r => r.method === 'POST');
-      expect(component.payingInstalmentKey).toBeNull();
+      expect(component.payingInstalmentKey()).toBeNull();
     });
 
     it('reads Part paid when only one of the two has gone out', () => {
@@ -1149,7 +1149,7 @@ describe('OutgoingPaymentsComponent', () => {
       httpMock.expectOne(r => r.method === 'GET' && r.url.includes('/salaries'))
         .flush(emptySalaries());
       flushLoad(list([]));
-      expect(component.salaries!.payees.length).toBe(0);
+      expect(component.salaries()!.payees.length).toBe(0);
     });
 
     // ── Bonuses ride on the second payment ───────────────────────────────────
@@ -1239,11 +1239,11 @@ describe('OutgoingPaymentsComponent', () => {
       it('saves an edited destination against the payee key', () => {
         renderEmployees(salaryMonth([payee()]));
 
-        const p = component.salaries!.payees[0];
+        const p = component.salaries()!.payees[0];
         component.startEditDetails(p);
-        expect(component.detailsInput).toBe('GE29NB0000000101904917');
+        expect(component.detailsInput()).toBe('GE29NB0000000101904917');
 
-        component.detailsInput = 'GE60TB7777777777777777';
+        component.detailsInput.set('GE60TB7777777777777777');
         component.saveDetails(p);
 
         const req = httpMock.expectOne(r => r.method === 'PUT' && r.url.includes('/payee-details'));
@@ -1252,8 +1252,8 @@ describe('OutgoingPaymentsComponent', () => {
         expect(req.request.body.paymentDetails).toBe('GE60TB7777777777777777');
 
         req.flush(salaryMonth([payee({ paymentDetails: 'GE60TB7777777777777777' })]));
-        expect(component.editingDetailsKey).toBeNull();
-        expect(component.salaries!.payees[0].paymentDetails).toBe('GE60TB7777777777777777');
+        expect(component.editingDetailsKey()).toBeNull();
+        expect(component.salaries()!.payees[0].paymentDetails).toBe('GE60TB7777777777777777');
       });
 
       it('sends null when the box is emptied, so a wrong destination can be removed', () => {
@@ -1261,9 +1261,9 @@ describe('OutgoingPaymentsComponent', () => {
         // not just replacing.
         renderEmployees(salaryMonth([payee()]));
 
-        const p = component.salaries!.payees[0];
+        const p = component.salaries()!.payees[0];
         component.startEditDetails(p);
-        component.detailsInput = '   ';
+        component.detailsInput.set('   ');
         component.saveDetails(p);
 
         const req = httpMock.expectOne(r => r.method === 'PUT' && r.url.includes('/payee-details'));
@@ -1274,13 +1274,13 @@ describe('OutgoingPaymentsComponent', () => {
       it('writes nothing when an edit is cancelled', () => {
         renderEmployees(salaryMonth([payee()]));
 
-        const p = component.salaries!.payees[0];
+        const p = component.salaries()!.payees[0];
         component.startEditDetails(p);
-        component.detailsInput = 'typed but abandoned';
+        component.detailsInput.set('typed but abandoned');
         component.cancelEditDetails();
 
         httpMock.expectNone(r => r.method === 'PUT');
-        expect(component.editingDetailsKey).toBeNull();
+        expect(component.editingDetailsKey()).toBeNull();
       });
 
       it('copies the destination alone, with no name or label around it', async () => {
@@ -1293,7 +1293,7 @@ describe('OutgoingPaymentsComponent', () => {
         const writeText = vi.fn().mockName('writeText').mockReturnValue(Promise.resolve());
         Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
 
-        component.copySalaryDetails(component.salaries!.payees[0]);
+        component.copySalaryDetails(component.salaries()!.payees[0]);
         await Promise.resolve();
 
         expect(writeText).toHaveBeenCalledWith('GE29NB0000000101904917');
@@ -1302,12 +1302,12 @@ describe('OutgoingPaymentsComponent', () => {
       it('drops a half-typed destination when the tab is left', () => {
         renderEmployees(salaryMonth([payee()]));
 
-        component.startEditDetails(component.salaries!.payees[0]);
-        component.detailsInput = 'half typed';
+        component.startEditDetails(component.salaries()!.payees[0]);
+        component.detailsInput.set('half typed');
         component.setTab('cleaners');
 
-        expect(component.editingDetailsKey).toBeNull();
-        expect(component.detailsInput).toBe('');
+        expect(component.editingDetailsKey()).toBeNull();
+        expect(component.detailsInput()).toBe('');
       });
     });
   });
@@ -1347,7 +1347,7 @@ describe('OutgoingPaymentsComponent', () => {
 
     it('opens on cleaner wages', () => {
       render();
-      expect(component.activeTab).toBe('cleaners');
+      expect(component.activeTab()).toBe('cleaners');
       expect(fixture.nativeElement.querySelector('table.data-table')).not.toBeNull();
       expect(fixture.nativeElement.querySelector('.salary-block')).toBeNull();
     });
@@ -1400,7 +1400,7 @@ describe('OutgoingPaymentsComponent', () => {
 
       // The month moved for BOTH halves, and the tab you were on is the tab you are still on.
       expect(component.monthLabel).not.toBe(before);
-      expect(component.activeTab).toBe('employees');
+      expect(component.activeTab()).toBe('employees');
       expect(component.isCurrentMonth).toBe(false);
     });
   });

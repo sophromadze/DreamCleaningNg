@@ -155,7 +155,7 @@ describe('RecreateOrderModalComponent', () => {
    * status and discount switches ride alongside it, and half these tests are about those.
    */
   function submitWith(date = '2026-03-14'): any {
-    component.serviceDate = date;
+    component.serviceDate.set(date);
     component.onScheduleChange();
     component.submit();
     const req = httpMock.expectOne(CREATE_URL);
@@ -169,7 +169,7 @@ describe('RecreateOrderModalComponent', () => {
 
   it('lands on the changes screen, not the form', () => {
     openWith();
-    expect(component.step).toBe('changes');
+    expect(component.step()).toBe('changes');
   });
 
   /**
@@ -180,19 +180,19 @@ describe('RecreateOrderModalComponent', () => {
   describe('the service date', () => {
     it('starts empty even though the source order has one', () => {
       openWith();
-      expect(component.serviceDate).toBe('');
+      expect(component.serviceDate()).toBe('');
       expect(component.validationError).toContain('service date');
     });
 
     it('fills from the source order on request', () => {
       openWith();
       component.useOriginalDate();
-      expect(component.serviceDate).toBe('2026-03-14');
+      expect(component.serviceDate()).toBe('2026-03-14');
     });
 
     it('accepts a date in the past — back-dating is the point', () => {
       openWith();
-      component.serviceDate = '2020-01-15';
+      component.serviceDate.set('2020-01-15');
       component.onScheduleChange();
       expect(component.isBackDated).toBe(true);
       expect(component.validationError).toBeNull();
@@ -208,10 +208,10 @@ describe('RecreateOrderModalComponent', () => {
   describe('customer notifications', () => {
     it('start off and are sent as an explicit false', () => {
       openWith();
-      component.step = 'form';
+      component.step.set('form');
 
-      expect(component.notifyByEmail).toBe(false);
-      expect(component.notifyBySms).toBe(false);
+      expect(component.notifyByEmail()).toBe(false);
+      expect(component.notifyBySms()).toBe(false);
 
       const body = submitWith();
       expect(body.sendCustomerEmail).toBe(false);
@@ -220,9 +220,9 @@ describe('RecreateOrderModalComponent', () => {
 
     it('are sent as true once the admin ticks them', () => {
       openWith();
-      component.step = 'form';
-      component.notifyByEmail = true;
-      component.notifyBySms = true;
+      component.step.set('form');
+      component.notifyByEmail.set(true);
+      component.notifyBySms.set(true);
 
       const body = submitWith();
       expect(body.sendCustomerEmail).toBe(true);
@@ -231,10 +231,10 @@ describe('RecreateOrderModalComponent', () => {
 
     it('cannot be turned on for a channel the customer does not have', () => {
       openWith(preview({ notificationEmail: null, notificationPhone: null }));
-      component.step = 'form';
+      component.step.set('form');
       // Even if the flag is forced on, a channel with no destination must not be requested.
-      component.notifyByEmail = true;
-      component.notifyBySms = true;
+      component.notifyByEmail.set(true);
+      component.notifyBySms.set(true);
 
       const body = submitWith();
       expect(component.canNotifyByEmail).toBe(false);
@@ -251,7 +251,7 @@ describe('RecreateOrderModalComponent', () => {
   describe('discounts', () => {
     it('posts no promo code, gift card, offer, points or credits', () => {
       openWith();
-      component.step = 'form';
+      component.step.set('form');
 
       const { bookingData } = submitWith();
       expect(bookingData.promoCode).toBeNull();
@@ -266,9 +266,9 @@ describe('RecreateOrderModalComponent', () => {
 
     it('suppresses the live loyalty / plan discounts by default', () => {
       openWith();
-      component.step = 'form';
+      component.step.set('form');
 
-      expect(component.applyCurrentDiscounts).toBe(false);
+      expect(component.applyCurrentDiscounts()).toBe(false);
       const body = submitWith();
       expect(body.applyCurrentDiscounts).toBe(false);
     });
@@ -280,14 +280,14 @@ describe('RecreateOrderModalComponent', () => {
           originalAmount: 0, availableAmount: 16.95, canReapply: true, reason: '10% available'
         }]
       }));
-      component.step = 'form';
+      component.step.set('form');
 
-      const before = component.quoteTotal;
-      component.applyCurrentDiscounts = true;
+      const before = component.quoteTotal();
+      component.applyCurrentDiscounts.set(true);
       component.onDiscountToggleChange();
 
-      expect(component.appliedLoyalty).toBeCloseTo(16.95, 2);
-      expect(component.quoteTotal).toBeLessThan(before);
+      expect(component.appliedLoyalty()).toBeCloseTo(16.95, 2);
+      expect(component.quoteTotal()).toBeLessThan(before);
 
       const body = submitWith();
       expect(body.applyCurrentDiscounts).toBe(true);
@@ -296,7 +296,7 @@ describe('RecreateOrderModalComponent', () => {
     /** The plan itself is job metadata — it is what keeps the order counted as recurring. */
     it('still carries the recurring plan over', () => {
       openWith();
-      component.step = 'form';
+      component.step.set('form');
       const { bookingData } = submitWith();
       expect(bookingData.subscriptionId).toBe(5);
     });
@@ -305,7 +305,7 @@ describe('RecreateOrderModalComponent', () => {
   describe('the recreated order', () => {
     it('reproduces the job from the prefill', () => {
       openWith();
-      component.step = 'form';
+      component.step.set('form');
 
       const { bookingData } = submitWith();
       expect(bookingData.serviceTypeId).toBe(1);
@@ -320,21 +320,21 @@ describe('RecreateOrderModalComponent', () => {
     it('prices through the shared calculator rather than trusting the preview', () => {
       openWith();
       // 90 base + 2 bedrooms @22.50 + 1 bathroom @22.50 + windows @12
-      expect(component.quoteSubTotal).toBeCloseTo(169.5, 2);
+      expect(component.quoteSubTotal()).toBeCloseTo(169.5, 2);
     });
 
     it('reprices when the admin changes a quantity', () => {
       openWith();
-      const before = component.quoteSubTotal;
-      const bedrooms = component.selectedServices.find(s => s.service.serviceKey === 'bedrooms')!;
+      const before = component.quoteSubTotal();
+      const bedrooms = component.selectedServices().find(s => s.service.serviceKey === 'bedrooms')!;
       component.incrementService(bedrooms.service);
-      expect(component.quoteSubTotal).toBeCloseTo(before + 22.5, 2);
+      expect(component.quoteSubTotal()).toBeCloseTo(before + 22.5, 2);
     });
 
     it('sends an empty email as null, so a cash customer can be booked', () => {
       openWith();
-      component.step = 'form';
-      component.contactEmail = '   ';
+      component.step.set('form');
+      component.contactEmail.set('   ');
 
       const { bookingData } = submitWith();
       expect(bookingData.contactEmail).toBeNull();
@@ -342,7 +342,7 @@ describe('RecreateOrderModalComponent', () => {
 
     it('names the source order for the audit trail without linking to it', () => {
       openWith();
-      component.step = 'form';
+      component.step.set('form');
       const body = submitWith();
       expect(body.recreatedFromOrderId).toBe(SOURCE_ORDER_ID);
     });
@@ -385,15 +385,15 @@ describe('RecreateOrderModalComponent', () => {
 
     it('applies the multiplier when Deep is picked, and removes it again', () => {
       openWith();
-      const regular = component.quoteSubTotal;
+      const regular = component.quoteSubTotal();
 
       component.selectCleaningType('deep');
       expect(component.cleaningType).toBe('deep');
-      expect(component.quoteSubTotal).toBeGreaterThan(regular);
+      expect(component.quoteSubTotal()).toBeGreaterThan(regular);
 
       component.selectCleaningType('normal');
       expect(component.cleaningType).toBe('normal');
-      expect(component.quoteSubTotal).toBeCloseTo(regular, 2);
+      expect(component.quoteSubTotal()).toBeCloseTo(regular, 2);
     });
 
     /** Two multipliers must never stack. */
@@ -402,7 +402,7 @@ describe('RecreateOrderModalComponent', () => {
       component.selectCleaningType('deep');
       component.selectCleaningType('superdeep');
 
-      const chosen = component.selectedExtraServices.filter(
+      const chosen = component.selectedExtraServices().filter(
         s => s.extraService.isDeepCleaning || s.extraService.isSuperDeepCleaning);
       expect(chosen.length).toBe(1);
       expect(chosen[0].extraService.id).toBe(31);
@@ -412,7 +412,7 @@ describe('RecreateOrderModalComponent', () => {
     it('submits the chosen type as its extra-service line', () => {
       openWith();
       component.selectCleaningType('deep');
-      component.step = 'form';
+      component.step.set('form');
 
       const { bookingData } = submitWith();
       expect(bookingData.extraServices)
@@ -472,18 +472,18 @@ describe('RecreateOrderModalComponent', () => {
   describe('the payment method comes from the source order', () => {
     it('defaults to Stripe when the source order was Stripe', () => {
       openWith(preview({ sourcePaymentMethod: 'Normal' }));
-      expect(component.paymentMethod).toBe('Normal');
+      expect(component.paymentMethod()).toBe('Normal');
     });
 
     it('defaults to Cash when the source order was cash', () => {
       openWith(preview({ sourcePaymentMethod: 'Cash' }));
-      expect(component.paymentMethod).toBe('Cash');
+      expect(component.paymentMethod()).toBe('Cash');
     });
 
     (['Zelle', 'Check', 'Other'] as const).forEach(method => {
       it(`defaults to ${method} when the source order was ${method}`, () => {
         openWith(preview({ sourcePaymentMethod: method }));
-        expect(component.paymentMethod).toBe(method);
+        expect(component.paymentMethod()).toBe(method);
       });
     });
 
@@ -494,9 +494,9 @@ describe('RecreateOrderModalComponent', () => {
         sourceContractClientName: 'Acme Holdings LLC'
       }));
 
-      expect(component.paymentMethod).toBe('Invoice');
-      expect(component.contractClientId).toBe(42);
-      expect(component.contractClientName).toBe('Acme Holdings LLC');
+      expect(component.paymentMethod()).toBe('Invoice');
+      expect(component.contractClientId()).toBe(42);
+      expect(component.contractClientName()).toBe('Acme Holdings LLC');
     });
 
     it('sends the source method on the create request', () => {
@@ -528,11 +528,11 @@ describe('RecreateOrderModalComponent', () => {
     it('refuses to submit an Invoice order with no commercial client', () => {
       openWith(preview({ sourcePaymentMethod: 'Invoice', sourceContractClientId: null }));
 
-      component.serviceDate = '2026-03-14';
+      component.serviceDate.set('2026-03-14');
       component.submit();
 
       httpMock.expectNone(CREATE_URL);
-      expect(component.errorMessage).toContain('commercial client');
+      expect(component.errorMessage()).toContain('commercial client');
     });
   });
 
@@ -543,53 +543,53 @@ describe('RecreateOrderModalComponent', () => {
   describe('the initial status', () => {
     it('is Done for a back-dated manual payment', () => {
       openWith();
-      component.serviceDate = '2020-01-15';
-      component.paymentMethod = 'Cash';
+      component.serviceDate.set('2020-01-15');
+      component.paymentMethod.set('Cash');
       component.onScheduleChange();
-      expect(component.orderStatus).toBe('Done');
+      expect(component.orderStatus()).toBe('Done');
     });
 
     it('is Active for a future manual payment', () => {
       openWith();
-      component.serviceDate = '2099-01-15';
-      component.paymentMethod = 'Cash';
+      component.serviceDate.set('2099-01-15');
+      component.paymentMethod.set('Cash');
       component.onScheduleChange();
-      expect(component.orderStatus).toBe('Active');
+      expect(component.orderStatus()).toBe('Active');
     });
 
     it('is Pending for Stripe, which is unpaid at creation', () => {
       openWith();
-      component.serviceDate = '2099-01-15';
-      component.paymentMethod = 'Normal';
+      component.serviceDate.set('2099-01-15');
+      component.paymentMethod.set('Normal');
       component.onScheduleChange();
-      expect(component.orderStatus).toBe('Pending');
+      expect(component.orderStatus()).toBe('Pending');
     });
 
     it('is Pending for Invoice, which is also unpaid at creation', () => {
       // Invoice is handled outside Stripe but is NOT money that has arrived — the order becomes
       // Active when a commercial invoice covering it is paid in full, never before.
       openWith();
-      component.serviceDate = '2099-01-15';
-      component.paymentMethod = 'Invoice';
+      component.serviceDate.set('2099-01-15');
+      component.paymentMethod.set('Invoice');
       component.onScheduleChange();
-      expect(component.orderStatus).toBe('Pending');
+      expect(component.orderStatus()).toBe('Pending');
     });
 
     it('is Pending for a back-dated Invoice order too', () => {
       openWith();
-      component.serviceDate = '2020-01-15';
-      component.paymentMethod = 'Invoice';
+      component.serviceDate.set('2020-01-15');
+      component.paymentMethod.set('Invoice');
       component.onScheduleChange();
-      expect(component.orderStatus).toBe('Pending');
+      expect(component.orderStatus()).toBe('Pending');
     });
 
     it('stops following the date once the admin picks one', () => {
       openWith();
-      component.orderStatus = 'Active';
+      component.orderStatus.set('Active');
       component.onStatusChange();
-      component.serviceDate = '2020-01-15';
+      component.serviceDate.set('2020-01-15');
       component.onScheduleChange();
-      expect(component.orderStatus).toBe('Active');
+      expect(component.orderStatus()).toBe('Active');
     });
   });
 
@@ -636,8 +636,8 @@ describe('RecreateOrderModalComponent', () => {
       openCustom();
 
       expect(component.showInformationalBedBath()).toBe(true);
-      expect(component.informationalBedrooms).toBe(2);
-      expect(component.informationalBathrooms).toBe(1);
+      expect(component.informationalBedrooms()).toBe(2);
+      expect(component.informationalBathrooms()).toBe(1);
 
       const body = submitWith();
       expect(body.bookingData.bedroomsQuantity).toBe(2);
@@ -659,8 +659,8 @@ describe('RecreateOrderModalComponent', () => {
       // Every pre-arranged order booked before this fix carries null for both.
       openCustom(customPreview({ bedroomsQuantity: null, bathroomsQuantity: null }));
 
-      expect(component.informationalBedrooms).toBe(0);
-      expect(component.informationalBathrooms).toBe(1);
+      expect(component.informationalBedrooms()).toBe(0);
+      expect(component.informationalBathrooms()).toBe(1);
 
       const body = submitWith();
       expect(body.bookingData.bedroomsQuantity).toBe(0);
@@ -681,14 +681,14 @@ describe('RecreateOrderModalComponent', () => {
 
   it('reports a failed create instead of leaving the button stuck', () => {
     openWith();
-    component.step = 'form';
-    component.serviceDate = '2026-03-14';
+    component.step.set('form');
+    component.serviceDate.set('2026-03-14');
     component.submit();
 
     httpMock.expectOne(CREATE_URL).flush(
       { message: 'Target user not found' }, { status: 404, statusText: 'Not Found' });
 
-    expect(component.errorMessage).toContain('Target user not found');
-    expect(component.submitting).toBe(false);
+    expect(component.errorMessage()).toContain('Target user not found');
+    expect(component.submitting()).toBe(false);
   });
 });

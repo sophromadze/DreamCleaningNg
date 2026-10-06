@@ -71,7 +71,7 @@ describe('ChatWidgetComponent', () => {
 
   /** Send a message and answer it, so the widget has a session and a transcript. */
   const sendFirstMessage = (text = 'Hey I need cleaning job and my husband') => {
-    component.draft = text;
+    component.draft.set(text);
     component.send();
 
     const request = http.expectOne(endsWith('/chat/message'));
@@ -140,7 +140,7 @@ describe('ChatWidgetComponent', () => {
 
       // The handoff reaches the CUSTOMER support desk, which doesn't handle hiring — putting
       // an applicant through would only get them redirected a second time (owner's call).
-      expect(component.showHumanHandoff).toBe(false);
+      expect(component.showHumanHandoff()).toBe(false);
       expect(handoffButton()).toBeNull();
       // Remembered, or a reload would hand it straight back.
       expect(JSON.parse(localStorage.getItem('chatWidgetSession')!).jobSeekerDeclared).toBe(true);
@@ -180,21 +180,21 @@ describe('ChatWidgetComponent', () => {
       sendFirstMessage();
 
       // The old rule was `messages.length === 0`, which this send has just falsified.
-      expect(component.showEmailField).toBe(true);
+      expect(component.showEmailField()).toBe(true);
       expect(emailField()).not.toBeNull();
     });
 
     it('names what is wrong with a mistyped address, and keeps the field up', () => {
       openAsGuest();
 
-      component.guestEmailInput = 'sophieexample.com';
+      component.guestEmailInput.set('sophieexample.com');
       component.submitGuestEmail();
       fixture.detectChanges();
 
       // The same wording the admin panel gets — "invalid email" would leave the visitor
       // hunting for which character is wrong.
-      expect(component.guestEmailError).toContain('@');
-      expect(component.guestEmailSaved).toBe(false);
+      expect(component.guestEmailError()).toContain('@');
+      expect(component.guestEmailSaved()).toBe(false);
       expect(emailField()).not.toBeNull();
       // Nothing was sent anywhere — there is no session yet and the value is not usable.
       http.expectNone(endsWith('/guest-email'));
@@ -203,12 +203,12 @@ describe('ChatWidgetComponent', () => {
     it('holds an address submitted before the first message and sends it with that message', () => {
       openAsGuest();
 
-      component.guestEmailInput = 'sophie@example.com';
+      component.guestEmailInput.set('sophie@example.com');
       component.submitGuestEmail();
       fixture.detectChanges();
 
       // Accepted locally: there is no session to POST it against yet.
-      expect(component.guestEmailSaved).toBe(true);
+      expect(component.guestEmailSaved()).toBe(true);
       expect(emailField()).toBeNull();
 
       const request = sendFirstMessage();
@@ -220,18 +220,18 @@ describe('ChatWidgetComponent', () => {
 
       // Typing alone must not count: the button is what the visitor uses to confirm, and the
       // field is still on screen waiting for them to press it.
-      component.guestEmailInput = 'half-typed@exa';
+      component.guestEmailInput.set('half-typed@exa');
       const request = sendFirstMessage();
 
       expect(request.request.body.guestEmail).toBeNull();
-      expect(component.showEmailField).toBe(true);
+      expect(component.showEmailField()).toBe(true);
     });
 
     it('posts an address submitted mid-conversation to its own endpoint', () => {
       openAsGuest();
       sendFirstMessage();
 
-      component.guestEmailInput = 'sophie@example.com';
+      component.guestEmailInput.set('sophie@example.com');
       component.submitGuestEmail();
 
       const save = http.expectOne(endsWith('/chat/session/session-1/guest-email'));
@@ -239,7 +239,7 @@ describe('ChatWidgetComponent', () => {
       save.flush({ status: 'saved' });
       fixture.detectChanges();
 
-      expect(component.guestEmailSaved).toBe(true);
+      expect(component.guestEmailSaved()).toBe(true);
       expect(emailField()).toBeNull();
     });
 
@@ -253,7 +253,7 @@ describe('ChatWidgetComponent', () => {
       expect(emailField()).toBeNull();
 
       sendFirstMessage();
-      expect(component.showEmailField).toBe(false);
+      expect(component.showEmailField()).toBe(false);
       expect(emailField()).toBeNull();
 
       // Remembered with the session so a reload doesn't ask again.
@@ -264,7 +264,7 @@ describe('ChatWidgetComponent', () => {
       openAsGuest();
       sendFirstMessage();
 
-      component.guestEmailInput = 'sophie@example.com';
+      component.guestEmailInput.set('sophie@example.com');
       component.submitGuestEmail();
 
       http.expectOne(endsWith('/guest-email')).flush(
@@ -273,8 +273,8 @@ describe('ChatWidgetComponent', () => {
       );
       fixture.detectChanges();
 
-      expect(component.guestEmailSaved).toBe(false);
-      expect(component.guestEmailError).toContain('@');
+      expect(component.guestEmailSaved()).toBe(false);
+      expect(component.guestEmailError()).toContain('@');
       expect(emailField()).not.toBeNull();
     });
   });
@@ -285,7 +285,7 @@ describe('ChatWidgetComponent', () => {
     it('is offered from the first moment the panel is open, before anything is typed', () => {
       openAsGuest();
 
-      expect(component.showHumanHandoff).toBe(true);
+      expect(component.showHumanHandoff()).toBe(true);
       expect(handoffButton()).not.toBeNull();
     });
 
@@ -296,7 +296,7 @@ describe('ChatWidgetComponent', () => {
       fixture.detectChanges();
 
       // One stray tap must not create a Telegram topic and an escalation email.
-      expect(component.confirmingHumanRequest).toBe(true);
+      expect(component.confirmingHumanRequest()).toBe(true);
       http.expectNone(endsWith('/request-human'));
 
       component.cancelHumanRequest();
@@ -327,8 +327,8 @@ describe('ChatWidgetComponent', () => {
       });
       fixture.detectChanges();
 
-      expect(component.escalated).toBe(true);
-      expect(component.showHumanHandoff).toBe(false);
+      expect(component.escalated()).toBe(true);
+      expect(component.showHumanHandoff()).toBe(false);
       expect(handoffButton()).toBeNull();
     });
 
@@ -349,7 +349,7 @@ describe('ChatWidgetComponent', () => {
       });
       fixture.detectChanges();
 
-      expect(component.escalated).toBe(true);
+      expect(component.escalated()).toBe(true);
     });
 
     it('points at the phone number when the handoff itself fails', () => {
@@ -361,8 +361,8 @@ describe('ChatWidgetComponent', () => {
       fixture.detectChanges();
 
       // Failing to reach the team is exactly when a dead end is least acceptable.
-      expect(component.error).toContain('929');
-      expect(component.requestingHuman).toBe(false);
+      expect(component.error()).toContain('929');
+      expect(component.requestingHuman()).toBe(false);
     });
   });
   // ===== Chat photos are private (2026-10) =====
@@ -379,7 +379,7 @@ describe('ChatWidgetComponent', () => {
         imagePath: '/chat-photos/0123456789abcdef0123456789abcdef.jpg',
         expiresAt: new Date().toISOString(),
       });
-      const preview = component.pendingImage!.previewUrl;
+      const preview = component.pendingImage()!.previewUrl;
 
       component.send();
       const request = http.expectOne(endsWith('/chat/message'));
@@ -387,7 +387,7 @@ describe('ChatWidgetComponent', () => {
       // The server still gets its opaque reference...
       expect(request.request.body.imagePath).toBe('/chat-photos/0123456789abcdef0123456789abcdef.jpg');
       // ...but the bubble shows the visitor's own blob, because that path is no longer served.
-      const bubble = component.messages.find(m => m.role === 'user')!;
+      const bubble = component.messages().find(m => m.role === 'user')!;
       expect(bubble.imagePath).toBe(preview);
       expect(bubble.imagePath).toMatch(/^blob:/);
 

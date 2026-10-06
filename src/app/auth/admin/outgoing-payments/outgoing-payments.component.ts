@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ChangeDetectorRef, PLATFORM_ID, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef, PLATFORM_ID, ChangeDetectionStrategy, inject, signal } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
@@ -55,7 +55,7 @@ import { resolveServiceTypeShortLabel } from '../../../shared/admin/service-type
   standalone: true,
   imports: [CommonModule, FormsModule, RouterModule],
   templateUrl: './outgoing-payments.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['../orders/orders.component.scss', './outgoing-payments.component.scss']
 })
 export class OutgoingPaymentsComponent implements OnInit, OnDestroy {
@@ -63,19 +63,19 @@ export class OutgoingPaymentsComponent implements OnInit, OnDestroy {
   private cdr = inject(ChangeDetectorRef);
   private platformId = inject<Object>(PLATFORM_ID);
 
-  data: OutgoingPaymentList | null = null;
-  loading = false;
-  error = '';
-  successMessage = '';
+  readonly data = signal<OutgoingPaymentList | null>(null, { equal: () => false });
+  readonly loading = signal(false);
+  readonly error = signal('');
+  readonly successMessage = signal('');
 
   // ===== Filters =====
   /** First day of the month on screen. Opens on the current month — the recent jobs are the ones being paid. */
-  monthAnchor: Date = this.startOfMonth(new Date());
-  paidStatus: OutgoingPaymentPaidFilter = 'all';
-  warningsOnly = false;
-  searchTerm = '';
+  readonly monthAnchor = signal<Date>(this.startOfMonth(new Date()));
+  readonly paidStatus = signal<OutgoingPaymentPaidFilter>('all');
+  readonly warningsOnly = signal(false);
+  readonly searchTerm = signal('');
 
-  page = 1;
+  readonly page = signal(1);
   /** 20 a page, matching the Orders tab. */
   readonly pageSize = 20;
 
@@ -93,7 +93,7 @@ export class OutgoingPaymentsComponent implements OnInit, OnDestroy {
    * says money is still owed over there, and a badge that only appears once you click the tab is
    * no use at all.
    */
-  activeTab: 'cleaners' | 'employees' = 'cleaners';
+  readonly activeTab = signal<'cleaners' | 'employees'>('cleaners');
 
   // ===== Staff salaries (Employees tab) =====
   /**
@@ -104,20 +104,20 @@ export class OutgoingPaymentsComponent implements OnInit, OnDestroy {
    * orders, and carrying them across would mean a search typed on one tab silently emptied the
    * other — which reads as "nobody is owed a salary".
    */
-  salaries: AdminSalaryPayoutList | null = null;
-  salariesLoading = false;
+  readonly salaries = signal<AdminSalaryPayoutList | null>(null);
+  readonly salariesLoading = signal(false);
 
   /** The instalment a note is being typed for, as "payeeKey|half". Null = no pay dialog open. */
-  payingInstalmentKey: string | null = null;
-  salaryPaymentNote = '';
-  salarySaving = false;
+  readonly payingInstalmentKey = signal<string | null>(null);
+  readonly salaryPaymentNote = signal('');
+  readonly salarySaving = signal(false);
 
   /** The payee whose payment destination is being edited, by key. Null = nobody. */
-  editingDetailsKey: string | null = null;
-  detailsInput = '';
-  savingDetails = false;
+  readonly editingDetailsKey = signal<string | null>(null);
+  readonly detailsInput = signal('');
+  readonly savingDetails = signal(false);
   /** The payee whose destination was just copied, so the button can confirm it. */
-  copiedPayeeKey: string | null = null;
+  readonly copiedPayeeKey = signal<string | null>(null);
 
   // ===== Slide-in panel =====
   /**
@@ -125,8 +125,8 @@ export class OutgoingPaymentsComponent implements OnInit, OnDestroy {
    * reloads the list, and under the Unpaid filter the order being paid legitimately drops out of
    * it — pointing into the list would slam the panel shut in the middle of the job.
    */
-  selectedOrder: OutgoingPaymentOrder | null = null;
-  selectedOrderId: number | null = null;
+  readonly selectedOrder = signal<OutgoingPaymentOrder | null>(null);
+  readonly selectedOrderId = signal<number | null>(null);
 
   // ===== Order-level defaults: the rate AND the hours, in one editor =====
   //
@@ -138,11 +138,11 @@ export class OutgoingPaymentsComponent implements OnInit, OnDestroy {
   //
   // They share ONE editor, shaped like a cleaner's line below: two separate "Change" buttons made
   // an admin decide what kind of change they were making before they could type anything.
-  editingOrderDefaults = false;
-  orderRateInput: number | null = null;
+  readonly editingOrderDefaults = signal(false);
+  readonly orderRateInput = signal<number | null>(null);
   /** Decimal hours, matching the "$21 × 4.25" working the lines print. */
-  orderHoursInput: number | null = null;
-  savingOrderDefaults = false;
+  readonly orderHoursInput = signal<number | null>(null);
+  readonly savingOrderDefaults = signal(false);
   /**
    * What the editor was SEEDED with, so the save sends only what actually moved.
    *
@@ -155,18 +155,18 @@ export class OutgoingPaymentsComponent implements OnInit, OnDestroy {
 
   // ===== Inline rate/hours editing =====
   /** `${orderId}:${orderCleanerId}` of the line being edited, or null. Only one line at a time. */
-  editingKey: string | null = null;
-  editRate: number | null = null;
-  editHours: number | null = null;
-  savingEdit = false;
+  readonly editingKey = signal<string | null>(null);
+  readonly editRate = signal<number | null>(null);
+  readonly editHours = signal<number | null>(null);
+  readonly savingEdit = signal(false);
 
   // ===== Pay modal =====
-  payOrder: OutgoingPaymentOrder | null = null;
+  readonly payOrder = signal<OutgoingPaymentOrder | null>(null);
   /** null when paying the WHOLE order; a cleaner when paying one line. */
-  payCleaner: OutgoingPaymentCleaner | null = null;
-  payVia: CleanerPaymentMethod | '' = '';
-  payNote = '';
-  paying = false;
+  readonly payCleaner = signal<OutgoingPaymentCleaner | null>(null);
+  readonly payVia = signal<CleanerPaymentMethod | ''>('');
+  readonly payNote = signal('');
+  readonly paying = signal(false);
 
   readonly paymentMethodOptions: { value: CleanerPaymentMethod | ''; label: string }[] = [
     { value: '', label: 'Not recorded' },
@@ -180,14 +180,14 @@ export class OutgoingPaymentsComponent implements OnInit, OnDestroy {
    * `${orderCleanerId}` whose payment details were just copied, so the button can confirm it.
    * Cleared on a timer — a tick that never goes away stops meaning anything.
    */
-  copiedCleanerId: number | null = null;
+  readonly copiedCleanerId = signal<number | null>(null);
   private copiedTimer: ReturnType<typeof setTimeout> | null = null;
 
   ngOnInit(): void {
     this.search$
       .pipe(debounceTime(300), distinctUntilChanged(), takeUntil(this.destroy$))
       .subscribe(() => {
-        this.page = 1;
+        this.page.set(1);
         this.load();
       });
 
@@ -213,71 +213,71 @@ export class OutgoingPaymentsComponent implements OnInit, OnDestroy {
   }
 
   load(): void {
-    this.loading = true;
-    this.error = '';
+    this.loading.set(true);
+    this.error.set('');
 
     this.service
       .getPayments({
-        from: this.toDateParam(this.monthAnchor),
-        to: this.toDateParam(this.endOfMonth(this.monthAnchor)),
-        paidStatus: this.paidStatus,
-        warningsOnly: this.warningsOnly,
-        search: this.searchTerm,
-        page: this.page,
+        from: this.toDateParam(this.monthAnchor()),
+        to: this.toDateParam(this.endOfMonth(this.monthAnchor())),
+        paidStatus: this.paidStatus(),
+        warningsOnly: this.warningsOnly(),
+        search: this.searchTerm(),
+        page: this.page(),
         pageSize: this.pageSize
       })
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: data => {
-          this.data = data;
-          this.loading = false;
+          this.data.set(data);
+          this.loading.set(false);
           this.cdr.markForCheck();
         },
         error: err => {
-          this.error = extractApiErrorMessage(err, 'Could not load outgoing payments.');
-          this.loading = false;
+          this.error.set(extractApiErrorMessage(err, 'Could not load outgoing payments.'));
+          this.loading.set(false);
           this.cdr.markForCheck();
         }
       });
   }
 
   onSearchChange(value: string): void {
-    this.searchTerm = value;
+    this.searchTerm.set(value);
     this.search$.next(value);
   }
 
   setPaidStatus(status: OutgoingPaymentPaidFilter): void {
-    if (this.paidStatus === status) return;
-    this.paidStatus = status;
-    this.page = 1;
+    if (this.paidStatus() === status) return;
+    this.paidStatus.set(status);
+    this.page.set(1);
     this.load();
   }
 
   toggleWarningsOnly(): void {
-    this.warningsOnly = !this.warningsOnly;
-    this.page = 1;
+    this.warningsOnly.set(!this.warningsOnly());
+    this.page.set(1);
     this.load();
   }
 
   // ===== Staff salaries =====
 
   loadSalaries(): void {
-    this.salariesLoading = true;
+    this.salariesLoading.set(true);
     this.service
-      .getSalaries(this.monthAnchor.getFullYear(), this.monthAnchor.getMonth() + 1)
+      .getSalaries(this.monthAnchor().getFullYear(), this.monthAnchor().getMonth() + 1)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: data => {
-          this.salaries = data;
-          this.salariesLoading = false;
+          this.salaries.set(data);
+          this.salariesLoading.set(false);
           this.cdr.markForCheck();
         },
         error: err => {
           // Reported into the section rather than the page-level banner: the cleaner list beside
           // it may have loaded perfectly well, and one failure must not read as both failing.
-          this.salaries = null;
-          this.salariesLoading = false;
-          this.error = extractApiErrorMessage(err, 'Could not load staff salaries');
+          this.salaries.set(null);
+          this.salariesLoading.set(false);
+          this.error.set(extractApiErrorMessage(err, 'Could not load staff salaries'));
           this.cdr.markForCheck();
         }
       });
@@ -286,27 +286,27 @@ export class OutgoingPaymentsComponent implements OnInit, OnDestroy {
   // ===== Tabs =====
 
   setTab(tab: 'cleaners' | 'employees'): void {
-    if (this.activeTab === tab) return;
-    this.activeTab = tab;
+    if (this.activeTab() === tab) return;
+    this.activeTab.set(tab);
     // Both tabs are already loaded, so switching fetches nothing. What it does clear is the
     // transient state of the tab being left — a half-typed payment note or a half-edited account
     // number must not still be sitting there on the way back.
     this.cancelPayInstalment();
     this.cancelEditDetails();
-    this.error = '';
+    this.error.set('');
   }
 
   /** What the month still owes on the tab that is NOT on screen — the tab badge. */
   get unpaidForTab(): { cleaners: number; employees: number } {
     return {
-      cleaners: this.data?.summary.unpaidPayout ?? 0,
-      employees: this.salaries?.unpaidUsd ?? 0
+      cleaners: this.data()?.summary.unpaidPayout ?? 0,
+      employees: this.salaries()?.unpaidUsd ?? 0
     };
   }
 
   /** "Still to pay" in the month bar follows the tab you are looking at. */
   get activeTabUnpaid(): number {
-    return this.activeTab === 'cleaners' ? this.unpaidForTab.cleaners : this.unpaidForTab.employees;
+    return this.activeTab() === 'cleaners' ? this.unpaidForTab.cleaners : this.unpaidForTab.employees;
   }
 
   instalmentKey(payee: AdminSalaryPayout, instalment: AdminSalaryInstalment): string {
@@ -314,29 +314,29 @@ export class OutgoingPaymentsComponent implements OnInit, OnDestroy {
   }
 
   isPayingInstalment(payee: AdminSalaryPayout, instalment: AdminSalaryInstalment): boolean {
-    return this.payingInstalmentKey === this.instalmentKey(payee, instalment);
+    return this.payingInstalmentKey() === this.instalmentKey(payee, instalment);
   }
 
   /** Opens the note box for one instalment. Nothing is recorded until it is confirmed. */
   startPayInstalment(payee: AdminSalaryPayout, instalment: AdminSalaryInstalment): void {
-    this.payingInstalmentKey = this.instalmentKey(payee, instalment);
-    this.salaryPaymentNote = '';
-    this.error = '';
+    this.payingInstalmentKey.set(this.instalmentKey(payee, instalment));
+    this.salaryPaymentNote.set('');
+    this.error.set('');
   }
 
   cancelPayInstalment(): void {
-    this.payingInstalmentKey = null;
-    this.salaryPaymentNote = '';
+    this.payingInstalmentKey.set(null);
+    this.salaryPaymentNote.set('');
   }
 
   confirmPayInstalment(payee: AdminSalaryPayout, instalment: AdminSalaryInstalment): void {
-    if (this.salarySaving) return;
-    this.salarySaving = true;
+    if (this.salarySaving()) return;
+    this.salarySaving.set(true);
 
     this.service
       .markSalaryPaid(
-        this.salaries!.year, this.salaries!.month, instalment.half, payee.payeeKey,
-        { paymentNote: this.salaryPaymentNote.trim() || null })
+        this.salaries()!.year, this.salaries()!.month, instalment.half, payee.payeeKey,
+        { paymentNote: this.salaryPaymentNote().trim() || null })
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         // The write answers with the WHOLE month, so the section redraws from one response
@@ -347,11 +347,11 @@ export class OutgoingPaymentsComponent implements OnInit, OnDestroy {
   }
 
   undoInstalment(payee: AdminSalaryPayout, instalment: AdminSalaryInstalment): void {
-    if (this.salarySaving) return;
-    this.salarySaving = true;
+    if (this.salarySaving()) return;
+    this.salarySaving.set(true);
 
     this.service
-      .undoSalaryPayment(this.salaries!.year, this.salaries!.month, instalment.half, payee.payeeKey)
+      .undoSalaryPayment(this.salaries()!.year, this.salaries()!.month, instalment.half, payee.payeeKey)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: data => this.afterSalaryWrite(data, `${payee.name} — ${instalment.label} undone`),
@@ -360,17 +360,17 @@ export class OutgoingPaymentsComponent implements OnInit, OnDestroy {
   }
 
   private afterSalaryWrite(data: AdminSalaryPayoutList, message: string): void {
-    this.salaries = data;
-    this.salarySaving = false;
-    this.payingInstalmentKey = null;
-    this.salaryPaymentNote = '';
+    this.salaries.set(data);
+    this.salarySaving.set(false);
+    this.payingInstalmentKey.set(null);
+    this.salaryPaymentNote.set('');
     this.flash(message);
     this.cdr.markForCheck();
   }
 
   private afterSalaryError(err: unknown, fallback: string): void {
-    this.salarySaving = false;
-    this.error = extractApiErrorMessage(err, fallback);
+    this.salarySaving.set(false);
+    this.error.set(extractApiErrorMessage(err, fallback));
     this.cdr.markForCheck();
   }
 
@@ -381,42 +381,42 @@ export class OutgoingPaymentsComponent implements OnInit, OnDestroy {
   // would block a real payment.
 
   startEditDetails(payee: AdminSalaryPayout): void {
-    this.editingDetailsKey = payee.payeeKey;
-    this.detailsInput = payee.paymentDetails ?? '';
-    this.error = '';
+    this.editingDetailsKey.set(payee.payeeKey);
+    this.detailsInput.set(payee.paymentDetails ?? '');
+    this.error.set('');
   }
 
   cancelEditDetails(): void {
-    this.editingDetailsKey = null;
-    this.detailsInput = '';
+    this.editingDetailsKey.set(null);
+    this.detailsInput.set('');
   }
 
   isEditingDetails(payee: AdminSalaryPayout): boolean {
-    return this.editingDetailsKey === payee.payeeKey;
+    return this.editingDetailsKey() === payee.payeeKey;
   }
 
   saveDetails(payee: AdminSalaryPayout): void {
-    if (this.savingDetails) return;
-    this.savingDetails = true;
+    if (this.savingDetails()) return;
+    this.savingDetails.set(true);
 
     this.service
       // An empty box CLEARS it. A destination that turns out to be wrong has to be removable,
       // not only replaceable — a stale account number on file is how money goes astray.
       .updateSalaryPayeeDetails(
-        this.salaries!.year, this.salaries!.month, payee.payeeKey, this.detailsInput.trim() || null)
+        this.salaries()!.year, this.salaries()!.month, payee.payeeKey, this.detailsInput().trim() || null)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: data => {
-          this.salaries = data;
-          this.savingDetails = false;
-          this.editingDetailsKey = null;
-          this.detailsInput = '';
+          this.salaries.set(data);
+          this.savingDetails.set(false);
+          this.editingDetailsKey.set(null);
+          this.detailsInput.set('');
           this.flash(`${payee.name} — payment details saved`);
           this.cdr.markForCheck();
         },
         error: err => {
-          this.savingDetails = false;
-          this.error = extractApiErrorMessage(err, 'Could not save those payment details');
+          this.savingDetails.set(false);
+          this.error.set(extractApiErrorMessage(err, 'Could not save those payment details'));
           this.cdr.markForCheck();
         }
       });
@@ -429,13 +429,13 @@ export class OutgoingPaymentsComponent implements OnInit, OnDestroy {
    */
   copySalaryDetails(payee: AdminSalaryPayout): void {
     this.copyText(payee.paymentDetails ?? null, () => {
-      this.copiedPayeeKey = payee.payeeKey;
-      this.armCopiedTimer(() => { this.copiedPayeeKey = null; });
+      this.copiedPayeeKey.set(payee.payeeKey);
+      this.armCopiedTimer(() => { this.copiedPayeeKey.set(null); });
     });
   }
 
   isDetailsCopied(payee: AdminSalaryPayout): boolean {
-    return this.copiedPayeeKey === payee.payeeKey;
+    return this.copiedPayeeKey() === payee.payeeKey;
   }
 
   /** Display only — the server sends both the entered amount and its USD equivalent. */
@@ -467,16 +467,16 @@ export class OutgoingPaymentsComponent implements OnInit, OnDestroy {
   // ===== Panel =====
 
   openPanel(order: OutgoingPaymentOrder): void {
-    this.selectedOrder = order;
-    this.selectedOrderId = order.orderId;
+    this.selectedOrder.set(order);
+    this.selectedOrderId.set(order.orderId);
     this.cancelEdit();
     this.cancelOrderDefaultsEdit();
-    this.error = '';
+    this.error.set('');
   }
 
   closePanel(): void {
-    this.selectedOrder = null;
-    this.selectedOrderId = null;
+    this.selectedOrder.set(null);
+    this.selectedOrderId.set(null);
     this.cancelEdit();
     this.cancelOrderDefaultsEdit();
   }
@@ -484,38 +484,38 @@ export class OutgoingPaymentsComponent implements OnInit, OnDestroy {
   // ===== Month navigation =====
 
   prevMonth(): void {
-    this.monthAnchor = new Date(this.monthAnchor.getFullYear(), this.monthAnchor.getMonth() - 1, 1);
-    this.page = 1;
+    this.monthAnchor.set(new Date(this.monthAnchor().getFullYear(), this.monthAnchor().getMonth() - 1, 1));
+    this.page.set(1);
     this.reloadAll();
   }
 
   nextMonth(): void {
-    this.monthAnchor = new Date(this.monthAnchor.getFullYear(), this.monthAnchor.getMonth() + 1, 1);
-    this.page = 1;
+    this.monthAnchor.set(new Date(this.monthAnchor().getFullYear(), this.monthAnchor().getMonth() + 1, 1));
+    this.page.set(1);
     this.reloadAll();
   }
 
   goToCurrentMonth(): void {
-    this.monthAnchor = this.startOfMonth(new Date());
-    this.page = 1;
+    this.monthAnchor.set(this.startOfMonth(new Date()));
+    this.page.set(1);
     this.reloadAll();
   }
 
   get isCurrentMonth(): boolean {
     const now = this.startOfMonth(new Date());
-    return this.monthAnchor.getFullYear() === now.getFullYear()
-      && this.monthAnchor.getMonth() === now.getMonth();
+    return this.monthAnchor().getFullYear() === now.getFullYear()
+      && this.monthAnchor().getMonth() === now.getMonth();
   }
 
   get monthLabel(): string {
-    return this.monthAnchor.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    return this.monthAnchor().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
   }
 
   // ===== Paging =====
 
   get totalPages(): number {
-    if (!this.data) return 1;
-    return Math.max(1, Math.ceil(this.data.totalCount / this.data.pageSize));
+    if (!this.data()) return 1;
+    return Math.max(1, Math.ceil(this.data()!.totalCount / this.data()!.pageSize));
   }
 
   /** Up to 7 page buttons centred on the current page — the Orders tab's pagination shape. */
@@ -523,13 +523,13 @@ export class OutgoingPaymentsComponent implements OnInit, OnDestroy {
     const total = this.totalPages;
     if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
 
-    const start = Math.max(1, Math.min(this.page - 3, total - 6));
+    const start = Math.max(1, Math.min(this.page() - 3, total - 6));
     return Array.from({ length: 7 }, (_, i) => start + i);
   }
 
   goToPage(page: number): void {
-    if (page < 1 || page > this.totalPages || page === this.page) return;
-    this.page = page;
+    if (page < 1 || page > this.totalPages || page === this.page()) return;
+    this.page.set(page);
     this.load();
   }
 
@@ -625,8 +625,8 @@ export class OutgoingPaymentsComponent implements OnInit, OnDestroy {
    */
   copyPaymentDetails(cleaner: OutgoingPaymentCleaner): void {
     this.copyText(this.payoutDetails(cleaner), () => {
-      this.copiedCleanerId = cleaner.orderCleanerId;
-      this.armCopiedTimer(() => { this.copiedCleanerId = null; });
+      this.copiedCleanerId.set(cleaner.orderCleanerId);
+      this.armCopiedTimer(() => { this.copiedCleanerId.set(null); });
     });
   }
 
@@ -650,9 +650,9 @@ export class OutgoingPaymentsComponent implements OnInit, OnDestroy {
         const ok = document.execCommand('copy');
         document.body.removeChild(area);
         if (ok) confirmCopied();
-        else this.error = 'Could not copy that — select it and copy by hand.';
+        else this.error.set('Could not copy that — select it and copy by hand.');
       } catch {
-        this.error = 'Could not copy that — select it and copy by hand.';
+        this.error.set('Could not copy that — select it and copy by hand.');
       }
       this.cdr.markForCheck();
     };
@@ -676,7 +676,7 @@ export class OutgoingPaymentsComponent implements OnInit, OnDestroy {
   }
 
   isCopied(cleaner: OutgoingPaymentCleaner): boolean {
-    return this.copiedCleanerId === cleaner.orderCleanerId;
+    return this.copiedCleanerId() === cleaner.orderCleanerId;
   }
 
   /**
@@ -810,17 +810,17 @@ export class OutgoingPaymentsComponent implements OnInit, OnDestroy {
    * exception to the whole crew.
    */
   startEditOrderDefaults(order: OutgoingPaymentOrder): void {
-    this.editingOrderDefaults = true;
-    this.orderRateInput = order.orderHourlyRate;
-    this.orderHoursInput = Number(this.hoursOf(order.automaticMinutesPerCleaner));
-    this.orderDefaultsSeed = { hours: this.orderHoursInput, rate: this.orderRateInput };
-    this.error = '';
+    this.editingOrderDefaults.set(true);
+    this.orderRateInput.set(order.orderHourlyRate);
+    this.orderHoursInput.set(Number(this.hoursOf(order.automaticMinutesPerCleaner)));
+    this.orderDefaultsSeed = { hours: this.orderHoursInput(), rate: this.orderRateInput() };
+    this.error.set('');
   }
 
   cancelOrderDefaultsEdit(): void {
-    this.editingOrderDefaults = false;
-    this.orderRateInput = null;
-    this.orderHoursInput = null;
+    this.editingOrderDefaults.set(false);
+    this.orderRateInput.set(null);
+    this.orderHoursInput.set(null);
     this.orderDefaultsSeed = { hours: null, rate: null };
   }
 
@@ -863,14 +863,14 @@ export class OutgoingPaymentsComponent implements OnInit, OnDestroy {
    * order moves, and it is the order the two decisions were made in.
    */
   saveOrderDefaults(order: OutgoingPaymentOrder): void {
-    if (this.savingOrderDefaults) return;
+    if (this.savingOrderDefaults()) return;
 
-    const rate = this.orderRateInput;
-    const hours = this.orderHoursInput;
+    const rate = this.orderRateInput();
+    const hours = this.orderHoursInput();
     const hasCleaners = order.cleaners.length > 0;
 
     if (rate == null || rate < 0 || (hasCleaners && (hours == null || hours < 0))) {
-      this.error = 'Rate and hours must both be zero or more.';
+      this.error.set('Rate and hours must both be zero or more.');
       return;
     }
 
@@ -907,7 +907,7 @@ export class OutgoingPaymentsComponent implements OnInit, OnDestroy {
    * onto each line: a cleared override keeps tracking the order if its duration changes later.
    */
   resetOrderHoursToAutomatic(order: OutgoingPaymentOrder): void {
-    if (this.savingOrderDefaults) return;
+    if (this.savingOrderDefaults()) return;
     this.writeOrderDefaults(
       this.service.updateOrderCleanerHours(order.orderId, null),
       `Order #${order.orderId} is back on the automatic split.`,
@@ -916,8 +916,8 @@ export class OutgoingPaymentsComponent implements OnInit, OnDestroy {
 
   private writeOrderDefaults(
     request: Observable<OutgoingPaymentOrder>, message: string, fallback: string): void {
-    this.savingOrderDefaults = true;
-    this.error = '';
+    this.savingOrderDefaults.set(true);
+    this.error.set('');
 
     request
       .pipe(takeUntil(this.destroy$))
@@ -925,12 +925,12 @@ export class OutgoingPaymentsComponent implements OnInit, OnDestroy {
         next: updated => {
           this.applyUpdatedOrder(updated);
           this.cancelOrderDefaultsEdit();
-          this.savingOrderDefaults = false;
+          this.savingOrderDefaults.set(false);
           this.flash(message);
         },
         error: err => {
-          this.error = extractApiErrorMessage(err, fallback);
-          this.savingOrderDefaults = false;
+          this.error.set(extractApiErrorMessage(err, fallback));
+          this.savingOrderDefaults.set(false);
           this.cdr.markForCheck();
         }
       });
@@ -943,7 +943,7 @@ export class OutgoingPaymentsComponent implements OnInit, OnDestroy {
   }
 
   isEditing(order: OutgoingPaymentOrder, cleaner: OutgoingPaymentCleaner): boolean {
-    return this.editingKey === this.editKey(order, cleaner);
+    return this.editingKey() === this.editKey(order, cleaner);
   }
 
   /**
@@ -958,33 +958,33 @@ export class OutgoingPaymentsComponent implements OnInit, OnDestroy {
 
   startEdit(order: OutgoingPaymentOrder, cleaner: OutgoingPaymentCleaner): void {
     if (!this.canEditLine(cleaner)) return;
-    this.editingKey = this.editKey(order, cleaner);
+    this.editingKey.set(this.editKey(order, cleaner));
     // Seeded with what is IN FORCE, not with the override — so an untouched line shows the
     // automatic figure and saving it unchanged is a no-op rather than a surprise pin.
-    this.editRate = cleaner.hourlyRate;
-    this.editHours = Number(this.hoursOf(cleaner.billableMinutes));
-    this.error = '';
+    this.editRate.set(cleaner.hourlyRate);
+    this.editHours.set(Number(this.hoursOf(cleaner.billableMinutes)));
+    this.error.set('');
   }
 
   cancelEdit(): void {
-    this.editingKey = null;
-    this.editRate = null;
-    this.editHours = null;
+    this.editingKey.set(null);
+    this.editRate.set(null);
+    this.editHours.set(null);
   }
 
   saveEdit(order: OutgoingPaymentOrder, cleaner: OutgoingPaymentCleaner): void {
-    if (!this.isEditing(order, cleaner) || this.savingEdit) return;
+    if (!this.isEditing(order, cleaner) || this.savingEdit()) return;
 
-    const rate = this.editRate;
-    const hours = this.editHours;
+    const rate = this.editRate();
+    const hours = this.editHours();
 
     if (rate == null || rate < 0 || hours == null || hours < 0) {
-      this.error = 'Rate and hours must both be zero or more.';
+      this.error.set('Rate and hours must both be zero or more.');
       return;
     }
 
-    this.savingEdit = true;
-    this.error = '';
+    this.savingEdit.set(true);
+    this.error.set('');
 
     this.service
       .updateCleanerPayroll(order.orderId, cleaner.orderCleanerId, {
@@ -998,12 +998,12 @@ export class OutgoingPaymentsComponent implements OnInit, OnDestroy {
         next: updated => {
           this.applyUpdatedOrder(updated);
           this.cancelEdit();
-          this.savingEdit = false;
+          this.savingEdit.set(false);
           this.flash(`Updated ${this.cleanerName(cleaner)}'s pay on order #${order.orderId}.`);
         },
         error: err => {
-          this.error = extractApiErrorMessage(err, 'Could not save that change.');
-          this.savingEdit = false;
+          this.error.set(extractApiErrorMessage(err, 'Could not save that change.'));
+          this.savingEdit.set(false);
           this.cdr.markForCheck();
         }
       });
@@ -1015,9 +1015,9 @@ export class OutgoingPaymentsComponent implements OnInit, OnDestroy {
    * re-priced later, a re-typed one does not.
    */
   resetToAutomatic(order: OutgoingPaymentOrder, cleaner: OutgoingPaymentCleaner): void {
-    if (!this.canEditLine(cleaner) || this.savingEdit) return;
+    if (!this.canEditLine(cleaner) || this.savingEdit()) return;
 
-    this.savingEdit = true;
+    this.savingEdit.set(true);
     this.service
       .updateCleanerPayroll(order.orderId, cleaner.orderCleanerId, {
         hourlyRate: null,
@@ -1030,12 +1030,12 @@ export class OutgoingPaymentsComponent implements OnInit, OnDestroy {
         next: updated => {
           this.applyUpdatedOrder(updated);
           this.cancelEdit();
-          this.savingEdit = false;
+          this.savingEdit.set(false);
           this.flash(`${this.cleanerName(cleaner)} is back on the order's automatic rate and hours.`);
         },
         error: err => {
-          this.error = extractApiErrorMessage(err, 'Could not reset that line.');
-          this.savingEdit = false;
+          this.error.set(extractApiErrorMessage(err, 'Could not reset that line.'));
+          this.savingEdit.set(false);
           this.cdr.markForCheck();
         }
       });
@@ -1044,29 +1044,29 @@ export class OutgoingPaymentsComponent implements OnInit, OnDestroy {
   // ===== Paying =====
 
   openPayCleaner(order: OutgoingPaymentOrder, cleaner: OutgoingPaymentCleaner): void {
-    this.payOrder = order;
-    this.payCleaner = cleaner;
+    this.payOrder.set(order);
+    this.payCleaner.set(cleaner);
     // Default to the cleaner's saved method — it is what will be used if nothing is picked.
-    this.payVia = this.methodLabel(cleaner.paymentMethod) as CleanerPaymentMethod | '';
-    this.payNote = '';
-    this.error = '';
+    this.payVia.set(this.methodLabel(cleaner.paymentMethod) as CleanerPaymentMethod | '');
+    this.payNote.set('');
+    this.error.set('');
   }
 
   openPayOrder(order: OutgoingPaymentOrder): void {
-    this.payOrder = order;
-    this.payCleaner = null;
+    this.payOrder.set(order);
+    this.payCleaner.set(null);
     // A "pay all" is one action, not one channel: each cleaner is recorded against their OWN
     // saved method, so there is no single method to pick here.
-    this.payVia = '';
-    this.payNote = '';
-    this.error = '';
+    this.payVia.set('');
+    this.payNote.set('');
+    this.error.set('');
   }
 
   closePayModal(): void {
-    if (this.paying) return;
-    this.payOrder = null;
-    this.payCleaner = null;
-    this.payNote = '';
+    if (this.paying()) return;
+    this.payOrder.set(null);
+    this.payCleaner.set(null);
+    this.payNote.set('');
   }
 
   /**
@@ -1077,7 +1077,7 @@ export class OutgoingPaymentsComponent implements OnInit, OnDestroy {
   get unpaidInPayOrder(): OutgoingPaymentCleaner[] {
     // Everything still OWED, which is not the same as everything unpaid: a line paid before the
     // order gained an hour is owed the difference, and "Mark all paid" settles it too.
-    return this.payOrder ? this.allPayoutLines(this.payOrder).filter(c => !c.isSettled) : [];
+    return this.payOrder() ? this.allPayoutLines(this.payOrder()!).filter(c => !c.isSettled) : [];
   }
 
   /**
@@ -1086,50 +1086,51 @@ export class OutgoingPaymentsComponent implements OnInit, OnDestroy {
    * the full payout would ask the payer to hand over $73.50 of it twice.
    */
   get payModalTotal(): number {
-    if (this.payCleaner) return this.payCleaner.outstandingPayout;
+    if (this.payCleaner()) return this.payCleaner()!.outstandingPayout;
     return this.unpaidInPayOrder.reduce((sum, c) => sum + (c.outstandingPayout || 0), 0);
   }
 
   /** True when the modal is settling a shortfall rather than making a first payment. */
   get payModalIsTopUp(): boolean {
-    return this.payCleaner
-      ? !!this.payCleaner.isTopUp
+    return this.payCleaner()
+      ? !!this.payCleaner()!.isTopUp
       : this.unpaidInPayOrder.some(c => c.isTopUp);
   }
 
   confirmPay(): void {
-    const order = this.payOrder;
-    if (!order || this.paying) return;
+    const order = this.payOrder();
+    if (!order || this.paying()) return;
 
-    this.paying = true;
-    this.error = '';
+    this.paying.set(true);
+    this.error.set('');
 
+    const payVia = this.payVia();
     const body = {
-      paidVia: this.payVia ? CLEANER_PAYMENT_METHOD_INDEX[this.payVia] : null,
-      paymentNote: this.payNote.trim() || null
+      paidVia: payVia ? CLEANER_PAYMENT_METHOD_INDEX[payVia] : null,
+      paymentNote: this.payNote().trim() || null
     };
 
     // An unassigned slot has no assignment id, so it is addressed by its slot index instead.
-    const request = !this.payCleaner
+    const request = !this.payCleaner()
       ? this.service.markOrderPaid(order.orderId, { paymentNote: body.paymentNote })
-      : this.payCleaner.isUnassigned
-        ? this.service.markUnassignedSlotPaid(order.orderId, this.payCleaner.slotIndex ?? 0, body)
-        : this.service.markCleanerPaid(order.orderId, this.payCleaner.orderCleanerId, body);
+      : this.payCleaner()!.isUnassigned
+        ? this.service.markUnassignedSlotPaid(order.orderId, this.payCleaner()!.slotIndex ?? 0, body)
+        : this.service.markCleanerPaid(order.orderId, this.payCleaner()!.orderCleanerId, body);
 
-    const who = this.payCleaner ? this.cleanerName(this.payCleaner) : `everyone on order #${order.orderId}`;
+    const who = this.payCleaner() ? this.cleanerName(this.payCleaner()!) : `everyone on order #${order.orderId}`;
 
     request.pipe(takeUntil(this.destroy$)).subscribe({
       next: updated => {
         this.applyUpdatedOrder(updated);
-        this.paying = false;
-        this.payOrder = null;
-        this.payCleaner = null;
-        this.payNote = '';
+        this.paying.set(false);
+        this.payOrder.set(null);
+        this.payCleaner.set(null);
+        this.payNote.set('');
         this.flash(`Marked ${who} as paid.`);
       },
       error: err => {
-        this.error = extractApiErrorMessage(err, 'Could not record that payment.');
-        this.paying = false;
+        this.error.set(extractApiErrorMessage(err, 'Could not record that payment.'));
+        this.paying.set(false);
         this.cdr.markForCheck();
       }
     });
@@ -1150,7 +1151,7 @@ export class OutgoingPaymentsComponent implements OnInit, OnDestroy {
           this.flash(`Payment for ${this.cleanerName(cleaner)} was undone.`);
         },
         error: err => {
-          this.error = extractApiErrorMessage(err, 'Could not undo that payment.');
+          this.error.set(extractApiErrorMessage(err, 'Could not undo that payment.'));
           this.cdr.markForCheck();
         }
       });
@@ -1168,22 +1169,22 @@ export class OutgoingPaymentsComponent implements OnInit, OnDestroy {
    * must not vanish mid-job.
    */
   private applyUpdatedOrder(updated: OutgoingPaymentOrder): void {
-    if (this.data) {
-      const index = this.data.orders.findIndex(o => o.orderId === updated.orderId);
-      if (index >= 0) this.data.orders[index] = updated;
+    if (this.data()) {
+      const index = this.data()!.orders.findIndex(o => o.orderId === updated.orderId);
+      if (index >= 0) { this.data()!.orders[index] = updated; this.data.set(this.data()); }
     }
 
-    if (this.selectedOrderId === updated.orderId) this.selectedOrder = updated;
-    if (this.payOrder?.orderId === updated.orderId) this.payOrder = updated;
+    if (this.selectedOrderId() === updated.orderId) this.selectedOrder.set(updated);
+    if (this.payOrder()?.orderId === updated.orderId) this.payOrder.set(updated);
 
     this.load();
   }
 
   private flash(message: string): void {
-    this.successMessage = message;
+    this.successMessage.set(message);
     this.cdr.markForCheck();
     setTimeout(() => {
-      this.successMessage = '';
+      this.successMessage.set('');
       this.cdr.markForCheck();
     }, 4000);
   }

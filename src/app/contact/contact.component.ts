@@ -14,6 +14,7 @@ import { faEnvelope } from '../shared/icons/glyphs/faEnvelope';
 import { faFacebook } from '../shared/icons/glyphs/faFacebook';
 import { faInstagram } from '../shared/icons/glyphs/faInstagram';
 import { faPhone } from '../shared/icons/glyphs/faPhone';
+import { formViewRefresher } from '../shared/forms/form-view-refresher';
 
 @Component({
   selector: 'app-contact',
@@ -24,6 +25,8 @@ import { faPhone } from '../shared/icons/glyphs/faPhone';
   styleUrl: './contact.component.scss'
 })
 export class ContactComponent implements OnInit {
+  /** Re-renders when a form changes outside a template event (see form-view-refresher). */
+  private readonly watchForm = formViewRefresher();
   private fb = inject(FormBuilder);
   private http = inject(HttpClient);
   private authService = inject(AuthService);
@@ -52,6 +55,7 @@ export class ContactComponent implements OnInit {
       message: ['', [Validators.required]],
       smsConsent: [false, [Validators.requiredTrue]]
     });
+    this.watchForm(this.contactForm);
   }
 
   ngOnInit() {

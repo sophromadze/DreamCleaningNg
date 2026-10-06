@@ -1,5 +1,5 @@
 import { findResidentialServiceType } from '../../booking/service-type-keys';
-import { Component, OnInit, OnDestroy, Input, Injector, PLATFORM_ID, TransferState, afterNextRender, inject, makeStateKey, DOCUMENT, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, OnDestroy, Injector, PLATFORM_ID, TransferState, afterNextRender, inject, makeStateKey, DOCUMENT, ChangeDetectionStrategy, input, signal } from '@angular/core';
 import { NgOptimizedImage, isPlatformBrowser } from '@angular/common';
 import { RouterLink, Router } from '@angular/router';
 import { FormsModule, ReactiveFormsModule, FormControl, Validators } from '@angular/forms';
@@ -41,6 +41,7 @@ import { faCircleCheck } from '../../icons/glyphs/faCircleCheck';
 import { faLock } from '../../icons/glyphs/faLock';
 import { faSprayCanSparkles } from '../../icons/glyphs/faSprayCanSparkles';
 import { findAdvertisedFirstTimeOffer } from '../../booking/special-offer-keys';
+import { formViewRefresher } from '../../forms/form-view-refresher';
 
 const HERO_IMAGE = '/images/cabinet-cleaning-in-nyc.webp';
 
@@ -181,10 +182,12 @@ export function trimServiceTypesForHero(types: ServiceType[] | null | undefined)
   imports: [NgOptimizedImage, RouterLink, FormsModule, ReactiveFormsModule, ShimmerDirective, IconComponent],
   providers: [RESPONSIVE_IMAGE_LOADER_PROVIDER],
   templateUrl: './home-hero.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './home-hero.component.scss'
 })
 export class HomeHeroComponent implements OnInit, OnDestroy {
+  /** Re-renders when a form changes outside a template event (see form-view-refresher). */
+  private readonly watchForm = formViewRefresher();
   private googlePlacesService = inject(GooglePlacesService);
   private specialOfferService = inject(SpecialOfferService);
   private bookingService = inject(BookingService);
@@ -195,13 +198,12 @@ export class HomeHeroComponent implements OnInit, OnDestroy {
   protected readonly icons = { faBroom, faCalendarCheck, faChevronDown, faCircleCheck, faLock, faSprayCanSparkles };
 
   /** Location shown in the H1 accent ("Professional Cleaning Services in <accent>"). */
-  @Input() locationName = 'NYC';
+  readonly locationName = input('NYC');
   /** Hero subtitle paragraph copy. */
-  @Input() heroSubtitle =
-    'Trusted home & apartment cleaning in Brooklyn, Manhattan and Queens. ' +
-    'Transparent pricing, trained cleaners, and a simple online booking experience.';
+  readonly heroSubtitle = input('Trusted home & apartment cleaning in Brooklyn, Manhattan and Queens. ' +
+    'Transparent pricing, trained cleaners, and a simple online booking experience.');
   /** Borough pill row — shown on the homepage, hidden on the borough service pages. */
-  @Input() showLocations = true;
+  readonly showLocations = input(true);
 
   protected readonly phoneNumber = inject(PhoneNumberService);
 
@@ -210,14 +212,14 @@ export class HomeHeroComponent implements OnInit, OnDestroy {
   protected readonly heroImageSizes = HERO_IMAGE_SIZES;
 
   /** "153 Google reviews"; empty (badge segment hidden) until the stats arrive. */
-  reviewCountLabel = '';
-  specialOffers: PublicSpecialOffer[] = [];
+  readonly reviewCountLabel = signal('');
+  readonly specialOffers = signal<PublicSpecialOffer[]>([]);
   /**
    * True once this render KNOWS the public offers (server copy, TransferState, this tab's memory or
    * the browser fetch). Until then the coupon is still drawn — complete, with only the percentage
    * left blank in its reserved space — because the offer is far more likely to exist than not.
    */
-  offersKnown = false;
+  readonly offersKnown = signal(false);
   protected isBrowser: boolean;
   /** Google Reviews only shown in production (API has IP restrictions for hosting only). */
   showGoogleReviews = environment.production;
@@ -225,10 +227,10 @@ export class HomeHeroComponent implements OnInit, OnDestroy {
   private subscription = new Subscription();
 
   // Booking form properties
-  serviceTypes: ServiceType[] = [];
-  selectedServiceType: ServiceType | null = null;
-  selectedServices: Array<{ service: Service; quantity: number }> = [];
-  serviceTypeDropdownOpen = false;
+  readonly serviceTypes = signal<ServiceType[]>([]);
+  readonly selectedServiceType = signal<ServiceType | null>(null);
+  readonly selectedServices = signal<Array<{ service: Service; quantity: number }>>([], { equal: () => false });
+  readonly serviceTypeDropdownOpen = signal(false);
 
   // Form controls
   serviceTypeControl = new FormControl('', [Validators.required]);
@@ -243,7 +245,7 @@ export class HomeHeroComponent implements OnInit, OnDestroy {
 
   // True until the service types are in. The server render normally fills them in (see
   // loadServiceTypes), so the placeholder only shows when that SSR fetch failed or timed out.
-  isLoadingServiceTypes = true;
+  readonly isLoadingServiceTypes = signal(true);
 
   /** Placeholder rows: Residential (the default type) shows exactly these two steppers. */
   protected readonly skeletonServiceLabels = ['Bedrooms', 'Bathrooms'];
@@ -277,6 +279,7 @@ export class HomeHeroComponent implements OnInit, OnDestroy {
   private static lastOffers: PublicSpecialOffer[] | null = null;
 
   constructor() {
+    this.watchForm(this.serviceTypeControl, this.bedroomsControl, this.bathroomsControl, this.squareFeetControl, this.cleaningTypeControl, this.firstNameControl, this.lastNameControl, this.emailControl, this.phoneControl);
     this.isBrowser = isPlatformBrowser(this.platformId);
     this.hydrating = this.isBrowser && !this.router.navigated;
   }
@@ -289,7 +292,7 @@ export class HomeHeroComponent implements OnInit, OnDestroy {
    * later (reserved space) when the server had no copy of the offers.
    */
   get showWelcomeCoupon(): boolean {
-    return !this.offersKnown || !!this.firstTimeOffer;
+    return !this.offersKnown() || !!this.firstTimeOffer;
   }
 
   ngOnInit() {
@@ -307,7 +310,7 @@ export class HomeHeroComponent implements OnInit, OnDestroy {
     if (!this.showGoogleReviews) return;
     this.subscription.add(
       this.googlePlacesService.getStats().subscribe(stats => {
-        this.reviewCountLabel = stats ? formatReviewCount(stats.total) : '';
+        this.reviewCountLabel.set(stats ? formatReviewCount(stats.total) : '');
       })
     );
   }
@@ -323,31 +326,31 @@ export class HomeHeroComponent implements OnInit, OnDestroy {
       const offers = this.ssrCatalogue?.publicOffers;
       if (offers) {
         const advertised = findAdvertisedFirstTimeOffer(offers);
-        this.specialOffers = advertised ? [advertised] : [];
-        this.offersKnown = true;
-        this.transferState.set(HERO_OFFERS_KEY, this.specialOffers);
+        this.specialOffers.set(advertised ? [advertised] : []);
+        this.offersKnown.set(true);
+        this.transferState.set(HERO_OFFERS_KEY, this.specialOffers());
       }
       return;
     }
 
     if (this.hydrating && this.transferState.hasKey(HERO_OFFERS_KEY)) {
-      this.specialOffers = this.transferState.get(HERO_OFFERS_KEY, []);
-      this.offersKnown = true;
+      this.specialOffers.set(this.transferState.get(HERO_OFFERS_KEY, []));
+      this.offersKnown.set(true);
       this.transferState.remove(HERO_OFFERS_KEY);
-      HomeHeroComponent.lastOffers = this.specialOffers;
+      HomeHeroComponent.lastOffers = this.specialOffers();
       return;
     }
 
     if (HomeHeroComponent.lastOffers) {
-      this.specialOffers = HomeHeroComponent.lastOffers;
-      this.offersKnown = true;
+      this.specialOffers.set(HomeHeroComponent.lastOffers);
+      this.offersKnown.set(true);
     }
     this.subscription.add(
       this.specialOfferService.getPublicSpecialOffers().subscribe({
         next: (offers) => {
-          this.specialOffers = offers ?? [];
-          this.offersKnown = true;
-          HomeHeroComponent.lastOffers = this.specialOffers;
+          this.specialOffers.set(offers ?? []);
+          this.offersKnown.set(true);
+          HomeHeroComponent.lastOffers = this.specialOffers();
         },
         error: (error) => { console.error('Error loading special offers:', error); }
       })
@@ -356,7 +359,7 @@ export class HomeHeroComponent implements OnInit, OnDestroy {
 
   /** First-time customer offer from the public special offers (percentage is admin-configurable, never hardcoded). */
   get firstTimeOffer(): PublicSpecialOffer | undefined {
-    return findAdvertisedFirstTimeOffer(this.specialOffers);
+    return findAdvertisedFirstTimeOffer(this.specialOffers());
   }
 
   /** Display label for the first-time discount, e.g. "10%" or "$20". Empty when no offer is loaded. */
@@ -382,7 +385,7 @@ export class HomeHeroComponent implements OnInit, OnDestroy {
     if (cached) {
       this.applyServiceTypes(cached, false);
     } else {
-      this.isLoadingServiceTypes = true;
+      this.isLoadingServiceTypes.set(true);
     }
 
     // Hydrating over a server render that loaded the list: take the server's trimmed copy from
@@ -434,7 +437,7 @@ export class HomeHeroComponent implements OnInit, OnDestroy {
             return;
           }
           console.error('Error loading service types:', error);
-          this.isLoadingServiceTypes = false;
+          this.isLoadingServiceTypes.set(false);
         }
       })
     );
@@ -447,18 +450,18 @@ export class HomeHeroComponent implements OnInit, OnDestroy {
   private applyServiceTypes(serviceTypes: ServiceType[], matchServerRender: boolean) {
     // Filter out poll and custom - main page only shows regular service types for everyone
     const regularServiceTypes = serviceTypes.filter(type => !type.hasPoll && !type.isCustom);
-    this.serviceTypes = regularServiceTypes.sort((a, b) => {
+    this.serviceTypes.set(regularServiceTypes.sort((a, b) => {
       const orderA = a.displayOrder || 999;
       const orderB = b.displayOrder || 999;
       return orderA - orderB;
-    });
-    this.isLoadingServiceTypes = false;
+    }));
+    this.isLoadingServiceTypes.set(false);
 
     if (!this.isBrowser) {
       // A returning visitor's choice comes from their hero cookie (browser storage is out of
       // reach here). Anything the current catalogue cannot show falls back to the default form.
       const choice = validateHeroChoice(
-        decodeHeroChoice(readCookie(this.ssrContext?.requestCookies, HERO_CHOICE_COOKIE)), this.serviceTypes);
+        decodeHeroChoice(readCookie(this.ssrContext?.requestCookies, HERO_CHOICE_COOKIE)), this.serviceTypes());
       if (choice) {
         this.applySavedChoice(choice, false);
         this.transferState.set(HERO_CHOICE_KEY, choice);
@@ -504,7 +507,7 @@ export class HomeHeroComponent implements OnInit, OnDestroy {
   /** The hero cookie read in the browser, for a tab whose storage holds no saved form. */
   private cookieChoice(): HeroChoice | null {
     return validateHeroChoice(
-      decodeHeroChoice(readCookie(this.document.cookie, HERO_CHOICE_COOKIE)), this.serviceTypes);
+      decodeHeroChoice(readCookie(this.document.cookie, HERO_CHOICE_COOKIE)), this.serviceTypes());
   }
 
   /**
@@ -513,7 +516,7 @@ export class HomeHeroComponent implements OnInit, OnDestroy {
    * hydration pass that runs before the saved choices are read).
    */
   private selectDefaultServiceType(persist: boolean) {
-    const residentialCleaning = findResidentialServiceType(this.serviceTypes);
+    const residentialCleaning = findResidentialServiceType(this.serviceTypes());
 
     if (residentialCleaning) {
       this.selectServiceType(residentialCleaning, false, persist);
@@ -558,7 +561,7 @@ export class HomeHeroComponent implements OnInit, OnDestroy {
     // Restore service type. Passed as a RESTORE so it neither seeds Sq.ft from bedrooms nor
     // persists — the stored quantities are applied just below and saved from there.
     const savedServiceType = savedData.selectedServiceTypeId
-      ? this.serviceTypes.find(st => st.id.toString() === savedData.selectedServiceTypeId)
+      ? this.serviceTypes().find(st => st.id.toString() === savedData.selectedServiceTypeId)
       : undefined;
     if (savedServiceType) {
       this.selectServiceType(savedServiceType, true);
@@ -570,16 +573,17 @@ export class HomeHeroComponent implements OnInit, OnDestroy {
     }
 
     // Restore services
-    if (savedServiceType && savedData.selectedServices && this.selectedServiceType) {
+    if (savedServiceType && savedData.selectedServices && this.selectedServiceType()) {
       savedData.selectedServices.forEach(savedService => {
-        const service = this.selectedServiceType!.services.find(s => s.id.toString() === savedService.serviceId);
+        const service = this.selectedServiceType()!.services.find(s => s.id.toString() === savedService.serviceId);
         if (service) {
-          const selectedService = this.selectedServices.find(ss => ss.service.id === service.id);
+          const selectedService = this.selectedServices().find(ss => ss.service.id === service.id);
           if (selectedService) {
             selectedService.quantity = savedService.quantity;
           }
         }
       });
+      this.selectedServices.set(this.selectedServices());
       // Restore is NOT a bedroom change: the persisted Sq.ft is the value the customer chose
       // on /booking, so it is floored and never lowered. Done once after the loop so the
       // result doesn't depend on whether bedrooms happens to precede sqft in storage.
@@ -587,7 +591,7 @@ export class HomeHeroComponent implements OnInit, OnDestroy {
       // Sync form controls (bedrooms, bathrooms, sqft) from restored selectedServices so "Get Exact Price" reads correct values
       this.updateFormControlsFromServices();
       // Property type round-trips through the same store the booking page uses.
-      this.propertyType = normalizePropertyType(savedData?.propertyType);
+      this.propertyType.set(normalizePropertyType(savedData?.propertyType));
       // The only write of this hydration — selectServiceType deliberately skipped saving, so
       // storage is never touched until the restored quantities are actually in place.
       if (persist) this.saveMainPageFormData();
@@ -597,11 +601,11 @@ export class HomeHeroComponent implements OnInit, OnDestroy {
   }
 
   toggleServiceTypeDropdown() {
-    this.serviceTypeDropdownOpen = !this.serviceTypeDropdownOpen;
+    this.serviceTypeDropdownOpen.set(!this.serviceTypeDropdownOpen());
   }
 
   get canSelectDeepCleaning(): boolean {
-    return !!this.selectedServiceType?.extraServices?.some(
+    return !!this.selectedServiceType()?.extraServices?.some(
       (extra) => extra.isDeepCleaning && extra.isActive !== false
     );
   }
@@ -627,12 +631,12 @@ export class HomeHeroComponent implements OnInit, OnDestroy {
    * `!isRestore`; the default form drawn during SSR/hydration passes false.
    */
   selectServiceType(serviceType: ServiceType, isRestore = false, persist = !isRestore) {
-    this.selectedServiceType = serviceType;
+    this.selectedServiceType.set(serviceType);
     this.serviceTypeControl.setValue(serviceType.id.toString());
-    this.serviceTypeDropdownOpen = false;
+    this.serviceTypeDropdownOpen.set(false);
 
     // Initialize services
-    this.selectedServices = [];
+    this.selectedServices.set([]);
     if (serviceType.services) {
       const sortedServices = [...serviceType.services].sort((a, b) =>
         (a.displayOrder || 999) - (b.displayOrder || 999)
@@ -652,21 +656,23 @@ export class HomeHeroComponent implements OnInit, OnDestroy {
             defaultQuantity = 400; // Default for Studio
           }
 
-          this.selectedServices.push({
+          this.selectedServices().push({
             service: service,
             quantity: defaultQuantity
           });
         }
       });
+      this.selectedServices.set(this.selectedServices());
 
       // Seed Sq.ft from bedrooms ONLY for a service type the user actively picked — there is
       // no customer value for it yet. During a restore the persisted quantities land moments
       // later, so seeding here would just be a value we then have to undo.
       if (!isRestore) {
-        const bedroomsService = this.selectedServices.find(s => s.service.serviceKey === 'bedrooms');
-        const sqftService = this.selectedServices.find(s => s.service.serviceKey === 'sqft');
+        const bedroomsService = this.selectedServices().find(s => s.service.serviceKey === 'bedrooms');
+        const sqftService = this.selectedServices().find(s => s.service.serviceKey === 'sqft');
         if (bedroomsService && sqftService) {
           sqftService.quantity = this.getSquareFeetForBedrooms(bedroomsService.quantity);
+          this.selectedServices.set(this.selectedServices());
         }
       }
     }
@@ -688,8 +694,8 @@ export class HomeHeroComponent implements OnInit, OnDestroy {
    * catalog hasn't loaded yet (first paint / prerender).
    */
   private getSquareFeetForBedrooms(bedrooms: number): number {
-    const sqftService = this.selectedServices.find(s => s.service.serviceKey === 'sqft');
-    const bedroomsService = this.selectedServices.find(s => s.service.serviceKey === 'bedrooms');
+    const sqftService = this.selectedServices().find(s => s.service.serviceKey === 'sqft');
+    const bedroomsService = this.selectedServices().find(s => s.service.serviceKey === 'bedrooms');
     return getSquareFeetForBedrooms(
       bedrooms,
       sqftService?.service?.thresholds,
@@ -698,7 +704,7 @@ export class HomeHeroComponent implements OnInit, OnDestroy {
   }
 
   getSquareFeetMinForBedrooms(): number {
-    const bedroomsService = this.selectedServices.find(s => s.service.serviceKey === 'bedrooms');
+    const bedroomsService = this.selectedServices().find(s => s.service.serviceKey === 'bedrooms');
     if (bedroomsService) {
       return this.getSquareFeetForBedrooms(bedroomsService.quantity);
     }
@@ -716,9 +722,9 @@ export class HomeHeroComponent implements OnInit, OnDestroy {
    * even display. Callers that genuinely change bedrooms now apply the linkage themselves.
    */
   private updateFormControlsFromServices() {
-    const bedroomsService = this.selectedServices.find(s => s.service.serviceKey === 'bedrooms');
-    const bathroomsService = this.selectedServices.find(s => s.service.serviceKey === 'bathrooms');
-    const sqftService = this.selectedServices.find(s => s.service.serviceKey === 'sqft');
+    const bedroomsService = this.selectedServices().find(s => s.service.serviceKey === 'bedrooms');
+    const bathroomsService = this.selectedServices().find(s => s.service.serviceKey === 'bathrooms');
+    const sqftService = this.selectedServices().find(s => s.service.serviceKey === 'sqft');
 
     if (bedroomsService) {
       this.bedroomsControl.setValue(bedroomsService.quantity);
@@ -736,13 +742,14 @@ export class HomeHeroComponent implements OnInit, OnDestroy {
    * `previousQuantity` is the bedroom count BEFORE the change.
    */
   private syncSquareFeetForBedroomChange(previousQuantity: number, newQuantity: number): void {
-    const sqftService = this.selectedServices.find(s => s.service.serviceKey === 'sqft');
+    const sqftService = this.selectedServices().find(s => s.service.serviceKey === 'sqft');
     if (!sqftService) return;
     sqftService.quantity = resolveSquareFeetForBedroomChange(
       sqftService.quantity,
       this.getSquareFeetForBedrooms(previousQuantity),
       this.getSquareFeetForBedrooms(newQuantity)
     );
+    this.selectedServices.set(this.selectedServices());
   }
 
   /**
@@ -750,19 +757,21 @@ export class HomeHeroComponent implements OnInit, OnDestroy {
    * Call ONCE after a restore loop, never per-item.
    */
   private clampSquareFeetToBedroomMinimum(): void {
-    const sqftService = this.selectedServices.find(s => s.service.serviceKey === 'sqft');
+    const sqftService = this.selectedServices().find(s => s.service.serviceKey === 'sqft');
     if (!sqftService) return;
     sqftService.quantity = clampRestoredSquareFeet(
       sqftService.quantity,
       this.getSquareFeetMinForBedrooms()
     );
+    this.selectedServices.set(this.selectedServices());
   }
 
   incrementServiceQuantity(service: Service) {
-    const selectedService = this.selectedServices.find(s => s.service.id === service.id);
+    const selectedService = this.selectedServices().find(s => s.service.id === service.id);
     if (selectedService && selectedService.quantity < (service.maxValue || 10)) {
       const previousQuantity = selectedService.quantity;
       selectedService.quantity++;
+      this.selectedServices.set(this.selectedServices());
       if (service.serviceKey === 'bedrooms') {
         this.syncSquareFeetForBedroomChange(previousQuantity, selectedService.quantity);
       }
@@ -772,10 +781,11 @@ export class HomeHeroComponent implements OnInit, OnDestroy {
   }
 
   decrementServiceQuantity(service: Service) {
-    const selectedService = this.selectedServices.find(s => s.service.id === service.id);
+    const selectedService = this.selectedServices().find(s => s.service.id === service.id);
     if (selectedService && selectedService.quantity > (service.minValue ?? 0)) {
       const previousQuantity = selectedService.quantity;
       selectedService.quantity--;
+      this.selectedServices.set(this.selectedServices());
       if (service.serviceKey === 'bedrooms') {
         this.syncSquareFeetForBedroomChange(previousQuantity, selectedService.quantity);
       }
@@ -785,10 +795,11 @@ export class HomeHeroComponent implements OnInit, OnDestroy {
   }
 
   updateServiceQuantity(service: Service, quantity: number) {
-    const selectedService = this.selectedServices.find(s => s.service.id === service.id);
+    const selectedService = this.selectedServices().find(s => s.service.id === service.id);
     if (selectedService) {
       const previousQuantity = selectedService.quantity;
       selectedService.quantity = quantity;
+      this.selectedServices.set(this.selectedServices());
 
       if (service.serviceKey === 'bedrooms') {
         this.syncSquareFeetForBedroomChange(previousQuantity, quantity);
@@ -799,6 +810,7 @@ export class HomeHeroComponent implements OnInit, OnDestroy {
         const minSquareFeet = this.getSquareFeetMinForBedrooms();
         if (quantity < minSquareFeet) {
           selectedService.quantity = minSquareFeet;
+          this.selectedServices.set(this.selectedServices());
           quantity = minSquareFeet;
         }
       }
@@ -818,17 +830,17 @@ export class HomeHeroComponent implements OnInit, OnDestroy {
 
   /** Persist main page card state so refresh and navigation to booking restore it. */
   private saveMainPageFormData() {
-    if (!this.isBrowser || !this.selectedServiceType) return;
+    if (!this.isBrowser || !this.selectedServiceType()) return;
     this.formPersistenceService.updateFormData({
-      selectedServiceTypeId: this.selectedServiceType.id.toString(),
-      selectedServices: this.selectedServices.map(ss => ({
+      selectedServiceTypeId: this.selectedServiceType()!.id.toString(),
+      selectedServices: this.selectedServices().map(ss => ({
         serviceId: ss.service.id.toString(),
         quantity: ss.quantity
       })),
       cleaningType: this.cleaningTypeControl.value || 'normal',
       // Carried through the SAME key the booking page reads, so a property type picked here is
       // already answered on step 1. levelsQuantity is deliberately never written by the hero.
-      propertyType: this.propertyType ?? undefined,
+      propertyType: this.propertyType() ?? undefined,
       contactFirstName: this.firstNameControl.value || '',
       contactLastName: this.lastNameControl.value || '',
       contactEmail: this.emailControl.value || '',
@@ -845,7 +857,7 @@ export class HomeHeroComponent implements OnInit, OnDestroy {
   }
 
   getStartingPriceHint(): string {
-    if (!this.selectedServiceType) return '';
+    if (!this.selectedServiceType()) return '';
     const price = this.calculateStartingPrice('normal');
     return `from $${price}`;
   }
@@ -853,11 +865,11 @@ export class HomeHeroComponent implements OnInit, OnDestroy {
   /** Builds the shared-calculator input for a starting-price / live estimate.
    *  ALL price math lives in shared/pricing/order-pricing.calculator.ts. */
   private buildEstimateQuoteInput(cleaningType: 'normal' | 'deep', useMinQuantities: boolean): QuoteInput | null {
-    if (!this.selectedServiceType) return null;
+    if (!this.selectedServiceType()) return null;
 
     const extraServices: ExtraServiceLineInput[] = [];
     if (cleaningType === 'deep') {
-      const deepExtra = this.selectedServiceType.extraServices?.find(e => e.isDeepCleaning && e.isActive !== false);
+      const deepExtra = this.selectedServiceType()!.extraServices?.find(e => e.isDeepCleaning && e.isActive !== false);
       if (deepExtra) {
         extraServices.push({
           extraServiceId: deepExtra.id,
@@ -876,7 +888,7 @@ export class HomeHeroComponent implements OnInit, OnDestroy {
       }
     }
 
-    const services = this.selectedServices.map(selected => {
+    const services = this.selectedServices().map(selected => {
       const minQty = selected.service.serviceKey === 'bedrooms' ? 0 : (selected.service.minValue ?? 1);
       // Threshold / tier / zero-quantity fields must come along or the homepage prices sqft
       // from zero at a flat rate while the booking page prices only the overage in tiers.
@@ -902,11 +914,11 @@ export class HomeHeroComponent implements OnInit, OnDestroy {
     });
 
     return {
-      basePrice: this.selectedServiceType.basePrice ?? 0,
-      baseDuration: this.selectedServiceType.timeDuration ?? 0,
+      basePrice: this.selectedServiceType()!.basePrice ?? 0,
+      baseDuration: this.selectedServiceType()!.timeDuration ?? 0,
       // Without the floor the homepage advertises a "from" price below what the booking page
       // actually charges — e.g. $112.50 against $125.00.
-      minimumPrice: this.selectedServiceType.minimumPrice ?? 0,
+      minimumPrice: this.selectedServiceType()!.minimumPrice ?? 0,
       services,
       extraServices
     };
@@ -939,7 +951,7 @@ export class HomeHeroComponent implements OnInit, OnDestroy {
   // restore-path neutralisation in buildEstimateQuoteInput stays regardless, because a level
   // count persisted by the BOOKING page in an earlier session can still arrive here.
 
-  propertyType: PropertyType | null = null;
+  readonly propertyType = signal<PropertyType | null>(null);
 
   readonly propertyTypeApartment = PROPERTY_TYPE_APARTMENT;
   readonly propertyTypeHouse = PROPERTY_TYPE_HOUSE;
@@ -952,12 +964,12 @@ export class HomeHeroComponent implements OnInit, OnDestroy {
    * empty. The exclusion rule itself is shared with every other surface.
    */
   showPropertyTypeSelector(): boolean {
-    if (this.isLoadingServiceTypes || this.canSelectDeepCleaning) return false;
-    return serviceTypeCollectsPropertyType(this.selectedServiceType);
+    if (this.isLoadingServiceTypes() || this.canSelectDeepCleaning) return false;
+    return serviceTypeCollectsPropertyType(this.selectedServiceType());
   }
 
   isPropertyTypeSelected(type: PropertyType): boolean {
-    return this.propertyType === type;
+    return this.propertyType() === type;
   }
 
   /**
@@ -966,24 +978,24 @@ export class HomeHeroComponent implements OnInit, OnDestroy {
    * hero never collects one.
    */
   selectPropertyType(type: PropertyType): void {
-    this.propertyType = type;
+    this.propertyType.set(type);
     this.saveMainPageFormData();
   }
 
   hasBedroomsService(): boolean {
-    return !!this.selectedServices.find(s => s.service.serviceKey === 'bedrooms');
+    return !!this.selectedServices().find(s => s.service.serviceKey === 'bedrooms');
   }
 
   hasBathroomsService(): boolean {
-    return !!this.selectedServices.find(s => s.service.serviceKey === 'bathrooms');
+    return !!this.selectedServices().find(s => s.service.serviceKey === 'bathrooms');
   }
 
   hasSquareFeetService(): boolean {
-    return !!this.selectedServices.find(s => s.service.serviceKey === 'sqft');
+    return !!this.selectedServices().find(s => s.service.serviceKey === 'sqft');
   }
 
   getSquareFeetService() {
-    return this.selectedServices.find(s => s.service.serviceKey === 'sqft');
+    return this.selectedServices().find(s => s.service.serviceKey === 'sqft');
   }
 
   getSquareFeetMin(): number {
@@ -1011,29 +1023,32 @@ export class HomeHeroComponent implements OnInit, OnDestroy {
       return;
     }
 
-    if (!this.selectedServiceType) {
+    if (!this.selectedServiceType()) {
       return;
     }
 
     // Update services from form controls
-    const bedroomsService = this.selectedServices.find(s => s.service.serviceKey === 'bedrooms');
-    const bathroomsService = this.selectedServices.find(s => s.service.serviceKey === 'bathrooms');
-    const sqftService = this.selectedServices.find(s => s.service.serviceKey === 'sqft');
+    const bedroomsService = this.selectedServices().find(s => s.service.serviceKey === 'bedrooms');
+    const bathroomsService = this.selectedServices().find(s => s.service.serviceKey === 'bathrooms');
+    const sqftService = this.selectedServices().find(s => s.service.serviceKey === 'sqft');
 
     if (bedroomsService) {
       bedroomsService.quantity = this.bedroomsControl.value ?? 0;
+      this.selectedServices.set(this.selectedServices());
     }
     if (bathroomsService) {
       bathroomsService.quantity = this.bathroomsControl.value ?? 1;
+      this.selectedServices.set(this.selectedServices());
     }
     if (sqftService) {
       sqftService.quantity = this.squareFeetControl.value ?? 400;
+      this.selectedServices.set(this.selectedServices());
     }
 
     // Save form data
     const formData = {
-      selectedServiceTypeId: this.selectedServiceType.id.toString(),
-      selectedServices: this.selectedServices.map(ss => ({
+      selectedServiceTypeId: this.selectedServiceType()!.id.toString(),
+      selectedServices: this.selectedServices().map(ss => ({
         serviceId: ss.service.id.toString(),
         quantity: ss.quantity
       })),
@@ -1041,7 +1056,7 @@ export class HomeHeroComponent implements OnInit, OnDestroy {
       // MUST be repeated here: this path calls saveFormData, which REPLACES the stored object
       // rather than merging it like saveMainPageFormData's updateFormData. Omitting it would
       // wipe the property type on the way to /booking - the exact field the customer just set.
-      propertyType: this.propertyType ?? undefined,
+      propertyType: this.propertyType() ?? undefined,
       contactFirstName: this.firstNameControl.value || '',
       contactLastName: this.lastNameControl.value || '',
       contactEmail: this.emailControl.value || '',

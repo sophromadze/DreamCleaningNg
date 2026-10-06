@@ -1,18 +1,18 @@
-@if (!loading) {
+@if (!loading()) {
 <div class="contract-form">
 
   <div class="form-header">
     <div>
-      <h2>{{ contractId ? 'Edit contract' : 'Create contract' }}</h2>
-      @if (contractNumber) {
-      <p class="muted">{{ contractNumber }}</p>
+      <h2>{{ contractId() ? 'Edit contract' : 'Create contract' }}</h2>
+      @if (contractNumber()) {
+      <p class="muted">{{ contractNumber() }}</p>
       }
     </div>
     <button type="button" class="btn-ghost" (click)="cancel()">Cancel</button>
   </div>
 
-  @if (errorMessage) {
-  <div class="form-error">{{ errorMessage }}</div>
+  @if (errorMessage()) {
+  <div class="form-error">{{ errorMessage() }}</div>
   }
 
   <!-- 5.1 Template -->
@@ -26,8 +26,8 @@
       <div class="grid">
         <div class="field">
           <label for="contractTemplate">Contract template</label>
-          <select id="contractTemplate" name="contractTemplate" [(ngModel)]="model.contractTemplateId">
-            @for (t of templates; track t.id) {
+          <select id="contractTemplate" name="contractTemplate" [(ngModel)]="model().contractTemplateId">
+            @for (t of templates(); track t.id) {
             <option [ngValue]="t.id">{{ t.name }} (v{{ t.version }})</option>
             }
           </select>
@@ -40,8 +40,8 @@
         <div class="field">
           <label for="scopeTemplate">Business type</label>
           <select id="scopeTemplate" name="scopeTemplate"
-                  [(ngModel)]="model.scopeTemplateId" (ngModelChange)="onScopeTemplateChanged()">
-            @for (t of scopeTemplates; track t.id) {
+                  [(ngModel)]="model().scopeTemplateId" (ngModelChange)="onScopeTemplateChanged()">
+            @for (t of scopeTemplates(); track t.id) {
             <option [ngValue]="t.id">{{ t.name }}</option>
             }
           </select>
@@ -75,8 +75,8 @@
       <div class="field">
         <label for="contractorProfile">Contractor profile</label>
         <select id="contractorProfile" name="contractorProfile"
-                [(ngModel)]="model.contractorProfileId" (ngModelChange)="onContractorProfileChange()">
-          @for (p of contractorProfiles; track p.id) {
+                [(ngModel)]="model().contractorProfileId" (ngModelChange)="onContractorProfileChange()">
+          @for (p of contractorProfiles(); track p.id) {
           <option [ngValue]="p.id">
             {{ p.legalEntityName }}@if (p.dba) {
             <span> d/b/a {{ p.dba }}</span>
@@ -102,8 +102,8 @@
         <div class="field">
           <label for="contractorSigner">Signer</label>
           <select id="contractorSigner" name="contractorSigner"
-                  [(ngModel)]="model.contractorSignerContactId">
-            @for (c of contractorSigners; track c.id) {
+                  [(ngModel)]="model().contractorSignerContactId">
+            @for (c of contractorSigners(); track c.id) {
             <option [ngValue]="c.id">
               {{ c.fullName }}@if (c.title) {
               <span> — {{ c.title }}</span>
@@ -118,7 +118,7 @@
         <div class="field">
           <label for="contractorSignerEmail">Signing link email</label>
           <input id="contractorSignerEmail" name="contractorSignerEmail" type="email"
-                 [(ngModel)]="model.contractorSignerEmail" />
+                 [(ngModel)]="model().contractorSignerEmail" />
         </div>
       </div>
     </div>
@@ -149,7 +149,7 @@
         <select id="clientPicker" name="clientPicker"
                 [(ngModel)]="selectedClientId" (ngModelChange)="onClientSelected()">
           <option [ngValue]="null">— New client —</option>
-          @for (c of clients; track c.id) {
+          @for (c of clients(); track c.id) {
           <option [ngValue]="c.id">
             {{ c.legalEntityName || '(company name not set)' }}
           </option>
@@ -169,14 +169,14 @@
 
       <!-- Only while creating a NEW client. There is nothing linked yet, and picking the account
            here is what seeds the signer and the address from their profile. -->
-      @if (isNewClient) {
+      @if (isNewClient()) {
       <div class="field">
         <label for="sourceUser">Link to a customer account (optional)</label>
         <select id="sourceUser" name="sourceUser"
-                [ngModel]="model.newClient?.sourceUserId ?? null"
-                (ngModelChange)="model.newClient!.sourceUserId = $event; onSourceUserSelected()">
+                [ngModel]="model().newClient?.sourceUserId ?? null"
+                (ngModelChange)="model().newClient!.sourceUserId = $event; onSourceUserSelected()">
           <option [ngValue]="null">— Not linked —</option>
-          @for (customer of businessCustomers; track customer.userId) {
+          @for (customer of businessCustomers(); track customer.userId) {
           <option [ngValue]="customer.userId">
             {{ customer.fullName }} ({{ customer.email }})
           </option>
@@ -191,12 +191,12 @@
       </div>
       }
 
-      @if (model.newClient) {
+      @if (model().newClient) {
       <div class="grid">
         <div class="field wide">
           <label for="clientName">Legal entity name</label>
           <input id="clientName" name="clientName" type="text"
-                 [(ngModel)]="model.newClient.legalEntityName"
+                 [(ngModel)]="model().newClient!.legalEntityName"
                  (ngModelChange)="onClientLegalNameChange($event)" />
         </div>
         <div class="field">
@@ -204,31 +204,31 @@
                the wording the agreement body prints. Typing here takes it over for good. -->
           <label for="clientEntityType">Entity type</label>
           <input id="clientEntityType" name="clientEntityType" type="text"
-                 [(ngModel)]="model.newClient.entityType"
+                 [(ngModel)]="model().newClient!.entityType"
                  (ngModelChange)="onClientEntityTypeChange()"
                  placeholder="a limited liability company" />
         </div>
         <div class="field">
           <label for="clientFormationState">Formation state</label>
           <input id="clientFormationState" name="clientFormationState" type="text"
-                 [(ngModel)]="model.newClient.formationState" />
+                 [(ngModel)]="model().newClient!.formationState" />
         </div>
         <div class="field wide">
           <label for="clientAddress">Principal business address</label>
           <input id="clientAddress" name="clientAddress" type="text"
-                 [(ngModel)]="model.newClient.principalAddress" />
+                 [(ngModel)]="model().newClient!.principalAddress" />
         </div>
         <div class="field">
           <label for="clientCity">City</label>
-          <input id="clientCity" name="clientCity" type="text" [(ngModel)]="model.newClient.city" />
+          <input id="clientCity" name="clientCity" type="text" [(ngModel)]="model().newClient!.city" />
         </div>
         <div class="field">
           <label for="clientState">State</label>
-          <input id="clientState" name="clientState" type="text" [(ngModel)]="model.newClient.state" />
+          <input id="clientState" name="clientState" type="text" [(ngModel)]="model().newClient!.state" />
         </div>
         <div class="field">
           <label for="clientZip">ZIP</label>
-          <input id="clientZip" name="clientZip" type="text" [(ngModel)]="model.newClient.zip" />
+          <input id="clientZip" name="clientZip" type="text" [(ngModel)]="model().newClient!.zip" />
         </div>
       </div>
       }
@@ -237,7 +237,7 @@
            Same card as the company, because recording the counterparty is one act
            of data entry. They stay two entities underneath, which is what lets the
            same person sign for a second location later. -->
-      @if (model.newClientSigner) {
+      @if (model().newClientSigner) {
       <div class="subsection">
         <h3>Who signs for them</h3>
 
@@ -246,7 +246,7 @@
           <select id="clientSignerPicker" name="clientSignerPicker"
                   [(ngModel)]="selectedClientSignerId" (ngModelChange)="onClientSignerSelected()">
             <option [ngValue]="null">— New contact —</option>
-            @for (c of clientSigners; track c.id) {
+            @for (c of clientSigners(); track c.id) {
             <option [ngValue]="c.id">{{ c.fullName }}</option>
             }
           </select>
@@ -256,29 +256,29 @@
           <div class="field">
             <label for="signerFirstName">First name</label>
             <input id="signerFirstName" name="signerFirstName" type="text"
-                   [(ngModel)]="model.newClientSigner.firstName" />
+                   [(ngModel)]="model().newClientSigner!.firstName" />
           </div>
           <div class="field">
             <label for="signerLastName">Last name</label>
             <input id="signerLastName" name="signerLastName" type="text"
-                   [(ngModel)]="model.newClientSigner.lastName" />
+                   [(ngModel)]="model().newClientSigner!.lastName" />
           </div>
           <div class="field">
             <label for="signerTitle">Title</label>
             <input id="signerTitle" name="signerTitle" type="text"
-                   [(ngModel)]="model.newClientSigner.title" />
+                   [(ngModel)]="model().newClientSigner!.title" />
             <small class="hint">Can be left blank — the client can fill it in when they sign.</small>
           </div>
           <div class="field">
             <label for="signerEmail">Email</label>
             <input id="signerEmail" name="signerEmail" type="email"
-                   [(ngModel)]="model.newClientSigner.email"
+                   [(ngModel)]="model().newClientSigner!.email"
                    (ngModelChange)="onSignerContactChanged()" />
           </div>
           <div class="field">
             <label for="signerPhone">Phone</label>
             <input id="signerPhone" name="signerPhone" type="tel"
-                   [(ngModel)]="model.newClientSigner.phone"
+                   [(ngModel)]="model().newClientSigner!.phone"
                    (ngModelChange)="onSignerContactChanged()" />
           </div>
         </div>
@@ -289,7 +289,7 @@
            The agreement serves notice on the CLIENT's email and phone, which in
            practice is almost always the signer's. Default to reusing them and only
            ask for a separate address when the admin says the two genuinely differ. -->
-      @if (model.newClient) {
+      @if (model().newClient) {
       <div class="subsection">
         <h3>Contract notices</h3>
 
@@ -300,25 +300,25 @@
           <span>Use signer email and phone for contract notices</span>
         </label>
 
-        @if (!useSignerContactForNotices) {
+        @if (!useSignerContactForNotices()) {
         <div class="grid">
           <div class="field">
             <label for="clientNoticeEmail">Notice email</label>
             <input id="clientNoticeEmail" name="clientNoticeEmail" type="email"
-                   [(ngModel)]="model.newClient.noticeEmail" />
+                   [(ngModel)]="model().newClient!.noticeEmail" />
           </div>
           <div class="field">
             <label for="clientPhone">Notice phone</label>
             <input id="clientPhone" name="clientPhone" type="tel"
-                   [(ngModel)]="model.newClient.phone" />
+                   [(ngModel)]="model().newClient!.phone" />
           </div>
         </div>
         }
 
-        @if (useSignerContactForNotices) {
+        @if (useSignerContactForNotices()) {
         <small class="hint">
           Section 32 notices will go to
-          {{ model.newClientSigner?.email || 'the signer’s email' }}.
+          {{ model().newClientSigner?.email || 'the signer’s email' }}.
         </small>
         }
       </div>
@@ -346,43 +346,43 @@
         <select id="locationPicker" name="locationPicker"
                 [(ngModel)]="selectedLocationId" (ngModelChange)="onLocationSelected()">
           <option [ngValue]="null">— New location —</option>
-          @for (l of locations; track l.id) {
+          @for (l of locations(); track l.id) {
           <option [ngValue]="l.id">{{ l.displayLabel }}</option>
           }
         </select>
       </div>
 
-      @if (model.newServiceLocation) {
+      @if (model().newServiceLocation) {
       <div class="grid">
         <div class="field">
           <label for="brand">Business / brand</label>
           <input id="brand" name="brand" type="text"
-                 [(ngModel)]="model.newServiceLocation.businessBrand" placeholder="Chick-fil-A" />
+                 [(ngModel)]="model().newServiceLocation!.businessBrand" placeholder="Chick-fil-A" />
         </div>
         <div class="field">
           <label for="locationName">Location name</label>
           <input id="locationName" name="locationName" type="text"
-                 [(ngModel)]="model.newServiceLocation.locationName" />
+                 [(ngModel)]="model().newServiceLocation!.locationName" />
         </div>
         <div class="field wide">
           <label for="locationAddress">Address</label>
           <input id="locationAddress" name="locationAddress" type="text"
-                 [(ngModel)]="model.newServiceLocation.address" />
+                 [(ngModel)]="model().newServiceLocation!.address" />
         </div>
         <div class="field">
           <label for="locationCity">City</label>
           <input id="locationCity" name="locationCity" type="text"
-                 [(ngModel)]="model.newServiceLocation.city" />
+                 [(ngModel)]="model().newServiceLocation!.city" />
         </div>
         <div class="field">
           <label for="locationState">State</label>
           <input id="locationState" name="locationState" type="text"
-                 [(ngModel)]="model.newServiceLocation.state" />
+                 [(ngModel)]="model().newServiceLocation!.state" />
         </div>
         <div class="field">
           <label for="locationZip">ZIP</label>
           <input id="locationZip" name="locationZip" type="text"
-                 [(ngModel)]="model.newServiceLocation.zip" />
+                 [(ngModel)]="model().newServiceLocation!.zip" />
         </div>
       </div>
       }
@@ -402,11 +402,11 @@
         <div class="field">
           <label for="visitsPerPeriod">Visits per period</label>
           <input id="visitsPerPeriod" name="visitsPerPeriod" type="number" min="1"
-                 [(ngModel)]="model.schedule.visitsPerPeriod" />
+                 [(ngModel)]="model().schedule.visitsPerPeriod" />
         </div>
         <div class="field">
           <label for="frequencyUnit">Period</label>
-          <select id="frequencyUnit" name="frequencyUnit" [(ngModel)]="model.schedule.frequencyUnit">
+          <select id="frequencyUnit" name="frequencyUnit" [(ngModel)]="model().schedule.frequencyUnit">
             @for (unit of frequencyUnits; track unit) {
             <option [ngValue]="unit">{{ unit }}</option>
             }
@@ -428,7 +428,7 @@
             </button>
             }
           </div>
-          @if (model.schedule.flexibleScheduling) {
+          @if (model().schedule.flexibleScheduling) {
           <small class="hint">
             These are the anticipated service days. With flexible scheduling on, the agreement says
             they are not permanently fixed, so an incomplete list is fine.
@@ -451,19 +451,19 @@
         <div class="field">
           <label for="arrivalWindowStart">Arrival window opens</label>
           <input id="arrivalWindowStart" name="arrivalWindowStart" type="text"
-                 [(ngModel)]="model.schedule.arrivalWindowStart"
+                 [(ngModel)]="model().schedule.arrivalWindowStart"
                  (ngModelChange)="onArrivalWindowChange()" placeholder="8:30 AM" />
         </div>
         <div class="field">
           <label for="arrivalWindowEnd">Arrival window closes</label>
           <input id="arrivalWindowEnd" name="arrivalWindowEnd" type="text"
-                 [(ngModel)]="model.schedule.arrivalWindowEnd" placeholder="9:30 AM" />
+                 [(ngModel)]="model().schedule.arrivalWindowEnd" placeholder="9:30 AM" />
           <small class="hint">Leave blank to state a single arrival time instead of a window.</small>
         </div>
         <div class="field">
           <label for="timeZoneLabel">Time zone wording</label>
           <input id="timeZoneLabel" name="timeZoneLabel" type="text"
-                 [(ngModel)]="model.schedule.timeZoneLabel" placeholder="local New York time" />
+                 [(ngModel)]="model().schedule.timeZoneLabel" placeholder="local New York time" />
           <small class="hint">
             Every time in the agreement refers to this clock, including the 24-hour cancellation
             deadline.
@@ -472,29 +472,29 @@
         <div class="field">
           <label for="completionTime">Required completion time</label>
           <input id="completionTime" name="completionTime" type="text"
-                 [(ngModel)]="model.schedule.completionTime" placeholder="e.g. by 11:00 AM" />
+                 [(ngModel)]="model().schedule.completionTime" placeholder="e.g. by 11:00 AM" />
           <small class="hint">Leave blank if none was agreed — the contract then does not mention a completion time at all.</small>
         </div>
         <div class="field">
           <label for="weekDefinition">A service period runs</label>
           <input id="weekDefinition" name="weekDefinition" type="text"
-                 [(ngModel)]="model.schedule.weekDefinition" placeholder="Monday through Sunday" />
+                 [(ngModel)]="model().schedule.weekDefinition" placeholder="Monday through Sunday" />
           <small class="hint">
             Decides which period a makeup visit settles.
           </small>
         </div>
         <div class="field wide">
           <label for="accessType">Access type</label>
-          <input id="accessType" name="accessType" type="text" [(ngModel)]="model.schedule.accessType" />
+          <input id="accessType" name="accessType" type="text" [(ngModel)]="model().schedule.accessType" />
         </div>
         <label class="check">
           <input type="checkbox" name="flexibleScheduling"
-                 [(ngModel)]="model.schedule.flexibleScheduling" />
+                 [(ngModel)]="model().schedule.flexibleScheduling" />
           <span>Flexible scheduling (day and time are anticipated, not fixed)</span>
         </label>
         <label class="check">
           <input type="checkbox" name="performedWhileClosed"
-                 [(ngModel)]="model.schedule.performedWhileClosed" />
+                 [(ngModel)]="model().schedule.performedWhileClosed" />
           <span>Performed while the premises are closed</span>
         </label>
       </div>
@@ -520,7 +520,7 @@
         <div class="field">
           <label for="billingFrequency">Invoice how often?</label>
           <select id="billingFrequency" name="billingFrequency"
-                  [(ngModel)]="model.billing.frequency">
+                  [(ngModel)]="model().billing.frequency">
             <option [ngValue]="ContractBillingFrequency.PerServiceVisit">Per service visit</option>
             <option [ngValue]="ContractBillingFrequency.Weekly">Weekly / every N weeks</option>
             <option [ngValue]="ContractBillingFrequency.Monthly">Monthly / every N months</option>
@@ -531,14 +531,14 @@
         <div class="field">
           <label for="billingInterval">Every</label>
           <input id="billingInterval" name="billingInterval" type="number" min="1" max="52"
-                 [(ngModel)]="model.billing.intervalCount" />
+                 [(ngModel)]="model().billing.intervalCount" />
           <small class="hint">Two weeks is “Weekly” with an interval of 2.</small>
         </div>
         }
         <div class="field">
           <label for="billingAnchor">Billing starts on (optional)</label>
           <input id="billingAnchor" name="billingAnchor" type="date"
-                 [(ngModel)]="model.billing.anchorDate" />
+                 [(ngModel)]="model().billing.anchorDate" />
           <small class="hint">Leave blank to count from the effective date.</small>
         </div>
       </div>
@@ -565,7 +565,7 @@
         <div class="field wide">
           <label for="serviceCommencementDate">First recurring service date</label>
           <input id="serviceCommencementDate" name="serviceCommencementDate" type="date"
-                 [(ngModel)]="model.term.serviceCommencementDate" />
+                 [(ngModel)]="model().term.serviceCommencementDate" />
           <small class="hint">{{ termDatesHint }}</small>
         </div>
         <!-- NO STANDARD MINIMUM COMMITMENT (2026-09-30). One exists only when it was specifically
@@ -589,52 +589,52 @@
           <div class="field">
             <label for="minimumCommitmentMonths">Agreed commitment (months)</label>
             <input id="minimumCommitmentMonths" name="minimumCommitmentMonths" type="number" min="1"
-                   [(ngModel)]="model.term.minimumCommitmentMonths"
+                   [(ngModel)]="model().term.minimumCommitmentMonths"
                    (ngModelChange)="onCommitmentMonthsChanged()" />
           </div>
           <div class="field">
             <label for="initialTermMonths">Initial term (months)</label>
             <input id="initialTermMonths" name="initialTermMonths" type="number"
-                   [min]="model.term.minimumCommitmentMonths"
-                   [(ngModel)]="model.term.initialTermMonths" />
+                   [min]="model().term.minimumCommitmentMonths"
+                   [(ngModel)]="model().term.initialTermMonths" />
             <small class="hint">At least the commitment. Month-to-month afterwards.</small>
           </div>
         }
         <div class="field">
           <label for="terminationNoticeDays">Termination notice (days)</label>
           <input id="terminationNoticeDays" name="terminationNoticeDays" type="number" min="0"
-                 [(ngModel)]="model.term.terminationNoticeDays" />
+                 [(ngModel)]="model().term.terminationNoticeDays" />
         </div>
         <div class="field">
           <label for="renewalType">Renewal</label>
-          <input id="renewalType" name="renewalType" type="text" [(ngModel)]="model.term.renewalType"
+          <input id="renewalType" name="renewalType" type="text" [(ngModel)]="model().term.renewalType"
                  placeholder="month-to-month" />
         </div>
         <div class="field">
           <label for="governingLawState">Governing law state</label>
           <input id="governingLawState" name="governingLawState" type="text"
-                 [(ngModel)]="model.term.governingLawState" />
+                 [(ngModel)]="model().term.governingLawState" />
         </div>
         <div class="field">
           <label for="venueCounty">Venue county</label>
-          <input id="venueCounty" name="venueCounty" type="text" [(ngModel)]="model.term.venueCounty" />
+          <input id="venueCounty" name="venueCounty" type="text" [(ngModel)]="model().term.venueCounty" />
         </div>
       </div>
 
       @if (!hasCustomCommitment) {
       <p class="hint">
-        No minimum commitment: the agreement runs <strong>{{ model.term.renewalType }}</strong> from the
+        No minimum commitment: the agreement runs <strong>{{ model().term.renewalType }}</strong> from the
         first service date until either party ends it with
-        <strong>{{ model.term.terminationNoticeDays }} days</strong> written notice.
+        <strong>{{ model().term.terminationNoticeDays }} days</strong> written notice.
       </p>
       }
       @if (hasCustomCommitment) {
       <p class="hint">
         The client is committed for
-        <strong>{{ model.term.minimumCommitmentMonths }} month{{ model.term.minimumCommitmentMonths === 1 ? '' : 's' }}</strong>.
+        <strong>{{ model().term.minimumCommitmentMonths }} month{{ model().term.minimumCommitmentMonths === 1 ? '' : 's' }}</strong>.
         Notice may be given during the commitment, but a termination for convenience takes effect no
         earlier than its end; after the initial term the agreement continues
-        <strong>{{ model.term.renewalType }}</strong> on <strong>{{ model.term.terminationNoticeDays }} days</strong>
+        <strong>{{ model().term.renewalType }}</strong> on <strong>{{ model().term.terminationNoticeDays }} days</strong>
         written notice. Termination for cause, safety and force majeure are unaffected.
       </p>
       }
@@ -658,19 +658,19 @@
           <div class="choice-row" role="radiogroup" aria-label="Pricing basis">
             <label class="check">
               <input type="radio" name="pricingBasis" [value]="ContractPricingBasis.PerVisit"
-                     [(ngModel)]="model.pricing.pricingBasis" (ngModelChange)="onPricingBasisChanged()" />
+                     [(ngModel)]="model().pricing.pricingBasis" (ngModelChange)="onPricingBasisChanged()" />
               <span>Per visit</span>
             </label>
             <label class="check">
               <input type="radio" name="pricingBasis" [value]="ContractPricingBasis.WeeklyFlatFee"
-                     [(ngModel)]="model.pricing.pricingBasis" (ngModelChange)="onPricingBasisChanged()" />
+                     [(ngModel)]="model().pricing.pricingBasis" (ngModelChange)="onPricingBasisChanged()" />
               <span>Weekly flat fee</span>
             </label>
           </div>
           @if (isWeeklyFlatFee) {
           <small class="hint">
-            One fee per calendar week covers that week's {{ model.schedule.visitsPerPeriod }} scheduled
-            visit{{ model.schedule.visitsPerPeriod === 1 ? '' : 's' }}. The visit count stays in the
+            One fee per calendar week covers that week's {{ model().schedule.visitsPerPeriod }} scheduled
+            visit{{ model().schedule.visitsPerPeriod === 1 ? '' : 's' }}. The visit count stays in the
             Service schedule; invoices must be weekly.
           </small>
           }
@@ -680,7 +680,7 @@
         </div>
         <div class="field">
           <label for="priceMode">Price mode</label>
-          <select id="priceMode" name="priceMode" [(ngModel)]="model.pricing.priceMode"
+          <select id="priceMode" name="priceMode" [(ngModel)]="model().pricing.priceMode"
                   (ngModelChange)="onPricingChanged()">
             <option [ngValue]="ContractPriceMode.PreTax">Pre-tax (tax added on top)</option>
             <option [ngValue]="ContractPriceMode.TaxInclusive">Tax-inclusive (total the client pays)</option>
@@ -689,7 +689,7 @@
         <div class="field">
           <label for="priceInput">{{ isWeeklyFlatFee ? 'Weekly fee' : 'Price per visit' }}</label>
           <input id="priceInput" name="priceInput" type="number" step="0.01" min="0"
-                 [(ngModel)]="model.pricing.priceInput" (ngModelChange)="onPricingChanged()" />
+                 [(ngModel)]="model().pricing.priceInput" (ngModelChange)="onPricingChanged()" />
         </div>
         <!-- PROTECTED WITH AN EDIT CONTROL. It is the same rate on every commercial document the
              business issues, so the common case is confirming it rather than typing it - and an
@@ -697,24 +697,24 @@
              is charged. Unlocking it reveals the "save as default" option. -->
         <div class="field">
           <label for="salesTaxRate">Sales tax rate (%)</label>
-          @if (!taxRateUnlocked) {
+          @if (!taxRateUnlocked()) {
           <div class="locked-field">
-            <span class="locked-value">{{ model.pricing.salesTaxRatePercent }}%</span>
+            <span class="locked-value">{{ model().pricing.salesTaxRatePercent }}%</span>
             <button type="button" class="link-btn" (click)="unlockTaxRate()">Edit</button>
           </div>
           }
-          @if (taxRateUnlocked) {
+          @if (taxRateUnlocked()) {
           <input
                  id="salesTaxRate" name="salesTaxRate" type="number" step="0.001" min="0"
-                 [(ngModel)]="model.pricing.salesTaxRatePercent" (ngModelChange)="onPricingChanged()" />
+                 [(ngModel)]="model().pricing.salesTaxRatePercent" (ngModelChange)="onPricingChanged()" />
           }
-          @if (taxRateUnlocked) {
+          @if (taxRateUnlocked()) {
           <label class="check">
-            <input type="checkbox" name="saveTaxDefault" [(ngModel)]="model.pricing.saveAsDefault" />
+            <input type="checkbox" name="saveTaxDefault" [(ngModel)]="model().pricing.saveAsDefault" />
             <span>Save this rate and price mode as the default for future contracts and invoices</span>
           </label>
           }
-          @if (taxRateUnlocked) {
+          @if (taxRateUnlocked()) {
           <small class="hint">
             Saving the default changes what new documents are prefilled with. Contracts already
             signed and invoices already finalized keep the rate they were issued under.
@@ -724,7 +724,7 @@
         <div class="field">
           <label for="cancellationPercent">Short-notice cancellation (%)</label>
           <input id="cancellationPercent" name="cancellationPercent" type="number" step="1" min="0" max="100"
-                 [(ngModel)]="model.pricing.cancellationPercent" (ngModelChange)="onPricingChanged()" />
+                 [(ngModel)]="model().pricing.cancellationPercent" (ngModelChange)="onPricingChanged()" />
           <small class="hint">
             A percentage of the PRE-TAX fee, and a ceiling on documented loss — not an automatic
             charge.
@@ -733,7 +733,7 @@
         <div class="field">
           <label for="liabilityCapMultiple">Liability cap (× {{ isWeeklyFlatFee ? 'one visit\'s share of the weekly fee' : 'pre-tax visit fee' }})</label>
           <input id="liabilityCapMultiple" name="liabilityCapMultiple" type="number" step="1" min="0"
-                 [(ngModel)]="model.pricing.liabilityCapMultiple" (ngModelChange)="onPricingChanged()" />
+                 [(ngModel)]="model().pricing.liabilityCapMultiple" (ngModelChange)="onPricingChanged()" />
           <small class="hint">
             Section 29(b). A multiple of the stated per-visit fee rather than a lookback in months,
             so the ceiling cannot drift when the visit frequency changes.
@@ -743,7 +743,7 @@
 
       <!-- Every figure below is computed by the server from the four inputs above. Labels stay
            visible while values resolve, per the project's shimmer convention. -->
-      @if (pricingPreview) {
+      @if (pricingPreview(); as pricingPreview) {
       <div class="derived">
         <h3>{{ isWeeklyFlatFee ? 'Weekly pricing' : 'Computed for Exhibit B' }}</h3>
         <div class="derived-grid">
@@ -783,25 +783,25 @@
         <div class="field wide">
           <label for="invoiceTiming">Invoice timing</label>
           <input id="invoiceTiming" name="invoiceTiming" type="text"
-                 [(ngModel)]="model.pricing.invoiceTiming" />
+                 [(ngModel)]="model().pricing.invoiceTiming" />
         </div>
         <div class="field">
           <label for="paymentDeadlineHours">Payment deadline (hours before)</label>
           <input id="paymentDeadlineHours" name="paymentDeadlineHours" type="number" min="0"
-                 [(ngModel)]="model.pricing.paymentDeadlineHours" />
+                 [(ngModel)]="model().pricing.paymentDeadlineHours" />
         </div>
         <div class="field">
           <label for="paymentMethod">Payment method</label>
           <input id="paymentMethod" name="paymentMethod" type="text"
-                 [(ngModel)]="model.pricing.paymentMethod" />
+                 [(ngModel)]="model().pricing.paymentMethod" />
         </div>
         <div class="field">
           <label for="lateChargePercent">Late charge (% per month)</label>
           <input id="lateChargePercent" name="lateChargePercent" type="number" step="0.1" min="0"
-                 [(ngModel)]="model.pricing.lateChargePercent" (ngModelChange)="onPricingChanged()" />
+                 [(ngModel)]="model().pricing.lateChargePercent" (ngModelChange)="onPricingChanged()" />
           <!-- The agreement quotes the same charge annually as well. Derived from this one figure
                so the pair can never contradict each other — a usury argument turns on it. -->
-          @if (pricingPreview) {
+          @if (pricingPreview(); as pricingPreview) {
           <small class="hint">
             Stated in the agreement as {{ pricingPreview.lateChargeAnnualPercent }}% per year.
           </small>
@@ -831,25 +831,25 @@
         <div class="field wide">
           <label for="equipmentProvidedBy">Cleaning supplies &amp; equipment provided by</label>
           <select id="equipmentProvidedBy" name="equipmentProvidedBy"
-                  [(ngModel)]="model.supplies.equipmentProvidedBy">
+                  [(ngModel)]="model().supplies.equipmentProvidedBy">
             <option [ngValue]="null">— Choose —</option>
             <option [ngValue]="SupplyProvider.Contractor">{{ contractorShortName }}</option>
             <option [ngValue]="SupplyProvider.Client">Client</option>
             <option [ngValue]="SupplyProvider.Shared">Divided between both</option>
           </select>
         </div>
-        @if (model.supplies.equipmentProvidedBy === SupplyProvider.Shared) {
+        @if (model().supplies.equipmentProvidedBy === SupplyProvider.Shared) {
         <div class="field wide">
           <label for="equipmentArrangementNotes">How it is divided</label>
           <input id="equipmentArrangementNotes" name="equipmentArrangementNotes" type="text"
-                 [(ngModel)]="model.supplies.equipmentArrangementNotes"
+                 [(ngModel)]="model().supplies.equipmentArrangementNotes"
                  placeholder="e.g. we provide vacuums and tools; client provides chemicals" />
         </div>
         }
         @for (row of standardConsumables; track row.key) {
         <div class="field">
           <label [for]="row.key">{{ row.label }}</label>
-          <select [id]="row.key" [name]="row.key" [(ngModel)]="model.supplies[row.key]">
+          <select [id]="row.key" [name]="row.key" [(ngModel)]="model().supplies[row.key]">
             <option [ngValue]="null">— Choose —</option>
             <option [ngValue]="SupplyProvider.Contractor">{{ contractorShortName }}</option>
             <option [ngValue]="SupplyProvider.Client">Client</option>
@@ -859,7 +859,7 @@
       </div>
 
       <h3 class="subhead">Other consumables</h3>
-      @for (item of model.supplies.otherConsumables; track $index; let i = $index) {
+      @for (item of model().supplies.otherConsumables; track $index; let i = $index) {
       <div class="grid">
         <div class="field">
           <input type="text" [name]="'otherConsumable-' + i" [(ngModel)]="item.item"
@@ -894,32 +894,32 @@
           @for (option of scopeDetailOptions; track option.value) {
           <label class="check">
             <input type="radio" name="scopeDetail" [value]="option.value"
-                   [(ngModel)]="model.scopeDetail" />
+                   [(ngModel)]="model().scopeDetail" />
             <span>{{ option.label }}</span>
           </label>
           }
         </div>
       </div>
 
-      @if (model.scopeDetail === ScopeDetailMode.Simplified) {
+      @if (model().scopeDetail === ScopeDetailMode.Simplified) {
       <p class="muted">
         Exhibit A will be three short sentences: the scope was agreed separately (discussions,
         walkthrough, written instructions or specifications), we perform the agreed services on the
         agreed schedule, and material extra work needs separate approval under Section 9.
       </p>
       }
-      @if (model.scopeDetail === ScopeDetailMode.Omitted) {
+      @if (model().scopeDetail === ScopeDetailMode.Omitted) {
       <p class="muted">
         No Exhibit A. Section 1 will say we provide the cleaning services the parties agreed, and no
         clause refers to an Exhibit A; work outside the agreed scope still needs approval.
       </p>
       }
-      @if (model.scopeDetail === ScopeDetailMode.Detailed) {
+      @if (model().scopeDetail === ScopeDetailMode.Detailed) {
 
       <p class="muted">Untick anything this contract does not cover. Only ticked items are written
         into Exhibit A.</p>
 
-      @for (group of model.scope.groups; track $index; let gi = $index) {
+      @for (group of model().scope.groups; track $index; let gi = $index) {
       <div class="scope-group">
         <div class="scope-head">
           <h3>{{ group.title }}</h3>
@@ -997,7 +997,7 @@
   <!-- 5.10b Exhibit A site details — Detailed scope only. Every field is optional: a blank one
        is left out of the agreement entirely (no blank line, no "None"). Nothing is seeded,
        because a guessed count printed in an executed agreement reads as verified. -->
-  @if (model.scopeDetail === ScopeDetailMode.Detailed) {
+  @if (model().scopeDetail === ScopeDetailMode.Detailed) {
   <section class="panel">
     <button type="button" class="panel-head" (click)="togglePanel('siteDetails')">
       <span>Site details (Exhibit A)</span>
@@ -1010,87 +1010,87 @@
         <div class="field">
           <label for="squareFootage">Approximate serviced square footage</label>
           <input id="squareFootage" name="squareFootage" type="text"
-                 [(ngModel)]="model.siteDetails.approximateSquareFootage"
+                 [(ngModel)]="model().siteDetails.approximateSquareFootage"
                  placeholder="e.g. 5,000 square feet" />
         </div>
         <div class="field">
           <label for="customerRestroomCounts">Customer restroom and fixture counts</label>
           <input id="customerRestroomCounts" name="customerRestroomCounts" type="text"
-                 [(ngModel)]="model.siteDetails.customerRestroomCounts"
+                 [(ngModel)]="model().siteDetails.customerRestroomCounts"
                  placeholder="e.g. 2 restrooms, 2 toilets, 2 sinks" />
         </div>
         <div class="field">
           <label for="employeeRestroomCounts">Employee restroom and fixture counts</label>
           <input id="employeeRestroomCounts" name="employeeRestroomCounts" type="text"
-                 [(ngModel)]="model.siteDetails.employeeRestroomCounts" />
+                 [(ngModel)]="model().siteDetails.employeeRestroomCounts" />
         </div>
         <div class="field wide">
           <label for="floorMaterials">Floor and surface materials</label>
           <input id="floorMaterials" name="floorMaterials" type="text"
-                 [(ngModel)]="model.siteDetails.floorMaterials"
+                 [(ngModel)]="model().siteDetails.floorMaterials"
                  placeholder="e.g. quarry tile in the kitchen, sealed concrete in the dining area" />
         </div>
         <div class="field wide">
           <label for="kitchenEquipmentSurfaces">Included kitchen equipment and exterior surfaces</label>
           <textarea id="kitchenEquipmentSurfaces" name="kitchenEquipmentSurfaces" rows="2"
-                    [(ngModel)]="model.siteDetails.kitchenEquipmentAndSurfaces"></textarea>
+                    [(ngModel)]="model().siteDetails.kitchenEquipmentAndSurfaces"></textarea>
         </div>
         <div class="field wide">
           <label for="touchpointLocations">Touchpoints and cleared surfaces</label>
           <textarea id="touchpointLocations" name="touchpointLocations" rows="2"
-                    [(ngModel)]="model.siteDetails.touchpointLocations"></textarea>
+                    [(ngModel)]="model().siteDetails.touchpointLocations"></textarea>
         </div>
         <div class="field wide">
           <label for="interiorGlassLocations">Interior glass and window locations</label>
           <textarea id="interiorGlassLocations" name="interiorGlassLocations" rows="2"
-                    [(ngModel)]="model.siteDetails.interiorGlassLocations"></textarea>
+                    [(ngModel)]="model().siteDetails.interiorGlassLocations"></textarea>
         </div>
         <!-- Blank leaves the line out, and that is safe: A3(d) and Section 25(e) exclude
              food-contact sanitizing unless a task is named here. -->
         <div class="field wide">
           <label for="foodContactSanitizing">Included food-contact sanitizing task</label>
           <textarea id="foodContactSanitizing" name="foodContactSanitizing" rows="2"
-                    [(ngModel)]="model.siteDetails.foodContactSanitizing"
+                    [(ngModel)]="model().siteDetails.foodContactSanitizing"
                     placeholder="Surface, frequency, and the required wash / rinse / sanitize procedure"></textarea>
           <small class="hint">Only if we agreed to sanitize a food-contact surface.</small>
         </div>
         <div class="field wide">
           <label for="accessMethodReference">Access method and closeout procedure reference</label>
           <input id="accessMethodReference" name="accessMethodReference" type="text"
-                 [(ngModel)]="model.siteDetails.accessMethodReference" />
+                 [(ngModel)]="model().siteDetails.accessMethodReference" />
           <small class="hint">Never put actual keys, codes or passwords here.</small>
         </div>
         <div class="field wide">
           <label for="equipmentRestrictions">Equipment that must remain operating, and manufacturer restrictions</label>
           <textarea id="equipmentRestrictions" name="equipmentRestrictions" rows="2"
-                    [(ngModel)]="model.siteDetails.equipmentRestrictions"
+                    [(ngModel)]="model().siteDetails.equipmentRestrictions"
                     placeholder="e.g. walk-in cooler and ice machine stay on; do not alter thermostat settings"></textarea>
         </div>
         <div class="field wide">
           <label for="wasteReceptacleLocations">Waste, recycling and organics receptacle locations</label>
           <textarea id="wasteReceptacleLocations" name="wasteReceptacleLocations" rows="2"
-                    [(ngModel)]="model.siteDetails.wasteReceptacleLocations"></textarea>
+                    [(ngModel)]="model().siteDetails.wasteReceptacleLocations"></textarea>
         </div>
         <div class="field">
           <label for="foodPermitHolder">Food-service permit holder</label>
           <input id="foodPermitHolder" name="foodPermitHolder" type="text"
-                 [(ngModel)]="model.siteDetails.foodServicePermitHolder" />
+                 [(ngModel)]="model().siteDetails.foodServicePermitHolder" />
           <small class="hint">Legal name — not necessarily the client.</small>
         </div>
         <div class="field">
           <label for="siteRequirements">Site, landlord or brand requirements</label>
           <input id="siteRequirements" name="siteRequirements" type="text"
-                 [(ngModel)]="model.siteDetails.siteRequirements" />
+                 [(ngModel)]="model().siteDetails.siteRequirements" />
         </div>
         <div class="field">
           <label for="baselineWalkthrough">Baseline walkthrough date and record</label>
           <input id="baselineWalkthrough" name="baselineWalkthrough" type="text"
-                 [(ngModel)]="model.siteDetails.baselineWalkthroughRecord" />
+                 [(ngModel)]="model().siteDetails.baselineWalkthroughRecord" />
         </div>
         <div class="field">
           <label for="initialWorkChangeOrder">Initial-work Change Order</label>
           <input id="initialWorkChangeOrder" name="initialWorkChangeOrder" type="text"
-                 [(ngModel)]="model.siteDetails.initialWorkChangeOrder" />
+                 [(ngModel)]="model().siteDetails.initialWorkChangeOrder" />
           <small class="hint">Reference for any agreed initial deep clean.</small>
         </div>
       </div>
@@ -1124,29 +1124,29 @@
         <div class="field">
           <label for="contractorApprovalEmail">Approval email (optional)</label>
           <input id="contractorApprovalEmail" name="contractorApprovalEmail" type="email"
-                 [(ngModel)]="model.contacts.contractorApprovalEmail" />
+                 [(ngModel)]="model().contacts.contractorApprovalEmail" />
           <small class="hint">Leave blank to approve from the notice address.</small>
         </div>
         <div class="field">
           <label for="contractorOperationalEmail">Operational email</label>
           <input id="contractorOperationalEmail" name="contractorOperationalEmail" type="email"
-                 [(ngModel)]="model.contacts.contractorOperationalEmail" />
+                 [(ngModel)]="model().contacts.contractorOperationalEmail" />
           <small class="hint">Monitored on weekends — a cancellation is effective when sent here.</small>
         </div>
         <div class="field">
           <label for="contractorSupervisorName">Supervisor / primary on-call</label>
           <input id="contractorSupervisorName" name="contractorSupervisorName" type="text"
-                 [(ngModel)]="model.contacts.contractorSupervisorName" />
+                 [(ngModel)]="model().contacts.contractorSupervisorName" />
         </div>
         <div class="field">
           <label for="contractorSupervisorPhone">Supervisor phone</label>
           <input id="contractorSupervisorPhone" name="contractorSupervisorPhone" type="tel"
-                 [(ngModel)]="model.contacts.contractorSupervisorPhone" />
+                 [(ngModel)]="model().contacts.contractorSupervisorPhone" />
         </div>
         <div class="field wide">
           <label for="contractorBackupContact">Backup on-call contact (optional)</label>
           <input id="contractorBackupContact" name="contractorBackupContact" type="text"
-                 [(ngModel)]="model.contacts.contractorBackupContact"
+                 [(ngModel)]="model().contacts.contractorBackupContact"
                  placeholder="Name and telephone" />
           <small class="hint">Leave blank if there is none.</small>
         </div>
@@ -1157,7 +1157,7 @@
         <div class="field">
           <label for="clientApprovalEmail">Approval email (optional)</label>
           <input id="clientApprovalEmail" name="clientApprovalEmail" type="email"
-                 [(ngModel)]="model.contacts.clientApprovalEmail" />
+                 [(ngModel)]="model().contacts.clientApprovalEmail" />
         </div>
         <!-- NO "FORMAL NOTICE MAILING ADDRESS" FIELD (2026-09-15). The agreement no longer asks
              the client for one: the preamble identifies them by legal entity, Exhibit B4 has no
@@ -1168,28 +1168,28 @@
         <div class="field">
           <label for="contactsClientNoticeEmail">Client notice email</label>
           <input id="contactsClientNoticeEmail" name="contactsClientNoticeEmail" type="email"
-                 [(ngModel)]="model.contacts.clientNoticeEmail" />
+                 [(ngModel)]="model().contacts.clientNoticeEmail" />
           <small class="hint">Leave blank to use the client’s notice email on file.</small>
         </div>
         <div class="field">
           <label for="clientOperationalEmail">Operational email</label>
           <input id="clientOperationalEmail" name="clientOperationalEmail" type="email"
-                 [(ngModel)]="model.contacts.clientOperationalEmail" />
+                 [(ngModel)]="model().contacts.clientOperationalEmail" />
         </div>
         <div class="field">
           <label for="clientOnCallName">Primary on-call contact</label>
           <input id="clientOnCallName" name="clientOnCallName" type="text"
-                 [(ngModel)]="model.contacts.clientOnCallName" />
+                 [(ngModel)]="model().contacts.clientOnCallName" />
         </div>
         <div class="field">
           <label for="clientOnCallPhone">Primary on-call phone</label>
           <input id="clientOnCallPhone" name="clientOnCallPhone" type="tel"
-                 [(ngModel)]="model.contacts.clientOnCallPhone" />
+                 [(ngModel)]="model().contacts.clientOnCallPhone" />
         </div>
         <div class="field wide">
           <label for="clientBackupContact">Backup on-call contact (optional)</label>
           <input id="clientBackupContact" name="clientBackupContact" type="text"
-                 [(ngModel)]="model.contacts.clientBackupContact"
+                 [(ngModel)]="model().contacts.clientBackupContact"
                  placeholder="Name and telephone" />
           <small class="hint">Leave blank if there is none.</small>
         </div>
@@ -1214,7 +1214,7 @@
         <div class="field wide">
           <label for="agreedEndorsements">Additional endorsements agreed</label>
           <input id="agreedEndorsements" name="agreedEndorsements" type="text"
-                 [(ngModel)]="model.insurance.agreedEndorsements"
+                 [(ngModel)]="model().insurance.agreedEndorsements"
                  placeholder="e.g. additional insured, waiver of subrogation" />
         </div>
         <!-- THREE FIELDS, NOT ONE NOTE. Section 20(c) says a certificate alone does not amend a
@@ -1224,12 +1224,12 @@
         <div class="field wide">
           <label for="endorsementDetails">Insurer, policy, form and edition, protected entity, applicable work</label>
           <textarea id="endorsementDetails" name="endorsementDetails" rows="3"
-                    [(ngModel)]="model.insurance.endorsementDetails"></textarea>
+                    [(ngModel)]="model().insurance.endorsementDetails"></textarea>
         </div>
         <div class="field wide">
           <label for="additionalPremium">Agreed additional premium or price adjustment</label>
           <input id="additionalPremium" name="additionalPremium" type="text"
-                 [(ngModel)]="model.insurance.additionalPremium" />
+                 [(ngModel)]="model().insurance.additionalPremium" />
           <small class="hint">Listing an endorsement does not obtain it — it must be issued before the work.</small>
         </div>
       </div>
@@ -1251,19 +1251,19 @@
         <div class="field">
           <label for="timelyRescheduleHours">Timely reschedule notice (hours) — §15(a)</label>
           <input id="timelyRescheduleHours" name="timelyRescheduleHours" type="number" min="0"
-                 [(ngModel)]="model.advanced.timelyRescheduleHours" />
+                 [(ngModel)]="model().advanced.timelyRescheduleHours" />
         </div>
         <div class="field">
           <label for="makeupWindowDays">Makeup window (calendar days) — §14(c), §15</label>
           <input id="makeupWindowDays" name="makeupWindowDays" type="number" min="0"
-                 [(ngModel)]="model.advanced.makeupWindowDays" />
+                 [(ngModel)]="model().advanced.makeupWindowDays" />
           <small class="hint">Used by every clause that mentions a makeup, so they cannot offer
             two different deadlines.</small>
         </div>
         <div class="field">
           <label for="lockoutWaitMinutes">Lockout wait (minutes) — §14(a)</label>
           <input id="lockoutWaitMinutes" name="lockoutWaitMinutes" type="number" min="0"
-                 [(ngModel)]="model.advanced.lockoutWaitMinutes" />
+                 [(ngModel)]="model().advanced.lockoutWaitMinutes" />
         </div>
         <!-- The clause then refers back to "the second such visit" and "a third such visit". Both
              ordinals are derived from this threshold server-side, so raising it cannot leave the
@@ -1271,136 +1271,136 @@
         <div class="field">
           <label for="missedVisitThreshold">Missed visits before breach — §15(f)</label>
           <input id="missedVisitThreshold" name="missedVisitThreshold" type="number" min="1"
-                 [(ngModel)]="model.advanced.missedVisitThreshold" />
+                 [(ngModel)]="model().advanced.missedVisitThreshold" />
         </div>
         <div class="field">
           <label for="missedVisitWindowWeeks">…within a rolling window (weeks)</label>
           <input id="missedVisitWindowWeeks" name="missedVisitWindowWeeks" type="number" min="1"
-                 [(ngModel)]="model.advanced.missedVisitWindowWeeks" />
+                 [(ngModel)]="model().advanced.missedVisitWindowWeeks" />
         </div>
         <div class="field">
           <label for="servicePlanDays">Service-plan response (days) — §15(f)</label>
           <input id="servicePlanDays" name="servicePlanDays" type="number" min="0"
-                 [(ngModel)]="model.advanced.servicePlanDays" />
+                 [(ngModel)]="model().advanced.servicePlanDays" />
         </div>
 
         <div class="field">
           <label for="curePeriodDays">Cure period (days) — §4(b)</label>
           <input id="curePeriodDays" name="curePeriodDays" type="number" min="0"
-                 [(ngModel)]="model.advanced.curePeriodDays" />
+                 [(ngModel)]="model().advanced.curePeriodDays" />
         </div>
         <div class="field">
           <label for="pastDueDays">Nonpayment after demand (days) — §4(c)</label>
           <input id="pastDueDays" name="pastDueDays" type="number" min="0"
-                 [(ngModel)]="model.advanced.pastDueDays" />
+                 [(ngModel)]="model().advanced.pastDueDays" />
         </div>
         <div class="field">
           <label for="creditReturnDays">Unearned credit return (days) — §4(d), §15</label>
           <input id="creditReturnDays" name="creditReturnDays" type="number" min="0"
-                 [(ngModel)]="model.advanced.creditReturnDays" />
+                 [(ngModel)]="model().advanced.creditReturnDays" />
         </div>
         <div class="field">
           <label for="forceMajeureDays">Force-majeure termination (days) — §30(b)</label>
           <input id="forceMajeureDays" name="forceMajeureDays" type="number" min="0"
-                 [(ngModel)]="model.advanced.forceMajeureDays" />
+                 [(ngModel)]="model().advanced.forceMajeureDays" />
         </div>
 
         <div class="field">
           <label for="invoiceLeadDays">Invoice lead time (days) — §11(a)</label>
           <input id="invoiceLeadDays" name="invoiceLeadDays" type="number" min="0"
-                 [(ngModel)]="model.advanced.invoiceLeadDays" />
+                 [(ngModel)]="model().advanced.invoiceLeadDays" />
         </div>
         <!-- The pair below is what stops a late invoice manufacturing a cancellation charge:
              invoice inside the window and the client gets the grace days instead. -->
         <div class="field">
           <label for="lateInvoiceThresholdDays">Late-invoice threshold (days) — §11(a)</label>
           <input id="lateInvoiceThresholdDays" name="lateInvoiceThresholdDays" type="number" min="0"
-                 [(ngModel)]="model.advanced.lateInvoiceThresholdDays" />
+                 [(ngModel)]="model().advanced.lateInvoiceThresholdDays" />
         </div>
         <div class="field">
           <label for="lateInvoiceGraceBusinessDays">…grace after receipt (business days)</label>
           <input id="lateInvoiceGraceBusinessDays" name="lateInvoiceGraceBusinessDays" type="number" min="0"
-                 [(ngModel)]="model.advanced.lateInvoiceGraceBusinessDays" />
+                 [(ngModel)]="model().advanced.lateInvoiceGraceBusinessDays" />
         </div>
         <div class="field">
           <label for="interestGraceDays">Interest-free grace (days) — §11(f)</label>
           <input id="interestGraceDays" name="interestGraceDays" type="number" min="0"
-                 [(ngModel)]="model.advanced.interestGraceDays" />
+                 [(ngModel)]="model().advanced.interestGraceDays" />
         </div>
 
         <div class="field">
           <label for="billingDisputeDays">Billing dispute window (business days) — §12</label>
           <input id="billingDisputeDays" name="billingDisputeDays" type="number" min="0"
-                 [(ngModel)]="model.advanced.billingDisputeDays" />
+                 [(ngModel)]="model().advanced.billingDisputeDays" />
         </div>
         <div class="field">
           <label for="disputeResponseBusinessDays">Dispute resolution attempt (business days) — §12</label>
           <input id="disputeResponseBusinessDays" name="disputeResponseBusinessDays" type="number" min="0"
-                 [(ngModel)]="model.advanced.disputeResponseBusinessDays" />
+                 [(ngModel)]="model().advanced.disputeResponseBusinessDays" />
         </div>
         <div class="field">
           <label for="resolutionPaymentBusinessDays">Payment after resolution (business days) — §12</label>
           <input id="resolutionPaymentBusinessDays" name="resolutionPaymentBusinessDays" type="number" min="0"
-                 [(ngModel)]="model.advanced.resolutionPaymentBusinessDays" />
+                 [(ngModel)]="model().advanced.resolutionPaymentBusinessDays" />
         </div>
         <div class="field">
           <label for="damageNoticeBusinessDays">Damage notice after discovery (business days) — §21</label>
           <input id="damageNoticeBusinessDays" name="damageNoticeBusinessDays" type="number" min="0"
-                 [(ngModel)]="model.advanced.damageNoticeBusinessDays" />
+                 [(ngModel)]="model().advanced.damageNoticeBusinessDays" />
         </div>
         <div class="field">
           <label for="qualityComplaintHours">Quality report window after completion (hours) — §22(a)</label>
           <input id="qualityComplaintHours" name="qualityComplaintHours" type="number" min="0"
-                 [(ngModel)]="model.advanced.qualityComplaintHours" />
+                 [(ngModel)]="model().advanced.qualityComplaintHours" />
         </div>
         <div class="field">
           <label for="qualityLatentDeficiencyLimitHours">Hidden-issue outer limit (hours) — §22(a)</label>
           <input id="qualityLatentDeficiencyLimitHours" name="qualityLatentDeficiencyLimitHours" type="number" min="0"
-                 [(ngModel)]="model.advanced.qualityLatentDeficiencyLimitHours" />
+                 [(ngModel)]="model().advanced.qualityLatentDeficiencyLimitHours" />
           <small class="hint">Only for issues that could not reasonably be found sooner.</small>
         </div>
         <div class="field">
           <label for="qualityCorrectionBusinessDays">Re-performance window (business days) — §22(b)</label>
           <input id="qualityCorrectionBusinessDays" name="qualityCorrectionBusinessDays" type="number" min="0"
-                 [(ngModel)]="model.advanced.qualityCorrectionBusinessDays" />
+                 [(ngModel)]="model().advanced.qualityCorrectionBusinessDays" />
         </div>
         <div class="field">
           <label for="refundBusinessDays">Refund after request (business days) — §15(e)</label>
           <input id="refundBusinessDays" name="refundBusinessDays" type="number" min="0"
-                 [(ngModel)]="model.advanced.refundBusinessDays" />
+                 [(ngModel)]="model().advanced.refundBusinessDays" />
         </div>
 
         <div class="field">
           <label for="keyReturnBusinessDays">Key / credential return (business days) — §13(b)</label>
           <input id="keyReturnBusinessDays" name="keyReturnBusinessDays" type="number" min="0"
-                 [(ngModel)]="model.advanced.keyReturnBusinessDays" />
+                 [(ngModel)]="model().advanced.keyReturnBusinessDays" />
         </div>
         <div class="field">
           <label for="confidentialityYears">Confidentiality (years) — §27</label>
           <input id="confidentialityYears" name="confidentialityYears" type="number" min="0"
-                 [(ngModel)]="model.advanced.confidentialityYears" />
+                 [(ngModel)]="model().advanced.confidentialityYears" />
         </div>
 
         <div class="field">
           <label for="insurancePerOccurrence">CGL each occurrence — §20(a)</label>
           <input id="insurancePerOccurrence" name="insurancePerOccurrence" type="number" step="1000" min="0"
-                 [(ngModel)]="model.advanced.insurancePerOccurrence" />
+                 [(ngModel)]="model().advanced.insurancePerOccurrence" />
         </div>
         <div class="field">
           <label for="insuranceAggregate">CGL general aggregate — §20(a)</label>
           <input id="insuranceAggregate" name="insuranceAggregate" type="number" step="1000" min="0"
-                 [(ngModel)]="model.advanced.insuranceAggregate" />
+                 [(ngModel)]="model().advanced.insuranceAggregate" />
         </div>
         <div class="field">
           <label for="insuranceJurisdiction">Workers' comp jurisdiction — §20(b)</label>
           <input id="insuranceJurisdiction" name="insuranceJurisdiction" type="text"
-                 [(ngModel)]="model.advanced.insuranceJurisdiction" />
+                 [(ngModel)]="model().advanced.insuranceJurisdiction" />
         </div>
 
         <div class="field">
           <label for="priceReviewNoticeDays">Price-review notice (days) — §8(c)</label>
           <input id="priceReviewNoticeDays" name="priceReviewNoticeDays" type="number" min="0"
-                 [(ngModel)]="model.advanced.priceReviewNoticeDays" />
+                 [(ngModel)]="model().advanced.priceReviewNoticeDays" />
         </div>
 
         <!-- A phrase rather than a derived value: no rule turns a governing-law state into the
@@ -1409,43 +1409,43 @@
         <div class="field wide">
           <label for="complianceJurisdictions">Applicable law named in §26(a)</label>
           <input id="complianceJurisdictions" name="complianceJurisdictions" type="text"
-                 [(ngModel)]="model.advanced.complianceJurisdictions" />
+                 [(ngModel)]="model().advanced.complianceJurisdictions" />
         </div>
 
         <div class="field">
           <label for="disputeDiscussionDays">Senior-representative conference (days) — §34(a)</label>
           <input id="disputeDiscussionDays" name="disputeDiscussionDays" type="number" min="0"
-                 [(ngModel)]="model.advanced.disputeDiscussionDays" />
+                 [(ngModel)]="model().advanced.disputeDiscussionDays" />
         </div>
         <div class="field">
           <label for="mediationRequestDays">Mediation may be requested after (days) — §34(a)</label>
           <input id="mediationRequestDays" name="mediationRequestDays" type="number" min="0"
-                 [(ngModel)]="model.advanced.mediationRequestDays" />
+                 [(ngModel)]="model().advanced.mediationRequestDays" />
         </div>
         <div class="field">
           <label for="mediatorSelectionDays">Mediator selection (days) — §34(a)</label>
           <input id="mediatorSelectionDays" name="mediatorSelectionDays" type="number" min="0"
-                 [(ngModel)]="model.advanced.mediatorSelectionDays" />
+                 [(ngModel)]="model().advanced.mediatorSelectionDays" />
         </div>
         <div class="field">
           <label for="suitAfterDays">Suit may be filed after (days) — §34(a)</label>
           <input id="suitAfterDays" name="suitAfterDays" type="number" min="0"
-                 [(ngModel)]="model.advanced.suitAfterDays" />
+                 [(ngModel)]="model().advanced.suitAfterDays" />
         </div>
         <div class="field">
           <label for="collectionDemandBusinessDays">Collection demand (business days) — §34(c)</label>
           <input id="collectionDemandBusinessDays" name="collectionDemandBusinessDays" type="number" min="0"
-                 [(ngModel)]="model.advanced.collectionDemandBusinessDays" />
+                 [(ngModel)]="model().advanced.collectionDemandBusinessDays" />
         </div>
         <div class="field wide">
           <label for="mediationVenue">Mediation venue — §34(a)</label>
           <input id="mediationVenue" name="mediationVenue" type="text"
-                 [(ngModel)]="model.advanced.mediationVenue" />
+                 [(ngModel)]="model().advanced.mediationVenue" />
         </div>
         <div class="field wide">
           <label for="federalVenue">Federal venue — §33</label>
           <input id="federalVenue" name="federalVenue" type="text"
-                 [(ngModel)]="model.advanced.federalVenue" />
+                 [(ngModel)]="model().advanced.federalVenue" />
           <small class="hint">
             Named only where federal subject-matter jurisdiction independently exists. Keep it in
             step with the venue county above, or §33 names a court with no jurisdiction over
@@ -1458,8 +1458,8 @@
   </section>
 
   <div class="form-footer">
-    <button type="button" class="btn-primary" (click)="generatePreview()" [disabled]="saving">
-      {{ saving ? 'Generating…' : 'Generate contract preview' }}
+    <button type="button" class="btn-primary" (click)="generatePreview()" [disabled]="saving()">
+      {{ saving() ? 'Generating…' : 'Generate contract preview' }}
     </button>
     <!-- Said explicitly: generating is internal, and nobody is emailed until the admin approves. -->
     <span class="muted">Generating a preview notifies nobody. The client is emailed only when you
@@ -1468,6 +1468,6 @@
 </div>
 }
 
-@if (loading) {
+@if (loading()) {
 <div class="contract-form loading-state">Loading…</div>
 }

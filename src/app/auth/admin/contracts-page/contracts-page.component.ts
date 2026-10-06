@@ -23,7 +23,7 @@ import { ContractsComponent } from '../crm/contracts/contracts.component';
   standalone: true,
   imports: [ContractsComponent],
   templateUrl: './contracts-page.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./contracts-page.component.scss']
 })
 export class ContractsPageComponent implements OnInit {

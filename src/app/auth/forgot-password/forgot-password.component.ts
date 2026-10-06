@@ -3,6 +3,7 @@ import { Component, ChangeDetectionStrategy, inject, signal } from '@angular/cor
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
+import { formViewRefresher } from '../../shared/forms/form-view-refresher';
 
 @Component({
   selector: 'app-forgot-password',
@@ -13,6 +14,8 @@ import { AuthService } from '../../services/auth.service';
   styleUrls: ['./forgot-password.component.scss']
 })
 export class ForgotPasswordComponent {
+  /** Re-renders when a form changes outside a template event (see form-view-refresher). */
+  private readonly watchForm = formViewRefresher();
   private fb = inject(FormBuilder);
   private authService = inject(AuthService);
 
@@ -25,6 +28,7 @@ export class ForgotPasswordComponent {
     this.forgotForm = this.fb.group({
       email: ['', [Validators.required, Validators.email]]
     });
+    this.watchForm(this.forgotForm);
   }
 
   onSubmit() {

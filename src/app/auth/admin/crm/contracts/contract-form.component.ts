@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, OnInit, Output, inject, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, inject, ChangeDetectionStrategy, output, input, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subject, debounceTime, forkJoin } from 'rxjs';
@@ -64,35 +64,35 @@ type PanelKey =
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './contract-form.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./contract-form.component.scss']
 })
 export class ContractFormComponent implements OnInit {
   /** Null creates a new contract; otherwise the draft of this contract is loaded for editing. */
-  @Input() contractId: number | null = null;
+  readonly contractId = input<number | null>(null);
 
-  @Output() generated = new EventEmitter<ContractDetail>();
-  @Output() cancelled = new EventEmitter<void>();
+  readonly generated = output<ContractDetail>();
+  readonly cancelled = output<void>();
 
   private contracts = inject(ContractService);
   private invoices = inject(InvoiceService);
 
-  loading = true;
-  saving = false;
-  errorMessage = '';
+  readonly loading = signal(true);
+  readonly saving = signal(false);
+  readonly errorMessage = signal('');
 
-  contractNumber = '';
+  readonly contractNumber = signal('');
 
   // Reference data
-  templates: ContractTemplate[] = [];
-  scopeTemplates: ScopeTemplate[] = [];
-  contractorProfiles: ContractorProfile[] = [];
-  clients: ContractClient[] = [];
-  locations: ContractServiceLocation[] = [];
-  clientSigners: ContractContact[] = [];
+  readonly templates = signal<ContractTemplate[]>([]);
+  readonly scopeTemplates = signal<ScopeTemplate[]>([]);
+  readonly contractorProfiles = signal<ContractorProfile[]>([]);
+  readonly clients = signal<ContractClient[]>([]);
+  readonly locations = signal<ContractServiceLocation[]>([]);
+  readonly clientSigners = signal<ContractContact[]>([]);
   /** Business-flagged accounts a client can be linked to; the link opens My Contracts. */
-  businessCustomers: BusinessCustomer[] = [];
-  contractorSigners: ContractContact[] = [];
+  readonly businessCustomers = signal<BusinessCustomer[]>([]);
+  readonly contractorSigners = signal<ContractContact[]>([]);
 
   /**
    * True once the entity type is somebody's answer rather than something this form guessed from
@@ -102,17 +102,17 @@ export class ContractFormComponent implements OnInit {
   private entityTypeManuallyEdited = false;
 
   // Selection state. `null` in a picker means "a new one, typed below".
-  selectedClientId: number | null = null;
-  selectedLocationId: number | null = null;
-  selectedClientSignerId: number | null = null;
+  readonly selectedClientId = signal<number | null>(null);
+  readonly selectedLocationId = signal<number | null>(null);
+  readonly selectedClientSignerId = signal<number | null>(null);
 
-  effectiveDate = '';
-  premisesType = '';
+  readonly effectiveDate = signal('');
+  readonly premisesType = signal('');
 
-  model: SaveContract = this.emptyModel();
-  pricingPreview: ContractPricingPreview | null = null;
+  readonly model = signal<SaveContract>(this.emptyModel(), { equal: () => false });
+  readonly pricingPreview = signal<ContractPricingPreview | null>(null);
 
-  openPanels = new Set<PanelKey>(['template', 'client', 'location', 'schedule', 'pricing']);
+  readonly openPanels = signal(new Set<PanelKey>(['template', 'client', 'location', 'schedule', 'pricing']), { equal: () => false });
 
   readonly ContractPriceMode = ContractPriceMode;
   readonly ContractPricingBasis = ContractPricingBasis;
@@ -149,7 +149,7 @@ export class ContractFormComponent implements OnInit {
    * keystroke on a field that decides what a client is charged. Unlocking it is one click, and it
    * is what reveals "save as the default for future documents".
    */
-  taxRateUnlocked = false;
+  readonly taxRateUnlocked = signal(false);
 
   /** True once the saved commercial defaults have been applied to a NEW draft. */
   private defaultsApplied = false;
@@ -166,7 +166,7 @@ export class ContractFormComponent implements OnInit {
   // ── loading ────────────────────────────────────────────────────────────────
 
   private loadReferenceData(): void {
-    this.loading = true;
+    this.loading.set(true);
     // forkJoin, not Promise.all: it keeps the load on the RxJS path the rest of the app uses and
     // settles synchronously with the response, so the defaults are applied in the same turn the
     // data arrives rather than a microtask later.
@@ -179,44 +179,49 @@ export class ContractFormComponent implements OnInit {
       businessCustomers: this.contracts.getBusinessCustomers()
     }).subscribe({
       next: result => {
-        this.templates = result.templates ?? [];
-        this.scopeTemplates = result.scopes ?? [];
-        this.contractorProfiles = result.profiles ?? [];
-        this.clients = result.clients ?? [];
-        this.contractorSigners = result.contractorSigners ?? [];
-        this.businessCustomers = result.businessCustomers ?? [];
+        this.templates.set(result.templates ?? []);
+        this.scopeTemplates.set(result.scopes ?? []);
+        this.contractorProfiles.set(result.profiles ?? []);
+        this.clients.set(result.clients ?? []);
+        this.contractorSigners.set(result.contractorSigners ?? []);
+        this.businessCustomers.set(result.businessCustomers ?? []);
 
-        if (this.contractId) {
-          this.loadExisting(this.contractId);
+        const contractId = this.contractId();
+        if (contractId) {
+          this.loadExisting(contractId);
         } else {
           this.applyDefaults();
-          this.loading = false;
+          this.loading.set(false);
         }
       },
       error: err => {
-        this.errorMessage = extractApiErrorMessage(err, 'Could not load the contract reference data.');
-        this.loading = false;
+        this.errorMessage.set(extractApiErrorMessage(err, 'Could not load the contract reference data.'));
+        this.loading.set(false);
       }
     });
   }
 
   private applyDefaults(): void {
-    this.model = this.emptyModel();
+    this.model.set(this.emptyModel());
     // THE DEFAULT-FLAGGED TEMPLATE, not the first row — same rule as the contractor profile below.
     // The master agreement is versioned by ADDING a row rather than editing one, so "first" is the
     // OLDEST version: taking it meant every new contract silently kept rendering superseded
     // language (v1.0 wording, no multiple service days, no billing-cadence row) even though a
     // newer default existed.
-    this.model.contractTemplateId =
-      (this.templates.find(t => t.isDefault) ?? this.templates[0])?.id ?? 0;
-    this.model.contractorProfileId =
-      (this.contractorProfiles.find(p => p.isDefault) ?? this.contractorProfiles[0])?.id ?? 0;
+    this.model().contractTemplateId =
+      (this.templates().find(t => t.isDefault) ?? this.templates()[0])?.id ?? 0;
+    this.model.set(this.model());
+    this.model().contractorProfileId =
+      (this.contractorProfiles().find(p => p.isDefault) ?? this.contractorProfiles()[0])?.id ?? 0;
+    this.model.set(this.model());
 
-    const restaurant = this.scopeTemplates.find(t => t.name === 'Restaurant') ?? this.scopeTemplates[0];
+    const restaurant = this.scopeTemplates().find(t => t.name === 'Restaurant') ?? this.scopeTemplates()[0];
     if (restaurant) this.applyScopeTemplate(restaurant.id);
 
-    this.model.contractorSignerEmail = this.contractorSigners[0]?.email ?? '';
-    this.model.contractorSignerContactId = this.contractorSigners[0]?.id ?? null;
+    this.model().contractorSignerEmail = this.contractorSigners()[0]?.email ?? '';
+    this.model.set(this.model());
+    this.model().contractorSignerContactId = this.contractorSigners()[0]?.id ?? null;
+    this.model.set(this.model());
 
     this.applyBillingDefaults();
     this.applyContractorContactDefaults();
@@ -235,20 +240,23 @@ export class ContractFormComponent implements OnInit {
    * typed for this particular contract.
    */
   private applyContractorContactDefaults(): void {
-    const profile = this.contractorProfiles.find(p => p.id === this.model.contractorProfileId);
+    const profile = this.contractorProfiles().find(p => p.id === this.model().contractorProfileId);
     if (!profile) return;
 
-    const contacts = this.model.contacts;
+    const contacts = this.model().contacts;
     if (!contacts.contractorOperationalEmail?.trim()) {
       contacts.contractorOperationalEmail = profile.noticeEmail ?? '';
+      this.model.set(this.model());
     }
     if (!contacts.contractorSupervisorPhone?.trim()) {
       contacts.contractorSupervisorPhone = profile.phone ?? '';
+      this.model.set(this.model());
     }
     if (!contacts.contractorSupervisorName?.trim()) {
-      const signer = this.contractorSigners.find(s => s.id === this.model.contractorSignerContactId)
-        ?? this.contractorSigners[0];
+      const signer = this.contractorSigners().find(s => s.id === this.model().contractorSignerContactId)
+        ?? this.contractorSigners()[0];
       contacts.contractorSupervisorName = signer?.fullName ?? '';
+      this.model.set(this.model());
     }
   }
 
@@ -270,48 +278,53 @@ export class ContractFormComponent implements OnInit {
    * when an admin records one that was specifically agreed with this client.
    */
   get hasCustomCommitment(): boolean {
-    return (this.model.term.minimumCommitmentMonths ?? 0) > 0 || this.customCommitmentChosen;
+    return (this.model().term.minimumCommitmentMonths ?? 0) > 0 || this.customCommitmentChosen();
   }
 
   /** True while "Custom" is selected but no number has been typed yet. */
-  private customCommitmentChosen = false;
+  private readonly customCommitmentChosen = signal(false);
 
   setCommitmentMode(mode: 'none' | 'custom'): void {
     if (mode === 'none') {
-      this.customCommitmentChosen = false;
-      this.model.term.minimumCommitmentMonths = 0;
-      this.model.term.initialTermMonths = 0;
+      this.customCommitmentChosen.set(false);
+      this.model().term.minimumCommitmentMonths = 0;
+      this.model.set(this.model());
+      this.model().term.initialTermMonths = 0;
+      this.model.set(this.model());
       return;
     }
     // No preset length: the admin types the number that was agreed.
-    this.customCommitmentChosen = true;
+    this.customCommitmentChosen.set(true);
   }
 
   /** The initial term can never end before the earliest date the client may leave. */
   onCommitmentMonthsChanged(): void {
-    const months = Number(this.model.term.minimumCommitmentMonths) || 0;
-    if ((Number(this.model.term.initialTermMonths) || 0) < months) {
-      this.model.term.initialTermMonths = months;
+    const months = Number(this.model().term.minimumCommitmentMonths) || 0;
+    if ((Number(this.model().term.initialTermMonths) || 0) < months) {
+      this.model().term.initialTermMonths = months;
+      this.model.set(this.model());
     }
   }
 
   addOtherConsumable(): void {
-    this.model.supplies.otherConsumables.push({ item: '', providedBy: null });
+    this.model().supplies.otherConsumables.push({ item: '', providedBy: null });
+    this.model.set(this.model());
   }
 
   removeOtherConsumable(index: number): void {
-    this.model.supplies.otherConsumables.splice(index, 1);
+    this.model().supplies.otherConsumables.splice(index, 1);
+    this.model.set(this.model());
   }
 
   get termDatesHint(): string {
-    const start = this.model.term.serviceCommencementDate;
+    const start = this.model().term.serviceCommencementDate;
     if (!this.hasCustomCommitment) {
       return 'No minimum commitment — service runs from this date until either party gives notice.';
     }
     if (!start) return 'The initial term and minimum commitment both run from this date.';
 
-    const commitmentEnd = this.addMonths(start, this.model.term.minimumCommitmentMonths);
-    const termEnd = this.addDays(this.addMonths(start, this.model.term.initialTermMonths), -1);
+    const commitmentEnd = this.addMonths(start, this.model().term.minimumCommitmentMonths);
+    const termEnd = this.addDays(this.addMonths(start, this.model().term.initialTermMonths), -1);
     if (!commitmentEnd || !termEnd) {
       return 'The initial term and minimum commitment both run from this date.';
     }
@@ -357,8 +370,8 @@ export class ContractFormComponent implements OnInit {
    * have — the same reason `serviceDay` is kept in step with `serviceDays`.
    */
   onArrivalWindowChange(): void {
-    const start = this.model.schedule.arrivalWindowStart?.trim();
-    if (start) this.model.schedule.serviceTime = start;
+    const start = this.model().schedule.arrivalWindowStart?.trim();
+    if (start) { this.model().schedule.serviceTime = start; this.model.set(this.model()); }
   }
 
   /**
@@ -384,13 +397,15 @@ export class ContractFormComponent implements OnInit {
 
         const rate = defaults.defaultTaxType === InvoiceTaxType.Exempt
           ? 0
-          : defaults.defaultTaxRate ?? this.model.pricing.salesTaxRatePercent;
+          : defaults.defaultTaxRate ?? this.model().pricing.salesTaxRatePercent;
 
-        const changed = mode !== this.model.pricing.priceMode
-          || rate !== this.model.pricing.salesTaxRatePercent;
+        const changed = mode !== this.model().pricing.priceMode
+          || rate !== this.model().pricing.salesTaxRatePercent;
 
-        this.model.pricing.priceMode = mode;
-        this.model.pricing.salesTaxRatePercent = rate;
+        this.model().pricing.priceMode = mode;
+        this.model.set(this.model());
+        this.model().pricing.salesTaxRatePercent = rate;
+        this.model.set(this.model());
 
         // Only re-ask when something actually moved. The form already requested a preview with
         // its own defaults, and a second identical round trip on every page load is noise.
@@ -402,19 +417,19 @@ export class ContractFormComponent implements OnInit {
 
   /** Unlocks the protected tax rate for editing. One click, and it reveals the "save" option. */
   unlockTaxRate(): void {
-    this.taxRateUnlocked = true;
+    this.taxRateUnlocked.set(true);
   }
 
   private loadExisting(id: number): void {
     this.contracts.getContract(id).subscribe({
       next: detail => {
-        this.contractNumber = detail.contractNumber;
+        this.contractNumber.set(detail.contractNumber);
         this.hydrateFrom(detail.draft);
-        this.loading = false;
+        this.loading.set(false);
       },
       error: err => {
-        this.errorMessage = extractApiErrorMessage(err, 'Could not load this contract.');
-        this.loading = false;
+        this.errorMessage.set(extractApiErrorMessage(err, 'Could not load this contract.'));
+        this.loading.set(false);
       }
     });
   }
@@ -430,13 +445,13 @@ export class ContractFormComponent implements OnInit {
    * performs the same substitution and is the half that actually enforces it.
    */
   private resolveEditableTemplateId(savedId: number): number {
-    if (this.templates.some(t => t.id === savedId)) return savedId;
-    return (this.templates.find(t => t.isDefault) ?? this.templates[0])?.id ?? savedId;
+    if (this.templates().some(t => t.id === savedId)) return savedId;
+    return (this.templates().find(t => t.isDefault) ?? this.templates()[0])?.id ?? savedId;
   }
 
   /** Re-opens a saved draft into the form. Reads from the snapshot, never from the live rows. */
   private hydrateFrom(snapshot: ContractSnapshot): void {
-    this.model = {
+    this.model.set({
       contractTemplateId: this.resolveEditableTemplateId(snapshot.contractTemplateId),
       scopeTemplateId: snapshot.scopeTemplateId ?? undefined,
       contractorProfileId: snapshot.contractor.id,
@@ -513,12 +528,13 @@ export class ContractFormComponent implements OnInit {
       },
       scopeDetail: snapshot.scopeDetail ?? ScopeDetailMode.Detailed,
       scope: JSON.parse(JSON.stringify(snapshot.scope ?? { groups: [] }))
-    };
+    });
 
     // A draft saved before Exhibit B4 had its own client notice email carries null here. Posted
     // back as a string, so the re-saved draft takes the server's blank-field fallback (the client's
     // notice email on file, then approval, then operational) instead of the legacy null path.
-    this.model.contacts.clientNoticeEmail ??= '';
+    this.model().contacts.clientNoticeEmail ??= '';
+    this.model.set(this.model());
 
     // Inferred rather than stored: the checkbox is a data-entry convenience, not contract data.
     // If the saved notice contact already equals the signer's, reopening the form shows it ticked,
@@ -527,28 +543,28 @@ export class ContractFormComponent implements OnInit {
     const signerEmail = (snapshot.clientSigner.email ?? '').trim().toLowerCase();
     const noticePhone = (snapshot.client.phone ?? '').trim();
     const signerPhone = (snapshot.clientSigner.phone ?? '').trim();
-    this.useSignerContactForNotices = noticeEmail === signerEmail && noticePhone === signerPhone;
+    this.useSignerContactForNotices.set(noticeEmail === signerEmail && noticePhone === signerPhone);
 
     // Whatever the draft was saved with is an answer already given.
     this.entityTypeManuallyEdited = !!snapshot.client.entityType?.trim();
 
-    this.selectedClientId = snapshot.client.id || null;
-    this.selectedLocationId = snapshot.serviceLocation.id || null;
-    this.selectedClientSignerId = snapshot.clientSigner.contactId ?? null;
-    this.premisesType = snapshot.premisesType;
-    this.effectiveDate = snapshot.effectiveDate ? snapshot.effectiveDate.substring(0, 10) : '';
+    this.selectedClientId.set(snapshot.client.id || null);
+    this.selectedLocationId.set(snapshot.serviceLocation.id || null);
+    this.selectedClientSignerId.set(snapshot.clientSigner.contactId ?? null);
+    this.premisesType.set(snapshot.premisesType);
+    this.effectiveDate.set(snapshot.effectiveDate ? snapshot.effectiveDate.substring(0, 10) : '');
 
-    if (this.selectedClientId) this.loadClientChildren(this.selectedClientId);
+    if (this.selectedClientId()) this.loadClientChildren(this.selectedClientId()!);
     this.refreshPricingPreview();
   }
 
   // ── panels ─────────────────────────────────────────────────────────────────
 
-  isOpen(panel: PanelKey): boolean { return this.openPanels.has(panel); }
+  isOpen(panel: PanelKey): boolean { return this.openPanels().has(panel); }
 
   togglePanel(panel: PanelKey): void {
-    if (this.openPanels.has(panel)) this.openPanels.delete(panel);
-    else this.openPanels.add(panel);
+    if (this.openPanels().has(panel)) { this.openPanels().delete(panel); this.openPanels.set(this.openPanels()); }
+    else { this.openPanels().add(panel); this.openPanels.set(this.openPanels()); }
   }
 
   // ── pickers ────────────────────────────────────────────────────────────────
@@ -561,10 +577,10 @@ export class ContractFormComponent implements OnInit {
    * recognized suffix says nothing and leaves the field alone, so this can never blank it.
    */
   onClientLegalNameChange(value: string): void {
-    if (!this.model.newClient) return;
+    if (!this.model().newClient) return;
 
     const inferred = applyInferredEntityType(value, this.entityTypeManuallyEdited);
-    if (inferred !== null) this.model.newClient.entityType = inferred;
+    if (inferred !== null) { this.model().newClient!.entityType = inferred; this.model.set(this.model()); }
   }
 
   /** A typed answer — or one picked from the list — is final and is never guessed over again. */
@@ -573,22 +589,25 @@ export class ContractFormComponent implements OnInit {
   }
 
   onClientSelected(): void {
-    if (!this.selectedClientId) {
+    if (!this.selectedClientId()) {
       // "New client": clear the fields rather than leaving the previous client's details behind.
-      this.model.contractClientId = null;
-      this.model.newClient = this.emptyClient();
-      this.locations = [];
-      this.clientSigners = [];
-      this.selectedLocationId = null;
-      this.selectedClientSignerId = null;
+      this.model().contractClientId = null;
+      this.model.set(this.model());
+      this.model().newClient = this.emptyClient();
+      this.model.set(this.model());
+      this.locations.set([]);
+      this.clientSigners.set([]);
+      this.selectedLocationId.set(null);
+      this.selectedClientSignerId.set(null);
       this.entityTypeManuallyEdited = false;
       return;
     }
 
-    const client = this.clients.find(c => c.id === this.selectedClientId);
+    const client = this.clients().find(c => c.id === this.selectedClientId());
     if (!client) return;
 
-    this.model.contractClientId = client.id;
+    this.model().contractClientId = client.id;
+    this.model.set(this.model());
 
     // EVERY piece of the client's master data, in one gesture. Selecting a client used to hydrate
     // the company fields and silently drop `sourceUserId`, so re-saving an existing contract could
@@ -598,7 +617,7 @@ export class ContractFormComponent implements OnInit {
     // A saved client's entity type is already somebody's answer — never re-guess it from the name.
     this.entityTypeManuallyEdited = !!client.entityType?.trim();
 
-    this.model.newClient = {
+    this.model().newClient = {
       legalEntityName: client.legalEntityName,
       entityType: client.entityType,
       formationState: client.formationState,
@@ -610,19 +629,21 @@ export class ContractFormComponent implements OnInit {
       phone: client.phone,
       sourceUserId: client.sourceUserId ?? null
     };
+    this.model.set(this.model());
 
     // A saved client's own notice contact is what it is; mirroring the signer's over it would
     // overwrite an address staff deliberately set. The checkbox re-ticks only if they already match.
-    this.useSignerContactForNotices =
-      !client.noticeEmail && !client.phone;
+    this.useSignerContactForNotices.set(!client.noticeEmail && !client.phone);
 
     // Exhibit B4's client half, from the same gesture. Blank fields only — an admin who typed a
     // different notice address for this site must not lose it by reselecting the client.
-    if (!this.model.contacts.clientOperationalEmail?.trim()) {
-      this.model.contacts.clientOperationalEmail = client.noticeEmail ?? '';
+    if (!this.model().contacts.clientOperationalEmail?.trim()) {
+      this.model().contacts.clientOperationalEmail = client.noticeEmail ?? '';
+      this.model.set(this.model());
     }
-    if (!this.model.contacts.clientOnCallPhone?.trim()) {
-      this.model.contacts.clientOnCallPhone = client.phone ?? '';
+    if (!this.model().contacts.clientOnCallPhone?.trim()) {
+      this.model().contacts.clientOnCallPhone = client.phone ?? '';
+      this.model.set(this.model());
     }
 
     this.loadClientChildren(client.id);
@@ -636,7 +657,7 @@ export class ContractFormComponent implements OnInit {
    * selectable while creating a NEW client, where there is nothing to link yet.
    */
   get linkedAccountLabel(): string | null {
-    const client = this.clients.find(c => c.id === this.selectedClientId);
+    const client = this.clients().find(c => c.id === this.selectedClientId());
     if (!client?.sourceUserId) return null;
 
     const name = client.sourceUserName?.trim();
@@ -647,9 +668,7 @@ export class ContractFormComponent implements OnInit {
   }
 
   /** True while creating a new client, which is the only time the link can be chosen. */
-  get isNewClient(): boolean {
-    return !this.selectedClientId;
-  }
+  readonly isNewClient = computed<boolean>(() => !this.selectedClientId());
 
   /**
    * Loads everything hanging off the selected client: its premises and its contacts.
@@ -661,40 +680,43 @@ export class ContractFormComponent implements OnInit {
   private loadClientChildren(clientId: number): void {
     this.contracts.getLocations(clientId).subscribe({
       next: rows => {
-        this.locations = rows;
+        this.locations.set(rows);
         // One premises: preselect it. A client with several is asked, because picking the first of
         // three addresses on their behalf is how a cleaner ends up at the wrong site.
-        if (rows.length === 1 && !this.selectedLocationId) {
-          this.selectedLocationId = rows[0].id;
+        if (rows.length === 1 && !this.selectedLocationId()) {
+          this.selectedLocationId.set(rows[0].id);
           this.onLocationSelected();
         }
       },
-      error: () => this.locations = []
+      error: () => this.locations.set([])
     });
 
     this.contracts.getContacts(ContractContactRole.ClientSigner, clientId).subscribe({
       next: rows => {
-        this.clientSigners = rows;
-        if (rows.length > 0 && !this.selectedClientSignerId) {
-          this.selectedClientSignerId = rows[0].id;
+        this.clientSigners.set(rows);
+        if (rows.length > 0 && !this.selectedClientSignerId()) {
+          this.selectedClientSignerId.set(rows[0].id);
           this.onClientSignerSelected();
         }
       },
-      error: () => this.clientSigners = []
+      error: () => this.clientSigners.set([])
     });
   }
 
   onLocationSelected(): void {
-    if (!this.selectedLocationId) {
-      this.model.contractServiceLocationId = null;
-      this.model.newServiceLocation = this.emptyLocation();
+    if (!this.selectedLocationId()) {
+      this.model().contractServiceLocationId = null;
+      this.model.set(this.model());
+      this.model().newServiceLocation = this.emptyLocation();
+      this.model.set(this.model());
       return;
     }
-    const location = this.locations.find(l => l.id === this.selectedLocationId);
+    const location = this.locations().find(l => l.id === this.selectedLocationId());
     if (!location) return;
 
-    this.model.contractServiceLocationId = location.id;
-    this.model.newServiceLocation = {
+    this.model().contractServiceLocationId = location.id;
+    this.model.set(this.model());
+    this.model().newServiceLocation = {
       contractClientId: location.contractClientId,
       businessBrand: location.businessBrand,
       locationName: location.locationName,
@@ -703,6 +725,7 @@ export class ContractFormComponent implements OnInit {
       state: location.state,
       zip: location.zip
     };
+    this.model.set(this.model());
   }
 
   /**
@@ -715,8 +738,8 @@ export class ContractFormComponent implements OnInit {
    * deliberately never guessed from a person's name — a business is not its owner.
    */
   onSourceUserSelected(): void {
-    const userId = this.model.newClient?.sourceUserId ?? null;
-    if (!userId || !this.model.newClient) return;
+    const userId = this.model().newClient?.sourceUserId ?? null;
+    if (!userId || !this.model().newClient) return;
 
     // ── That account may ALREADY be a commercial client ──
     //
@@ -727,33 +750,38 @@ export class ContractFormComponent implements OnInit {
     // existing row either way — the unique link column makes a duplicate impossible — but doing it
     // here means the form shows the real client, its contacts and its locations immediately rather
     // than only after a save.
-    const existing = this.clients.find(c => c.sourceUserId === userId);
+    const existing = this.clients().find(c => c.sourceUserId === userId);
     if (existing) {
-      this.selectedClientId = existing.id;
+      this.selectedClientId.set(existing.id);
       this.onClientSelected();
       return;
     }
 
-    const customer = this.businessCustomers.find(c => c.userId === userId);
+    const customer = this.businessCustomers().find(c => c.userId === userId);
     if (!customer) return;
 
-    const client = this.model.newClient;
-    if (!client.principalAddress?.trim()) client.principalAddress = customer.address ?? '';
-    if (!client.city?.trim()) client.city = customer.city ?? '';
-    if (!client.state?.trim() || client.state === 'NY') client.state = customer.state || client.state;
-    if (!client.zip?.trim()) client.zip = customer.zip ?? '';
+    const client = this.model().newClient!;
+    if (!client.principalAddress?.trim()) { client.principalAddress = customer.address ?? ''; this.model.set(this.model()); }
+    if (!client.city?.trim()) { client.city = customer.city ?? ''; this.model.set(this.model()); }
+    if (!client.state?.trim() || client.state === 'NY') { client.state = customer.state || client.state; this.model.set(this.model()); }
+    if (!client.zip?.trim()) { client.zip = customer.zip ?? ''; this.model.set(this.model()); }
 
     // The signer IS this person, so their identity is filled in whether or not something was
     // already there — that is the whole point of linking the account.
-    const signer = this.model.newClientSigner;
+    const signer = this.model().newClientSigner;
     if (signer) {
       signer.firstName = customer.firstName || signer.firstName;
+      this.model.set(this.model());
       signer.lastName = customer.lastName || signer.lastName;
+      this.model.set(this.model());
       signer.email = customer.email || signer.email;
+      this.model.set(this.model());
       signer.phone = customer.phone || signer.phone;
+      this.model.set(this.model());
       // A linked account is a new contact rather than one of the client's existing ones.
-      this.selectedClientSignerId = null;
-      this.model.clientSignerContactId = null;
+      this.selectedClientSignerId.set(null);
+      this.model().clientSignerContactId = null;
+      this.model.set(this.model());
     }
 
     this.syncNoticeContact();
@@ -764,17 +792,19 @@ export class ContractFormComponent implements OnInit {
   // always the signer's, so the form defaults to reusing them and only asks for a separate
   // address when the admin says the two genuinely differ.
 
-  useSignerContactForNotices = true;
+  readonly useSignerContactForNotices = signal(true);
 
   onUseSignerContactChanged(): void {
-    if (this.useSignerContactForNotices) this.syncNoticeContact();
+    if (this.useSignerContactForNotices()) this.syncNoticeContact();
   }
 
   /** Copies the signer's email/phone onto the client while the checkbox is ticked. */
   private syncNoticeContact(): void {
-    if (!this.useSignerContactForNotices || !this.model.newClient) return;
-    this.model.newClient.noticeEmail = this.model.newClientSigner?.email ?? '';
-    this.model.newClient.phone = this.model.newClientSigner?.phone ?? '';
+    if (!this.useSignerContactForNotices() || !this.model().newClient) return;
+    this.model().newClient!.noticeEmail = this.model().newClientSigner?.email ?? '';
+    this.model.set(this.model());
+    this.model().newClient!.phone = this.model().newClientSigner?.phone ?? '';
+    this.model.set(this.model());
   }
 
   /** Called as the signer's own contact details are typed, so the mirror stays live. */
@@ -783,25 +813,29 @@ export class ContractFormComponent implements OnInit {
   }
 
   onClientSignerSelected(): void {
-    if (!this.selectedClientSignerId) {
-      this.model.clientSignerContactId = null;
-      this.model.newClientSigner = this.emptySigner();
+    if (!this.selectedClientSignerId()) {
+      this.model().clientSignerContactId = null;
+      this.model.set(this.model());
+      this.model().newClientSigner = this.emptySigner();
+      this.model.set(this.model());
       this.syncNoticeContact();
       return;
     }
-    const contact = this.clientSigners.find(c => c.id === this.selectedClientSignerId);
+    const contact = this.clientSigners().find(c => c.id === this.selectedClientSignerId());
     if (!contact) return;
 
-    this.model.clientSignerContactId = contact.id;
-    this.model.newClientSigner = {
+    this.model().clientSignerContactId = contact.id;
+    this.model.set(this.model());
+    this.model().newClientSigner = {
       firstName: contact.firstName,
       lastName: contact.lastName,
       title: contact.title,
       email: contact.email,
       phone: contact.phone,
       role: ContractContactRole.ClientSigner,
-      contractClientId: this.selectedClientId ?? undefined
+      contractClientId: this.selectedClientId() ?? undefined
     };
+    this.model.set(this.model());
     this.syncNoticeContact();
   }
 
@@ -813,7 +847,7 @@ export class ContractFormComponent implements OnInit {
 
   /** Ticked days, always read through the legacy fallback. */
   get selectedServiceDays(): string[] {
-    return resolveServiceDays(this.model.schedule);
+    return resolveServiceDays(this.model().schedule);
   }
 
   isServiceDaySelected(day: string): boolean {
@@ -837,8 +871,10 @@ export class ContractFormComponent implements OnInit {
     // Monday-first, so "Friday, Monday, Wednesday" never reaches the agreement.
     const ordered = this.weekdays.filter(d => next.includes(d));
 
-    this.model.schedule.serviceDays = ordered;
-    this.model.schedule.serviceDay = ordered[0] ?? '';
+    this.model().schedule.serviceDays = ordered;
+    this.model.set(this.model());
+    this.model().schedule.serviceDay = ordered[0] ?? '';
+    this.model.set(this.model());
   }
 
   /**
@@ -850,10 +886,10 @@ export class ContractFormComponent implements OnInit {
    * match the days (or the reverse) - the admin is told and decides.
    */
   get visitCountWarning(): string | null {
-    if (!this.model.schedule.flexibleScheduling) return null; // serviceDayCountWarning covers it
-    if (this.model.schedule.frequencyUnit !== 'calendar week') return null;
+    if (!this.model().schedule.flexibleScheduling) return null; // serviceDayCountWarning covers it
+    if (this.model().schedule.frequencyUnit !== 'calendar week') return null;
     const picked = this.selectedServiceDays.length;
-    const promised = Math.max(1, Number(this.model.schedule.visitsPerPeriod) || 1);
+    const promised = Math.max(1, Number(this.model().schedule.visitsPerPeriod) || 1);
     if (picked === 0 || picked === promised) return null;
     return `Visits per period is ${promised} but ${picked} regular service days are selected. `
       + 'The agreement will state the visit count — check that it is right.';
@@ -861,7 +897,7 @@ export class ContractFormComponent implements OnInit {
 
   /** "Regular service day" for one, "Regular service days" for several. */
   get serviceDaysLabel(): string {
-    return this.model.schedule.visitsPerPeriod > 1 || this.selectedServiceDays.length > 1
+    return this.model().schedule.visitsPerPeriod > 1 || this.selectedServiceDays.length > 1
       ? 'Regular service days'
       : 'Regular day';
   }
@@ -875,17 +911,17 @@ export class ContractFormComponent implements OnInit {
    * promising three visits while naming two days is a contradiction the client would spot.
    */
   get serviceDayCountWarning(): string | null {
-    if (this.model.schedule.flexibleScheduling) return null;
+    if (this.model().schedule.flexibleScheduling) return null;
 
     const picked = this.selectedServiceDays.length;
-    const promised = Math.max(1, this.model.schedule.visitsPerPeriod);
+    const promised = Math.max(1, this.model().schedule.visitsPerPeriod);
 
     if (picked === 0) {
       return 'Choose at least one regular service day.';
     }
     if (picked !== promised) {
       return `This contract promises ${promised} visit${promised === 1 ? '' : 's'} per `
-        + `${this.model.schedule.frequencyUnit} but names ${picked} service `
+        + `${this.model().schedule.frequencyUnit} but names ${picked} service `
         + `day${picked === 1 ? '' : 's'}. Adjust one of the two, or turn on flexible scheduling.`;
     }
     return null;
@@ -895,14 +931,14 @@ export class ContractFormComponent implements OnInit {
 
   /** Whether the "every N" box is meaningful for the chosen cadence. */
   get showBillingInterval(): boolean {
-    return this.model.billing.frequency !== ContractBillingFrequency.PerServiceVisit;
+    return this.model().billing.frequency !== ContractBillingFrequency.PerServiceVisit;
   }
 
   /** Plain-language echo of the cadence, so "every 1 weeks" never appears on screen. */
   get billingCadenceText(): string {
-    const n = Math.max(1, this.model.billing.intervalCount || 1);
+    const n = Math.max(1, this.model().billing.intervalCount || 1);
 
-    switch (this.model.billing.frequency) {
+    switch (this.model().billing.frequency) {
       case ContractBillingFrequency.PerServiceVisit:
         return 'An invoice is issued for each scheduled cleaning.';
       case ContractBillingFrequency.Weekly:
@@ -921,23 +957,26 @@ export class ContractFormComponent implements OnInit {
   // ── scope ──────────────────────────────────────────────────────────────────
 
   onScopeTemplateChanged(): void {
-    if (this.model.scopeTemplateId) this.applyScopeTemplate(this.model.scopeTemplateId);
+    if (this.model().scopeTemplateId) this.applyScopeTemplate(this.model().scopeTemplateId!);
   }
 
   private applyScopeTemplate(templateId: number): void {
-    const template = this.scopeTemplates.find(t => t.id === templateId);
+    const template = this.scopeTemplates().find(t => t.id === templateId);
     if (!template) return;
-    this.model.scopeTemplateId = template.id;
+    this.model().scopeTemplateId = template.id;
+    this.model.set(this.model());
     // Deep clone, so toggling an item on this contract can never mutate the shared template.
-    this.model.scope = JSON.parse(JSON.stringify(template.structure ?? { groups: [] })) as ScopeStructure;
-    if (!this.premisesType) {
-      this.premisesType = template.premisesType;
-      this.model.premisesType = template.premisesType;
+    this.model().scope = JSON.parse(JSON.stringify(template.structure ?? { groups: [] })) as ScopeStructure;
+    this.model.set(this.model());
+    if (!this.premisesType()) {
+      this.premisesType.set(template.premisesType);
+      this.model().premisesType = template.premisesType;
+      this.model.set(this.model());
     }
   }
 
   get allowsCustomScopeRows(): boolean {
-    const template = this.scopeTemplates.find(t => t.id === this.model.scopeTemplateId);
+    const template = this.scopeTemplates().find(t => t.id === this.model().scopeTemplateId);
     return !!template?.allowsCustomRows;
   }
 
@@ -958,17 +997,19 @@ export class ContractFormComponent implements OnInit {
     const trimmed = (label ?? '').trim();
     if (!trimmed) return;
 
-    const group = this.model.scope.groups[groupIndex];
+    const group = this.model().scope.groups[groupIndex];
     // A row added to the area/task grid needs somewhere to put its tasks, or it would render as
     // an area with an empty right-hand cell and no way to fill it in.
     const detail = this.isTableGroup(group) ? '' : undefined;
 
     group.items.push({ label: trimmed, selected: true, isCustom: true, detail });
+    this.model.set(this.model());
     input.value = '';
   }
 
   removeScopeRow(groupIndex: number, itemIndex: number): void {
-    this.model.scope.groups[groupIndex].items.splice(itemIndex, 1);
+    this.model().scope.groups[groupIndex].items.splice(itemIndex, 1);
+    this.model.set(this.model());
   }
 
   /**
@@ -989,13 +1030,14 @@ export class ContractFormComponent implements OnInit {
       .replace(/^-+|-+$/g, '')
       .slice(0, 50);
 
-    this.model.scope.groups.push({
+    this.model().scope.groups.push({
       key: key === 'custom-' ? 'custom-scope' : key,
       title: trimmed,
       kind: 'included',
       inline: true,
       items: []
     });
+    this.model.set(this.model());
 
     input.value = '';
   }
@@ -1008,11 +1050,12 @@ export class ContractFormComponent implements OnInit {
    * contract rather than this one.
    */
   removeScopeGroup(groupIndex: number): void {
-    this.model.scope.groups.splice(groupIndex, 1);
+    this.model().scope.groups.splice(groupIndex, 1);
+    this.model.set(this.model());
   }
 
   selectedCount(groupIndex: number): number {
-    return this.model.scope.groups[groupIndex].items.filter(i => i.selected).length;
+    return this.model().scope.groups[groupIndex].items.filter(i => i.selected).length;
   }
 
   // ── pricing ────────────────────────────────────────────────────────────────
@@ -1021,7 +1064,7 @@ export class ContractFormComponent implements OnInit {
 
   /** Weekly flat fee selected. */
   get isWeeklyFlatFee(): boolean {
-    return this.model.pricing.pricingBasis === ContractPricingBasis.WeeklyFlatFee;
+    return this.model().pricing.pricingBasis === ContractPricingBasis.WeeklyFlatFee;
   }
 
   /**
@@ -1030,66 +1073,75 @@ export class ContractFormComponent implements OnInit {
    */
   get weeklyFlatFeeProblem(): string | null {
     if (!this.isWeeklyFlatFee) return null;
-    if (this.model.schedule.frequencyUnit !== 'calendar week')
+    if (this.model().schedule.frequencyUnit !== 'calendar week')
       return 'A weekly flat fee needs the service schedule to be set per calendar week.';
-    if (!((Number(this.model.schedule.visitsPerPeriod) || 0) >= 1))
+    if (!((Number(this.model().schedule.visitsPerPeriod) || 0) >= 1))
       return 'A weekly flat fee needs at least one scheduled visit per week.';
-    if (this.model.billing.frequency !== ContractBillingFrequency.Weekly)
+    if (this.model().billing.frequency !== ContractBillingFrequency.Weekly)
       return 'A weekly flat fee must be invoiced weekly (or every N weeks). Change the billing cadence, or price per visit.';
     return null;
   }
 
   onPricingBasisChanged(): void {
     // A weekly fee is invoiced weekly: offer that cadence, never change the visit count.
-    if (this.isWeeklyFlatFee && this.model.billing.frequency !== ContractBillingFrequency.Weekly) {
-      this.model.billing.frequency = ContractBillingFrequency.Weekly;
-      this.model.billing.intervalCount = Math.max(1, this.model.billing.intervalCount || 1);
+    if (this.isWeeklyFlatFee && this.model().billing.frequency !== ContractBillingFrequency.Weekly) {
+      this.model().billing.frequency = ContractBillingFrequency.Weekly;
+      this.model.set(this.model());
+      this.model().billing.intervalCount = Math.max(1, this.model().billing.intervalCount || 1);
+      this.model.set(this.model());
     }
     // The stock per-visit timing sentence would contradict weekly invoices in Exhibit B2. Only the
     // stock defaults are swapped (both ways); anything an admin typed is theirs and is left alone.
     const perVisitTiming = this.defaultPricing().invoiceTiming;
-    if (this.isWeeklyFlatFee && this.model.pricing.invoiceTiming === perVisitTiming) {
-      this.model.pricing.invoiceTiming = WEEKLY_INVOICE_TIMING;
-    } else if (!this.isWeeklyFlatFee && this.model.pricing.invoiceTiming === WEEKLY_INVOICE_TIMING) {
-      this.model.pricing.invoiceTiming = perVisitTiming;
+    if (this.isWeeklyFlatFee && this.model().pricing.invoiceTiming === perVisitTiming) {
+      this.model().pricing.invoiceTiming = WEEKLY_INVOICE_TIMING;
+      this.model.set(this.model());
+    } else if (!this.isWeeklyFlatFee && this.model().pricing.invoiceTiming === WEEKLY_INVOICE_TIMING) {
+      this.model().pricing.invoiceTiming = perVisitTiming;
+      this.model.set(this.model());
     }
     this.onPricingChanged();
   }
 
   private refreshPricingPreview(): void {
-    this.model.pricing.scheduledVisitsPerWeek = Math.max(1, Number(this.model.schedule.visitsPerPeriod) || 1);
-    this.contracts.pricingPreview(this.model.pricing).subscribe({
-      next: preview => this.pricingPreview = preview,
+    this.model().pricing.scheduledVisitsPerWeek = Math.max(1, Number(this.model().schedule.visitsPerPeriod) || 1);
+    this.model.set(this.model());
+    this.contracts.pricingPreview(this.model().pricing).subscribe({
+      next: preview => this.pricingPreview.set(preview),
       // A failed echo must not block the form — Generate Preview recomputes server-side anyway.
-      error: () => this.pricingPreview = null
+      error: () => this.pricingPreview.set(null)
     });
   }
 
   // ── submit ─────────────────────────────────────────────────────────────────
 
   generatePreview(): void {
-    if (this.saving) return;
+    if (this.saving()) return;
 
     const problem = this.validate();
     if (problem) {
-      this.errorMessage = problem;
+      this.errorMessage.set(problem);
       return;
     }
 
-    this.saving = true;
-    this.errorMessage = '';
+    this.saving.set(true);
+    this.errorMessage.set('');
     // Section 32 renders the CLIENT's notice email and phone, so the mirror has to be applied to
     // the model before it is sent — the checkbox alone would leave those columns empty.
     this.syncNoticeContact();
-    this.model.effectiveDate = this.effectiveDate ? this.effectiveDate : null;
-    this.model.premisesType = this.premisesType;
-    if (this.model.newServiceLocation && this.model.contractClientId) {
-      this.model.newServiceLocation.contractClientId = this.model.contractClientId;
+    this.model().effectiveDate = this.effectiveDate() ? this.effectiveDate() : null;
+    this.model.set(this.model());
+    this.model().premisesType = this.premisesType();
+    this.model.set(this.model());
+    if (this.model().newServiceLocation && this.model().contractClientId) {
+      this.model().newServiceLocation!.contractClientId = this.model().contractClientId!;
+      this.model.set(this.model());
     }
 
-    const save$ = this.contractId
-      ? this.contracts.updateContract(this.contractId, this.model)
-      : this.contracts.createContract(this.model);
+    const contractId = this.contractId();
+    const save$ = contractId
+      ? this.contracts.updateContract(contractId, this.model())
+      : this.contracts.createContract(this.model());
 
     save$.subscribe({
       next: detail => {
@@ -1097,40 +1149,40 @@ export class ContractFormComponent implements OnInit {
         // failed generate never leaves the draft and the document out of step.
         this.contracts.generatePreview(detail.id).subscribe({
           next: withVersion => {
-            this.saving = false;
+            this.saving.set(false);
             this.generated.emit(withVersion);
           },
           error: err => {
-            this.saving = false;
-            this.errorMessage = extractApiErrorMessage(err, 'Could not generate the preview.');
+            this.saving.set(false);
+            this.errorMessage.set(extractApiErrorMessage(err, 'Could not generate the preview.'));
           }
         });
       },
       error: err => {
-        this.saving = false;
-        this.errorMessage = extractApiErrorMessage(err, 'Could not save the contract.');
+        this.saving.set(false);
+        this.errorMessage.set(extractApiErrorMessage(err, 'Could not save the contract.'));
       }
     });
   }
 
   private validate(): string | null {
-    if (!this.model.contractTemplateId) return 'Choose a contract template.';
-    if (!this.model.contractorProfileId) return 'Choose a contractor profile.';
-    if (!this.model.newClient?.legalEntityName?.trim()) return 'Enter the legal entity name of the client.';
-    if (!this.model.newClient?.principalAddress?.trim()) return 'Enter the principal address of the client.';
-    if (!this.model.newServiceLocation?.address?.trim())
+    if (!this.model().contractTemplateId) return 'Choose a contract template.';
+    if (!this.model().contractorProfileId) return 'Choose a contractor profile.';
+    if (!this.model().newClient?.legalEntityName?.trim()) return 'Enter the legal entity name of the client.';
+    if (!this.model().newClient?.principalAddress?.trim()) return 'Enter the principal address of the client.';
+    if (!this.model().newServiceLocation?.address?.trim())
       return 'Enter the service location address — it is where the cleaning happens, and is not assumed to be the client address.';
-    if (!this.model.newClientSigner?.firstName?.trim() || !this.model.newClientSigner?.lastName?.trim())
+    if (!this.model().newClientSigner?.firstName?.trim() || !this.model().newClientSigner?.lastName?.trim())
       return 'Enter the person who will sign for the client.';
-    if (!this.model.newClientSigner?.email?.trim())
+    if (!this.model().newClientSigner?.email?.trim())
       return 'The client signer needs an email address — that is where the review and signing links go.';
-    if (this.model.pricing.priceInput <= 0)
+    if (this.model().pricing.priceInput <= 0)
       return this.isWeeklyFlatFee ? 'Enter the weekly fee.' : 'Enter the price per visit.';
     if (this.weeklyFlatFeeProblem) return this.weeklyFlatFeeProblem;
-    if (this.hasCustomCommitment && !((Number(this.model.term.minimumCommitmentMonths) || 0) >= 1))
+    if (this.hasCustomCommitment && !((Number(this.model().term.minimumCommitmentMonths) || 0) >= 1))
       return 'Enter the agreed minimum commitment in months, or choose “No minimum commitment”.';
-    if (this.model.supplies.equipmentProvidedBy === SupplyProvider.Shared
-        && !this.model.supplies.equipmentArrangementNotes?.trim())
+    if (this.model().supplies.equipmentProvidedBy === SupplyProvider.Shared
+        && !this.model().supplies.equipmentArrangementNotes?.trim())
       return 'Describe how cleaning supplies and equipment are divided between the parties.';
     return null;
   }

@@ -4,6 +4,7 @@ import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angula
 import { Router, ActivatedRoute } from '@angular/router';
 import { AuthService, AccountExistsResponse, MergeResultResponse } from '../../services/auth.service';
 import { setIntervalOutsideZone } from '../../shared/zone-free-timers';
+import { formViewRefresher } from '../../shared/forms/form-view-refresher';
 const RELAY_DOMAIN = '@privaterelay.appleid.com';
 
 type Step = 'email' | 'code' | 'account-found' | 'merge-email' | 'merge-success';
@@ -17,6 +18,8 @@ type Step = 'email' | 'code' | 'account-found' | 'merge-email' | 'merge-success'
   styleUrls: ['./real-email-verify.component.scss']
 })
 export class RealEmailVerifyComponent implements OnInit {
+  /** Re-renders when a form changes outside a template event (see form-view-refresher). */
+  private readonly watchForm = formViewRefresher();
   private fb = inject(FormBuilder);
   private authService = inject(AuthService);
   private router = inject(Router);
@@ -51,12 +54,15 @@ export class RealEmailVerifyComponent implements OnInit {
     this.emailForm = this.fb.group({
       email: ['', [Validators.required, Validators.email]]
     });
+    this.watchForm(this.emailForm);
     this.codeForm = this.fb.group({
       code: ['', [Validators.required, Validators.minLength(6), Validators.maxLength(6), Validators.pattern(/^\d{6}$/)]]
     });
+    this.watchForm(this.codeForm);
     this.mergeCodeForm = this.fb.group({
       code: ['', [Validators.required, Validators.minLength(6), Validators.maxLength(6), Validators.pattern(/^\d{6}$/)]]
     });
+    this.watchForm(this.mergeCodeForm);
   }
 
   get isRelayEmail(): boolean {

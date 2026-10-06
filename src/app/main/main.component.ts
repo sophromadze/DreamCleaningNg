@@ -70,7 +70,7 @@ export interface BeforeAfterPhoto {
   standalone: true,
   imports: [RouterLink, HomeHeroComponent, TestimonialSectionComponent, IconComponent, CardImageDirective],
   templateUrl: './main.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './main.component.scss'
 })
 export class MainComponent implements OnInit, OnDestroy {

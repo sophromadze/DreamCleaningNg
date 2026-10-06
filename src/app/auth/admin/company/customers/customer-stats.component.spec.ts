@@ -44,15 +44,15 @@ describe('CustomerStatsComponent', () => {
 
   /** Loads a window (and optionally the period before it) without touching the HTTP layer. */
   function load(current: CustomerStatistics, previous: CustomerStatistics | null = null): void {
-    component.stats = current;
+    component.stats.set(current);
     component.prevStats = previous;
     component['buildCards']();
   }
 
   function compareOn(periods: CustomerStatistics[], unfinished = false): void {
-    component.compareResults = periods.map((stats, i) => ({
+    component.compareResults.set(periods.map((stats, i) => ({
       label: `P${i}`, rangeLabel: '', from: '2026-08-01', to: '2026-08-31', unfinished, stats
-    }));
+    })));
     component['buildCompareView']();
   }
 
@@ -77,17 +77,17 @@ describe('CustomerStatsComponent', () => {
   });
 
   it('defaults to the Simple view', () => {
-    expect(component.viewMode).toBe('simple');
+    expect(component.viewMode()).toBe('simple');
   });
 
   // ── The Simple row subset used by Compare ────────────────────────────────
 
   describe('Simple comparison row subset', () => {
     it('renders exactly the nine curated rows, in Simple order', () => {
-      component.viewMode = 'simple';
+      component.viewMode.set('simple');
       compareOn([makeStats(), makeStats()]);
 
-      expect(component.compareRows.map(r => r.def.key)).toEqual([
+      expect(component.compareRows().map(r => r.def.key)).toEqual([
         'activeCustomers', 'newCustomers', 'returningCustomers', 'returningRate',
         'totalSpend', 'returningCustomerSpend',
         'returningAfterFollowUp', 'leadsFollowedUp', 'followUpsLogged'
@@ -101,47 +101,47 @@ describe('CustomerStatsComponent', () => {
     });
 
     it('prints no group headers in Simple — nine curated rows need no sections', () => {
-      component.viewMode = 'simple';
+      component.viewMode.set('simple');
       compareOn([makeStats(), makeStats()]);
-      expect(component.compareRows.every(r => !r.groupStart)).toBe(true);
+      expect(component.compareRows().every(r => !r.groupStart)).toBe(true);
     });
 
     it('falls back to every metric in Full, with its group headers', () => {
-      component.viewMode = 'full';
+      component.viewMode.set('full');
       compareOn([makeStats(), makeStats()]);
 
-      expect(component.compareRows.length).toBeGreaterThan(component.simpleCompareKeys.length);
-      expect(component.compareRows.some(r => r.groupStart)).toBe(true);
-      expect(component.compareRows.map(r => r.def.key)).toContain('retentionRate');
+      expect(component.compareRows().length).toBeGreaterThan(component.simpleCompareKeys.length);
+      expect(component.compareRows().some(r => r.groupStart)).toBe(true);
+      expect(component.compareRows().map(r => r.def.key)).toContain('retentionRate');
     });
 
     it('uses Simple\'s label for a renamed metric in the comparison rows too', () => {
       // The override exists to disambiguate from the 90-day metric, which Simple never renders —
       // so in Simple the qualifier raises a question the view cannot answer, in the table exactly
       // as on the card.
-      component.viewMode = 'simple';
+      component.viewMode.set('simple');
       compareOn([makeStats(), makeStats()]);
-      const row = component.compareRows.find(r => r.def.key === 'returningCustomers')!;
+      const row = component.compareRows().find(r => r.def.key === 'returningCustomers')!;
 
       expect(row.label).toBe('Customers who came back');
       expect(row.def.label).toContain('(any time)'); // the shared label is untouched
 
-      component.viewMode = 'full';
+      component.viewMode.set('full');
       component['buildCompareView']();
-      expect(component.compareRows.find(r => r.def.key === 'returningCustomers')!.label)
+      expect(component.compareRows().find(r => r.def.key === 'returningCustomers')!.label)
         .toContain('(any time)');
     });
 
     it('switching view rebuilds the comparison without refetching', () => {
-      component.viewMode = 'simple';
+      component.viewMode.set('simple');
       compareOn([makeStats(), makeStats()]);
-      component.compareMode = true;
+      component.compareMode.set(true);
 
       component.setViewMode('full');
 
-      expect(component.compareRows.length).toBeGreaterThan(9);
+      expect(component.compareRows().length).toBeGreaterThan(9);
       // The loaded periods are untouched — the toggle is a rendering choice, not a reload.
-      expect(component.compareResults.length).toBe(2);
+      expect(component.compareResults().length).toBe(2);
     });
   });
 
@@ -180,7 +180,7 @@ describe('CustomerStatsComponent', () => {
       // The same rule catches the running month, the running week, the running year and a custom
       // range ending later today — nothing here is month-specific.
       (['day', 'week', 'month', 'year'] as const).forEach(unit => {
-        component.compareUnit = unit;
+        component.compareUnit.set(unit);
         expect(resolve(future()).unfinished, `${unit} in the future`).toBe(true);
         expect(resolve(past).unfinished, `${unit} in the past`).toBe(false);
       });
@@ -198,7 +198,7 @@ describe('CustomerStatsComponent', () => {
   describe('small-sample suppression', () => {
     function rateCard(stats: CustomerStatistics, key = 'returningRate') {
       load(stats);
-      return component.groupedCards
+      return component.groupedCards()
         .flatMap(g => g.cards)
         .find(c => c.def.key === key)!;
     }
@@ -225,7 +225,7 @@ describe('CustomerStatsComponent', () => {
       // those thin denominators must go, while the ones hanging off 40 stay.
       load(makeStats({ activeCustomers: 40, signups: 3, returningCustomers: 4 }));
       const byKey = (k: string) =>
-        component.groupedCards.flatMap(g => g.cards).find(c => c.def.key === k)!;
+        component.groupedCards().flatMap(g => g.cards).find(c => c.def.key === k)!;
 
       expect(byKey('returningRate').suppressed).toBe(false);
       expect(byKey('activationRate').suppressed).toBe(true);
@@ -236,7 +236,7 @@ describe('CustomerStatsComponent', () => {
       // A green arrow beside a dash is worse than either alone.
       load(makeStats({ activeCustomers: 40, returningRate: 30 }),
         makeStats({ activeCustomers: 4, returningRate: 50 }));
-      const card = component.groupedCards.flatMap(g => g.cards)
+      const card = component.groupedCards().flatMap(g => g.cards)
         .find(c => c.def.key === 'returningRate')!;
 
       expect(card.suppressed).toBe(false);
@@ -245,9 +245,9 @@ describe('CustomerStatsComponent', () => {
     });
 
     it('drops a suppressed subline from a Simple card rather than printing a dash under it', () => {
-      component.viewMode = 'simple';
+      component.viewMode.set('simple');
       load(makeStats({ activeCustomers: 5, returningCustomers: 2, returningRate: 40 }));
-      const card = component.simpleCards.find(c => c.card.def.key === 'returningCustomers')!;
+      const card = component.simpleCards().find(c => c.card.def.key === 'returningCustomers')!;
 
       expect(card.card.value).toBe(2);
       expect(card.subline).toBeNull();
@@ -267,25 +267,25 @@ describe('CustomerStatsComponent', () => {
     it('suppresses the split legend percentages on the same rule that greys the bars', () => {
       // The legend percentages are not metric rows, so nothing but this keeps them honest.
       load(makeStats({ activeCustomers: 9, returningRate: 44.4, newRate: 55.6 }));
-      expect(component.splitLegend!.returning.suppressed).toBe(true);
-      expect(component.splitLegend!.first.suppressed).toBe(true);
+      expect(component.splitLegend()!.returning.suppressed).toBe(true);
+      expect(component.splitLegend()!.first.suppressed).toBe(true);
       expect(component.splitSampleTooThin).toBe(true);
 
       load(makeStats({ activeCustomers: 10, returningRate: 30, newRate: 70 }));
-      expect(component.splitLegend!.returning.suppressed).toBe(false);
-      expect(component.splitLegend!.first.suppressed).toBe(false);
+      expect(component.splitLegend()!.returning.suppressed).toBe(false);
+      expect(component.splitLegend()!.first.suppressed).toBe(false);
       expect(component.splitSampleTooThin).toBe(false);
-      expect(component.splitLegend!.returning.value).toBe(30);
+      expect(component.splitLegend()!.returning.value).toBe(30);
     });
 
     it('gives the legend tooltip ids that cannot collide with a metric row', () => {
       load(makeStats());
       const metricIds = component.metrics.map(m => component.tooltipId(m));
 
-      expect(metricIds).not.toContain(component.splitLegend!.returning.tooltipId);
-      expect(metricIds).not.toContain(component.splitLegend!.first.tooltipId);
-      expect(component.splitLegend!.returning.tooltipId)
-        .not.toBe(component.splitLegend!.first.tooltipId);
+      expect(metricIds).not.toContain(component.splitLegend()!.returning.tooltipId);
+      expect(metricIds).not.toContain(component.splitLegend()!.first.tooltipId);
+      expect(component.splitLegend()!.returning.tooltipId)
+        .not.toBe(component.splitLegend()!.first.tooltipId);
     });
 
     it('greys the SPEND split on the customer count, not on the money', () => {
@@ -296,13 +296,13 @@ describe('CustomerStatsComponent', () => {
     });
 
     it('never awards "best" to a suppressed cell', () => {
-      component.viewMode = 'simple';
+      component.viewMode.set('simple');
       // A three-customer month showing 66.7% must not beat a forty-customer month showing 25%.
       compareOn([
         makeStats({ activeCustomers: 3, returningRate: 66.7 }),
         makeStats({ activeCustomers: 40, returningRate: 25 })
       ]);
-      const row = component.compareRows.find(r => r.def.key === 'returningRate')!;
+      const row = component.compareRows().find(r => r.def.key === 'returningRate')!;
 
       expect(row.cells[0].suppressed).toBe(true);
       expect(row.bestValue).toBe(25);
@@ -311,12 +311,12 @@ describe('CustomerStatsComponent', () => {
     });
 
     it('marks no winner when every compared period is too small', () => {
-      component.viewMode = 'simple';
+      component.viewMode.set('simple');
       compareOn([
         makeStats({ activeCustomers: 3, returningRate: 66.7 }),
         makeStats({ activeCustomers: 5, returningRate: 20 })
       ]);
-      const row = component.compareRows.find(r => r.def.key === 'returningRate')!;
+      const row = component.compareRows().find(r => r.def.key === 'returningRate')!;
       expect(row.bestValue).toBeNull();
     });
   });
@@ -326,23 +326,23 @@ describe('CustomerStatsComponent', () => {
   describe('hideWhenAllZero', () => {
     it('hides "Won back" while it is zero in both the window and the one before', () => {
       load(makeStats({ reactivatedCustomers: 0 }), makeStats({ reactivatedCustomers: 0 }));
-      const keys = component.groupedCards.flatMap(g => g.cards).map(c => c.def.key);
+      const keys = component.groupedCards().flatMap(g => g.cards).map(c => c.def.key);
       expect(keys).not.toContain('reactivatedCustomers');
     });
 
     it('shows it again as soon as EITHER period has something to report', () => {
       load(makeStats({ reactivatedCustomers: 0 }), makeStats({ reactivatedCustomers: 2 }));
-      const keys = component.groupedCards.flatMap(g => g.cards).map(c => c.def.key);
+      const keys = component.groupedCards().flatMap(g => g.cards).map(c => c.def.key);
       expect(keys).toContain('reactivatedCustomers');
     });
 
     it('keeps a hidden row out of Compare only when every column is zero', () => {
-      component.viewMode = 'full';
+      component.viewMode.set('full');
       compareOn([makeStats({ recurringPlanCustomers: 0 }), makeStats({ recurringPlanCustomers: 0 })]);
-      expect(component.compareRows.map(r => r.def.key)).not.toContain('recurringPlanCustomers');
+      expect(component.compareRows().map(r => r.def.key)).not.toContain('recurringPlanCustomers');
 
       compareOn([makeStats({ recurringPlanCustomers: 0 }), makeStats({ recurringPlanCustomers: 1 })]);
-      expect(component.compareRows.map(r => r.def.key)).toContain('recurringPlanCustomers');
+      expect(component.compareRows().map(r => r.def.key)).toContain('recurringPlanCustomers');
     });
   });
 
@@ -352,11 +352,11 @@ describe('CustomerStatsComponent', () => {
     function summaryFor(
       filter: 'today' | 'week' | 'month' | 'lastMonth' | 'year' | 'lastYear' | 'all',
       current: CustomerStatistics, previous: CustomerStatistics | null): string {
-      component.activeQuickFilter = filter;
-      component.stats = current;
+      component.activeQuickFilter.set(filter);
+      component.stats.set(current);
       component.prevStats = previous;
       component['buildSummary']();
-      return component.summary;
+      return component.summary();
     }
 
     it('says a running month is running, and names the comparison honestly', () => {

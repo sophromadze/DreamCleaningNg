@@ -3,6 +3,7 @@ import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angula
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 import { passwordValidator } from '../../utils/password-validator';
+import { formViewRefresher } from '../../shared/forms/form-view-refresher';
 
 @Component({
   selector: 'app-reset-password',
@@ -13,6 +14,8 @@ import { passwordValidator } from '../../utils/password-validator';
   styleUrls: ['./reset-password.component.scss']
 })
 export class ResetPasswordComponent implements OnInit {
+  /** Re-renders when a form changes outside a template event (see form-view-refresher). */
+  private readonly watchForm = formViewRefresher();
   private fb = inject(FormBuilder);
   private route = inject(ActivatedRoute);
   private authService = inject(AuthService);
@@ -39,6 +42,7 @@ export class ResetPasswordComponent implements OnInit {
       password: ['', [Validators.required, passwordValidator()]],
       confirmPassword: ['', Validators.required]
     }, { validators: this.passwordMatchValidator });
+    this.watchForm(this.resetForm);
   }
 
   ngOnInit() {

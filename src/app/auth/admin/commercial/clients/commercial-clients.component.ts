@@ -55,7 +55,7 @@ import { getAdminAvatarColor, getAdminAvatarInitials } from '../../../../shared/
     CommonModule, FormsModule, RouterLink, CommercialClientModalComponent, UserManagementComponent
   ],
   templateUrl: './commercial-clients.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: [
     '../../user-management/user-management.component.scss',
     './commercial-clients.component.scss'

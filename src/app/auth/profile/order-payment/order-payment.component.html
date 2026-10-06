@@ -1,42 +1,42 @@
 <div class="order-payment-container">
-  @if (!paymentCompleted) {
+  @if (!paymentCompleted()) {
   <div class="payment-content">
     <h1>Complete Payment</h1>
     
-    @if (isLoading) {
+    @if (isLoading()) {
     <div class="loading">
       <p>Loading order details...</p>
     </div>
     }
 
-    @if (!isLoading && order) {
+    @if (!isLoading() && order()) {
     <div>
       <!-- Order Summary Section -->
       <div class="order-summary">
         <h2>Order Summary</h2>
         <div class="summary-details">
-          <p><strong>Order #:</strong> {{ order.id }}</p>
-          <p><strong>Service Type:</strong> {{ order.serviceTypeName }}</p>
-          <p><strong>Service Date:</strong> {{ formatDate(order.serviceDate) }}</p>
-          <p><strong>Service Time:</strong> {{ formatTime(order.serviceTime) }}</p>
-          <p><strong>Address:</strong> {{ order.serviceAddress }}{{ order.aptSuite ? ', ' + order.aptSuite : '' }}</p>
-          <p><strong>City:</strong> {{ order.city }}, {{ order.state }} {{ order.zipCode }}</p>
+          <p><strong>Order #:</strong> {{ order()!.id }}</p>
+          <p><strong>Service Type:</strong> {{ order()!.serviceTypeName }}</p>
+          <p><strong>Service Date:</strong> {{ formatDate(order()!.serviceDate) }}</p>
+          <p><strong>Service Time:</strong> {{ formatTime(order()!.serviceTime) }}</p>
+          <p><strong>Address:</strong> {{ order()!.serviceAddress }}{{ order()!.aptSuite ? ', ' + order()!.aptSuite : '' }}</p>
+          <p><strong>City:</strong> {{ order()!.city }}, {{ order()!.state }} {{ order()!.zipCode }}</p>
         </div>
 
         <!-- Full service breakdown so the payer sees exactly what they're paying for
              (payment links may be opened by someone who didn't place the booking).
              Quantities only — per-item prices are never shown to customers; deep/super-deep
              cleaning surfaces as Cleaning Type, matching the order-details page. -->
-        @if ((order.services?.length || 0) > 0 || (order.extraServices?.length || 0) > 0) {
+        @if ((order()!.services?.length || 0) > 0 || (order()!.extraServices?.length || 0) > 0) {
         <div class="summary-breakdown">
           <div class="breakdown-line cleaning-type">
             <span><strong>Cleaning Type</strong></span>
             <span>{{ getCleaningTypeText() }}</span>
           </div>
 
-          @if ((order.services?.length || 0) > 0) {
+          @if ((order()!.services?.length || 0) > 0) {
             <h3>Services</h3>
-            @for (s of order.services; track $index) {
+            @for (s of order()!.services; track $index) {
             <div class="breakdown-line">
               <span>{{ s.serviceName }}</span>
               <span>{{ getServiceQuantityLabel(s) }}</span>
@@ -62,45 +62,45 @@
         }
 
         <div class="summary-breakdown totals">
-          <div class="breakdown-line"><span>Subtotal</span><span>${{ order.subTotal | number:'1.2-2' }}</span></div>
-          @if ((order.discountAmount || 0) > 0) {
+          <div class="breakdown-line"><span>Subtotal</span><span>${{ order()!.subTotal | number:'1.2-2' }}</span></div>
+          @if ((order()!.discountAmount || 0) > 0) {
           <div class="breakdown-line">
-            <span>Discount{{ order.promoCodeDetails ? ' (' + order.promoCodeDetails + ')' : '' }}</span>
-            <span class="discount">-${{ order.discountAmount | number:'1.2-2' }}</span>
+            <span>Discount{{ order()!.promoCodeDetails ? ' (' + order()!.promoCodeDetails + ')' : '' }}</span>
+            <span class="discount">-${{ order()!.discountAmount | number:'1.2-2' }}</span>
           </div>
           }
-          @if ((order.subscriptionDiscountAmount || 0) > 0) {
+          @if ((order()!.subscriptionDiscountAmount || 0) > 0) {
           <div class="breakdown-line">
             <span>Subscription Discount</span>
-            <span class="discount">-${{ order.subscriptionDiscountAmount | number:'1.2-2' }}</span>
+            <span class="discount">-${{ order()!.subscriptionDiscountAmount | number:'1.2-2' }}</span>
           </div>
           }
-          @if ((order.giftCardAmountUsed || 0) > 0) {
+          @if ((order()!.giftCardAmountUsed || 0) > 0) {
           <div class="breakdown-line">
             <span>Gift Card</span>
-            <span class="discount">-${{ order.giftCardAmountUsed | number:'1.2-2' }}</span>
+            <span class="discount">-${{ order()!.giftCardAmountUsed | number:'1.2-2' }}</span>
           </div>
           }
-          <div class="breakdown-line"><span>Tax</span><span>${{ order.tax | number:'1.2-2' }}</span></div>
-          @if ((order.tips || 0) > 0) {
-          <div class="breakdown-line"><span>Tips</span><span>${{ order.tips | number:'1.2-2' }}</span></div>
+          <div class="breakdown-line"><span>Tax</span><span>${{ order()!.tax | number:'1.2-2' }}</span></div>
+          @if ((order()!.tips || 0) > 0) {
+          <div class="breakdown-line"><span>Tips</span><span>${{ order()!.tips | number:'1.2-2' }}</span></div>
           }
           <!-- Part-payments: what has already arrived against this order's total. Shown before
                the amount-due line so the smaller figure below reads as a balance, not a price. -->
-          @if (amountAlreadyPaid > 0) {
+          @if (amountAlreadyPaid() > 0) {
           <div class="breakdown-line">
             <span>Already paid</span>
-            <span class="discount">-${{ amountAlreadyPaid | number:'1.2-2' }}</span>
+            <span class="discount">-${{ amountAlreadyPaid() | number:'1.2-2' }}</span>
           </div>
           }
           <div class="breakdown-line amount-due">
-            <span><strong>{{ paymentType === 'update' ? 'Additional Amount Due' : 'Amount Due' }}</strong></span>
-            <span><strong>${{ orderTotal | number:'1.2-2' }}</strong></span>
+            <span><strong>{{ paymentType() === 'update' ? 'Additional Amount Due' : 'Amount Due' }}</strong></span>
+            <span><strong>${{ orderTotal() | number:'1.2-2' }}</strong></span>
           </div>
-          @if (paymentType === 'partial' && remainingAfterPayment > 0) {
+          @if (paymentType() === 'partial' && remainingAfterPayment() > 0) {
           <div class="breakdown-line remaining-after">
             <span>Remaining after this payment</span>
-            <span>${{ remainingAfterPayment | number:'1.2-2' }}</span>
+            <span>${{ remainingAfterPayment() | number:'1.2-2' }}</span>
           </div>
           }
         </div>
@@ -109,20 +109,20 @@
       <!-- Part-payment notice. The payer is being asked for LESS than the order costs, which
            looks like a mistake unless the page says so plainly — and they can settle the whole
            balance here instead, which is the same server-side flow with a different amount. -->
-      @if (paymentType === 'partial') {
+      @if (paymentType() === 'partial') {
       <div class="partial-payment-notice">
-        <h2>{{ invoiceRequestId ? 'Invoice payment' : (isFinalPartialPayment ? 'Final payment' : 'Payment request') }}</h2>
-        @if (!isFinalPartialPayment) {
+        <h2>{{ invoiceRequestId ? 'Invoice payment' : (isFinalPartialPayment() ? 'Final payment' : 'Payment request') }}</h2>
+        @if (!isFinalPartialPayment()) {
         <p>
-          You're paying <strong>${{ orderTotal | number:'1.2-2' }}</strong> of your
-          ${{ order.total | number:'1.2-2' }} order now.
-          <strong>${{ remainingAfterPayment | number:'1.2-2' }}</strong> will remain, and we'll send
+          You're paying <strong>${{ orderTotal() | number:'1.2-2' }}</strong> of your
+          ${{ order()!.total | number:'1.2-2' }} order now.
+          <strong>${{ remainingAfterPayment() | number:'1.2-2' }}</strong> will remain, and we'll send
           you a link for it. Your cleaning is confirmed once the full amount has been received.
         </p>
         }
-        @if (isFinalPartialPayment) {
+        @if (isFinalPartialPayment()) {
         <p>
-          This completes your ${{ order.total | number:'1.2-2' }} order. Your cleaning is confirmed
+          This completes your ${{ order()!.total | number:'1.2-2' }} order. Your cleaning is confirmed
           as soon as it goes through.
         </p>
         }
@@ -130,17 +130,17 @@
         <!-- Not offered when paying a specific invoice: an invoice bills its own amount, and
              paying "the full remaining" from one of several split invoices would leave the others
              reading as owed until the order settles. -->
-        @if (!invoiceRequestId && (!isFinalPartialPayment || payFullBalance)) {
+        @if (!invoiceRequestId && (!isFinalPartialPayment() || payFullBalance())) {
         <div class="partial-choice">
-          <label class="pay-option" [class.selected]="!payFullBalance">
-            <input type="radio" name="partialAmountChoice" [checked]="!payFullBalance"
-                   (change)="selectPayFullBalance(false)" [disabled]="isProcessing || isLoading">
-            <span>Pay ${{ $safeNavigationMigration(partialRequest?.requestedAmount) | number:'1.2-2' }} now, as arranged</span>
+          <label class="pay-option" [class.selected]="!payFullBalance()">
+            <input type="radio" name="partialAmountChoice" [checked]="!payFullBalance()"
+                   (change)="selectPayFullBalance(false)" [disabled]="isProcessing() || isLoading()">
+            <span>Pay ${{ $safeNavigationMigration(partialRequest()?.requestedAmount) | number:'1.2-2' }} now, as arranged</span>
           </label>
-          <label class="pay-option" [class.selected]="payFullBalance">
-            <input type="radio" name="partialAmountChoice" [checked]="payFullBalance"
-                   (change)="selectPayFullBalance(true)" [disabled]="isProcessing || isLoading">
-            <span>Pay the full remaining ${{ amountDue | number:'1.2-2' }} instead</span>
+          <label class="pay-option" [class.selected]="payFullBalance()">
+            <input type="radio" name="partialAmountChoice" [checked]="payFullBalance()"
+                   (change)="selectPayFullBalance(true)" [disabled]="isProcessing() || isLoading()">
+            <span>Pay the full remaining ${{ amountDue() | number:'1.2-2' }} instead</span>
           </label>
         </div>
         }
@@ -151,7 +151,7 @@
            form's checkboxes (an admin ticked them during the call), so the same three
            agreements are collected here. No card form is rendered and the backend issues no
            client secret until this is accepted. Wording: shared/booking/consent-texts.ts. -->
-      @if (consentRequired && !consentAccepted) {
+      @if (consentRequired() && !consentAccepted()) {
       <div class="consent-section">
         <h2>Before You Pay</h2>
         <p class="consent-intro">Please review and accept the following to confirm your booking.</p>
@@ -162,7 +162,7 @@
             id="payment-sms-consent"
             class="form-checkbox"
             [(ngModel)]="smsConsent"
-            [disabled]="consentSubmitting">
+            [disabled]="consentSubmitting()">
           <label for="payment-sms-consent" class="checkbox-label">
             {{ smsConsentLead }}
             <a routerLink="/privacy-policy" target="_blank">Privacy Policy</a> and
@@ -176,7 +176,7 @@
             id="payment-cancellation-consent"
             class="form-checkbox"
             [(ngModel)]="cancellationConsent"
-            [disabled]="consentSubmitting">
+            [disabled]="consentSubmitting()">
           <label for="payment-cancellation-consent" class="checkbox-label">
             {{ cancellationConsentText }} <span class="required">*</span>
           </label>
@@ -188,7 +188,7 @@
             id="payment-terms-consent"
             class="form-checkbox"
             [(ngModel)]="termsConsent"
-            [disabled]="consentSubmitting">
+            [disabled]="consentSubmitting()">
           <label for="payment-terms-consent" class="checkbox-label">
             {{ termsConsentLead }}
             <a routerLink="/privacy-policy" target="_blank">Privacy Policy</a> and
@@ -196,28 +196,28 @@
           </label>
         </div>
 
-        @if (consentError) {
-        <div class="error-message">{{ consentError }}</div>
+        @if (consentError()) {
+        <div class="error-message">{{ consentError() }}</div>
         }
 
         <div class="consent-actions">
           <button
             class="consent-btn"
             (click)="acceptConsentAndContinue()"
-            [disabled]="!allConsentsChecked || consentSubmitting">
-            @if (!consentSubmitting) {
+            [disabled]="!allConsentsChecked() || consentSubmitting()">
+            @if (!consentSubmitting()) {
             <span>Agree &amp; Continue to Payment</span>
             }
-            @if (consentSubmitting) {
+            @if (consentSubmitting()) {
             <span>Saving...</span>
             }
           </button>
 
-          <button class="cancel-btn" (click)="cancelPayment()" [disabled]="consentSubmitting">
+          <button class="cancel-btn" (click)="cancelPayment()" [disabled]="consentSubmitting()">
             Cancel
           </button>
         </div>
-        @if (!allConsentsChecked) {
+        @if (!allConsentsChecked()) {
         <p class="consent-hint">
           All three boxes must be checked before payment can be made.
         </p>
@@ -226,21 +226,21 @@
       }
 
       <!-- Already accepted (page reloaded, or the link opened a second time). -->
-      @if (consentRequired && consentAccepted) {
+      @if (consentRequired() && consentAccepted()) {
       <div class="consent-accepted">
         <i [appIcon]="icons.faCircleCheck"></i>
-        <span>Terms accepted{{ consentAcceptedAt ? ' on ' + formatDateTime(consentAcceptedAt) : '' }}.</span>
+        <span>Terms accepted{{ consentAcceptedAt() ? ' on ' + formatDateTime(consentAcceptedAt()) : '' }}.</span>
       </div>
       }
 
       <!-- Nothing owed: a plain statement, never a payment form (see nothingDue). -->
-      @if (nothingDue) {
+      @if (nothingDue()) {
       <div class="nothing-due-notice" role="status">
         <i [appIcon]="icons.faCircleCheck" aria-hidden="true"></i>
         <div>
           <strong>Nothing to pay.</strong>
-          <p>{{ errorMessage }}</p>
-          <a [routerLink]="['/order', order.id]">View order details</a>
+          <p>{{ errorMessage() }}</p>
+          <a [routerLink]="['/order', order()!.id]">View order details</a>
         </div>
       </div>
       }
@@ -251,7 +251,7 @@
         <h2>Payment Information</h2>
 
         <!-- Fully covered by gift card: no charge required -->
-        @if (fullyCovered) {
+        @if (fullyCovered()) {
         <div class="fully-covered-notice">
           <i [appIcon]="icons.faGift"></i>
           <p>Your gift card covers the full amount. No payment is required — just confirm to complete.</p>
@@ -260,43 +260,43 @@
 
         <!-- Apple Pay / Google Pay button -->
         <!-- Saved cards vs. a new card (owner only; selecting never charges — the Pay button does) -->
-        @if (savedCards.length > 0 && !fullyCovered) {
+        @if (savedCards().length > 0 && !fullyCovered()) {
         <div class="saved-card-choice" role="radiogroup" aria-label="Payment method">
-          @for (card of savedCards; track card.id) {
-          <label class="pay-option" [class.selected]="selectedCardId === card.id">
-            <input type="radio" name="paymentMethodChoice" [checked]="selectedCardId === card.id"
-                   (change)="selectPaymentMethod(card.id)" [disabled]="isProcessing">
+          @for (card of savedCards(); track card.id) {
+          <label class="pay-option" [class.selected]="selectedCardId() === card.id">
+            <input type="radio" name="paymentMethodChoice" [checked]="selectedCardId() === card.id"
+                   (change)="selectPaymentMethod(card.id)" [disabled]="isProcessing()">
             <span>Pay with {{ cardLabel(card) }}@if (card.isPrimary) {
             <span class="pay-option-badge"> · Primary</span>
             }</span>
           </label>
           }
-          <label class="pay-option" [class.selected]="selectedCardId === null">
-            <input type="radio" name="paymentMethodChoice" [checked]="selectedCardId === null"
-                   (change)="selectPaymentMethod(null)" [disabled]="isProcessing">
+          <label class="pay-option" [class.selected]="selectedCardId() === null">
+            <input type="radio" name="paymentMethodChoice" [checked]="selectedCardId() === null"
+                   (change)="selectPaymentMethod(null)" [disabled]="isProcessing()">
             <span>Enter a new card</span>
           </label>
         </div>
         }
 
-        @if (showApplePay && !fullyCovered && !usingSavedCard) {
+        @if (showApplePay() && !fullyCovered() && !usingSavedCard) {
         <div id="payment-request-button" class="applepay-button-container"></div>
         }
 
         <!-- Card Element Container -->
-        <div id="card-element" class="card-element-container" [hidden]="fullyCovered || usingSavedCard">
+        <div id="card-element" class="card-element-container" [hidden]="fullyCovered() || usingSavedCard">
           <!-- Stripe Elements will be mounted here -->
         </div>
 
         <!-- Card Error Message -->
-        @if (cardError && !fullyCovered && !usingSavedCard) {
+        @if (cardError() && !fullyCovered() && !usingSavedCard) {
         <div class="card-error">
-          {{ cardError }}
+          {{ cardError() }}
         </div>
         }
 
         <!-- The card WAS charged; only our confirmation is late. Never phrased as a failure. -->
-        @if (finalizingPayment) {
+        @if (finalizingPayment()) {
         <div class="finalizing-notice" role="status" aria-live="polite">
           <i [appIcon]="icons.faCircleNotch" class="fa-spin" aria-hidden="true"></i>
           <div>
@@ -307,9 +307,9 @@
         }
 
         <!-- Error Message -->
-        @if (errorMessage) {
+        @if (errorMessage()) {
         <div class="error-message">
-          {{ errorMessage }}
+          {{ errorMessage() }}
         </div>
         }
 
@@ -318,14 +318,14 @@
           <button
             class="pay-btn"
             (click)="onPayClicked()"
-            [disabled]="isProcessing || (!fullyCovered && !usingSavedCard && !!cardError) || isLoading">
-            @if (!isProcessing && fullyCovered) {
+            [disabled]="isProcessing() || (!fullyCovered() && !usingSavedCard && !!cardError()) || isLoading()">
+            @if (!isProcessing() && fullyCovered()) {
             <span>Complete Booking</span>
             }
-            @if (!isProcessing && !fullyCovered) {
-            <span>Pay ${{ orderTotal | number:'1.2-2' }}</span>
+            @if (!isProcessing() && !fullyCovered()) {
+            <span>Pay ${{ orderTotal() | number:'1.2-2' }}</span>
             }
-            @if (isProcessing) {
+            @if (isProcessing()) {
             <span>Processing...</span>
             }
           </button>
@@ -333,7 +333,7 @@
           <button 
             class="cancel-btn" 
             (click)="cancelPayment()"
-            [disabled]="isProcessing">
+            [disabled]="isProcessing()">
             Cancel
           </button>
         </div>
@@ -345,27 +345,27 @@
   }
   
   <!-- Success Content -->
-  @if (paymentCompleted) {
+  @if (paymentCompleted()) {
   <div class="success-content">
     <i [appIcon]="icons.faCircleCheck" class="success-icon"></i>
     <h1>Payment Successful!</h1>
 
     <!-- A part-payment that did not settle the order must NOT claim the booking is confirmed —
          it isn't yet, and the customer still owes the balance. -->
-    @if (partialPaymentRemaining !== null) {
+    @if (partialPaymentRemaining() !== null) {
       <p>
-        Thank you — we've received your payment of ${{ orderTotal | number:'1.2-2' }}.
+        Thank you — we've received your payment of ${{ orderTotal() | number:'1.2-2' }}.
       </p>
       <p class="order-info">
-        <strong>${{ partialPaymentRemaining | number:'1.2-2' }}</strong> remains on order
-        #{{ orderId }}. We'll send you a link for it, and your cleaning is confirmed once the
+        <strong>${{ partialPaymentRemaining() | number:'1.2-2' }}</strong> remains on order
+        #{{ orderId() }}. We'll send you a link for it, and your cleaning is confirmed once the
         full amount has been received.
       </p>
     }
-    @if (partialPaymentRemaining === null) {
+    @if (partialPaymentRemaining() === null) {
 
       <p>Your booking has been confirmed.</p>
-      <p class="order-info">Order #{{ orderId }}</p>
+      <p class="order-info">Order #{{ orderId() }}</p>
     }
 
     <!-- One list, built by the shared checklist so this page can never name different products
@@ -375,20 +375,20 @@
          Withheld after a part-payment that left a balance: telling someone to buy sponges for a
          cleaning that is not confirmed yet is premature, and they get the same list with the
          confirmation once the order is fully paid. -->
-    @if (partialPaymentRemaining === null) {
-      @if (supplyChecklistItems.length === 0) {
+    @if (partialPaymentRemaining() === null) {
+      @if (supplyChecklistItems().length === 0) {
       <p class="redirect-info">
         Nothing to prepare &mdash; we bring all the supplies for this cleaning.
       </p>
       }
-      @if (supplyChecklistItems.length > 0) {
+      @if (supplyChecklistItems().length > 0) {
         <p class="redirect-info">
-          {{ hasCleaningSupplies || isCustomServiceType
+          {{ hasCleaningSupplies() || isCustomServiceType()
               ? 'Please provide the following items:'
               : 'Please have all the following items ready for our team:' }}
         </p>
         <ul class="supplies-list">
-          @for (item of supplyChecklistItems; track item) {
+          @for (item of supplyChecklistItems(); track item) {
           <li>{{ item }}</li>
           }
         </ul>
@@ -396,17 +396,17 @@
     }
     
     <!-- Order pages need login, so guests paying via a link just get the confirmation above. -->
-    @if (!isGuestMode) {
-    <a [routerLink]="['/order', orderId]" class="view-order-btn">View Order Now</a>
+    @if (!isGuestMode()) {
+    <a [routerLink]="['/order', orderId()]" class="view-order-btn">View Order Now</a>
     }
   </div>
   }
 </div>
 <!-- Asked between the Pay click and the charge. Starts nothing by itself. -->
 <app-save-card-modal
-  [open]="showSaveCardModal"
-  [busy]="isProcessing"
-  [amountLabel]="'$' + (orderTotal | number:'1.2-2')"
+  [open]="showSaveCardModal()"
+  [busy]="isProcessing()"
+  [amountLabel]="'$' + (orderTotal() | number:'1.2-2')"
   (choose)="onSaveCardChoice($event)"
   (dismissed)="onSaveCardDismissed()">
 </app-save-card-modal>

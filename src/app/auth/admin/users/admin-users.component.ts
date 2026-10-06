@@ -20,7 +20,7 @@ export type AdminUsersTab = 'customers' | 'cleaners' | 'business-clients' | 'sta
     CommercialClientsComponent
 ],
   templateUrl: './admin-users.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./admin-users.component.scss']
 })
 /**

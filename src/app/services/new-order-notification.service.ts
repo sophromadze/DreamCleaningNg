@@ -1,4 +1,4 @@
-import { PLATFORM_ID, OnDestroy, NgZone, inject, Service } from '@angular/core';
+import { PLATFORM_ID, OnDestroy, NgZone, inject, Service, signal } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { BehaviorSubject, combineLatest } from 'rxjs';
 import { AuthService } from './auth.service';
@@ -50,6 +50,8 @@ export class NewOrderNotificationService implements OnDestroy {
    * header badge to a page that may not be open.
    */
   private unviewedOrders = new Map<number, number>();
+  /** Bumped on every change to unviewedOrders, so templates reading isUnviewed() re-render. */
+  private readonly unviewedVersion = signal(0);
 
   private sweepHandle: ReturnType<typeof setInterval> | null = null;
 
@@ -111,6 +113,7 @@ export class NewOrderNotificationService implements OnDestroy {
 
   /** Check if a specific order is unviewed BY THIS ADMIN and still inside the 24h window. */
   isUnviewed(orderId: number): boolean {
+    this.unviewedVersion();
     const createdAt = this.unviewedOrders.get(orderId);
     if (createdAt === undefined) return false;
     return Date.now() - createdAt < NEW_ORDER_WINDOW_MS;
@@ -195,6 +198,7 @@ export class NewOrderNotificationService implements OnDestroy {
   }
 
   private emit(): void {
+    this.unviewedVersion.update(v => v + 1);
     this.hasUnviewedOrders$.next(this.unviewedOrders.size > 0);
     this.unviewedCount$.next(this.unviewedOrders.size);
   }

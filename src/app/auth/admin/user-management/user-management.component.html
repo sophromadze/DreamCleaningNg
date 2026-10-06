@@ -2,39 +2,39 @@
      it: the host has its own list, and this instance is there for the detail panel alone. -->
 @if (!isEmbedded) {
 <div class="user-management-section"
-     [class.detail-open]="viewingUserId !== null">
+     [class.detail-open]="viewingUserId() !== null">
   <div class="section-header">
     <div class="header-left">
       <h2>User Management</h2>
-      @if (!loadingUsers) {
-      <span class="user-count">{{ users.length }} total</span>
+      @if (!loadingUsers()) {
+      <span class="user-count">{{ users().length }} total</span>
       }
     </div>
     <div class="header-right">
-      @if (canCreate) {
+      @if (canCreate()) {
       <button class="action-btn register-customer" (click)="openRegisterModal()">
         + Register Customer
       </button>
       }
-      @if (isSuperAdmin) {
+      @if (isSuperAdmin()) {
       <button class="action-btn export-users" (click)="openExportModal()">
         Export
       </button>
       }
       <button class="action-btn refresh"
               (click)="loadUsers()"
-              [disabled]="loadingUsers">
-        {{ loadingUsers ? 'Loading…' : 'Refresh' }}
+              [disabled]="loadingUsers()">
+        {{ loadingUsers() ? 'Loading…' : 'Refresh' }}
       </button>
     </div>
   </div>
 
   <div class="messages">
-    @if (errorMessage) {
-    <div class="error-message">{{ errorMessage }}</div>
+    @if (errorMessage()) {
+    <div class="error-message">{{ errorMessage() }}</div>
     }
-    @if (successMessage) {
-    <div class="success-message">{{ successMessage }}</div>
+    @if (successMessage()) {
+    <div class="success-message">{{ successMessage() }}</div>
     }
   </div>
 
@@ -54,7 +54,7 @@
       <!-- Only the roles this tab can actually contain. Offering "Customer" on the Staff tab
            (or the three admin roles on Customers) would be a filter that always returns nothing,
            which reads as a broken list rather than an empty one. -->
-      @if (scope === 'staff') {
+      @if (scope() === 'staff') {
       <select aria-label="Filter by role" [(ngModel)]="roleFilter" class="filter-select">
         <option value="all">All Roles</option>
         <option value="SuperAdmin">SAdmin</option>
@@ -64,7 +64,7 @@
       }
       <!-- Customer type by non-cancelled order count: new = 1, returning = 2+.
            Meaningless for staff, who are not booking cleanings. -->
-      @if (scope === 'customers') {
+      @if (scope() === 'customers') {
       <select aria-label="Filter by customer type" [(ngModel)]="customerTypeFilter" class="filter-select">
         <option value="all">All Customers</option>
         <option value="new">New (1 order)</option>
@@ -86,7 +86,7 @@
               <th class="col-phone">Phone</th>
               <th class="col-email">Email</th>
               <th class="col-last">Last Cleaning</th>
-              @if (userRole !== 'Moderator') {
+              @if (userRole() !== 'Moderator') {
               <th class="col-actions">Actions</th>
               }
             </tr>
@@ -95,7 +95,7 @@
             @for (user of filteredUsers; track user.id) {
             <tr
                 class="user-row"
-                [class.row-selected]="viewingUserId === user.id"
+                [class.row-selected]="viewingUserId() === user.id"
                 [class.row-blocked]="!user.isActive"
                 [class.row-flagged-red]="user.isActive && user.flag === 'Red'"
                 [class.row-flagged-yellow]="user.isActive && user.flag === 'Yellow'"
@@ -185,7 +185,7 @@
                 }
               </td>
 
-              @if (userRole !== 'Moderator') {
+              @if (userRole() !== 'Moderator') {
               <td class="col-actions" (click)="$event.stopPropagation()">
                 <div class="row-actions">
                   <button class="icon-btn note"
@@ -218,7 +218,7 @@
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
                   </button>
                   }
-                  @if (isSuperAdmin) {
+                  @if (isSuperAdmin()) {
                   <button class="icon-btn danger"
                           (click)="deleteUser(user, $event)"
                           title="Delete user">
@@ -231,7 +231,7 @@
             </tr>
             }
 
-            @if (!loadingUsers && filteredUsers.length === 0) {
+            @if (!loadingUsers() && filteredUsers.length === 0) {
             <tr>
               <td colspan="5" class="empty-row">No users match the current filters.</td>
             </tr>
@@ -244,27 +244,27 @@
     <!-- Pagination -->
     @if (totalPages > 1) {
     <div class="pagination">
-      <button class="page-btn" (click)="previousPage()" [disabled]="currentPage === 1">‹ Previous</button>
-      <button class="page-btn" (click)="goToPage(1)" [class.active]="currentPage === 1">1</button>
-      @if (totalPages > 5 && currentPage > 3) {
+      <button class="page-btn" (click)="previousPage()" [disabled]="currentPage() === 1">‹ Previous</button>
+      <button class="page-btn" (click)="goToPage(1)" [class.active]="currentPage() === 1">1</button>
+      @if (totalPages > 5 && currentPage() > 3) {
       <span class="page-ellipsis">…</span>
       }
       @for (page of getVisiblePages(); track page) {
       <button
               class="page-btn"
               (click)="goToPage(page)"
-              [class.active]="currentPage === page">{{ page }}</button>
+              [class.active]="currentPage() === page">{{ page }}</button>
       }
-      @if (totalPages > 5 && currentPage < totalPages - 2) {
+      @if (totalPages > 5 && currentPage() < totalPages - 2) {
       <span class="page-ellipsis">…</span>
       }
       @if (totalPages > 1) {
       <button
               class="page-btn"
               (click)="goToPage(totalPages)"
-              [class.active]="currentPage === totalPages">{{ totalPages }}</button>
+              [class.active]="currentPage() === totalPages">{{ totalPages }}</button>
       }
-      <button class="page-btn" (click)="nextPage()" [disabled]="currentPage === totalPages">Next ›</button>
+      <button class="page-btn" (click)="nextPage()" [disabled]="currentPage() === totalPages">Next ›</button>
     </div>
     }
   </div>
@@ -275,14 +275,14 @@
 <!-- The click-away overlay belongs to whoever owns the panel's place on screen. In panel-only
      mode that is the host, which already has one up for its own panel — a second would sit on
      top of the first and swallow the click. -->
-@if (viewingUserId !== null && !isEmbedded) {
+@if (viewingUserId() !== null && !isEmbedded) {
 <div class="detail-overlay"
      (click)="dismissDetailPanel()"></div>
 }
 
 <!-- Held open from the first frame when embedded: the host has just swapped its own panel out for
      this one, and waiting on the list load would blank the slot they were both standing in. -->
-<aside class="detail-panel" [class.open]="viewingUserId !== null || isEmbedded">
+<aside class="detail-panel" [class.open]="viewingUserId() !== null || isEmbedded">
   <!-- A host's own tab strip, above this panel's header — how Business Clients puts "Business
        client / Customer account" over the record without a second copy of the record. Outside the
        *ngIf below on purpose, so the strip is there to switch back with while the account loads. -->
@@ -290,12 +290,12 @@
 
   <!-- The list's own error slot lives inside the section, which panel-only mode does not draw —
        so a load that fails here would otherwise sit on "Loading…" with the reason off screen. -->
-  @if (isEmbedded && !selectedUser) {
+  @if (isEmbedded && !selectedUser()) {
   <div class="detail-loading">
-    {{ errorMessage || 'Loading customer record…' }}
+    {{ errorMessage() || 'Loading customer record…' }}
   </div>
   }
-  @if (selectedUser) {
+  @if (selectedUser(); as selectedUser) {
 
     <!-- Header -->
     <div class="detail-header">
@@ -343,37 +343,37 @@
       </div>
       <div class="detail-header__actions">
         <div class="actions-row">
-          @if (canEditUserDetails(selectedUser) && !editingUser) {
+          @if (canEditUserDetails(selectedUser) && !editingUser()) {
           <button class="action-btn small" (click)="startEditUser()">Edit</button>
           }
           <button class="action-btn small ghost" (click)="dismissDetailPanel()" aria-label="Close">✕</button>
         </div>
-        @if (canEditUserDetails(selectedUser) && !editingUser && selectedUser.role === 'Customer') {
+        @if (canEditUserDetails(selectedUser) && !editingUser() && selectedUser.role === 'Customer') {
         <button class="action-btn small"
                 (click)="sendReminderToUser()"
-                [disabled]="sendingReminder"
+                [disabled]="sendingReminder()"
                 title="Send a reminder — &quot;we miss you&quot; for past customers, &quot;book your first cleaning&quot; for users who never ordered">
-          {{ sendingReminder ? 'Sending…' : 'Send Reminder' }}
+          {{ sendingReminder() ? 'Sending…' : 'Send Reminder' }}
         </button>
         }
-        @if (isSuperAdmin && !editingUser && isStaffRole(selectedUser.role)) {
+        @if (isSuperAdmin() && !editingUser() && isStaffRole(selectedUser.role)) {
         <button class="action-btn small warning"
                 (click)="resetStaffPin(selectedUser)"
-                [disabled]="resettingPin"
+                [disabled]="resettingPin()"
                 title="Unlock this staff account and clear their login PIN. They'll set a brand-new PIN on their next login.">
-          {{ resettingPin ? 'Resetting…' : 'Reset Login PIN' }}
+          {{ resettingPin() ? 'Resetting…' : 'Reset Login PIN' }}
         </button>
         }
       </div>
     </div>
 
     <!-- Loading state -->
-    @if (loadingUserDetails) {
+    @if (loadingUserDetails()) {
     <div class="detail-loading">Loading customer profile…</div>
     }
 
     <!-- Stats row -->
-    @if (!loadingUserDetails && !editingUser) {
+    @if (!loadingUserDetails() && !editingUser()) {
     <div class="stats-row">
       <div class="stat">
         <span class="stat-label">Registered</span>
@@ -391,29 +391,29 @@
         <span class="stat-label">Last Cleaning</span>
         <span class="stat-value">{{ $any(selectedUser).lastCleaningDate ? formatShortDate($any(selectedUser).lastCleaningDate) : '—' }}</span>
       </div>
-      @if (userRewardsSummary?.pointsSystemEnabled) {
+      @if (userRewardsSummary()?.pointsSystemEnabled) {
       <div class="stat">
         <span class="stat-label">Bubble Points</span>
-        <span class="stat-value bubble">{{ (userRewardsSummary?.currentPoints ?? 0) | number }}</span>
+        <span class="stat-value bubble">{{ (userRewardsSummary()?.currentPoints ?? 0) | number }}</span>
       </div>
       }
 
       <!-- Staff bonus stats. Only shown when the viewed user has the Admin role — how many
            paying orders they earn on, and what that comes to this calendar month. The rate
            shown is theirs (their own override if they have one), new / returning customer. -->
-      @if (selectedUser.role === 'Admin' && adminBonusAllTime) {
+      @if (selectedUser.role === 'Admin' && adminBonusAllTime()) {
         <div class="stat">
           <span class="stat-label">Paying Orders</span>
           <span class="stat-value">
-            {{ adminBonusAllTime.assignedCount }}
-            @if (adminBonusAllTime.eligibleCount !== adminBonusAllTime.assignedCount) {
+            {{ adminBonusAllTime()!.assignedCount }}
+            @if (adminBonusAllTime()!.eligibleCount !== adminBonusAllTime()!.assignedCount) {
             <small class="muted">
-              ({{ adminBonusAllTime.eligibleCount }} paying)
+              ({{ adminBonusAllTime()!.eligibleCount }} paying)
             </small>
             }
           </span>
         </div>
-        @if (adminBonusThisMonth) {
+        @if (adminBonusThisMonth(); as adminBonusThisMonth) {
         <div class="stat">
           <span class="stat-label">This Month Bonus</span>
           <span class="stat-value">
@@ -431,49 +431,49 @@
     }
 
     <!-- Edit form (Admin / SuperAdmin) -->
-    @if (editingUser && canEditUserDetails(selectedUser)) {
+    @if (editingUser() && canEditUserDetails(selectedUser)) {
     <div class="edit-form-wrap">
       <h4>Edit User <span class="hint">— all changes are recorded in Audit logs</span></h4>
       <div class="edit-grid">
-        <label><span>First Name</span><input type="text" [(ngModel)]="editUserForm.firstName"></label>
-        <label><span>Last Name</span><input type="text" [(ngModel)]="editUserForm.lastName"></label>
+        <label><span>First Name</span><input type="text" [(ngModel)]="editUserForm().firstName"></label>
+        <label><span>Last Name</span><input type="text" [(ngModel)]="editUserForm().lastName"></label>
         <label>
           <span>Email</span>
-          <input type="email" [(ngModel)]="editUserForm.email"
+          <input type="email" [(ngModel)]="editUserForm().email"
                  [placeholder]="selectedUser.isNoEmailUser ? 'No email — type one to convert to a normal account' : ''">
         </label>
-        <label><span>Phone</span><input type="tel" inputmode="numeric" [ngModel]="editUserForm.phone" (input)="onEditPhoneInput($event)" placeholder="10-digit"></label>
-        <label class="check"><input type="checkbox" [(ngModel)]="editUserForm.firstTimeOrder"> First-time customer</label>
+        <label><span>Phone</span><input type="tel" inputmode="numeric" [ngModel]="editUserForm().phone" (input)="onEditPhoneInput($event)" placeholder="10-digit"></label>
+        <label class="check"><input type="checkbox" [(ngModel)]="editUserForm().firstTimeOrder"> First-time customer</label>
       </div>
       <div class="edit-actions">
-        <button class="action-btn primary" (click)="saveUserEdit()" [disabled]="savingUser">{{ savingUser ? 'Saving…' : 'Save' }}</button>
-        <button class="action-btn ghost" (click)="cancelEditUser()" [disabled]="savingUser">Cancel</button>
+        <button class="action-btn primary" (click)="saveUserEdit()" [disabled]="savingUser()">{{ savingUser() ? 'Saving…' : 'Save' }}</button>
+        <button class="action-btn ghost" (click)="cancelEditUser()" [disabled]="savingUser()">Cancel</button>
       </div>
 
-      @if (userRewardsSummary?.pointsSystemEnabled) {
+      @if (userRewardsSummary()?.pointsSystemEnabled) {
       <div class="info-card">
         <h4>Bubble Rewards</h4>
         <div class="info-grid">
-          <div><span>Tier</span><strong>{{ getTierLabel(userRewardsSummary.tier) }}</strong></div>
-          <div><span>Earned</span><strong>{{ userRewardsSummary.totalEarned | number }}</strong></div>
-          <div><span>Redeemed</span><strong>{{ userRewardsSummary.totalRedeemed | number }}</strong></div>
-          <div><span>Current</span><strong>{{ userRewardsSummary.currentPoints | number }}</strong></div>
-          @if (userRewardsSummary.bubbleCredits > 0) {
-          <div><span>Reward Balance</span><strong>${{ userRewardsSummary.bubbleCredits | number:'1.2-2' }}</strong></div>
+          <div><span>Tier</span><strong>{{ getTierLabel(userRewardsSummary().tier) }}</strong></div>
+          <div><span>Earned</span><strong>{{ userRewardsSummary().totalEarned | number }}</strong></div>
+          <div><span>Redeemed</span><strong>{{ userRewardsSummary().totalRedeemed | number }}</strong></div>
+          <div><span>Current</span><strong>{{ userRewardsSummary().currentPoints | number }}</strong></div>
+          @if (userRewardsSummary().bubbleCredits > 0) {
+          <div><span>Reward Balance</span><strong>${{ userRewardsSummary().bubbleCredits | number:'1.2-2' }}</strong></div>
           }
-          @if (userRewardsSummary.streakCount > 1) {
-          <div><span>Streak</span><strong>{{ userRewardsSummary.streakCount }}</strong></div>
+          @if (userRewardsSummary().streakCount > 1) {
+          <div><span>Streak</span><strong>{{ userRewardsSummary().streakCount }}</strong></div>
           }
         </div>
-        @if (isSuperAdmin) {
+        @if (isSuperAdmin()) {
         <div class="rewards-adjust">
           <input type="number" [(ngModel)]="adjustPointsAmount" min="0" placeholder="New total" class="small-input">
           <input type="text" [(ngModel)]="adjustPointsDesc" placeholder="Reason (optional)" class="small-input flex">
-          <button class="action-btn primary small" (click)="savePointsAdjustment()" [disabled]="savingPoints">{{ savingPoints ? '…' : 'Adjust' }}</button>
+          <button class="action-btn primary small" (click)="savePointsAdjustment()" [disabled]="savingPoints()">{{ savingPoints() ? '…' : 'Adjust' }}</button>
         </div>
         }
-        @if (pointsSaveMessage) {
-        <div class="muted">{{ pointsSaveMessage }}</div>
+        @if (pointsSaveMessage()) {
+        <div class="muted">{{ pointsSaveMessage() }}</div>
         }
 
         <!-- Refund/cancellation reversals with their full record (order, reason, amount, date, who
@@ -497,19 +497,19 @@
       </div>
       }
 
-      @if (userRewardsSummary?.pointsSystemEnabled) {
+      @if (userRewardsSummary()?.pointsSystemEnabled) {
       <div class="info-card referrals-card">
         <h4>Referrals</h4>
 
         <div class="referral-block">
           <div class="referral-block__label">Referred by</div>
-          @if (userRewardsSummary?.referredByName) {
+          @if (userRewardsSummary()?.referredByName) {
           <div class="referral-block__value">
-            <strong>{{ userRewardsSummary.referredByName }}</strong>
-            @if (isSuperAdmin) {
+            <strong>{{ userRewardsSummary().referredByName }}</strong>
+            @if (isSuperAdmin()) {
             <button
                     class="action-btn small ghost inline"
-                    [disabled]="removingReferredBy"
+                    [disabled]="removingReferredBy()"
                     (click)="removeReferredBy()"
                     title="Remove referrer">×</button>
             }
@@ -518,17 +518,17 @@
             <div class="referral-block__value muted">No referrer set.</div>
           }
 
-          @if (isSuperAdmin) {
+          @if (isSuperAdmin()) {
           <div class="referral-form">
             <div class="referral-search">
               <input type="email"
                      [(ngModel)]="newReferrerEmail"
                      (ngModelChange)="searchReferrers($event)"
-                     placeholder="{{ userRewardsSummary?.referredByName ? 'Change referrer (email)' : 'Set referrer (email)' }}"
+                     placeholder="{{ userRewardsSummary()?.referredByName ? 'Change referrer (email)' : 'Set referrer (email)' }}"
                      class="small-input flex">
-              @if (newReferrerSearchResults.length > 0) {
+              @if (newReferrerSearchResults().length > 0) {
               <ul class="suggest-list">
-                @for (s of newReferrerSearchResults; track $index) {
+                @for (s of newReferrerSearchResults(); track $index) {
                 <li (click)="selectReferrerSuggestion(s.email)">
                   <strong>{{ s.email }}</strong> <span class="muted">— {{ s.name }}</span>
                 </li>
@@ -538,8 +538,8 @@
             </div>
             <button class="action-btn primary small"
                     (click)="setReferredBy()"
-                    [disabled]="settingReferredBy || !newReferrerEmail.trim()">
-              {{ settingReferredBy ? '…' : (userRewardsSummary?.referredByName ? 'Change' : 'Set') }}
+                    [disabled]="settingReferredBy() || !newReferrerEmail().trim()">
+              {{ settingReferredBy() ? '…' : (userRewardsSummary()?.referredByName ? 'Change' : 'Set') }}
             </button>
           </div>
           }
@@ -547,20 +547,20 @@
 
         <div class="referral-block">
           <div class="referral-block__label">
-            Referrals ({{ userRewardsSummary?.referrals?.length || 0 }})
+            Referrals ({{ userRewardsSummary()?.referrals?.length || 0 }})
           </div>
-          @if (userRewardsSummary?.referrals?.length > 0) {
+          @if (userRewardsSummary()?.referrals?.length > 0) {
           <ul class="referral-list">
-            @for (r of userRewardsSummary.referrals; track r.id) {
+            @for (r of userRewardsSummary().referrals; track r.id) {
             <li>
               <div class="referral-list__main">
                 <strong>{{ r.referredUserEmail }}</strong>
                 <span class="muted"> — {{ r.referredUserName }}</span>
               </div>
-              @if (isSuperAdmin) {
+              @if (isSuperAdmin()) {
               <button
                       class="action-btn small ghost inline"
-                      [disabled]="removingReferralId === r.id"
+                      [disabled]="removingReferralId() === r.id"
                       (click)="removeReferredUser(r.id)"
                       title="Remove this referral">×</button>
               }
@@ -568,11 +568,11 @@
             }
           </ul>
           }
-          @if (!userRewardsSummary?.referrals?.length) {
+          @if (!userRewardsSummary()?.referrals?.length) {
           <div class="muted">No referrals yet.</div>
           }
 
-          @if (isSuperAdmin) {
+          @if (isSuperAdmin()) {
           <div class="referral-form">
             <div class="referral-search">
               <input type="email"
@@ -580,9 +580,9 @@
                      (ngModelChange)="searchReferrals($event)"
                      placeholder="Add referred user (email)"
                      class="small-input flex">
-              @if (newReferralSearchResults.length > 0) {
+              @if (newReferralSearchResults().length > 0) {
               <ul class="suggest-list">
-                @for (s of newReferralSearchResults; track $index) {
+                @for (s of newReferralSearchResults(); track $index) {
                 <li (click)="selectReferralSuggestion(s.email)">
                   <strong>{{ s.email }}</strong> <span class="muted">— {{ s.name }}</span>
                 </li>
@@ -592,15 +592,15 @@
             </div>
             <button class="action-btn primary small"
                     (click)="addReferredUser()"
-                    [disabled]="addingReferral || !newReferralEmail.trim()">
-              {{ addingReferral ? '…' : 'Add' }}
+                    [disabled]="addingReferral() || !newReferralEmail().trim()">
+              {{ addingReferral() ? '…' : 'Add' }}
             </button>
           </div>
           }
         </div>
 
-        @if (referralActionMessage) {
-        <div class="muted">{{ referralActionMessage }}</div>
+        @if (referralActionMessage()) {
+        <div class="muted">{{ referralActionMessage() }}</div>
         }
       </div>
       }
@@ -608,40 +608,40 @@
     }
 
     <!-- Tabs -->
-    @if (!editingUser) {
+    @if (!editingUser()) {
     <nav class="detail-tabs" aria-label="User record sections">
-      <button class="tab" [class.active]="detailTab === 'details'" (click)="setDetailTab('details')">Details</button>
-      <button class="tab" [class.active]="detailTab === 'notes'" (click)="setDetailTab('notes')">Notes
-        @if (generalNotes.length > 0) {
-        <span class="badge">{{ generalNotes.length }}</span>
+      <button class="tab" [class.active]="detailTab() === 'details'" (click)="setDetailTab('details')">Details</button>
+      <button class="tab" [class.active]="detailTab() === 'notes'" (click)="setDetailTab('notes')">Notes
+        @if (generalNotes().length > 0) {
+        <span class="badge">{{ generalNotes().length }}</span>
         }
       </button>
-      <button class="tab" [class.active]="detailTab === 'history'" (click)="setDetailTab('history')">History
+      <button class="tab" [class.active]="detailTab() === 'history'" (click)="setDetailTab('history')">History
         <!-- Real orders only (not cancelled, not refunded); the list below still shows every order. -->
         @if (historyRealOrderCount > 0) {
         <span class="badge">{{ historyRealOrderCount }}</span>
         }
       </button>
-      <button class="tab" [class.active]="detailTab === 'photos'" (click)="setDetailTab('photos')">Photos</button>
+      <button class="tab" [class.active]="detailTab() === 'photos'" (click)="setDetailTab('photos')">Photos</button>
       <!-- Shown only when there is something in it. An empty Invoices tab on every customer in
            the business is a tab nobody would ever click twice. -->
       @if (hasInvoices) {
       <button class="tab"
-              [class.active]="detailTab === 'invoices'" (click)="setDetailTab('invoices')">Invoices
-        <span class="badge">{{ userInvoices.length }}</span>
+              [class.active]="detailTab() === 'invoices'" (click)="setDetailTab('invoices')">Invoices
+        <span class="badge">{{ userInvoices().length }}</span>
       </button>
       }
       <!-- Saved cards, AutoPay, balances and payment attempts — read-only. Admin + SuperAdmin
            only (the endpoint refuses Moderators too). -->
-      @if (currentUserRole === 'Admin' || currentUserRole === 'SuperAdmin') {
+      @if (currentUserRole() === 'Admin' || currentUserRole() === 'SuperAdmin') {
       <button class="tab"
-              [class.active]="detailTab === 'billing'" (click)="setDetailTab('billing')">Billing</button>
+              [class.active]="detailTab() === 'billing'" (click)="setDetailTab('billing')">Billing</button>
       }
     </nav>
     }
 
     <!-- Tab body scrolls -->
-    @if (!editingUser) {
+    @if (!editingUser()) {
     <div class="detail-body">
 
       <!-- ─── INVOICES ─────────────────────────────────────────────────────────────────────
@@ -653,16 +653,16 @@
            Read-only. Sending, editing and recording payment all live in Commercial → Invoices,
            so there is exactly one place each of those can happen. -->
       <!-- Billing: mounted only while open, so its request fires only when an admin asks. -->
-      @if (detailTab === 'billing' && selectedUser) {
+      @if (detailTab() === 'billing' && selectedUser) {
       <section class="tab-pane">
         <app-admin-user-billing [userId]="selectedUser.id"></app-admin-user-billing>
       </section>
       }
 
-      @if (detailTab === 'invoices') {
+      @if (detailTab() === 'invoices') {
       <section class="tab-pane">
         <div class="um-invoice-list">
-          @for (inv of userInvoices; track inv.id) {
+          @for (inv of userInvoices(); track inv.id) {
           <a class="um-invoice-row"
              [href]="'/admin/commercial/invoices/' + inv.id" target="_blank" rel="noopener">
             <div class="um-invoice-main">
@@ -694,7 +694,7 @@
       }
 
       <!-- ─── DETAILS ─── -->
-      @if (detailTab === 'details') {
+      @if (detailTab() === 'details') {
       <section class="tab-pane">
         <div class="overview-details">
           <!-- ONE PANEL, BOTH HALVES — the commercial record of a business customer, beside their
@@ -703,7 +703,7 @@
 
                The two are NOT merged. A legal entity name is not a person's name and a notice
                email is not a login, so where they differ the panel shows both. -->
-          @if (businessClient; as bc) {
+          @if (businessClient(); as bc) {
           <div class="info-card um-business-card">
             <h4>Business client</h4>
             <div class="info-grid">
@@ -738,7 +738,7 @@
             }
           </div>
           }
-          @if (loadingBusinessClient && !businessClient) {
+          @if (loadingBusinessClient() && !businessClient()) {
           <div class="info-card">
             <h4>Business client</h4>
             <p class="muted">Loading the commercial record…</p>
@@ -763,56 +763,56 @@
             <div class="comm-prefs">
               <span class="pref-row">
                 <span class="pref-label">Emails</span>
-                @if (canUpdate) {
+                @if (canUpdate()) {
                 <span class="yes-no-toggle">
                   <span class="yn-btn" [class.active]="userCanReceiveEmails(selectedUser)"
                         (click)="toggleUserEmailsPreference(selectedUser, true, $event)"
-                        [class.disabled]="togglingCommsUserId === selectedUser.id">Yes</span>
+                        [class.disabled]="togglingCommsUserId() === selectedUser.id">Yes</span>
                   <span class="yn-btn" [class.active]="!userCanReceiveEmails(selectedUser)"
                         (click)="toggleUserEmailsPreference(selectedUser, false, $event)"
-                        [class.disabled]="togglingCommsUserId === selectedUser.id">No</span>
+                        [class.disabled]="togglingCommsUserId() === selectedUser.id">No</span>
                 </span>
                 }
-                @if (!canUpdate) {
+                @if (!canUpdate()) {
                 <span>{{ userCanReceiveEmails(selectedUser) ? 'Yes' : 'No' }}</span>
                 }
               </span>
               <span class="pref-row">
                 <span class="pref-label">Messages</span>
-                @if (canUpdate) {
+                @if (canUpdate()) {
                 <span class="yes-no-toggle">
                   <span class="yn-btn" [class.active]="userCanReceiveMessages(selectedUser)"
                         (click)="toggleUserMessagesPreference(selectedUser, true, $event)"
-                        [class.disabled]="togglingCommsUserId === selectedUser.id">Yes</span>
+                        [class.disabled]="togglingCommsUserId() === selectedUser.id">Yes</span>
                   <span class="yn-btn" [class.active]="!userCanReceiveMessages(selectedUser)"
                         (click)="toggleUserMessagesPreference(selectedUser, false, $event)"
-                        [class.disabled]="togglingCommsUserId === selectedUser.id">No</span>
+                        [class.disabled]="togglingCommsUserId() === selectedUser.id">No</span>
                 </span>
                 }
-                @if (!canUpdate) {
+                @if (!canUpdate()) {
                 <span>{{ userCanReceiveMessages(selectedUser) ? 'Yes' : 'No' }}</span>
                 }
               </span>
 
               <!-- Admin-only problem flag. Single source of truth (User.Flag): every order of
                    this customer picks up the same tint. Internal — the customer never sees it. -->
-              @if (canUpdate) {
+              @if (canUpdate()) {
               <span class="pref-row flag-row">
                 <span class="pref-label">Flag</span>
                 <span class="flag-toggle">
                   <span class="flag-btn none" [class.active]="(selectedUser.flag || 'None') === 'None'"
-                        [class.disabled]="flaggingUserId === selectedUser.id"
+                        [class.disabled]="flaggingUserId() === selectedUser.id"
                         (click)="setUserFlag(selectedUser, 'None', $event)">None</span>
                   <span class="flag-btn yellow" [class.active]="selectedUser.flag === 'Yellow'"
-                        [class.disabled]="flaggingUserId === selectedUser.id"
+                        [class.disabled]="flaggingUserId() === selectedUser.id"
                         (click)="setUserFlag(selectedUser, 'Yellow', $event)">⚑ Yellow</span>
                   <span class="flag-btn red" [class.active]="selectedUser.flag === 'Red'"
-                        [class.disabled]="flaggingUserId === selectedUser.id"
+                        [class.disabled]="flaggingUserId() === selectedUser.id"
                         (click)="setUserFlag(selectedUser, 'Red', $event)">⚑ Red</span>
                 </span>
               </span>
               }
-              @if (canUpdate && selectedUser.flag && selectedUser.flag !== 'None') {
+              @if (canUpdate() && selectedUser.flag && selectedUser.flag !== 'None') {
               <span class="pref-row flag-reason-row">
                 <span class="pref-label">Reason</span>
                 <input class="flag-reason-input" type="text" maxlength="500"
@@ -832,7 +832,7 @@
                   <option value="Customer">Customer</option>
                   <option value="Moderator">Moderator</option>
                   <option value="Admin">Admin</option>
-                  @if (currentUserRole === 'SuperAdmin') {
+                  @if (currentUserRole() === 'SuperAdmin') {
                   <option value="SuperAdmin">SAdmin</option>
                   }
                   <!-- Choosing this moves the account OUT of this tab and into the Cleaners tab,
@@ -875,7 +875,7 @@
                   <span class="pref-label pref-label-sub">Role in the team</span>
                   <select aria-label="Role in the team" class="role-select"
                           [ngModel]="selectedUser.adminPosition || 'Administrator'"
-                          [disabled]="savingAdminPositionUserId === selectedUser.id"
+                          [disabled]="savingAdminPositionUserId() === selectedUser.id"
                           (ngModelChange)="updateAdminPosition(selectedUser, $event)">
                     <option value="Administrator">Administrator</option>
                     <option value="Manager">Manager</option>
@@ -890,7 +890,7 @@
                        them as strings and never match the bound managerId. -->
                   <select aria-label="Reports to" class="role-select"
                           [ngModel]="selectedUser.managerId ?? null"
-                          [disabled]="savingAdminPositionUserId === selectedUser.id"
+                          [disabled]="savingAdminPositionUserId() === selectedUser.id"
                           (ngModelChange)="updateUserManager(selectedUser, $event)">
                     <option [ngValue]="null">No manager</option>
                     @for (m of managerOptionsFor(selectedUser); track m.id) {
@@ -918,7 +918,7 @@
                   @if (canAssignOrgTitle) {
                   <select aria-label="Title" class="role-select"
                           [ngModel]="selectedUser.orgTitle || 'None'"
-                          [disabled]="savingOrgTitleUserId === selectedUser.id"
+                          [disabled]="savingOrgTitleUserId() === selectedUser.id"
                           (ngModelChange)="updateOrgTitle(selectedUser, $event)">
                     @for (option of orgTitleOptions; track option.value) {
                     <option [value]="option.value">
@@ -955,10 +955,10 @@
                   <span class="yes-no-toggle">
                     <span class="yn-btn" [class.active]="selectedUser.isBusiness"
                           (click)="toggleBusinessFlag(selectedUser, true, $event)"
-                          [class.disabled]="togglingBusinessUserId === selectedUser.id">Yes</span>
+                          [class.disabled]="togglingBusinessUserId() === selectedUser.id">Yes</span>
                     <span class="yn-btn" [class.active]="!selectedUser.isBusiness"
                           (click)="toggleBusinessFlag(selectedUser, false, $event)"
-                          [class.disabled]="togglingBusinessUserId === selectedUser.id">No</span>
+                          [class.disabled]="togglingBusinessUserId() === selectedUser.id">No</span>
                   </span>
                   }
                   @if (!canToggleBusinessFlag) {
@@ -980,10 +980,10 @@
                   <span class="yes-no-toggle">
                     <span class="yn-btn" [class.active]="isPageGranted(selectedUser, page.key)"
                           (click)="toggleUserPageAccess(selectedUser, page.key, true, $event)"
-                          [class.disabled]="togglingPageAccessUserId === selectedUser.id">Yes</span>
+                          [class.disabled]="togglingPageAccessUserId() === selectedUser.id">Yes</span>
                     <span class="yn-btn" [class.active]="!isPageGranted(selectedUser, page.key)"
                           (click)="toggleUserPageAccess(selectedUser, page.key, false, $event)"
-                          [class.disabled]="togglingPageAccessUserId === selectedUser.id">No</span>
+                          [class.disabled]="togglingPageAccessUserId() === selectedUser.id">No</span>
                   </span>
                 </span>
                 }
@@ -1002,10 +1002,10 @@
                   <span class="yes-no-toggle">
                     <span class="yn-btn" [class.active]="isOrderEditGranted(selectedUser)"
                           (click)="toggleUserOrderEditAccess(selectedUser, true, $event)"
-                          [class.disabled]="togglingOrderEditAccessUserId === selectedUser.id">Yes</span>
+                          [class.disabled]="togglingOrderEditAccessUserId() === selectedUser.id">Yes</span>
                     <span class="yn-btn" [class.active]="!isOrderEditGranted(selectedUser)"
                           (click)="toggleUserOrderEditAccess(selectedUser, false, $event)"
-                          [class.disabled]="togglingOrderEditAccessUserId === selectedUser.id">No</span>
+                          [class.disabled]="togglingOrderEditAccessUserId() === selectedUser.id">No</span>
                   </span>
                 </span>
               }
@@ -1018,23 +1018,23 @@
           <div class="info-card">
             <h4>Loyalty Discount</h4>
 
-            @if (loadingLoyalty) {
+            @if (loadingLoyalty()) {
             <div class="muted">Loading…</div>
             }
 
-            @if (!loadingLoyalty && !editingLoyalty) {
+            @if (!loadingLoyalty() && !editingLoyalty()) {
             <div>
               <div class="info-grid">
                 <div>
                   <span>Discount</span>
-                  @if (loyaltyDiscount && loyaltyDiscount.percentage > 0) {
-                  <strong>{{ loyaltyDiscount.percentage }}%</strong>
+                  @if (loyaltyDiscount() && loyaltyDiscount()!.percentage > 0) {
+                  <strong>{{ loyaltyDiscount()!.percentage }}%</strong>
                   }
-                  @if (!loyaltyDiscount || loyaltyDiscount.percentage === 0) {
+                  @if (!loyaltyDiscount() || loyaltyDiscount()!.percentage === 0) {
                   <strong>None</strong>
                   }
                 </div>
-                @if (loyaltyDiscount) {
+                @if (loyaltyDiscount(); as loyaltyDiscount) {
                 <div>
                   <span>Status</span>
                   <strong>
@@ -1060,16 +1060,16 @@
                 </strong>
                 </div>
                 }
-                @if (loyaltyDiscount?.activatedAt) {
+                @if (loyaltyDiscount()?.activatedAt) {
                 <div>
                   <span>Activated</span>
-                  <strong>{{ formatUtcShortDate(loyaltyDiscount!.activatedAt) }}</strong>
+                  <strong>{{ formatUtcShortDate(loyaltyDiscount()!.activatedAt) }}</strong>
                 </div>
                 }
-                @if (loyaltyDiscount?.lastUsedAt) {
+                @if (loyaltyDiscount()?.lastUsedAt) {
                 <div>
                   <span>Last used</span>
-                  <strong>{{ formatUtcShortDate(loyaltyDiscount!.lastUsedAt) }}</strong>
+                  <strong>{{ formatUtcShortDate(loyaltyDiscount()!.lastUsedAt) }}</strong>
                 </div>
                 }
               </div>
@@ -1077,12 +1077,12 @@
               @if (canEditUserDetails(selectedUser)) {
               <div class="loyalty-actions">
                 <button class="action-btn small primary" (click)="startEditLoyaltyDiscount()">
-                  {{ loyaltyDiscount && loyaltyDiscount.percentage > 0 ? 'Edit' : 'Set' }}
+                  {{ loyaltyDiscount() && loyaltyDiscount()!.percentage > 0 ? 'Edit' : 'Set' }}
                 </button>
-                @if (loyaltyDiscount && loyaltyDiscount.percentage > 0) {
+                @if (loyaltyDiscount() && loyaltyDiscount()!.percentage > 0) {
                 <button class="action-btn small ghost"
                         (click)="clearLoyaltyDiscount()"
-                        [disabled]="savingLoyalty">
+                        [disabled]="savingLoyalty()">
                   Clear
                 </button>
                 }
@@ -1091,13 +1091,13 @@
             </div>
             }
 
-            @if (!loadingLoyalty && editingLoyalty) {
+            @if (!loadingLoyalty() && editingLoyalty()) {
             <div>
               <div class="loyalty-edit">
                 <label>
                   Percentage
                   <input type="number" min="0" max="100" step="0.5"
-                         [(ngModel)]="loyaltyForm.percentage"
+                         [(ngModel)]="loyaltyForm().percentage"
                          class="small-input">
                 </label>
                 <!--
@@ -1108,7 +1108,7 @@
                   customer entirely.
                 -->
                 <label class="loyalty-lifetime">
-                  <input type="checkbox" [(ngModel)]="loyaltyForm.isLifetime">
+                  <input type="checkbox" [(ngModel)]="loyaltyForm().isLifetime">
                   <span>
                     Lifetime discount
                     <small>
@@ -1121,12 +1121,12 @@
                 <div class="loyalty-edit__actions">
                   <button class="action-btn small primary"
                           (click)="saveLoyaltyDiscount()"
-                          [disabled]="savingLoyalty">
-                    {{ savingLoyalty ? '…' : 'Save' }}
+                          [disabled]="savingLoyalty()">
+                    {{ savingLoyalty() ? '…' : 'Save' }}
                   </button>
                   <button class="action-btn small ghost"
                           (click)="cancelEditLoyalty()"
-                          [disabled]="savingLoyalty">
+                          [disabled]="savingLoyalty()">
                     Cancel
                   </button>
                 </div>
@@ -1137,11 +1137,11 @@
               </p>
             </div>
             }
-            @if (loyaltyError) {
-            <div class="error-message">{{ loyaltyError }}</div>
+            @if (loyaltyError()) {
+            <div class="error-message">{{ loyaltyError() }}</div>
             }
-            @if (loyaltySuccess) {
-            <div class="success-message">{{ loyaltySuccess }}</div>
+            @if (loyaltySuccess()) {
+            <div class="success-message">{{ loyaltySuccess() }}</div>
             }
           </div>
 
@@ -1168,7 +1168,7 @@
             <div class="addresses">
               @for (apt of selectedUser.apartments; track apt.id) {
               <div class="address-item">
-                @if (editingAddressId !== apt.id) {
+                @if (editingAddressId() !== apt.id) {
                 <div class="address-display">
                   <div>
                     <strong>{{ apt.name }}</strong> — {{ apt.address }}@if (apt.aptSuite) {
@@ -1181,26 +1181,26 @@
                   </div>
                   @if (canEditUserDetails(selectedUser)) {
                   <div class="row-actions">
-                    <button class="action-btn small ghost" (click)="startEditAddress(apt)" [disabled]="savingAddress">Edit</button>
-                    <button class="action-btn small danger" (click)="deleteAddress(apt, $event)" [disabled]="savingAddress">Delete</button>
+                    <button class="action-btn small ghost" (click)="startEditAddress(apt)" [disabled]="savingAddress()">Edit</button>
+                    <button class="action-btn small danger" (click)="deleteAddress(apt, $event)" [disabled]="savingAddress()">Delete</button>
                   </div>
                   }
                 </div>
                 }
-                @if (editingAddressId === apt.id && editAddressDraft) {
+                @if (editingAddressId() === apt.id && editAddressDraft()) {
                 <div class="address-edit">
                   <div class="edit-grid compact">
-                    <label><span>Name</span><input type="text" [(ngModel)]="editAddressDraft.name"></label>
-                    <label><span>Address</span><input type="text" [(ngModel)]="editAddressDraft.address"></label>
-                    <label><span>Apt/Suite</span><input type="text" [(ngModel)]="editAddressDraft.aptSuite"></label>
-                    <label><span>City</span><input type="text" [(ngModel)]="editAddressDraft.city"></label>
-                    <label><span>State</span><input type="text" [(ngModel)]="editAddressDraft.state"></label>
-                    <label><span>Postal Code</span><input type="text" [(ngModel)]="editAddressDraft.postalCode" maxlength="5"></label>
-                    <label class="full-row"><span>Special instructions</span><input type="text" [(ngModel)]="editAddressDraft.specialInstructions" maxlength="2000"></label>
+                    <label><span>Name</span><input type="text" [(ngModel)]="editAddressDraft()!.name"></label>
+                    <label><span>Address</span><input type="text" [(ngModel)]="editAddressDraft()!.address"></label>
+                    <label><span>Apt/Suite</span><input type="text" [(ngModel)]="editAddressDraft()!.aptSuite"></label>
+                    <label><span>City</span><input type="text" [(ngModel)]="editAddressDraft()!.city"></label>
+                    <label><span>State</span><input type="text" [(ngModel)]="editAddressDraft()!.state"></label>
+                    <label><span>Postal Code</span><input type="text" [(ngModel)]="editAddressDraft()!.postalCode" maxlength="5"></label>
+                    <label class="full-row"><span>Special instructions</span><input type="text" [(ngModel)]="editAddressDraft()!.specialInstructions" maxlength="2000"></label>
                   </div>
                   <div class="edit-actions">
-                    <button class="action-btn primary small" (click)="saveEditAddress()" [disabled]="savingAddress">{{ savingAddress ? 'Saving…' : 'Save' }}</button>
-                    <button class="action-btn small ghost" (click)="cancelEditAddress()" [disabled]="savingAddress">Cancel</button>
+                    <button class="action-btn primary small" (click)="saveEditAddress()" [disabled]="savingAddress()">{{ savingAddress() ? 'Saving…' : 'Save' }}</button>
+                    <button class="action-btn small ghost" (click)="cancelEditAddress()" [disabled]="savingAddress()">Cancel</button>
                   </div>
                 </div>
                 }
@@ -1210,25 +1210,25 @@
               <p class="muted">No saved addresses.</p>
               }
             </div>
-            @if (canEditUserDetails(selectedUser) && !showAddAddress) {
+            @if (canEditUserDetails(selectedUser) && !showAddAddress()) {
             <button
                     class="action-btn small ghost add-row"
                     (click)="openAddAddress()">+ Add address</button>
             }
-            @if (showAddAddress) {
+            @if (showAddAddress()) {
             <div class="address-edit">
               <div class="edit-grid compact">
-                <label><span>Name</span><input type="text" [(ngModel)]="newAddress.name"></label>
-                <label><span>Address</span><input type="text" [(ngModel)]="newAddress.address"></label>
-                <label><span>Apt/Suite</span><input type="text" [(ngModel)]="newAddress.aptSuite"></label>
-                <label><span>City</span><input type="text" [(ngModel)]="newAddress.city"></label>
-                <label><span>State</span><input type="text" [(ngModel)]="newAddress.state"></label>
-                <label><span>Postal Code</span><input type="text" [(ngModel)]="newAddress.postalCode" maxlength="5"></label>
-                <label class="full-row"><span>Special instructions</span><input type="text" [(ngModel)]="newAddress.specialInstructions" maxlength="2000"></label>
+                <label><span>Name</span><input type="text" [(ngModel)]="newAddress().name"></label>
+                <label><span>Address</span><input type="text" [(ngModel)]="newAddress().address"></label>
+                <label><span>Apt/Suite</span><input type="text" [(ngModel)]="newAddress().aptSuite"></label>
+                <label><span>City</span><input type="text" [(ngModel)]="newAddress().city"></label>
+                <label><span>State</span><input type="text" [(ngModel)]="newAddress().state"></label>
+                <label><span>Postal Code</span><input type="text" [(ngModel)]="newAddress().postalCode" maxlength="5"></label>
+                <label class="full-row"><span>Special instructions</span><input type="text" [(ngModel)]="newAddress().specialInstructions" maxlength="2000"></label>
               </div>
               <div class="edit-actions">
-                <button class="action-btn primary small" (click)="addNewAddress()" [disabled]="savingAddress">{{ savingAddress ? 'Saving…' : 'Add' }}</button>
-                <button class="action-btn small ghost" (click)="cancelAddAddress()" [disabled]="savingAddress">Cancel</button>
+                <button class="action-btn primary small" (click)="addNewAddress()" [disabled]="savingAddress()">{{ savingAddress() ? 'Saving…' : 'Add' }}</button>
+                <button class="action-btn small ghost" (click)="cancelAddAddress()" [disabled]="savingAddress()">Cancel</button>
               </div>
             </div>
             }
@@ -1239,13 +1239,13 @@
       }
 
       <!-- ─── HISTORY ─── -->
-      @if (detailTab === 'history') {
+      @if (detailTab() === 'history') {
       <section class="tab-pane">
         @if ((selectedUser.orders?.length || 0) > 0) {
         <div class="info-card">
           <h4>Cleaning History</h4>
-          @if (recreateSuccessMessage) {
-          <div class="success-message inline">{{ recreateSuccessMessage }}</div>
+          @if (recreateSuccessMessage()) {
+          <div class="success-message inline">{{ recreateSuccessMessage() }}</div>
           }
           <div class="history-list">
             @for (order of selectedUser.orders; track order.id) {
@@ -1265,7 +1265,7 @@
                 <span class="muted">#{{ order.id }}</span>
                 <!-- Opens the recreate flow instead of the row's own navigation — see
                      startRecreateOrder, which stops the click from reaching the row. -->
-                @if (canCreate) {
+                @if (canCreate()) {
                 <button
                         type="button"
                         class="action-btn small ghost history-recreate"
@@ -1286,24 +1286,24 @@
       }
 
       <!-- ─── PHOTOS ─── -->
-      @if (detailTab === 'photos') {
+      @if (detailTab() === 'photos') {
       <section class="tab-pane">
         <div class="info-card">
           <h4>Cleaning Photos
             <span class="hint">— last 2 cleanings only (older are auto-pruned)</span>
           </h4>
 
-          @if (loadingPhotos) {
+          @if (loadingPhotos()) {
           <div class="muted center">Loading photos…</div>
           }
 
-          @if (!loadingPhotos && cleaningPhotoGroups.length === 0) {
+          @if (!loadingPhotos() && cleaningPhotoGroups().length === 0) {
           <div class="muted center">
             No photos yet. Upload from below.
           </div>
           }
 
-          @for (group of cleaningPhotoGroups; track group.orderId) {
+          @for (group of cleaningPhotoGroups(); track group.orderId) {
           <div class="photo-group">
             <div class="photo-group__header">
               <strong>
@@ -1329,11 +1329,11 @@
           </div>
           }
 
-          @if (canUpdate) {
+          @if (canUpdate()) {
           <div class="photo-upload-row">
             <label class="upload-target">
               <span>Attach to order:</span>
-              <select [ngModel]="photoUploadOrderId" (ngModelChange)="setPhotoOrderId($event)">
+              <select [ngModel]="photoUploadOrderId()" (ngModelChange)="setPhotoOrderId($event)">
                 <option [ngValue]="null">— Select an order —</option>
                 @for (o of selectedUser.orders; track o.id) {
                 <option [ngValue]="o.id">
@@ -1342,29 +1342,29 @@
                 }
               </select>
             </label>
-            <label class="file-button" [class.disabled]="uploadingPhoto || photoUploadOrderId == null">
-              <input type="file" accept="image/*" multiple (change)="onPhotoFileSelected($event)" [disabled]="uploadingPhoto || photoUploadOrderId == null" hidden>
-              {{ uploadingPhoto ? (photoUploadProgress || 'Uploading…') : '+ Upload photos' }}
+            <label class="file-button" [class.disabled]="uploadingPhoto() || photoUploadOrderId() == null">
+              <input type="file" accept="image/*" multiple (change)="onPhotoFileSelected($event)" [disabled]="uploadingPhoto() || photoUploadOrderId() == null" hidden>
+              {{ uploadingPhoto() ? (photoUploadProgress() || 'Uploading…') : '+ Upload photos' }}
             </label>
           </div>
           }
-          @if (canUpdate && photoUploadOrderId == null) {
+          @if (canUpdate() && photoUploadOrderId() == null) {
           <p class="muted small">Select an order before uploading — photos must belong to a specific order.</p>
           }
-          @if (photoUploadError) {
-          <div class="error-message inline">{{ photoUploadError }}</div>
+          @if (photoUploadError()) {
+          <div class="error-message inline">{{ photoUploadError() }}</div>
           }
-          @if (photoUploadSuccess) {
-          <div class="success-message inline">{{ photoUploadSuccess }}</div>
+          @if (photoUploadSuccess()) {
+          <div class="success-message inline">{{ photoUploadSuccess() }}</div>
           }
         </div>
       </section>
       }
 
       <!-- ─── NOTES (general only) ─── -->
-      @if (detailTab === 'notes') {
+      @if (detailTab() === 'notes') {
       <section class="tab-pane">
-        @if (canUpdate) {
+        @if (canUpdate()) {
         <div class="info-card">
           <h4>Add note</h4>
           <div class="note-form">
@@ -1375,8 +1375,8 @@
               <span class="muted small">Saved to General notes</span>
               <button class="action-btn primary small"
                       (click)="saveNewNote()"
-                      [disabled]="savingNote || !newNoteContent.trim()">
-                {{ savingNote ? 'Saving…' : 'Save note' }}
+                      [disabled]="savingNote() || !newNoteContent().trim()">
+                {{ savingNote() ? 'Saving…' : 'Save note' }}
               </button>
             </div>
           </div>
@@ -1384,21 +1384,21 @@
         }
 
         <div class="info-card">
-          <h4>General notes <span class="muted">({{ generalNotes.length }})</span></h4>
-          @if (loadingNotes) {
+          <h4>General notes <span class="muted">({{ generalNotes().length }})</span></h4>
+          @if (loadingNotes()) {
           <div class="muted center">Loading…</div>
           }
-          @if (!loadingNotes && generalNotes.length === 0) {
+          @if (!loadingNotes() && generalNotes().length === 0) {
           <div class="muted center">No general notes yet.</div>
           }
           <div class="note-list">
-            @for (n of generalNotes; track n.id) {
+            @for (n of generalNotes(); track n.id) {
             <div class="note-item general">
-              @if (editingNoteId !== n.id) {
+              @if (editingNoteId() !== n.id) {
                 <div class="note-content">{{ n.content }}</div>
                 <div class="note-meta">
                   <span class="muted small">{{ n.createdByAdminName || 'Admin' }} • {{ formatDateTime(n.createdAt) }}</span>
-                  @if (canUpdate) {
+                  @if (canUpdate()) {
                   <span class="row-actions">
                     <button class="link-btn" (click)="startEditNote(n)">Edit</button>
                     <button class="link-btn danger" (click)="deleteNote(n)">Delete</button>
@@ -1406,7 +1406,7 @@
                   }
                 </div>
               }
-              @if (editingNoteId === n.id) {
+              @if (editingNoteId() === n.id) {
                 <textarea aria-label="Edit note" [(ngModel)]="editNoteContent" rows="2"></textarea>
                 <div class="edit-actions">
                   <button class="action-btn primary small" (click)="saveEditNote(n)">Save</button>
@@ -1426,7 +1426,7 @@
 </aside>
 
 <!-- ──────────────  LIGHTBOX  ────────────── -->
-@if (lightboxPhoto) {
+@if (lightboxPhoto(); as lightboxPhoto) {
 <div class="lightbox" (click)="closeLightbox()">
   <img [src]="resolvePhotoUrl(lightboxPhoto)" [alt]="lightboxPhoto.caption || 'Cleaning photo'">
   <button class="lightbox-close" (click)="closeLightbox()">✕</button>
@@ -1436,7 +1436,7 @@
 <!-- ──────────────  REGISTER CUSTOMER MODAL  ──────────────
      Shared with the booking page: shared/components/register-customer-modal -->
 <app-register-customer-modal
-  [open]="showRegisterModal"
+  [open]="showRegisterModal()"
   (closed)="closeRegisterModal()"
   (registered)="onCustomerRegistered($event)">
 </app-register-customer-modal>
@@ -1445,24 +1445,24 @@
      Opened from a row in the Cleaning History tab. Rendered here, outside the detail panel, so
      the panel's own stacking context can't paint over it. -->
 <app-recreate-order-modal
-  [open]="showRecreateModal"
-  [sourceOrderId]="recreateSourceOrderId"
+  [open]="showRecreateModal()"
+  [sourceOrderId]="recreateSourceOrderId()"
   (closed)="closeRecreateModal()"
   (created)="onOrderRecreated($event)">
 </app-recreate-order-modal>
 
 <!-- ──────────────  EXPORT USERS MODAL  ────────────── -->
-@if (showExportModal) {
+@if (showExportModal()) {
 <div class="register-modal-overlay" (click)="closeExportModal()">
   <div class="register-modal-content export-modal-content" (click)="$event.stopPropagation()">
     <div class="modal-header">
       <h3 class="modal-title">Export Users</h3>
-      <button type="button" class="modal-close" (click)="closeExportModal()" aria-label="Close" [disabled]="exporting">×</button>
+      <button type="button" class="modal-close" (click)="closeExportModal()" aria-label="Close" [disabled]="exporting()">×</button>
     </div>
     <div class="modal-body">
       <p class="export-modal-hint">Pick which columns to include. All columns are selected by default — uncheck any you don't want.</p>
-      @if (exportError) {
-      <div class="register-modal-error">{{ exportError }}</div>
+      @if (exportError()) {
+      <div class="register-modal-error">{{ exportError() }}</div>
       }
       <ul class="export-column-list">
         @for (col of exportColumns; track col.key) {
@@ -1471,7 +1471,7 @@
             <input type="checkbox"
                    [checked]="col.selected"
                    (change)="toggleExportColumn(col.key)"
-                   [disabled]="exporting">
+                   [disabled]="exporting()">
             <span>{{ col.label }}</span>
           </label>
         </li>
@@ -1479,11 +1479,11 @@
       </ul>
     </div>
     <div class="modal-footer">
-      <button type="button" class="action-btn ghost" (click)="closeExportModal()" [disabled]="exporting">Cancel</button>
+      <button type="button" class="action-btn ghost" (click)="closeExportModal()" [disabled]="exporting()">Cancel</button>
       <button type="button" class="action-btn primary"
               (click)="runExport()"
-              [disabled]="exporting || !hasAnyExportColumnSelected">
-        {{ exporting ? 'Exporting…' : 'Export' }}
+              [disabled]="exporting() || !hasAnyExportColumnSelected">
+        {{ exporting() ? 'Exporting…' : 'Export' }}
       </button>
     </div>
   </div>

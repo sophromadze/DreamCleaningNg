@@ -34,7 +34,8 @@ export class LiveChatWidgetComponent implements OnInit, OnDestroy {
   readonly currentUser = signal<any>(null);
   readonly chatEnabled = signal(true);
 
-  @HostBinding('class.on-booking-page') isOnBookingPage = false;
+  readonly isOnBookingPage = signal(false);
+  @HostBinding('class.on-booking-page') get onBookingPageClass(): boolean { return this.isOnBookingPage(); }
 
   private chatAutoStarted = false;
   private subscriptions: Subscription[] = [];
@@ -53,10 +54,10 @@ export class LiveChatWidgetComponent implements OnInit, OnDestroy {
     if (!this.isBrowser) return;
 
     // Track booking page for mobile chat offset
-    this.isOnBookingPage = this.router.url.startsWith('/booking');
+    this.isOnBookingPage.set(this.router.url.startsWith('/booking'));
     this.subscriptions.push(
       this.router.events.pipe(filter(e => e instanceof NavigationEnd)).subscribe((e: any) => {
-        this.isOnBookingPage = e.urlAfterRedirects.startsWith('/booking');
+        this.isOnBookingPage.set(e.urlAfterRedirects.startsWith('/booking'));
       })
     );
 

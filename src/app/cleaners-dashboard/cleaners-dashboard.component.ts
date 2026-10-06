@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ChangeDetectorRef, Input, Output, EventEmitter, HostBinding, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef, HostBinding, ChangeDetectionStrategy, inject, output, input, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
@@ -103,7 +103,7 @@ const DAY_LABEL: Record<DayKey, string> = {
   standalone: true,
   imports: [CommonModule, FormsModule, RouterModule, NyDatePipe, CleanerPortalComponent],
   templateUrl: './cleaners-dashboard.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./cleaners-dashboard.component.scss']
 })
 export class CleanersDashboardComponent implements OnInit, OnDestroy {
@@ -127,16 +127,17 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
   // cleaner was renamed or deleted under it.
 
   /** Detail-only: no header, no tabs, no filters, no card list. */
-  @Input() @HostBinding('class.embedded') embedded = false;
+  readonly embedded = input(false);
+  @HostBinding('class.embedded') get embeddedClass(): boolean { return this.embedded(); }
 
   /** The cleaner record to open on mount. Only read when `embedded`. */
-  @Input() focusCleanerId: number | null = null;
+  readonly focusCleanerId = input<number | null>(null);
 
   /** The panel asked to close - the host owns the drawer, so it does the closing. */
-  @Output() closed = new EventEmitter<void>();
+  readonly closed = output<void>();
 
   /** A cleaner was saved or deleted. The host's own list is now stale. */
-  @Output() changed = new EventEmitter<void>();
+  readonly changed = output<void>();
 
   /**
    * Where the edit form renders.
@@ -149,34 +150,34 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
    * ONE template backs both; only the frame around it changes.
    */
   get showsInlineForm(): boolean {
-    return this.embedded && this.formOpen;
+    return this.embedded() && this.formOpen();
   }
 
-  cleaners: CleanerListItem[] = [];
-  loading = false;
-  errorMessage = '';
+  readonly cleaners = signal<CleanerListItem[]>([]);
+  readonly loading = signal(false);
+  readonly errorMessage = signal('');
 
-  searchTerm = '';
-  includeInactive = false;
-  sortBy: CleanerSort = 'default';
-  filterBy: CleanerFilter = 'all';
+  readonly searchTerm = signal('');
+  readonly includeInactive = signal(false);
+  readonly sortBy = signal<CleanerSort>('default');
+  readonly filterBy = signal<CleanerFilter>('all');
   // '' = no weekday filter; otherwise show only cleaners NOT busy that weekday.
-  availableOnDay: DayKey | '' = '';
+  readonly availableOnDay = signal<DayKey | ''>('');
   // '' = any borough; otherwise keep only cleaners who operate in that borough.
-  filterBorough = '';
+  readonly filterBorough = signal('');
   // '' = any nationality; otherwise keep only cleaners with that nationality.
-  filterNationality = '';
+  readonly filterNationality = signal('');
   private search$ = new Subject<string>();
   private destroy$ = new Subject<void>();
 
-  selectedDetail: CleanerDetail | null = null;
-  loadingDetail = false;
+  readonly selectedDetail = signal<CleanerDetail | null>(null, { equal: () => false });
+  readonly loadingDetail = signal(false);
 
-  formOpen = false;
-  formMode: ModalMode = 'create';
-  formModel: UpdateCleanerPayload = this.emptyFormModel();
-  formSaving = false;
-  formError = '';
+  readonly formOpen = signal(false);
+  readonly formMode = signal<ModalMode>('create');
+  readonly formModel = signal<UpdateCleanerPayload>(this.emptyFormModel(), { equal: () => false });
+  readonly formSaving = signal(false);
+  readonly formError = signal('');
   editingId: number | null = null;
 
   // ── Email is READ-ONLY for a cleaner who has a login account ──
@@ -189,44 +190,44 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
   // The flag is the SERVER's answer (CleanerAccountLink.EmailIsManagedByAccount), never re-derived
   // here: the same predicate rejects the write, so a local copy of the rule could only disagree
   // with what the API accepts.
-  emailLockedByAccount = false;
-  lockedAccountEmail: string | null = null;
+  readonly emailLockedByAccount = signal(false);
+  readonly lockedAccountEmail = signal<string | null>(null);
   lockedAccountName: string | null = null;
 
-  availableDays: AvailableDays = this.emptyAvailableDays();
-  vacations: VacationRow[] = [];
+  readonly availableDays = signal<AvailableDays>(this.emptyAvailableDays());
+  readonly vacations = signal<VacationRow[]>([]);
   // Which operating boroughs are checked in the form. Keyed by borough name.
   // Populated by openCreate/openEdit before the form renders (kept empty here so this
   // field initializer doesn't run before locationOptions is initialized).
-  operatingBoroughs: Record<string, boolean> = {};
+  readonly operatingBoroughs = signal<Record<string, boolean>>({});
 
   photoUploading = false;
   documentUploading = false;
 
-  formPhotoFile: File | null = null;
-  formPhotoPreview: string | null = null;
-  formDocumentFile: File | null = null;
-  formDocumentPreview: string | null = null;
+  readonly formPhotoFile = signal<File | null>(null);
+  readonly formPhotoPreview = signal<string | null>(null);
+  readonly formDocumentFile = signal<File | null>(null);
+  readonly formDocumentPreview = signal<string | null>(null);
 
-  newNote: CreateCleanerNotePayload = { text: '', orderId: null, orderPerformance: null };
-  addingNote = false;
-  addNoteModalOpen = false;
+  readonly newNote = signal<CreateCleanerNotePayload>({ text: '', orderId: null, orderPerformance: null });
+  readonly addingNote = signal(false);
+  readonly addNoteModalOpen = signal(false);
 
-  editingNoteId: number | null = null;
-  editingNoteText = '';
-  savingNoteEdit = false;
+  readonly editingNoteId = signal<number | null>(null);
+  readonly editingNoteText = signal('');
+  readonly savingNoteEdit = signal(false);
 
-  performanceModalOpen = false;
-  performanceModal: {
+  readonly performanceModalOpen = signal(false);
+  readonly performanceModal = signal<{
     orderId: number;
     performance: 'Praise' | 'Issue' | 'Warning' | '';
     text: string;
     existingNoteId: number | null;
     saving: boolean;
     error: string;
-  } | null = null;
+  } | null>(null, { equal: () => false });
 
-  imageViewer: { src: string; alt: string; title: string } | null = null;
+  readonly imageViewer = signal<{ src: string; alt: string; title: string } | null>(null);
 
   readonly performanceOptions: { value: 'Praise' | 'Issue' | 'Warning'; label: string; icon: string }[] = [
     { value: 'Praise', label: 'Praise', icon: '✓' },
@@ -320,7 +321,7 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
    * payee name in another.
    */
   get paymentDetailsLabel(): string {
-    const method = normalizeCleanerPaymentMethod(this.formModel.paymentMethod);
+    const method = normalizeCleanerPaymentMethod(this.formModel().paymentMethod);
     return method ? CLEANER_PAYMENT_DETAILS_LABEL[method] : 'Payment details';
   }
 
@@ -328,7 +329,7 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
    * True for 2s after the payment details are copied, so the button can confirm. A tick that
    * never clears stops meaning anything.
    */
-  paymentDetailsCopied = false;
+  readonly paymentDetailsCopied = signal(false);
   private paymentCopiedTimer: ReturnType<typeof setTimeout> | null = null;
 
   /**
@@ -340,14 +341,14 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
    * paste an account number somewhere.
    */
   copyFormPaymentDetails(): void {
-    const text = (this.formModel.paymentDetails || '').trim();
+    const text = (this.formModel().paymentDetails || '').trim();
     if (!text) return;
 
     const confirmCopied = () => {
-      this.paymentDetailsCopied = true;
+      this.paymentDetailsCopied.set(true);
       if (this.paymentCopiedTimer) clearTimeout(this.paymentCopiedTimer);
       this.paymentCopiedTimer = setTimeout(() => {
-        this.paymentDetailsCopied = false;
+        this.paymentDetailsCopied.set(false);
         this.cdr.markForCheck();
       }, 2000);
       this.cdr.markForCheck();
@@ -394,7 +395,7 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
   // portal component itself rather than a second calendar. They used to be two header links, which
   // meant two doors into one subject.
 
-  activeTab: CleanersTab = 'dashboard';
+  readonly activeTab = signal<CleanersTab>('dashboard');
 
   /**
    * Admin + SuperAdmin only, resolved through the guard's own `isSystemWideRole` so the tab and the
@@ -409,9 +410,10 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
     // Embedded: one cleaner, no list, and deliberately NO query-param subscription. The host's
     // route carries its own `?tab=` (the admin panel uses one), and reading it here would be this
     // component answering to a parameter that was never about it.
-    if (this.embedded) {
-      this.activeTab = 'dashboard';
-      if (this.focusCleanerId) this.openDetailById(this.focusCleanerId);
+    if (this.embedded()) {
+      this.activeTab.set('dashboard');
+      const focusCleanerId = this.focusCleanerId();
+      if (focusCleanerId) this.openDetailById(focusCleanerId);
       return;
     }
 
@@ -422,7 +424,7 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe(params => {
         const requested = params.get('tab');
-        this.activeTab = requested === 'portal' && this.canSeePortal ? 'portal' : 'dashboard';
+        this.activeTab.set(requested === 'portal' && this.canSeePortal ? 'portal' : 'dashboard');
         this.cdr.markForCheck();
       });
 
@@ -445,7 +447,7 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
    */
   setTab(tab: CleanersTab): void {
     if (tab === 'portal' && !this.canSeePortal) return;
-    if (this.activeTab === tab) return;
+    if (this.activeTab() === tab) return;
 
     // Leaving the dashboard closes what was open on it: a detail panel or a half-filled form still
     // sitting there on the way back is state nobody asked to keep.
@@ -469,7 +471,7 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
   }
 
   onSearchChange(): void {
-    this.search$.next(this.searchTerm);
+    this.search$.next(this.searchTerm());
   }
 
   onToggleInactive(): void {
@@ -483,31 +485,31 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
    * no embedded branch of their own.
    */
   loadCleaners(): void {
-    if (this.embedded) {
+    if (this.embedded()) {
       this.changed.emit();
       return;
     }
 
-    this.loading = true;
-    this.errorMessage = '';
+    this.loading.set(true);
+    this.errorMessage.set('');
     this.fetchCleaners$().subscribe();
   }
 
   private fetchCleaners$() {
-    this.loading = true;
+    this.loading.set(true);
     return this.cleanerService
-      .getAll({ includeInactive: this.includeInactive, search: this.searchTerm })
+      .getAll({ includeInactive: this.includeInactive(), search: this.searchTerm() })
       .pipe(
         tap(list => {
-          this.cleaners = list;
+          this.cleaners.set(list);
         }),
         catchError(err => {
-          this.errorMessage = this.extractError(err) || 'Failed to load cleaners';
-          this.cleaners = [];
+          this.errorMessage.set(this.extractError(err) || 'Failed to load cleaners');
+          this.cleaners.set([]);
           return of([] as CleanerListItem[]);
         }),
         finalize(() => {
-          this.loading = false;
+          this.loading.set(false);
           this.cdr.markForCheck();
         })
       );
@@ -522,57 +524,57 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
    * Embedded there is no card to have clicked, so this is the entry point.
    */
   openDetailById(cleanerId: number): void {
-    this.loadingDetail = true;
-    this.selectedDetail = null;
+    this.loadingDetail.set(true);
+    this.selectedDetail.set(null);
     this.cleanerService.getById(cleanerId).subscribe({
       next: detail => {
-        this.selectedDetail = detail;
-        this.cleaners = this.cleaners.map(item =>
+        this.selectedDetail.set(detail);
+        this.cleaners.set(this.cleaners().map(item =>
           item.id === detail.id ? { ...item, mainNote: detail.mainNote ?? null } : item
-        );
-        this.loadingDetail = false;
+        ));
+        this.loadingDetail.set(false);
         this.cdr.markForCheck();
       },
       error: err => {
-        this.errorMessage = this.extractError(err) || 'Failed to load cleaner details';
-        this.loadingDetail = false;
+        this.errorMessage.set(this.extractError(err) || 'Failed to load cleaner details');
+        this.loadingDetail.set(false);
         this.cdr.markForCheck();
       }
     });
   }
 
   closeDetail(): void {
-    this.selectedDetail = null;
-    this.newNote = { text: '', orderId: null, orderPerformance: null };
+    this.selectedDetail.set(null);
+    this.newNote.set({ text: '', orderId: null, orderPerformance: null });
     this.cancelEditNote();
     // Embedded there is nothing behind the panel — the host owns the drawer, so it closes it.
-    if (this.embedded) this.closed.emit();
+    if (this.embedded()) this.closed.emit();
   }
 
   openCreate(): void {
-    this.formMode = 'create';
+    this.formMode.set('create');
     this.editingId = null;
     this.clearEmailLock();
-    this.formModel = this.emptyFormModel();
-    this.availableDays = this.emptyAvailableDays();
+    this.formModel.set(this.emptyFormModel());
+    this.availableDays.set(this.emptyAvailableDays());
     // New cleaners operate in all boroughs by default.
-    this.operatingBoroughs = this.emptyBoroughs(true);
-    this.vacations = [];
-    this.formPhotoFile = null;
-    this.formPhotoPreview = null;
-    this.formDocumentFile = null;
-    this.formDocumentPreview = null;
-    this.formError = '';
-    this.formOpen = true;
+    this.operatingBoroughs.set(this.emptyBoroughs(true));
+    this.vacations.set([]);
+    this.formPhotoFile.set(null);
+    this.formPhotoPreview.set(null);
+    this.formDocumentFile.set(null);
+    this.formDocumentPreview.set(null);
+    this.formError.set('');
+    this.formOpen.set(true);
   }
 
   openEdit(detail: CleanerDetail): void {
-    this.formMode = 'edit';
+    this.formMode.set('edit');
     this.editingId = detail.id;
-    this.emailLockedByAccount = !!detail.isEmailManagedByAccount;
-    this.lockedAccountEmail = detail.linkedAccountEmail ?? null;
+    this.emailLockedByAccount.set(!!detail.isEmailManagedByAccount);
+    this.lockedAccountEmail.set(detail.linkedAccountEmail ?? null);
     this.lockedAccountName = detail.linkedAccountName ?? null;
-    this.formModel = {
+    this.formModel.set({
       firstName: detail.firstName,
       lastName: detail.lastName,
       age: detail.age ?? null,
@@ -594,52 +596,52 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
       paymentMethod: normalizeCleanerPaymentMethod(detail.paymentMethod),
       paymentDetails: detail.paymentDetails ?? null,
       isActive: detail.isActive
-    };
-    this.availableDays = this.intsToAvailableDays(detail.busyDaysOfWeek);
-    this.operatingBoroughs = this.csvToBoroughs(detail.operatingAreas);
-    this.vacations = (detail.vacations ?? []).map(v => ({
+    });
+    this.availableDays.set(this.intsToAvailableDays(detail.busyDaysOfWeek));
+    this.operatingBoroughs.set(this.csvToBoroughs(detail.operatingAreas));
+    this.vacations.set((detail.vacations ?? []).map(v => ({
       startDate: this.toDateInput(v.startDate),
       endDate: this.toDateInput(v.endDate),
       note: v.note ?? ''
-    }));
-    this.formPhotoFile = null;
-    this.formPhotoPreview = detail.photoUrl ?? null;
-    this.formDocumentFile = null;
-    this.formDocumentPreview = detail.documentUrl ?? null;
-    this.formError = '';
-    this.formOpen = true;
+    })));
+    this.formPhotoFile.set(null);
+    this.formPhotoPreview.set(detail.photoUrl ?? null);
+    this.formDocumentFile.set(null);
+    this.formDocumentPreview.set(detail.documentUrl ?? null);
+    this.formError.set('');
+    this.formOpen.set(true);
   }
 
   closeForm(): void {
-    this.formOpen = false;
-    this.formModel = this.emptyFormModel();
+    this.formOpen.set(false);
+    this.formModel.set(this.emptyFormModel());
     this.clearEmailLock();
-    this.availableDays = this.emptyAvailableDays();
-    this.operatingBoroughs = this.emptyBoroughs(true);
-    this.vacations = [];
-    this.formPhotoFile = null;
-    this.formPhotoPreview = null;
-    this.formDocumentFile = null;
-    this.formDocumentPreview = null;
+    this.availableDays.set(this.emptyAvailableDays());
+    this.operatingBoroughs.set(this.emptyBoroughs(true));
+    this.vacations.set([]);
+    this.formPhotoFile.set(null);
+    this.formPhotoPreview.set(null);
+    this.formDocumentFile.set(null);
+    this.formDocumentPreview.set(null);
     this.editingId = null;
-    this.formError = '';
+    this.formError.set('');
   }
 
   toggleAvailableDay(day: DayKey): void {
-    this.availableDays = { ...this.availableDays, [day]: !this.availableDays[day] };
+    this.availableDays.set({ ...this.availableDays(), [day]: !this.availableDays()[day] });
   }
 
   toggleBorough(borough: string): void {
-    this.operatingBoroughs = { ...this.operatingBoroughs, [borough]: !this.operatingBoroughs[borough] };
+    this.operatingBoroughs.set({ ...this.operatingBoroughs(), [borough]: !this.operatingBoroughs()[borough] });
   }
 
   addVacation(): void {
     const today = this.toDateInput(new Date().toISOString());
-    this.vacations = [...this.vacations, { startDate: today, endDate: today, note: '' }];
+    this.vacations.set([...this.vacations(), { startDate: today, endDate: today, note: '' }]);
   }
 
   removeVacation(index: number): void {
-    this.vacations = this.vacations.filter((_, i) => i !== index);
+    this.vacations.set(this.vacations().filter((_, i) => i !== index));
   }
 
   onFormPhotoSelected(event: Event): void {
@@ -647,13 +649,13 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
     if (!input.files || input.files.length === 0) return;
     const file = input.files[0];
     input.value = '';
-    this.formPhotoFile = file;
-    this.readAsDataUrl(file).then(url => { this.formPhotoPreview = url; });
+    this.formPhotoFile.set(file);
+    this.readAsDataUrl(file).then(url => { this.formPhotoPreview.set(url); });
   }
 
   clearFormPhoto(): void {
-    this.formPhotoFile = null;
-    this.formPhotoPreview = null;
+    this.formPhotoFile.set(null);
+    this.formPhotoPreview.set(null);
   }
 
   onFormDocumentSelected(event: Event): void {
@@ -661,29 +663,29 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
     if (!input.files || input.files.length === 0) return;
     const file = input.files[0];
     input.value = '';
-    this.formDocumentFile = file;
-    this.readAsDataUrl(file).then(url => { this.formDocumentPreview = url; });
+    this.formDocumentFile.set(file);
+    this.readAsDataUrl(file).then(url => { this.formDocumentPreview.set(url); });
   }
 
   clearFormDocument(): void {
-    this.formDocumentFile = null;
-    this.formDocumentPreview = null;
+    this.formDocumentFile.set(null);
+    this.formDocumentPreview.set(null);
   }
 
   async saveForm(): Promise<void> {
-    if (!this.formModel.firstName?.trim() || !this.formModel.lastName?.trim()) {
-      this.formError = 'First name and last name are required.';
+    if (!this.formModel().firstName?.trim() || !this.formModel().lastName?.trim()) {
+      this.formError.set('First name and last name are required.');
       return;
     }
 
-    this.formSaving = true;
-    this.formError = '';
+    this.formSaving.set(true);
+    this.formError.set('');
 
     try {
       const payload = this.buildPayload();
 
       const save$ =
-        this.formMode === 'create'
+        this.formMode() === 'create'
           ? this.cleanerService.create(payload as CreateCleanerPayload)
           : this.cleanerService.update(this.editingId!, payload as UpdateCleanerPayload);
 
@@ -692,31 +694,31 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
           try {
             const uploaded = await this.uploadFormAssets(detail.id);
             const finalDetail = uploaded || detail;
-            this.selectedDetail = finalDetail;
-            this.formOpen = false;
-            this.formSaving = false;
+            this.selectedDetail.set(finalDetail);
+            this.formOpen.set(false);
+            this.formSaving.set(false);
             this.loadCleaners();
           } catch (uploadErr: any) {
-            this.formSaving = false;
-            this.formError = this.extractError(uploadErr) || 'Upload failed after saving cleaner';
+            this.formSaving.set(false);
+            this.formError.set(this.extractError(uploadErr) || 'Upload failed after saving cleaner');
           }
         },
         error: err => {
-          this.formSaving = false;
-          this.formError = this.extractError(err) || 'Failed to save cleaner';
+          this.formSaving.set(false);
+          this.formError.set(this.extractError(err) || 'Failed to save cleaner');
         }
       });
     } catch (err: any) {
-      this.formSaving = false;
-      this.formError = this.extractError(err) || 'Failed to save cleaner';
+      this.formSaving.set(false);
+      this.formError.set(this.extractError(err) || 'Failed to save cleaner');
     }
   }
 
   private async uploadFormAssets(cleanerId: number): Promise<CleanerDetail | null> {
     const tasks: Observable<any>[] = [];
 
-    if (this.formPhotoFile) {
-      const compressed = await compressImage(this.formPhotoFile, {
+    if (this.formPhotoFile()) {
+      const compressed = await compressImage(this.formPhotoFile()!, {
         maxWidth: 1200,
         maxHeight: 1200,
         maxSizeBytes: 500 * 1024
@@ -724,8 +726,8 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
       tasks.push(this.cleanerService.uploadPhoto(cleanerId, compressed));
     }
 
-    if (this.formDocumentFile) {
-      const compressed = await compressImage(this.formDocumentFile, {
+    if (this.formDocumentFile()) {
+      const compressed = await compressImage(this.formDocumentFile()!, {
         maxWidth: 2000,
         maxHeight: 2000,
         maxSizeBytes: 800 * 1024
@@ -747,21 +749,21 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
 
     this.cleanerService.delete(detail.id).subscribe({
       next: () => {
-        this.selectedDetail = null;
+        this.selectedDetail.set(null);
         this.loadCleaners();
         // The record the drawer was opened on no longer exists; leaving it open would show an
         // empty panel over a row that is about to disappear from the table underneath.
-        if (this.embedded) this.closed.emit();
+        if (this.embedded()) this.closed.emit();
       },
       error: err => {
-        this.errorMessage = this.extractError(err) || 'Failed to delete cleaner';
+        this.errorMessage.set(this.extractError(err) || 'Failed to delete cleaner');
       }
     });
   }
 
   async onPhotoSelected(event: Event): Promise<void> {
     const input = event.target as HTMLInputElement;
-    if (!input.files || input.files.length === 0 || !this.selectedDetail) return;
+    if (!input.files || input.files.length === 0 || !this.selectedDetail()) return;
 
     const file = input.files[0];
     input.value = '';
@@ -769,26 +771,26 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
     this.photoUploading = true;
     try {
       const compressed = await compressImage(file, { maxWidth: 1200, maxHeight: 1200, maxSizeBytes: 500 * 1024 });
-      this.cleanerService.uploadPhoto(this.selectedDetail.id, compressed).subscribe({
+      this.cleanerService.uploadPhoto(this.selectedDetail()!.id, compressed).subscribe({
         next: result => {
-          if (this.selectedDetail) this.selectedDetail.photoUrl = result.url;
+          if (this.selectedDetail()) { this.selectedDetail()!.photoUrl = result.url; this.selectedDetail.set(this.selectedDetail()); }
           this.photoUploading = false;
           this.loadCleaners();
         },
         error: err => {
           this.photoUploading = false;
-          this.errorMessage = this.extractError(err) || 'Photo upload failed';
+          this.errorMessage.set(this.extractError(err) || 'Photo upload failed');
         }
       });
     } catch (e) {
       this.photoUploading = false;
-      this.errorMessage = 'Failed to process image';
+      this.errorMessage.set('Failed to process image');
     }
   }
 
   async onDocumentSelected(event: Event): Promise<void> {
     const input = event.target as HTMLInputElement;
-    if (!input.files || input.files.length === 0 || !this.selectedDetail) return;
+    if (!input.files || input.files.length === 0 || !this.selectedDetail()) return;
 
     const file = input.files[0];
     input.value = '';
@@ -796,50 +798,51 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
     this.documentUploading = true;
     try {
       const compressed = await compressImage(file, { maxWidth: 2000, maxHeight: 2000, maxSizeBytes: 800 * 1024 });
-      this.cleanerService.uploadDocument(this.selectedDetail.id, compressed).subscribe({
+      this.cleanerService.uploadDocument(this.selectedDetail()!.id, compressed).subscribe({
         next: result => {
-          if (this.selectedDetail) this.selectedDetail.documentUrl = result.url;
+          if (this.selectedDetail()) { this.selectedDetail()!.documentUrl = result.url; this.selectedDetail.set(this.selectedDetail()); }
           this.documentUploading = false;
         },
         error: err => {
           this.documentUploading = false;
-          this.errorMessage = this.extractError(err) || 'Document upload failed';
+          this.errorMessage.set(this.extractError(err) || 'Document upload failed');
         }
       });
     } catch (e) {
       this.documentUploading = false;
-      this.errorMessage = 'Failed to process document';
+      this.errorMessage.set('Failed to process document');
     }
   }
 
   addNote(): void {
-    if (!this.selectedDetail || !this.newNote.text?.trim()) return;
+    if (!this.selectedDetail() || !this.newNote().text?.trim()) return;
 
-    this.addingNote = true;
-    this.cleanerService.addNote(this.selectedDetail.id, this.newNote).subscribe({
+    this.addingNote.set(true);
+    this.cleanerService.addNote(this.selectedDetail()!.id, this.newNote()).subscribe({
       next: note => {
-        if (this.selectedDetail) {
-          this.selectedDetail.notes = [note, ...(this.selectedDetail.notes || [])];
+        if (this.selectedDetail()) {
+          this.selectedDetail()!.notes = [note, ...(this.selectedDetail()!.notes || [])];
+          this.selectedDetail.set(this.selectedDetail());
         }
-        this.newNote = { text: '', orderId: null, orderPerformance: null };
-        this.addingNote = false;
-        this.addNoteModalOpen = false;
+        this.newNote.set({ text: '', orderId: null, orderPerformance: null });
+        this.addingNote.set(false);
+        this.addNoteModalOpen.set(false);
       },
       error: err => {
-        this.addingNote = false;
-        this.errorMessage = this.extractError(err) || 'Failed to add note';
+        this.addingNote.set(false);
+        this.errorMessage.set(this.extractError(err) || 'Failed to add note');
       }
     });
   }
 
   openAddNoteModal(): void {
-    this.newNote = { text: '', orderId: null, orderPerformance: null };
-    this.addNoteModalOpen = true;
+    this.newNote.set({ text: '', orderId: null, orderPerformance: null });
+    this.addNoteModalOpen.set(true);
   }
 
   closeAddNoteModal(): void {
-    if (this.addingNote) return;
-    this.addNoteModalOpen = false;
+    if (this.addingNote()) return;
+    this.addNoteModalOpen.set(false);
   }
 
   saveAddNoteFromModal(): void {
@@ -852,49 +855,51 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
 
     this.cleanerService.deleteNote(noteId).subscribe({
       next: () => {
-        if (this.selectedDetail) {
-          this.selectedDetail.notes = this.selectedDetail.notes.filter(n => n.id !== noteId);
+        if (this.selectedDetail()) {
+          this.selectedDetail()!.notes = this.selectedDetail()!.notes.filter(n => n.id !== noteId);
+          this.selectedDetail.set(this.selectedDetail());
         }
-        if (this.editingNoteId === noteId) {
+        if (this.editingNoteId() === noteId) {
           this.cancelEditNote();
         }
       },
       error: err => {
-        this.errorMessage = this.extractError(err) || 'Failed to delete note';
+        this.errorMessage.set(this.extractError(err) || 'Failed to delete note');
       }
     });
   }
 
   startEditNote(note: CleanerNote): void {
-    this.editingNoteId = note.id;
-    this.editingNoteText = note.text;
+    this.editingNoteId.set(note.id);
+    this.editingNoteText.set(note.text);
   }
 
   cancelEditNote(): void {
-    this.editingNoteId = null;
-    this.editingNoteText = '';
-    this.savingNoteEdit = false;
+    this.editingNoteId.set(null);
+    this.editingNoteText.set('');
+    this.savingNoteEdit.set(false);
   }
 
   saveEditNote(): void {
-    if (this.editingNoteId == null) return;
-    const text = (this.editingNoteText || '').trim();
+    if (this.editingNoteId() == null) return;
+    const text = (this.editingNoteText() || '').trim();
     if (!text) return;
 
-    this.savingNoteEdit = true;
-    const noteId = this.editingNoteId;
+    this.savingNoteEdit.set(true);
+    const noteId = this.editingNoteId()!;
     this.cleanerService.updateNote(noteId, { text }).subscribe({
       next: updated => {
-        if (this.selectedDetail) {
-          this.selectedDetail.notes = this.selectedDetail.notes.map(n =>
+        if (this.selectedDetail()) {
+          this.selectedDetail()!.notes = this.selectedDetail()!.notes.map(n =>
             n.id === noteId ? { ...n, ...updated } : n
           );
+          this.selectedDetail.set(this.selectedDetail());
         }
         this.cancelEditNote();
       },
       error: err => {
-        this.savingNoteEdit = false;
-        this.errorMessage = this.extractError(err) || 'Failed to update note';
+        this.savingNoteEdit.set(false);
+        this.errorMessage.set(this.extractError(err) || 'Failed to update note');
       }
     });
   }
@@ -977,7 +982,8 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
     if (input.value !== cleaned) {
       input.value = cleaned;
     }
-    this.formModel.phone = cleaned || null;
+    this.formModel().phone = cleaned || null;
+    this.formModel.set(this.formModel());
   }
 
   formatServiceTime(value: string | null | undefined): string {
@@ -997,15 +1003,15 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
   }
 
   get completedOrders(): CleanerDetail['assignedOrders'] {
-    if (!this.selectedDetail) return [];
-    return this.selectedDetail.assignedOrders
+    if (!this.selectedDetail()) return [];
+    return this.selectedDetail()!.assignedOrders
       .filter(o => this.isCompletedOrder(o.status))
       .sort((a, b) => new Date(b.serviceDate).getTime() - new Date(a.serviceDate).getTime());
   }
 
   get upcomingOrders(): CleanerDetail['assignedOrders'] {
-    if (!this.selectedDetail) return [];
-    return this.selectedDetail.assignedOrders
+    if (!this.selectedDetail()) return [];
+    return this.selectedDetail()!.assignedOrders
       .filter(o => !this.isCompletedOrder(o.status) && (o.status || '').toLowerCase() !== 'cancelled')
       .sort((a, b) => new Date(a.serviceDate).getTime() - new Date(b.serviceDate).getTime());
   }
@@ -1020,13 +1026,13 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
   }
 
   get issuesCount(): number {
-    if (!this.selectedDetail) return 0;
-    return this.selectedDetail.notes.filter(n => this.performanceCategory(n.orderPerformance) === 'issue').length;
+    if (!this.selectedDetail()) return 0;
+    return this.selectedDetail()!.notes.filter(n => this.performanceCategory(n.orderPerformance) === 'issue').length;
   }
 
   get generalNotes(): CleanerNote[] {
-    if (!this.selectedDetail) return [];
-    return this.selectedDetail.notes
+    if (!this.selectedDetail()) return [];
+    return this.selectedDetail()!.notes
       .filter(n => !n.orderId)
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }
@@ -1042,8 +1048,8 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
   }
 
   private noteForOrder(orderId: number): CleanerNote | null {
-    if (!this.selectedDetail) return null;
-    return this.selectedDetail.notes.find(n => n.orderId === orderId) || null;
+    if (!this.selectedDetail()) return null;
+    return this.selectedDetail()!.notes.find(n => n.orderId === orderId) || null;
   }
 
   orderPerformance(orderId: number): { category: 'praise' | 'issue' | 'warning'; label: string } | null {
@@ -1080,75 +1086,81 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
         ? (currentCategory === 'praise' ? 'Praise' : currentCategory === 'issue' ? 'Issue' : 'Warning')
         : '');
 
-    this.performanceModal = {
+    this.performanceModal.set({
       orderId,
       performance: currentValue,
       text: note?.text ?? '',
       existingNoteId: note?.id ?? null,
       saving: false,
       error: ''
-    };
-    this.performanceModalOpen = true;
+    });
+    this.performanceModalOpen.set(true);
   }
 
   closePerformanceModal(): void {
-    this.performanceModalOpen = false;
-    this.performanceModal = null;
+    this.performanceModalOpen.set(false);
+    this.performanceModal.set(null);
   }
 
   openImageViewer(src: string | null | undefined, title: string, alt: string): void {
     if (!src) return;
-    this.imageViewer = { src, alt, title };
+    this.imageViewer.set({ src, alt, title });
   }
 
   closeImageViewer(): void {
-    this.imageViewer = null;
+    this.imageViewer.set(null);
   }
 
   savePerformance(): void {
-    if (!this.performanceModal || !this.selectedDetail) return;
+    if (!this.performanceModal() || !this.selectedDetail()) return;
 
-    const cleanerId = this.selectedDetail.id;
+    const cleanerId = this.selectedDetail()!.id;
     const payload = {
-      orderId: this.performanceModal.orderId,
-      performance: this.performanceModal.performance || null,
-      text: this.performanceModal.text?.trim() || null
+      orderId: this.performanceModal()!.orderId,
+      performance: this.performanceModal()!.performance || null,
+      text: this.performanceModal()!.text?.trim() || null
     };
 
-    this.performanceModal.saving = true;
-    this.performanceModal.error = '';
+    this.performanceModal()!.saving = true;
+    this.performanceModal.set(this.performanceModal());
+    this.performanceModal()!.error = '';
+    this.performanceModal.set(this.performanceModal());
 
     this.cleanerService.upsertOrderPerformance(cleanerId, payload).subscribe({
       next: () => {
         this.cleanerService.getById(cleanerId).subscribe({
           next: detail => {
-            this.selectedDetail = detail;
-            this.cleaners = this.cleaners.map(item =>
+            this.selectedDetail.set(detail);
+            this.cleaners.set(this.cleaners().map(item =>
               item.id === detail.id ? { ...item, mainNote: detail.mainNote ?? null } : item
-            );
+            ));
             this.closePerformanceModal();
           },
           error: () => { this.closePerformanceModal(); }
         });
       },
       error: err => {
-        if (this.performanceModal) {
-          this.performanceModal.saving = false;
-          this.performanceModal.error = this.extractError(err) || 'Failed to save performance';
+        if (this.performanceModal()) {
+          this.performanceModal()!.saving = false;
+          this.performanceModal.set(this.performanceModal());
+          this.performanceModal()!.error = this.extractError(err) || 'Failed to save performance';
+          this.performanceModal.set(this.performanceModal());
         }
       }
     });
   }
 
   clearPerformance(): void {
-    if (!this.performanceModal) return;
-    this.performanceModal.performance = '';
-    this.performanceModal.text = '';
+    if (!this.performanceModal()) return;
+    this.performanceModal()!.performance = '';
+    this.performanceModal.set(this.performanceModal());
+    this.performanceModal()!.text = '';
+    this.performanceModal.set(this.performanceModal());
     this.savePerformance();
   }
 
   get displayedCleaners(): CleanerListItem[] {
-    const filtered = this.cleaners.filter(c => this.matchesFilter(c));
+    const filtered = this.cleaners().filter(c => this.matchesFilter(c));
     return this.sortCleaners(filtered);
   }
 
@@ -1156,7 +1168,7 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
     if (!this.matchesAvailableDay(c)) return false;
     if (!this.matchesBorough(c)) return false;
     if (!this.matchesNationality(c)) return false;
-    switch (this.filterBy) {
+    switch (this.filterBy()) {
       case 'best': return this.normalizeRanking(c.ranking) === 'Top';
       case 'good': return this.normalizeRanking(c.ranking) === 'Standard';
       case 'normal': return this.normalizeRanking(c.ranking) === 'Beginner';
@@ -1172,29 +1184,30 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
 
   /** When a weekday is selected, keep only cleaners NOT marked busy on that day. */
   private matchesAvailableDay(c: CleanerListItem): boolean {
-    if (!this.availableOnDay) return true;
-    const dayInt = DAY_KEY_TO_INT[this.availableOnDay];
+    const day = this.availableOnDay();
+    if (!day) return true;
+    const dayInt = DAY_KEY_TO_INT[day];
     return !(c.busyDaysOfWeek ?? []).includes(dayInt);
   }
 
   /** When a borough is selected, keep cleaners who WORK there (no operating areas set = works everywhere). */
   private matchesBorough(c: CleanerListItem): boolean {
-    if (!this.filterBorough) return true;
+    if (!this.filterBorough()) return true;
     const boroughs = this.parseBoroughs(c.operatingAreas);
     if (boroughs.length === 0) return true;
-    return boroughs.includes(this.filterBorough);
+    return boroughs.includes(this.filterBorough());
   }
 
   /** When a nationality is selected, keep only cleaners with that exact nationality. */
   private matchesNationality(c: CleanerListItem): boolean {
-    if (!this.filterNationality) return true;
-    return (c.nationality || '').trim() === this.filterNationality;
+    if (!this.filterNationality()) return true;
+    return (c.nationality || '').trim() === this.filterNationality();
   }
 
   /** Distinct nationalities present in the loaded cleaners, for the nationality filter dropdown. */
   get availableNationalities(): string[] {
     const set = new Set<string>();
-    for (const c of this.cleaners) {
+    for (const c of this.cleaners()) {
       const n = (c.nationality || '').trim();
       if (n) set.add(n);
     }
@@ -1209,7 +1222,7 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
     const created = (c: CleanerListItem) => new Date(c.createdAt).getTime() || 0;
 
     const sorted = [...list];
-    switch (this.sortBy) {
+    switch (this.sortBy()) {
       case 'rankBest':
         return sorted.sort((a, b) => rank(a) - rank(b) || byName(a, b));
       case 'rankWorst':
@@ -1296,7 +1309,7 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
   // Back to the stored busy-day ints: every weekday the cleaner is NOT available on.
   private availableDaysToBusyInts(): number[] {
     return DAY_ORDER
-      .filter(day => !this.availableDays[day])
+      .filter(day => !this.availableDays()[day])
       .map(day => DAY_KEY_TO_INT[day]);
   }
 
@@ -1327,7 +1340,7 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
   /** Selected boroughs back to CSV for the payload, or null when none selected. */
   private boroughsToCsv(): string | null {
     const selected = this.locationOptions
-      .filter(opt => this.operatingBoroughs[opt.value])
+      .filter(opt => this.operatingBoroughs()[opt.value])
       .map(opt => opt.value);
     return selected.length ? selected.join(',') : null;
   }
@@ -1351,7 +1364,7 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
 
   /** Vacation rows ready to POST — only complete rows (both dates) are sent. */
   private buildVacationPayload(): CleanerVacation[] {
-    return this.vacations
+    return this.vacations()
       .filter(v => v.startDate && v.endDate)
       .map(v => ({
         startDate: v.startDate,
@@ -1367,35 +1380,35 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
   }
 
   private buildPayload(): CreateCleanerPayload | UpdateCleanerPayload {
-    const rankingStr = (this.formModel.ranking ?? 'Standard') as CleanerRanking;
-    const docTypeStr = this.formModel.documentType as CleanerDocumentType | null;
-    const payMethodStr = normalizeCleanerPaymentMethod(this.formModel.paymentMethod);
+    const rankingStr = (this.formModel().ranking ?? 'Standard') as CleanerRanking;
+    const docTypeStr = this.formModel().documentType as CleanerDocumentType | null;
+    const payMethodStr = normalizeCleanerPaymentMethod(this.formModel().paymentMethod);
 
     const payload: UpdateCleanerPayload = {
-      firstName: this.formModel.firstName.trim(),
-      lastName: this.formModel.lastName.trim(),
-      age: this.formModel.age ?? null,
-      experience: this.normalizeExperience(this.formModel.experience),
-      phone: normalizePhone10(this.formModel.phone),
-      email: this.nullIfBlank(this.formModel.email),
+      firstName: this.formModel().firstName.trim(),
+      lastName: this.formModel().lastName.trim(),
+      age: this.formModel().age ?? null,
+      experience: this.normalizeExperience(this.formModel().experience),
+      phone: normalizePhone10(this.formModel().phone),
+      email: this.nullIfBlank(this.formModel().email),
       // Address is hidden from the UI but preserved on save so it can be re-surfaced later.
-      address: this.nullIfBlank(this.formModel.address),
+      address: this.nullIfBlank(this.formModel().address),
       // Location = where the cleaner lives (single borough); OperatingAreas = where they work (CSV).
-      location: this.nullIfBlank(this.formModel.location),
+      location: this.nullIfBlank(this.formModel().location),
       operatingAreas: this.boroughsToCsv(),
       busyDaysOfWeek: this.availableDaysToBusyInts(),
       vacations: this.buildVacationPayload(),
-      alreadyWorkedWithUs: !!this.formModel.alreadyWorkedWithUs,
-      nationality: this.nullIfBlank(this.formModel.nationality),
+      alreadyWorkedWithUs: !!this.formModel().alreadyWorkedWithUs,
+      nationality: this.nullIfBlank(this.formModel().nationality),
       ranking: RANKING_INDEX[rankingStr] ?? 1,
-      restrictedReason: this.nullIfBlank(this.formModel.restrictedReason),
-      allergies: this.nullIfBlank(this.formModel.allergies),
-      restrictions: this.nullIfBlank(this.formModel.restrictions),
-      mainNote: this.nullIfBlank(this.formModel.mainNote),
+      restrictedReason: this.nullIfBlank(this.formModel().restrictedReason),
+      allergies: this.nullIfBlank(this.formModel().allergies),
+      restrictions: this.nullIfBlank(this.formModel().restrictions),
+      mainNote: this.nullIfBlank(this.formModel().mainNote),
       documentType: docTypeStr ? DOCUMENT_TYPE_INDEX[docTypeStr] : null,
       paymentMethod: payMethodStr ? CLEANER_PAYMENT_METHOD_INDEX[payMethodStr] : null,
-      paymentDetails: this.nullIfBlank(this.formModel.paymentDetails),
-      isActive: this.formModel.isActive
+      paymentDetails: this.nullIfBlank(this.formModel().paymentDetails),
+      isActive: this.formModel().isActive
     };
     return payload;
   }
@@ -1416,8 +1429,8 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
   }
 
   private clearEmailLock(): void {
-    this.emailLockedByAccount = false;
-    this.lockedAccountEmail = null;
+    this.emailLockedByAccount.set(false);
+    this.lockedAccountEmail.set(null);
     this.lockedAccountName = null;
   }
 

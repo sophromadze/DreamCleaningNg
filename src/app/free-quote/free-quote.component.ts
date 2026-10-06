@@ -10,6 +10,7 @@ import { AnalyticsService } from '../services/analytics.service';
 import { IconComponent } from '../shared/icons/icon.component';
 import { faCircleCheck } from '../shared/icons/glyphs/faCircleCheck';
 import { faCircleXmark } from '../shared/icons/glyphs/faCircleXmark';
+import { formViewRefresher } from '../shared/forms/form-view-refresher';
 
 @Component({
   selector: 'app-free-quote',
@@ -20,6 +21,8 @@ import { faCircleXmark } from '../shared/icons/glyphs/faCircleXmark';
   styleUrl: './free-quote.component.scss'
 })
 export class FreeQuoteComponent implements OnInit {
+  /** Re-renders when a form changes outside a template event (see form-view-refresher). */
+  private readonly watchForm = formViewRefresher();
   private fb = inject(FormBuilder);
   private http = inject(HttpClient);
   private orderSound = inject(OrderSoundService);
@@ -49,6 +52,7 @@ export class FreeQuoteComponent implements OnInit {
       cleaningType: ['', [Validators.required]],
       message: ['', [Validators.required]]
     });
+    this.watchForm(this.quoteForm);
   }
 
   ngOnInit() {

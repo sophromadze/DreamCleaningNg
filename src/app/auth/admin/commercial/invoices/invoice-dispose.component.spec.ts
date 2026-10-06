@@ -94,7 +94,7 @@ describe('InvoiceDetailComponent — void, archive or delete', () => {
     component.openDispose();
     fixture.detectChanges();
 
-    expect(component.modal).toBe('dispose');
+    expect(component.modal()).toBe('dispose');
     const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
     expect(text).toContain('Choose what to do with this invoice');
 
@@ -115,13 +115,13 @@ describe('InvoiceDetailComponent — void, archive or delete', () => {
 
     component.openDispose();
     component.chooseVoid();
-    expect(component.modal).toBe('void');
+    expect(component.modal()).toBe('void');
 
     // No reason typed: nothing happens.
     component.voidInvoice();
     http.expectNone(r => r.url.includes('/void'));
 
-    component.voidReason = 'Issued in error';
+    component.voidReason.set('Issued in error');
     component.voidInvoice();
 
     const req = http.expectOne(r => r.url === `${ADMIN_URL}/5/void`);
@@ -129,7 +129,7 @@ describe('InvoiceDetailComponent — void, archive or delete', () => {
     expect(req.request.body).toEqual({ reason: 'Issued in error' });
     req.flush(invoice({ status: InvoiceStatus.Void, canVoid: false }));
 
-    expect(component.notice).toContain('number stays permanently reserved');
+    expect(component.notice()).toContain('number stays permanently reserved');
   });
 
   // ── archive ────────────────────────────────────────────────────────────────
@@ -144,12 +144,12 @@ describe('InvoiceDetailComponent — void, archive or delete', () => {
     expect(req.request.method).toBe('POST');
     req.flush(invoice({ status: InvoiceStatus.Paid, isArchived: true, amountPaid: 500 }));
 
-    expect(component.modal).toBe('none');
-    expect(component.notice).toContain('archived');
+    expect(component.modal()).toBe('none');
+    expect(component.notice()).toContain('archived');
 
     // An archived Paid invoice is still Paid — archive is a filing decision, not a status.
-    expect(component.invoice?.status).toBe(InvoiceStatus.Paid);
-    expect(component.invoice?.isArchived).toBe(true);
+    expect(component.invoice()?.status).toBe(InvoiceStatus.Paid);
+    expect(component.invoice()?.isArchived).toBe(true);
   });
 
   it('unarchives back onto the active list', () => {
@@ -161,8 +161,8 @@ describe('InvoiceDetailComponent — void, archive or delete', () => {
     expect(req.request.method).toBe('POST');
     req.flush(invoice({ isArchived: false }));
 
-    expect(component.invoice?.isArchived).toBe(false);
-    expect(component.notice).toContain('unarchived');
+    expect(component.invoice()?.isArchived).toBe(false);
+    expect(component.notice()).toContain('unarchived');
   });
 
   // ── full delete ────────────────────────────────────────────────────────────
@@ -173,20 +173,20 @@ describe('InvoiceDetailComponent — void, archive or delete', () => {
 
     expect(component.hardDeleteConfirmationPhrase).toBe('DELETE DCI-2026-48392175');
 
-    component.hardDeleteConfirmation = 'DELETE';
+    component.hardDeleteConfirmation.set('DELETE');
     expect(component.hardDeleteConfirmed).toBe(false);
     component.permanentlyDeleteInvoice();
     http.expectNone(r => r.url.includes('/permanent'));
 
     // Case and surrounding space are not the test — reading the number off the invoice is.
-    component.hardDeleteConfirmation = '  delete dci-2026-48392175 ';
+    component.hardDeleteConfirmation.set('  delete dci-2026-48392175 ');
     expect(component.hardDeleteConfirmed).toBe(true);
   });
 
   it('permanently deletes an unused test invoice and returns to the list', () => {
     open(invoice());
     component.openDispose();
-    component.hardDeleteConfirmation = 'DELETE DCI-2026-48392175';
+    component.hardDeleteConfirmation.set('DELETE DCI-2026-48392175');
 
     component.permanentlyDeleteInvoice();
 
@@ -227,7 +227,7 @@ describe('InvoiceDetailComponent — void, archive or delete', () => {
       .toContain('financial activity');
 
     // And it cannot be fired past the UI either.
-    component.hardDeleteConfirmation = 'DELETE DCI-2026-48392175';
+    component.hardDeleteConfirmation.set('DELETE DCI-2026-48392175');
     component.permanentlyDeleteInvoice();
     http.expectNone(r => r.url.includes('/permanent'));
   });

@@ -1,4 +1,4 @@
-import { Component, OnInit, AfterViewInit, OnDestroy, ViewChild, ElementRef, HostListener, Input, Output, EventEmitter, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, OnInit, AfterViewInit, OnDestroy, ElementRef, HostListener, input, model, ChangeDetectionStrategy, inject, output, viewChild, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
@@ -54,7 +54,7 @@ type DetailTab = 'details' | 'history' | 'photos' | 'notes' | 'tasks' | 'invoice
   standalone: true,
   imports: [CommonModule, FormsModule, RegisterCustomerModalComponent, RecreateOrderModalComponent, AdminUserBillingComponent],
   templateUrl: './user-management.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./user-management.component.scss']
 })
 export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy {
@@ -65,11 +65,11 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
   private contractService = inject(ContractService);
   private invoiceService = inject(InvoiceService);
 
-  @ViewChild('tableWrapper', { static: false }) tableWrapper!: ElementRef<HTMLDivElement>;
-  @ViewChild('tableHeader', { static: false }) tableHeader!: ElementRef<HTMLTableSectionElement>;
+  readonly tableWrapper = viewChild<ElementRef<HTMLDivElement>>('tableWrapper');
+  readonly tableHeader = viewChild<ElementRef<HTMLTableSectionElement>>('tableHeader');
 
   /** Set from the ?userId= query param (e.g. the orders panel's "View User" button) — auto-opens that user. */
-  @Input() openUserId: number | null = null;
+  readonly openUserId = model<number | null>(null);
 
   /**
    * WHICH AUDIENCE this instance lists — Users → Customers, or Users → Staff.
@@ -83,7 +83,7 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
    * Filtering is applied on TOP of the ordinary role filter — see `scopedUsers` — so a scope can
    * never widen what the filter narrowed.
    */
-  @Input() scope: 'customers' | 'staff' = 'customers';
+  readonly scope = input<'customers' | 'staff'>('customers');
 
   /**
    * PANEL-ONLY MODE: render just this one account's detail panel, with no list around it.
@@ -104,49 +104,52 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
    * mode only decides what is DRAWN — the list, the filters, the header and the click-away
    * overlay all belong to the host in this mode, not to us.
    */
-  @Input() embeddedUserId: number | null = null;
+  readonly embeddedUserId = input<number | null>(null);
 
   /** Closed from inside the panel (its ✕), so an embedding host can drop it. */
-  @Output() closed = new EventEmitter<void>();
+  readonly closed = output<void>();
 
   get isEmbedded(): boolean {
-    return this.embeddedUserId !== null;
+    return this.embeddedUserId() !== null;
   }
 
   /** The roles that count as STAFF. SuperAdmin / Admin / Moderator — never a customer. */
   private static readonly STAFF_ROLES = ['superadmin', 'admin', 'moderator'];
 
-  users: UserAdmin[] = [];
-  loadingUsers = false;
-  userRole: string = '';
-  currentUserRole: string = '';
+  readonly users = signal<UserAdmin[]>([], { equal: () => false });
+  readonly loadingUsers = signal(false);
+  readonly userRole = signal<string>('');
+  readonly currentUserRole = signal<string>('');
   roleDropdownUserId: number | null = null;
   userPermissions: UserPermissions | null = null;
-  canCreate = false;
-  canUpdate = false;
+  readonly canCreate = signal(false);
+  readonly canUpdate = signal(false);
   canDelete = false;
-  canActivate = false;
-  canDeactivate = false;
-  searchTerm: string = '';
-  statusFilter: string = 'all';
-  roleFilter: string = 'all';
+  readonly canActivate = signal(false);
+  readonly canDeactivate = signal(false);
+  readonly searchTerm = signal<string>('');
+  readonly statusFilter = signal<string>('all');
+  readonly roleFilter = signal<string>('all');
   // Customer-type filter, based on non-cancelled order count: 'new' = exactly one order,
   // 'returning' = two or more, 'none' = no orders yet.
-  customerTypeFilter: string = 'all';
-  currentPage = 1;
+  readonly customerTypeFilter = signal<string>('all');
+  readonly currentPage = signal(1);
   itemsPerPage = 20;
-  totalPages = 1;
+  /** Derived from the filtered list (it used to be written as a side effect of rendering filteredUsers). */
+  get totalPages(): number {
+    return Math.ceil(this.matchingUsers.length / this.itemsPerPage);
+  }
 
-  errorMessage = '';
-  successMessage = '';
+  readonly errorMessage = signal('');
+  readonly successMessage = signal('');
 
   /** Register-customer modal visibility. The form itself lives in the shared modal component. */
-  showRegisterModal = false;
+  readonly showRegisterModal = signal(false);
 
   // ── Export (SuperAdmin-only) ──
-  showExportModal = false;
-  exporting = false;
-  exportError = '';
+  readonly showExportModal = signal(false);
+  readonly exporting = signal(false);
+  readonly exportError = signal('');
   /** Column keys must match the backend ExportUsers endpoint. */
   exportColumns: Array<{ key: string; label: string; selected: boolean }> = [
     { key: 'userId',          label: 'ID',                    selected: true },
@@ -178,86 +181,86 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   // ── Detail panel state ──
-  selectedUser: DetailedUser | null = null;
-  viewingUserId: number | null = null;
-  loadingUserDetails = false;
-  detailTab: DetailTab = 'details';
+  readonly selectedUser = signal<DetailedUser | null>(null, { equal: () => false });
+  readonly viewingUserId = signal<number | null>(null);
+  readonly loadingUserDetails = signal(false);
+  readonly detailTab = signal<DetailTab>('details');
 
   // SuperAdmin full edit
-  editingUser = false;
-  editUserForm: SuperAdminUpdateUserDto = { firstName: '', lastName: '', email: '', role: 'Customer', isActive: true, firstTimeOrder: true, canReceiveCommunications: true, canReceiveEmails: true, canReceiveMessages: true };
-  savingUser = false;
-  togglingCommsUserId: number | null = null;
+  readonly editingUser = signal(false);
+  readonly editUserForm = signal<SuperAdminUpdateUserDto>({ firstName: '', lastName: '', email: '', role: 'Customer', isActive: true, firstTimeOrder: true, canReceiveCommunications: true, canReceiveEmails: true, canReceiveMessages: true }, { equal: () => false });
+  readonly savingUser = signal(false);
+  readonly togglingCommsUserId = signal<number | null>(null);
   /** User id whose flag is mid-update (disables the flag buttons). */
-  flaggingUserId: number | null = null;
+  readonly flaggingUserId = signal<number | null>(null);
 
   // Manual "we miss you" reminder (Admin/SuperAdmin)
-  sendingReminder = false;
+  readonly sendingReminder = signal(false);
 
   // Address editing (Admin/SuperAdmin)
-  editingAddressId: number | null = null;
-  editAddressDraft: Apartment | null = null;
-  showAddAddress = false;
-  newAddress: CreateApartment = { name: '', address: '', city: '', state: '', postalCode: '' };
-  savingAddress = false;
+  readonly editingAddressId = signal<number | null>(null);
+  readonly editAddressDraft = signal<Apartment | null>(null);
+  readonly showAddAddress = signal(false);
+  readonly newAddress = signal<CreateApartment>({ name: '', address: '', city: '', state: '', postalCode: '' });
+  readonly savingAddress = signal(false);
 
   // Bubble Rewards (admin view)
-  userRewardsSummary: any = null;
+  readonly userRewardsSummary = signal<any>(null);
   rewardsLoading = false;
-  adjustPointsAmount: number = 0;
-  adjustPointsDesc: string = '';
-  savingPoints = false;
-  pointsSaveMessage = '';
+  readonly adjustPointsAmount = signal<number>(0);
+  readonly adjustPointsDesc = signal<string>('');
+  readonly savingPoints = signal(false);
+  readonly pointsSaveMessage = signal('');
 
   // Referral management (SuperAdmin)
-  newReferralEmail = '';
-  newReferralSearchResults: { id: number; email: string; name: string }[] = [];
-  addingReferral = false;
-  referralActionMessage = '';
-  removingReferralId: number | null = null;
-  removingReferredBy = false;
+  readonly newReferralEmail = signal('');
+  readonly newReferralSearchResults = signal<{ id: number; email: string; name: string }[]>([]);
+  readonly addingReferral = signal(false);
+  readonly referralActionMessage = signal('');
+  readonly removingReferralId = signal<number | null>(null);
+  readonly removingReferredBy = signal(false);
 
   // Set/correct "referred by" (SuperAdmin)
-  newReferrerEmail = '';
-  newReferrerSearchResults: { id: number; email: string; name: string }[] = [];
-  settingReferredBy = false;
+  readonly newReferrerEmail = signal('');
+  readonly newReferrerSearchResults = signal<{ id: number; email: string; name: string }[]>([]);
+  readonly settingReferredBy = signal(false);
 
   // ── Customer-care: notes (general only) ──
-  generalNotes: UserNote[] = [];
-  loadingNotes = false;
+  readonly generalNotes = signal<UserNote[]>([], { equal: () => false });
+  readonly loadingNotes = signal(false);
 
-  newNoteContent = '';
-  savingNote = false;
+  readonly newNoteContent = signal('');
+  readonly savingNote = signal(false);
 
-  editingNoteId: number | null = null;
-  editNoteContent = '';
+  readonly editingNoteId = signal<number | null>(null);
+  readonly editNoteContent = signal('');
 
   // ── Customer-care: photos ──
-  cleaningPhotoGroups: UserCleaningPhotosByOrder[] = [];
-  loadingPhotos = false;
-  uploadingPhoto = false;
+  readonly cleaningPhotoGroups = signal<UserCleaningPhotosByOrder[]>([]);
+  readonly loadingPhotos = signal(false);
+  readonly uploadingPhoto = signal(false);
   /** Progress label shown on the upload button while a batch is in flight (e.g. "Uploading 2/5…"). */
-  photoUploadProgress = '';
-  photoUploadOrderId: number | null = null;
-  photoUploadError = '';
-  photoUploadSuccess = '';
-  lightboxPhoto: UserCleaningPhoto | null = null;
+  readonly photoUploadProgress = signal('');
+  readonly photoUploadOrderId = signal<number | null>(null);
+  readonly photoUploadError = signal('');
+  readonly photoUploadSuccess = signal('');
+  readonly lightboxPhoto = signal<UserCleaningPhoto | null>(null);
 
   // ── Customer-care: tasks ──
   userTasks: any[] = [];
   loadingTasks = false;
-  private userLastCleaningVariantCache: Map<number, 'Deep' | 'Regular'> = new Map();
+  private readonly userLastCleaningVariantCache = signal<Map<number, 'Deep' | 'Regular'>>(new Map(), { equal: () => false });
 
   // Admin bonus stats — only loaded when the user being viewed has the Admin role.
-  adminBonusAllTime: AdminBonusSummary | null = null;
-  adminBonusThisMonth: AdminBonusSummary | null = null;
+  readonly adminBonusAllTime = signal<AdminBonusSummary | null>(null);
+  readonly adminBonusThisMonth = signal<AdminBonusSummary | null>(null);
   loadingAdminBonus = false;
 
   ngOnInit() {
     // Panel-only mode opens straight onto its account, through the SAME path the ?userId= deep
     // link uses — so the panel is filled by exactly the code that fills it on the Users tab, and
     // there is no second way for a record to arrive in it.
-    if (this.embeddedUserId !== null) this.openUserId = this.embeddedUserId;
+    if (this.embeddedUserId() !== null) this.openUserId.set(this.embeddedUserId());
 
     this.loadUserPermissions();
     this.loadUsers();
@@ -276,7 +279,9 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
     // attempts on every load, waiting for an element that is never going to be drawn.
     if (this.isEmbedded) return;
 
-    if (!this.tableWrapper || !this.tableHeader) {
+    const tableWrapper = this.tableWrapper();
+    const tableHeader = this.tableHeader();
+    if (!tableWrapper || !tableHeader) {
       if (this.initializationRetries < this.maxRetries) {
         this.initializationRetries++;
         setTimeout(() => {
@@ -286,7 +291,7 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
       return;
     }
 
-    if (!this.tableWrapper.nativeElement || !this.tableHeader.nativeElement) {
+    if (!tableWrapper.nativeElement || !tableHeader.nativeElement) {
       if (this.initializationRetries < this.maxRetries) {
         this.initializationRetries++;
         setTimeout(() => {
@@ -304,8 +309,9 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
     if (this.scrollListener) {
       window.removeEventListener('scroll', this.scrollListener, true);
     }
-    if (this.horizontalScrollListener && this.tableWrapper) {
-      const wrapperEl = this.tableWrapper.nativeElement;
+    const tableWrapper = this.tableWrapper();
+    if (this.horizontalScrollListener && tableWrapper) {
+      const wrapperEl = tableWrapper.nativeElement;
       wrapperEl.removeEventListener('scroll', this.horizontalScrollListener);
       wrapperEl.removeEventListener('touchmove', this.horizontalScrollListener);
       wrapperEl.removeEventListener('wheel', this.horizontalScrollListener);
@@ -322,7 +328,8 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   private setupStickyHeader() {
-    if (!this.tableWrapper || !this.tableHeader) return;
+    const tableWrapper = this.tableWrapper();
+    if (!tableWrapper || !this.tableHeader()) return;
     if (this.stickyHeaderInitialized) {
       this.updateStickyHeader();
       return;
@@ -332,7 +339,7 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
     window.addEventListener('scroll', this.scrollListener, true);
 
     this.horizontalScrollListener = () => this.syncHorizontalScroll();
-    const wrapperEl = this.tableWrapper.nativeElement;
+    const wrapperEl = tableWrapper.nativeElement;
     wrapperEl.addEventListener('scroll', this.horizontalScrollListener, { passive: true });
     wrapperEl.addEventListener('touchmove', this.horizontalScrollListener, { passive: true });
     wrapperEl.addEventListener('wheel', this.horizontalScrollListener, { passive: true });
@@ -342,10 +349,12 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   private updateStickyHeader() {
-    if (!this.tableWrapper || !this.tableHeader) return;
+    const tableWrapper = this.tableWrapper();
+    const tableHeader = this.tableHeader();
+    if (!tableWrapper || !tableHeader) return;
 
-    const wrapper = this.tableWrapper.nativeElement;
-    const header = this.tableHeader.nativeElement;
+    const wrapper = tableWrapper.nativeElement;
+    const header = tableHeader.nativeElement;
     const rect = wrapper.getBoundingClientRect();
     const offset = this.headerStickyOffset;
 
@@ -471,10 +480,12 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   private syncHorizontalScroll() {
-    if (!this.tableWrapper || !this.tableHeader) return;
+    const tableWrapper = this.tableWrapper();
+    const tableHeader = this.tableHeader();
+    if (!tableWrapper || !tableHeader) return;
 
-    const wrapper = this.tableWrapper.nativeElement;
-    const header = this.tableHeader.nativeElement;
+    const wrapper = tableWrapper.nativeElement;
+    const header = tableHeader.nativeElement;
 
     if (header.style.position === 'fixed') {
       const scrollLeft = wrapper.scrollLeft;
@@ -492,51 +503,52 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
     this.adminService.getUserPermissions().subscribe({
       next: (permissions) => {
         this.userPermissions = permissions;
-        this.userRole = permissions.role;
-        this.currentUserRole = permissions.role;
+        this.userRole.set(permissions.role);
+        this.currentUserRole.set(permissions.role);
 
-        this.canCreate = permissions.permissions.canCreate;
-        this.canUpdate = permissions.permissions.canUpdate;
+        this.canCreate.set(permissions.permissions.canCreate);
+        this.canUpdate.set(permissions.permissions.canUpdate);
         this.canDelete = permissions.permissions.canDelete;
-        this.canActivate = permissions.permissions.canActivate;
-        this.canDeactivate = permissions.permissions.canDeactivate;
+        this.canActivate.set(permissions.permissions.canActivate);
+        this.canDeactivate.set(permissions.permissions.canDeactivate);
       },
       error: (error) => {
         console.error('Failed to load permissions', error);
-        this.userRole = '';
-        this.canCreate = false;
-        this.canUpdate = false;
+        this.userRole.set('');
+        this.canCreate.set(false);
+        this.canUpdate.set(false);
         this.canDelete = false;
-        this.canActivate = false;
-        this.canDeactivate = false;
+        this.canActivate.set(false);
+        this.canDeactivate.set(false);
       }
     });
   }
 
   loadUsers() {
-    if (this.loadingUsers) return;
+    if (this.loadingUsers()) return;
 
-    this.loadingUsers = true;
-    this.errorMessage = '';
-    this.successMessage = '';
+    this.loadingUsers.set(true);
+    this.errorMessage.set('');
+    this.successMessage.set('');
 
-    this.currentPage = 1;
+    this.currentPage.set(1);
     this.roleDropdownUserId = null;
     this.closeDetailPanel();
-    this.userLastCleaningVariantCache.clear();
+    this.userLastCleaningVariantCache().clear();
+    this.userLastCleaningVariantCache.set(this.userLastCleaningVariantCache());
 
     this.adminService.getUsers(true).subscribe({
       next: (response) => {
-        this.users = Array.isArray(response) ? response : response.users;
-        this.resolveUserLastCleaningVariants(this.users);
+        this.users.set(Array.isArray(response) ? response : response.users);
+        this.resolveUserLastCleaningVariants(this.users());
         this.openPendingUserDetails();
       },
       error: (error) => {
         console.error('Failed to load users', error);
-        this.errorMessage = error?.error?.message || 'Failed to load users. Please try again.';
+        this.errorMessage.set(error?.error?.message || 'Failed to load users. Please try again.');
       },
       complete: () => {
-        this.loadingUsers = false;
+        this.loadingUsers.set(false);
         setTimeout(() => {
           if (!this.stickyHeaderInitialized) {
             this.initializeStickyHeader();
@@ -556,43 +568,43 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
    * user so the highlighted row is visible behind the panel.
    */
   private openPendingUserDetails(): void {
-    const pendingId = this.openUserId;
+    const pendingId = this.openUserId();
     if (!pendingId) return;
-    this.openUserId = null;
+    this.openUserId.set(null);
 
-    const user = this.users.find(u => u.id === pendingId);
+    const user = this.users().find(u => u.id === pendingId);
     if (!user) {
-      this.errorMessage = `User #${pendingId} was not found.`;
+      this.errorMessage.set(`User #${pendingId} was not found.`);
       return;
     }
 
     const index = this.matchingUsers.findIndex(u => u.id === pendingId);
     if (index >= 0) {
-      this.currentPage = Math.floor(index / this.itemsPerPage) + 1;
+      this.currentPage.set(Math.floor(index / this.itemsPerPage) + 1);
     }
 
     setTimeout(() => this.openUserDetails(user), 100);
   }
 
   openUserDetails(user: UserAdmin): void {
-    if (this.viewingUserId === user.id) {
+    if (this.viewingUserId() === user.id) {
       this.closeDetailPanel();
       return;
     }
 
-    this.viewingUserId = user.id;
-    this.detailTab = 'details';
+    this.viewingUserId.set(user.id);
+    this.detailTab.set('details');
     this.roleDropdownUserId = null;
-    this.editingUser = false;
-    this.loadingUserDetails = true;
-    this.selectedUser = { ...user };
+    this.editingUser.set(false);
+    this.loadingUserDetails.set(true);
+    this.selectedUser.set({ ...user });
 
     // Reset child sections
-    this.generalNotes = [];
-    this.cleaningPhotoGroups = [];
+    this.generalNotes.set([]);
+    this.cleaningPhotoGroups.set([]);
     this.userTasks = [];
-    this.editingNoteId = null;
-    this.newNoteContent = '';
+    this.editingNoteId.set(null);
+    this.newNoteContent.set('');
 
     this.loadUserOrders(user.id);
     this.loadUserApartments(user.id);
@@ -622,14 +634,14 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
   //    rather than merged — an account email is a login and a notice email is where invoices go,
   //    and they are allowed to differ.
 
-  userInvoices: LinkedInvoiceSummary[] = [];
+  readonly userInvoices = signal<LinkedInvoiceSummary[]>([]);
   loadingUserInvoices = false;
 
-  businessClient: InvoiceClientOption | null = null;
-  loadingBusinessClient = false;
+  readonly businessClient = signal<InvoiceClientOption | null>(null);
+  readonly loadingBusinessClient = signal(false);
 
   private loadUserInvoices(userId: number): void {
-    this.userInvoices = [];
+    this.userInvoices.set([]);
     this.loadingUserInvoices = true;
 
     this.invoiceService.invoicesForUser(userId)
@@ -637,47 +649,47 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
       .subscribe({
         next: rows => {
           // The panel may have moved on to another user while this was in flight.
-          if (this.viewingUserId !== userId) return;
-          this.userInvoices = rows ?? [];
+          if (this.viewingUserId() !== userId) return;
+          this.userInvoices.set(rows ?? []);
 
           // The tab is hidden when the list is empty, so a panel sitting on it would render an
           // empty pane with no tab selected. Only reachable when a deep link or a previous user
           // left the panel there.
-          if (!this.hasInvoices && this.detailTab === 'invoices') this.detailTab = 'details';
+          if (!this.hasInvoices && this.detailTab() === 'invoices') this.detailTab.set('details');
         },
         // Non-fatal, and it fails CLOSED: no rows means no tab, which is the same thing an
         // account with no invoices sees. A broken tab would be worse than a missing one.
-        error: () => { if (this.viewingUserId === userId) this.userInvoices = []; }
+        error: () => { if (this.viewingUserId() === userId) this.userInvoices.set([]); }
       });
   }
 
   private loadBusinessClient(user: UserAdmin): void {
-    this.businessClient = null;
+    this.businessClient.set(null);
 
     // Asked only of accounts the server has already told us are business clients, so an ordinary
     // customer's panel does not fire a request that can only answer "no".
     if (!user.hasActiveBusinessClient && !user.isBusiness) return;
 
-    this.loadingBusinessClient = true;
+    this.loadingBusinessClient.set(true);
 
     this.invoiceService.clientForUser(user.id)
-      .pipe(finalize(() => this.loadingBusinessClient = false))
+      .pipe(finalize(() => this.loadingBusinessClient.set(false)))
       .subscribe({
-        next: client => { if (this.viewingUserId === user.id) this.businessClient = client ?? null; },
-        error: () => { if (this.viewingUserId === user.id) this.businessClient = null; }
+        next: client => { if (this.viewingUserId() === user.id) this.businessClient.set(client ?? null); },
+        error: () => { if (this.viewingUserId() === user.id) this.businessClient.set(null); }
       });
   }
 
   /** The Invoices tab exists only when there is something in it. */
   get hasInvoices(): boolean {
-    return this.userInvoices.length > 0;
+    return this.userInvoices().length > 0;
   }
 
   // Only fetched for users with the Admin role — the bonus system doesn't apply to others.
   // SuperAdmins are managers (they don't earn the per-order bonus), so we skip them too.
   private loadAdminBonusStats(user: UserAdmin): void {
-    this.adminBonusAllTime = null;
-    this.adminBonusThisMonth = null;
+    this.adminBonusAllTime.set(null);
+    this.adminBonusThisMonth.set(null);
     if (user.role !== 'Admin') return;
 
     this.loadingAdminBonus = true;
@@ -688,11 +700,11 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
     const monthTo   = this.toYmd(new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0)));
 
     this.adminBonusService.getForAdmin(user.id).subscribe({
-      next: s => this.adminBonusAllTime = s,
+      next: s => this.adminBonusAllTime.set(s),
       error: () => { /* leave null — UI hides the stat */ }
     });
     this.adminBonusService.getForAdmin(user.id, monthFrom, monthTo).subscribe({
-      next: s => { this.adminBonusThisMonth = s; this.loadingAdminBonus = false; },
+      next: s => { this.adminBonusThisMonth.set(s); this.loadingAdminBonus = false; },
       error: () => { this.loadingAdminBonus = false; }
     });
   }
@@ -706,7 +718,7 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
 
   openUserDetailsTab(user: UserAdmin, tab: DetailTab, event?: Event): void {
     if (event) event.stopPropagation();
-    if (this.viewingUserId !== user.id) {
+    if (this.viewingUserId() !== user.id) {
       this.openUserDetails(user);
       setTimeout(() => this.setDetailTab(tab), 0);
       return;
@@ -725,35 +737,35 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   closeDetailPanel(): void {
-    this.viewingUserId = null;
-    this.selectedUser = null;
-    this.editingUser = false;
-    this.userRewardsSummary = null;
-    this.lightboxPhoto = null;
-    this.adminBonusAllTime = null;
-    this.adminBonusThisMonth = null;
-    this.userInvoices = [];
-    this.businessClient = null;
+    this.viewingUserId.set(null);
+    this.selectedUser.set(null);
+    this.editingUser.set(false);
+    this.userRewardsSummary.set(null);
+    this.lightboxPhoto.set(null);
+    this.adminBonusAllTime.set(null);
+    this.adminBonusThisMonth.set(null);
+    this.userInvoices.set([]);
+    this.businessClient.set(null);
   }
 
   setDetailTab(tab: DetailTab): void {
-    this.detailTab = tab;
-    if (!this.selectedUser) return;
-    if (tab === 'photos' && this.cleaningPhotoGroups.length === 0 && !this.loadingPhotos) {
-      this.loadCleaningPhotos(this.selectedUser.id);
+    this.detailTab.set(tab);
+    if (!this.selectedUser()) return;
+    if (tab === 'photos' && this.cleaningPhotoGroups().length === 0 && !this.loadingPhotos()) {
+      this.loadCleaningPhotos(this.selectedUser()!.id);
     }
     if (tab === 'tasks' && this.userTasks.length === 0 && !this.loadingTasks) {
-      this.loadUserTasksList(this.selectedUser.id);
+      this.loadUserTasksList(this.selectedUser()!.id);
     }
   }
 
   @HostListener('document:keydown.escape')
   onEscape(): void {
-    if (this.lightboxPhoto) {
-      this.lightboxPhoto = null;
+    if (this.lightboxPhoto()) {
+      this.lightboxPhoto.set(null);
       return;
     }
-    if (this.viewingUserId !== null) {
+    if (this.viewingUserId() !== null) {
       this.dismissDetailPanel();
     }
   }
@@ -775,31 +787,39 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
       profile: this.adminService.getUserProfile(userId).pipe(catchError(() => of(null)))
     }).subscribe({
       next: ({ orders, profile }) => {
-        if (this.selectedUser && this.selectedUser.id === userId) {
+        if (this.selectedUser() && this.selectedUser()!.id === userId) {
           const validOrders = orders.filter(order => !isCancelledOrRefundedStatus(order.status));
 
-          this.selectedUser.orders = orders;
-          this.selectedUser.totalOrders = profile?.totalOrders ?? validOrders.length;
-          this.selectedUser.totalSpent = profile?.totalSpent ?? 0;
-          this.selectedUser.registrationDate = new Date(this.selectedUser.createdAt);
+          this.selectedUser()!.orders = orders;
+          this.selectedUser.set(this.selectedUser());
+          this.selectedUser()!.totalOrders = profile?.totalOrders ?? validOrders.length;
+          this.selectedUser.set(this.selectedUser());
+          this.selectedUser()!.totalSpent = profile?.totalSpent ?? 0;
+          this.selectedUser.set(this.selectedUser());
+          this.selectedUser()!.registrationDate = new Date(this.selectedUser()!.createdAt);
+          this.selectedUser.set(this.selectedUser());
 
           if (validOrders.length > 0) {
             const sorted = validOrders.sort((a, b) =>
               new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime()
             );
-            this.selectedUser.lastOrderDate = new Date(sorted[0].orderDate);
+            this.selectedUser()!.lastOrderDate = new Date(sorted[0].orderDate);
+            this.selectedUser.set(this.selectedUser());
           }
         }
-        this.loadingUserDetails = false;
+        this.loadingUserDetails.set(false);
       },
       error: (error) => {
         console.error('Failed to load user orders', error);
-        if (this.selectedUser && this.selectedUser.id === userId) {
-          this.selectedUser.orders = [];
-          this.selectedUser.totalOrders = 0;
-          this.selectedUser.totalSpent = 0;
+        if (this.selectedUser() && this.selectedUser()!.id === userId) {
+          this.selectedUser()!.orders = [];
+          this.selectedUser.set(this.selectedUser());
+          this.selectedUser()!.totalOrders = 0;
+          this.selectedUser.set(this.selectedUser());
+          this.selectedUser()!.totalSpent = 0;
+          this.selectedUser.set(this.selectedUser());
         }
-        this.loadingUserDetails = false;
+        this.loadingUserDetails.set(false);
       }
     });
   }
@@ -807,13 +827,15 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
   private loadUserApartments(userId: number) {
     this.adminService.getUserApartments(userId).subscribe({
       next: (apartments: Apartment[]) => {
-        if (this.selectedUser && this.selectedUser.id === userId) {
-          this.selectedUser.apartments = apartments;
+        if (this.selectedUser() && this.selectedUser()!.id === userId) {
+          this.selectedUser()!.apartments = apartments;
+          this.selectedUser.set(this.selectedUser());
         }
       },
       error: () => {
-        if (this.selectedUser && this.selectedUser.id === userId) {
-          this.selectedUser.apartments = [];
+        if (this.selectedUser() && this.selectedUser()!.id === userId) {
+          this.selectedUser()!.apartments = [];
+          this.selectedUser.set(this.selectedUser());
         }
       }
     });
@@ -822,105 +844,105 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
   // ── Loyalty Discount (re-engagement) ──
   // The view always loads the current state. Editing is gated to Admin/SuperAdmin via
   // canEditUserDetails in the template — Moderator sees the badge but no Edit button.
-  loyaltyDiscount: LoyaltyDiscountDto | null = null;
-  loadingLoyalty = false;
-  editingLoyalty = false;
-  loyaltyForm: { percentage: number; isLifetime: boolean } = { percentage: 0, isLifetime: false };
-  savingLoyalty = false;
-  loyaltyError = '';
-  loyaltySuccess = '';
+  readonly loyaltyDiscount = signal<LoyaltyDiscountDto | null>(null);
+  readonly loadingLoyalty = signal(false);
+  readonly editingLoyalty = signal(false);
+  readonly loyaltyForm = signal<{ percentage: number; isLifetime: boolean }>({ percentage: 0, isLifetime: false });
+  readonly savingLoyalty = signal(false);
+  readonly loyaltyError = signal('');
+  readonly loyaltySuccess = signal('');
 
   loadUserLoyalty(userId: number): void {
-    this.loadingLoyalty = true;
-    this.loyaltyDiscount = null;
-    this.loyaltyError = '';
-    this.editingLoyalty = false;
+    this.loadingLoyalty.set(true);
+    this.loyaltyDiscount.set(null);
+    this.loyaltyError.set('');
+    this.editingLoyalty.set(false);
     this.adminService.getUserLoyaltyDiscount(userId).subscribe({
       next: (dto) => {
-        if (this.selectedUser?.id !== userId) return;
-        this.loyaltyDiscount = dto;
-        this.loyaltyForm = { percentage: dto?.percentage ?? 0, isLifetime: dto?.isLifetime ?? false };
-        this.loadingLoyalty = false;
+        if (this.selectedUser()?.id !== userId) return;
+        this.loyaltyDiscount.set(dto);
+        this.loyaltyForm.set({ percentage: dto?.percentage ?? 0, isLifetime: dto?.isLifetime ?? false });
+        this.loadingLoyalty.set(false);
       },
-      error: () => { this.loadingLoyalty = false; }
+      error: () => { this.loadingLoyalty.set(false); }
     });
   }
 
   startEditLoyaltyDiscount(): void {
-    this.loyaltyForm = {
-      percentage: this.loyaltyDiscount?.percentage ?? 0,
-      isLifetime: this.loyaltyDiscount?.isLifetime ?? false
-    };
-    this.loyaltyError = '';
-    this.loyaltySuccess = '';
-    this.editingLoyalty = true;
+    this.loyaltyForm.set({
+      percentage: this.loyaltyDiscount()?.percentage ?? 0,
+      isLifetime: this.loyaltyDiscount()?.isLifetime ?? false
+    });
+    this.loyaltyError.set('');
+    this.loyaltySuccess.set('');
+    this.editingLoyalty.set(true);
   }
 
   cancelEditLoyalty(): void {
-    this.editingLoyalty = false;
-    this.loyaltyError = '';
+    this.editingLoyalty.set(false);
+    this.loyaltyError.set('');
   }
 
   saveLoyaltyDiscount(): void {
-    if (!this.selectedUser || this.savingLoyalty) return;
-    const userId = this.selectedUser.id;
-    this.savingLoyalty = true;
-    this.loyaltyError = '';
-    this.loyaltySuccess = '';
+    if (!this.selectedUser() || this.savingLoyalty()) return;
+    const userId = this.selectedUser()!.id;
+    this.savingLoyalty.set(true);
+    this.loyaltyError.set('');
+    this.loyaltySuccess.set('');
     this.adminService.setUserLoyaltyDiscount(
-      userId, this.loyaltyForm.percentage, this.loyaltyForm.isLifetime
+      userId, this.loyaltyForm().percentage, this.loyaltyForm().isLifetime
     ).subscribe({
       next: (dto) => {
-        if (this.selectedUser?.id !== userId) { this.savingLoyalty = false; return; }
-        this.loyaltyDiscount = dto;
-        this.editingLoyalty = false;
-        this.savingLoyalty = false;
-        this.loyaltySuccess = 'Loyalty discount updated.';
-        setTimeout(() => { this.loyaltySuccess = ''; }, 4000);
+        if (this.selectedUser()?.id !== userId) { this.savingLoyalty.set(false); return; }
+        this.loyaltyDiscount.set(dto);
+        this.editingLoyalty.set(false);
+        this.savingLoyalty.set(false);
+        this.loyaltySuccess.set('Loyalty discount updated.');
+        setTimeout(() => { this.loyaltySuccess.set(''); }, 4000);
       },
       error: (err) => {
-        this.loyaltyError = err?.error?.message || 'Failed to update loyalty discount.';
-        this.savingLoyalty = false;
+        this.loyaltyError.set(err?.error?.message || 'Failed to update loyalty discount.');
+        this.savingLoyalty.set(false);
       }
     });
   }
 
   clearLoyaltyDiscount(): void {
-    if (!this.selectedUser || this.savingLoyalty) return;
-    const userId = this.selectedUser.id;
-    this.savingLoyalty = true;
-    this.loyaltyError = '';
-    this.loyaltySuccess = '';
+    if (!this.selectedUser() || this.savingLoyalty()) return;
+    const userId = this.selectedUser()!.id;
+    this.savingLoyalty.set(true);
+    this.loyaltyError.set('');
+    this.loyaltySuccess.set('');
     this.adminService.clearUserLoyaltyDiscount(userId).subscribe({
       next: (dto) => {
-        if (this.selectedUser?.id !== userId) { this.savingLoyalty = false; return; }
-        this.loyaltyDiscount = dto;
-        this.loyaltyForm = { percentage: 0, isLifetime: false };
-        this.editingLoyalty = false;
-        this.savingLoyalty = false;
-        this.loyaltySuccess = 'Loyalty discount cleared.';
-        setTimeout(() => { this.loyaltySuccess = ''; }, 4000);
+        if (this.selectedUser()?.id !== userId) { this.savingLoyalty.set(false); return; }
+        this.loyaltyDiscount.set(dto);
+        this.loyaltyForm.set({ percentage: 0, isLifetime: false });
+        this.editingLoyalty.set(false);
+        this.savingLoyalty.set(false);
+        this.loyaltySuccess.set('Loyalty discount cleared.');
+        setTimeout(() => { this.loyaltySuccess.set(''); }, 4000);
       },
       error: (err) => {
-        this.loyaltyError = err?.error?.message || 'Failed to clear loyalty discount.';
-        this.savingLoyalty = false;
+        this.loyaltyError.set(err?.error?.message || 'Failed to clear loyalty discount.');
+        this.savingLoyalty.set(false);
       }
     });
   }
 
   loadUserRewards(userId: number): void {
     this.rewardsLoading = true;
-    this.userRewardsSummary = null;
-    this.adjustPointsDesc = '';
-    this.newReferralEmail = '';
-    this.newReferralSearchResults = [];
-    this.newReferrerEmail = '';
-    this.newReferrerSearchResults = [];
-    this.referralActionMessage = '';
+    this.userRewardsSummary.set(null);
+    this.adjustPointsDesc.set('');
+    this.newReferralEmail.set('');
+    this.newReferralSearchResults.set([]);
+    this.newReferrerEmail.set('');
+    this.newReferrerSearchResults.set([]);
+    this.referralActionMessage.set('');
     this.bubbleRewardsService.getAdminUserSummary(userId).subscribe({
       next: (s) => {
-        this.userRewardsSummary = s;
-        this.adjustPointsAmount = s.currentPoints ?? 0;
+        this.userRewardsSummary.set(s);
+        this.adjustPointsAmount.set(s.currentPoints ?? 0);
         this.rewardsLoading = false;
       },
       error: () => { this.rewardsLoading = false; }
@@ -930,21 +952,21 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
   // ── Notes ──
 
   private loadUserNotes(userId: number): void {
-    this.loadingNotes = true;
+    this.loadingNotes.set(true);
     this.adminService.getUserCareNotes(userId).subscribe({
       next: (notes) => {
-        if (this.selectedUser?.id !== userId) return;
+        if (this.selectedUser()?.id !== userId) return;
         // Only general notes exist now — follow-up notes were removed.
-        this.generalNotes = notes.filter(n => n.type === 'General');
-        this.loadingNotes = false;
+        this.generalNotes.set(notes.filter(n => n.type === 'General'));
+        this.loadingNotes.set(false);
       },
-      error: () => { this.loadingNotes = false; }
+      error: () => { this.loadingNotes.set(false); }
     });
   }
 
   saveNewNote(): void {
-    if (!this.selectedUser || this.savingNote) return;
-    const content = this.newNoteContent.trim();
+    if (!this.selectedUser() || this.savingNote()) return;
+    const content = this.newNoteContent().trim();
     if (!content) return;
 
     const dto: CreateUserNoteDto = {
@@ -952,49 +974,49 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
       content
     };
 
-    this.savingNote = true;
-    this.adminService.createUserCareNote(this.selectedUser.id, dto).subscribe({
+    this.savingNote.set(true);
+    this.adminService.createUserCareNote(this.selectedUser()!.id, dto).subscribe({
       next: (note) => {
-        this.generalNotes = [note, ...this.generalNotes];
-        this.newNoteContent = '';
-        this.savingNote = false;
-        this.successMessage = 'Note added.';
-        setTimeout(() => this.successMessage = '', 2500);
+        this.generalNotes.set([note, ...this.generalNotes()]);
+        this.newNoteContent.set('');
+        this.savingNote.set(false);
+        this.successMessage.set('Note added.');
+        setTimeout(() => this.successMessage.set(''), 2500);
       },
       error: (err) => {
-        this.savingNote = false;
-        this.errorMessage = err?.error?.message || 'Failed to save note.';
-        setTimeout(() => this.errorMessage = '', 3000);
+        this.savingNote.set(false);
+        this.errorMessage.set(err?.error?.message || 'Failed to save note.');
+        setTimeout(() => this.errorMessage.set(''), 3000);
       }
     });
   }
 
   startEditNote(note: UserNote): void {
-    this.editingNoteId = note.id;
-    this.editNoteContent = note.content;
+    this.editingNoteId.set(note.id);
+    this.editNoteContent.set(note.content);
   }
 
   cancelEditNote(): void {
-    this.editingNoteId = null;
-    this.editNoteContent = '';
+    this.editingNoteId.set(null);
+    this.editNoteContent.set('');
   }
 
   saveEditNote(note: UserNote): void {
-    if (this.editingNoteId !== note.id) return;
-    const content = this.editNoteContent.trim();
+    if (this.editingNoteId() !== note.id) return;
+    const content = this.editNoteContent().trim();
     if (!content) return;
 
     const dto: UpdateUserNoteDto = { content };
 
     this.adminService.updateUserCareNote(note.id, dto).subscribe({
       next: (updated) => {
-        const idx = this.generalNotes.findIndex(n => n.id === updated.id);
-        if (idx >= 0) this.generalNotes[idx] = updated;
+        const idx = this.generalNotes().findIndex(n => n.id === updated.id);
+        if (idx >= 0) { this.generalNotes()[idx] = updated; this.generalNotes.set(this.generalNotes()); }
         this.cancelEditNote();
       },
       error: (err) => {
-        this.errorMessage = err?.error?.message || 'Failed to update note.';
-        setTimeout(() => this.errorMessage = '', 3000);
+        this.errorMessage.set(err?.error?.message || 'Failed to update note.');
+        setTimeout(() => this.errorMessage.set(''), 3000);
       }
     });
   }
@@ -1003,7 +1025,7 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
     if (!confirm('Delete this note?')) return;
     this.adminService.deleteUserCareNote(note.id).subscribe({
       next: () => {
-        this.generalNotes = this.generalNotes.filter(n => n.id !== note.id);
+        this.generalNotes.set(this.generalNotes().filter(n => n.id !== note.id));
       }
     });
   }
@@ -1011,31 +1033,31 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
   // ── Photos ──
 
   private loadCleaningPhotos(userId: number): void {
-    this.loadingPhotos = true;
+    this.loadingPhotos.set(true);
     this.adminService.getUserCleaningPhotos(userId).subscribe({
       next: (groups) => {
-        if (this.selectedUser?.id !== userId) return;
-        this.cleaningPhotoGroups = groups;
-        this.loadingPhotos = false;
+        if (this.selectedUser()?.id !== userId) return;
+        this.cleaningPhotoGroups.set(groups);
+        this.loadingPhotos.set(false);
       },
-      error: () => { this.loadingPhotos = false; }
+      error: () => { this.loadingPhotos.set(false); }
     });
   }
 
   /** Select an order to attach the next upload to. Used by the upload form. */
   setPhotoOrderId(orderId: number | null | undefined): void {
-    this.photoUploadOrderId = orderId ?? null;
+    this.photoUploadOrderId.set(orderId ?? null);
   }
 
   onPhotoFileSelected(event: Event): void {
     const input = event.target as HTMLInputElement;
-    if (!input.files || input.files.length === 0 || !this.selectedUser) return;
+    if (!input.files || input.files.length === 0 || !this.selectedUser()) return;
     const files = Array.from(input.files);
     input.value = '';
     // Photos must always be attached to a specific order — unassigned uploads are not allowed.
-    if (this.photoUploadOrderId == null) {
-      this.photoUploadError = 'Select the order these photos belong to first.';
-      setTimeout(() => this.photoUploadError = '', 4000);
+    if (this.photoUploadOrderId() == null) {
+      this.photoUploadError.set('Select the order these photos belong to first.');
+      setTimeout(() => this.photoUploadError.set(''), 4000);
       return;
     }
     this.uploadPhotosSequentially(files);
@@ -1047,11 +1069,11 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
    * failure is recorded but doesn't abort the remaining uploads.
    */
   private uploadPhotosSequentially(files: File[]): void {
-    if (!this.selectedUser || this.uploadingPhoto || files.length === 0) return;
-    this.uploadingPhoto = true;
-    this.photoUploadError = '';
-    this.photoUploadSuccess = '';
-    this.photoUploadProgress = '';
+    if (!this.selectedUser() || this.uploadingPhoto() || files.length === 0) return;
+    this.uploadingPhoto.set(true);
+    this.photoUploadError.set('');
+    this.photoUploadSuccess.set('');
+    this.photoUploadProgress.set('');
 
     const total = files.length;
     let okCount = 0;
@@ -1059,35 +1081,35 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
     const errors: string[] = [];
 
     const uploadOne = (index: number) => {
-      if (!this.selectedUser) {
-        this.uploadingPhoto = false;
-        this.photoUploadProgress = '';
+      if (!this.selectedUser()) {
+        this.uploadingPhoto.set(false);
+        this.photoUploadProgress.set('');
         return;
       }
       if (index >= total) {
         // All done — refresh once and report
-        this.uploadingPhoto = false;
-        this.photoUploadProgress = '';
+        this.uploadingPhoto.set(false);
+        this.photoUploadProgress.set('');
         if (okCount > 0) {
-          this.photoUploadSuccess = total === 1
+          this.photoUploadSuccess.set(total === 1
             ? 'Photo uploaded.'
-            : `${okCount} of ${total} photo${total === 1 ? '' : 's'} uploaded.`;
-          setTimeout(() => this.photoUploadSuccess = '', 3000);
+            : `${okCount} of ${total} photo${total === 1 ? '' : 's'} uploaded.`);
+          setTimeout(() => this.photoUploadSuccess.set(''), 3000);
         }
         if (failCount > 0) {
-          this.photoUploadError = `${failCount} upload${failCount === 1 ? '' : 's'} failed${errors[0] ? ': ' + errors[0] : ''}.`;
-          setTimeout(() => this.photoUploadError = '', 5000);
+          this.photoUploadError.set(`${failCount} upload${failCount === 1 ? '' : 's'} failed${errors[0] ? ': ' + errors[0] : ''}.`);
+          setTimeout(() => this.photoUploadError.set(''), 5000);
         }
-        if (this.selectedUser) this.loadCleaningPhotos(this.selectedUser.id);
+        if (this.selectedUser()) this.loadCleaningPhotos(this.selectedUser()!.id);
         return;
       }
 
-      this.photoUploadProgress = total > 1 ? `Uploading ${index + 1}/${total}…` : 'Uploading…';
+      this.photoUploadProgress.set(total > 1 ? `Uploading ${index + 1}/${total}…` : 'Uploading…');
 
       this.adminService.uploadUserCleaningPhoto(
-        this.selectedUser.id,
+        this.selectedUser()!.id,
         files[index],
-        this.photoUploadOrderId ?? undefined
+        this.photoUploadOrderId() ?? undefined
       ).subscribe({
         next: () => { okCount++; uploadOne(index + 1); },
         error: (err) => {
@@ -1105,17 +1127,17 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
     if (!confirm('Remove this photo?')) return;
     this.adminService.deleteUserCleaningPhoto(photo.id).subscribe({
       next: () => {
-        if (this.selectedUser) this.loadCleaningPhotos(this.selectedUser.id);
+        if (this.selectedUser()) this.loadCleaningPhotos(this.selectedUser()!.id);
       }
     });
   }
 
   openLightbox(photo: UserCleaningPhoto): void {
-    this.lightboxPhoto = photo;
+    this.lightboxPhoto.set(photo);
   }
 
   closeLightbox(): void {
-    this.lightboxPhoto = null;
+    this.lightboxPhoto.set(null);
   }
 
   /**
@@ -1142,7 +1164,7 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
     this.loadingTasks = true;
     this.adminService.getUserTasks(userId).subscribe({
       next: (items) => {
-        if (this.selectedUser?.id !== userId) return;
+        if (this.selectedUser()?.id !== userId) return;
         this.userTasks = items;
         this.loadingTasks = false;
       },
@@ -1181,8 +1203,8 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
     const currentUserId = this.getCurrentUserId();
     if (this.isCtoRoleLocked(user)) return false;
     if (user.id === currentUserId) return false;
-    if (this.currentUserRole === 'SuperAdmin') return true;
-    if (this.currentUserRole === 'Admin' && user.role !== 'SuperAdmin') return true;
+    if (this.currentUserRole() === 'SuperAdmin') return true;
+    if (this.currentUserRole() === 'Admin' && user.role !== 'SuperAdmin') return true;
     return false;
   }
 
@@ -1190,23 +1212,23 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
     const currentUserId = this.getCurrentUserId();
     if (this.isCtoRoleLocked(user)) return false;
     if (user.id === currentUserId) return false;
-    if (this.currentUserRole === 'Admin' && user.role === 'SuperAdmin') return false;
-    return this.canUpdate;
+    if (this.currentUserRole() === 'Admin' && user.role === 'SuperAdmin') return false;
+    return this.canUpdate();
   }
 
   getRoleButtonTooltip(user: any): string {
     const currentUserId = this.getCurrentUserId();
     if (this.isCtoRoleLocked(user)) return this.ctoRoleLockReason;
     if (user.id === currentUserId) return 'You cannot change your own role';
-    if (this.currentUserRole === 'Admin' && user.role === 'SuperAdmin') return 'Admins cannot modify SuperAdmin roles';
+    if (this.currentUserRole() === 'Admin' && user.role === 'SuperAdmin') return 'Admins cannot modify SuperAdmin roles';
     return '';
   }
 
   updateUserRole(user: UserAdmin, newRole: string) {
     if (!this.canChangeUserRole(user, newRole)) return;
 
-    this.errorMessage = '';
-    this.successMessage = '';
+    this.errorMessage.set('');
+    this.successMessage.set('');
 
     const originalRole = user.role;
     user.role = newRole;
@@ -1214,16 +1236,17 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
     this.adminService.updateUserRole(user.id, newRole).subscribe({
       next: () => {
         this.roleDropdownUserId = null;
-        if (this.selectedUser && this.selectedUser.id === user.id) {
-          this.selectedUser.role = newRole;
+        if (this.selectedUser() && this.selectedUser()!.id === user.id) {
+          this.selectedUser()!.role = newRole;
+          this.selectedUser.set(this.selectedUser());
         }
-        this.successMessage = `Role updated to ${this.displayRole(newRole)}.`;
-        setTimeout(() => this.successMessage = '', 4000);
+        this.successMessage.set(`Role updated to ${this.displayRole(newRole)}.`);
+        setTimeout(() => this.successMessage.set(''), 4000);
       },
       error: (error) => {
         user.role = originalRole;
-        this.errorMessage = error.error?.message || 'Failed to update user role.';
-        setTimeout(() => this.errorMessage = '', 4000);
+        this.errorMessage.set(error.error?.message || 'Failed to update user role.');
+        setTimeout(() => this.errorMessage.set(''), 4000);
       }
     });
   }
@@ -1235,21 +1258,21 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
 
   /** Show the page-access control only when a SuperAdmin is viewing a regular Admin. */
   canManagePageAccess(user: DetailedUser | UserAdmin | null): boolean {
-    return !!user && this.currentUserRole === 'SuperAdmin' && user.role === 'Admin';
+    return !!user && this.currentUserRole() === 'SuperAdmin' && user.role === 'Admin';
   }
 
   isPageGranted(user: DetailedUser | UserAdmin | null, pageKey: string): boolean {
     return !!user && Array.isArray(user.viewablePages) && user.viewablePages.includes(pageKey);
   }
 
-  togglingPageAccessUserId: number | null = null;
+  readonly togglingPageAccessUserId = signal<number | null>(null);
 
   toggleUserPageAccess(user: DetailedUser | UserAdmin, pageKey: string, granted: boolean, event?: Event) {
     event?.stopPropagation();
     if (!this.canManagePageAccess(user)) return;
 
-    this.errorMessage = '';
-    this.successMessage = '';
+    this.errorMessage.set('');
+    this.successMessage.set('');
 
     const original = Array.isArray(user.viewablePages) ? [...user.viewablePages] : [];
     const next = granted
@@ -1258,27 +1281,30 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
 
     // Optimistic update on both the row and the open panel copy.
     user.viewablePages = next;
-    if (this.selectedUser && this.selectedUser.id === user.id) {
-      this.selectedUser.viewablePages = next;
+    if (this.selectedUser() && this.selectedUser()!.id === user.id) {
+      this.selectedUser()!.viewablePages = next;
+      this.selectedUser.set(this.selectedUser());
     }
-    this.togglingPageAccessUserId = user.id;
+    this.togglingPageAccessUserId.set(user.id);
 
     this.adminService.updateUserViewablePages(user.id, next).subscribe({
       next: (res) => {
-        this.togglingPageAccessUserId = null;
+        this.togglingPageAccessUserId.set(null);
         user.viewablePages = res.pages;
-        if (this.selectedUser && this.selectedUser.id === user.id) {
-          this.selectedUser.viewablePages = res.pages;
+        if (this.selectedUser() && this.selectedUser()!.id === user.id) {
+          this.selectedUser()!.viewablePages = res.pages;
+          this.selectedUser.set(this.selectedUser());
         }
       },
       error: (error) => {
-        this.togglingPageAccessUserId = null;
+        this.togglingPageAccessUserId.set(null);
         user.viewablePages = original;
-        if (this.selectedUser && this.selectedUser.id === user.id) {
-          this.selectedUser.viewablePages = original;
+        if (this.selectedUser() && this.selectedUser()!.id === user.id) {
+          this.selectedUser()!.viewablePages = original;
+          this.selectedUser.set(this.selectedUser());
         }
-        this.errorMessage = error.error?.message || 'Failed to update page access.';
-        setTimeout(() => this.errorMessage = '', 4000);
+        this.errorMessage.set(error.error?.message || 'Failed to update page access.');
+        setTimeout(() => this.errorMessage.set(''), 4000);
       }
     });
   }
@@ -1298,41 +1324,44 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
     return !!user && !!user.canEditOrdersWithoutApproval;
   }
 
-  togglingOrderEditAccessUserId: number | null = null;
+  readonly togglingOrderEditAccessUserId = signal<number | null>(null);
 
   toggleUserOrderEditAccess(user: DetailedUser | UserAdmin, granted: boolean, event?: Event) {
     event?.stopPropagation();
     if (!this.canManageOrderEditAccess(user)) return;
     if (this.isOrderEditGranted(user) === granted) return;
 
-    this.errorMessage = '';
-    this.successMessage = '';
+    this.errorMessage.set('');
+    this.successMessage.set('');
 
     const original = !!user.canEditOrdersWithoutApproval;
 
     // Optimistic update on both the row and the open panel copy (same as the page grants).
     user.canEditOrdersWithoutApproval = granted;
-    if (this.selectedUser && this.selectedUser.id === user.id) {
-      this.selectedUser.canEditOrdersWithoutApproval = granted;
+    if (this.selectedUser() && this.selectedUser()!.id === user.id) {
+      this.selectedUser()!.canEditOrdersWithoutApproval = granted;
+      this.selectedUser.set(this.selectedUser());
     }
-    this.togglingOrderEditAccessUserId = user.id;
+    this.togglingOrderEditAccessUserId.set(user.id);
 
     this.adminService.updateUserOrderEditApproval(user.id, granted).subscribe({
       next: (res) => {
-        this.togglingOrderEditAccessUserId = null;
+        this.togglingOrderEditAccessUserId.set(null);
         user.canEditOrdersWithoutApproval = res.canEditOrdersWithoutApproval;
-        if (this.selectedUser && this.selectedUser.id === user.id) {
-          this.selectedUser.canEditOrdersWithoutApproval = res.canEditOrdersWithoutApproval;
+        if (this.selectedUser() && this.selectedUser()!.id === user.id) {
+          this.selectedUser()!.canEditOrdersWithoutApproval = res.canEditOrdersWithoutApproval;
+          this.selectedUser.set(this.selectedUser());
         }
       },
       error: (error) => {
-        this.togglingOrderEditAccessUserId = null;
+        this.togglingOrderEditAccessUserId.set(null);
         user.canEditOrdersWithoutApproval = original;
-        if (this.selectedUser && this.selectedUser.id === user.id) {
-          this.selectedUser.canEditOrdersWithoutApproval = original;
+        if (this.selectedUser() && this.selectedUser()!.id === user.id) {
+          this.selectedUser()!.canEditOrdersWithoutApproval = original;
+          this.selectedUser.set(this.selectedUser());
         }
-        this.errorMessage = error.error?.message || 'Failed to update order edit access.';
-        setTimeout(() => this.errorMessage = '', 4000);
+        this.errorMessage.set(error.error?.message || 'Failed to update order edit access.');
+        setTimeout(() => this.errorMessage.set(''), 4000);
       }
     });
   }
@@ -1359,8 +1388,8 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
   // is the SERVER's answer to "may you", fetched once — never re-derived from a role here.
 
   /** Bootstrap/locked state for the signed-in account, from GET api/admin/org-titles. */
-  orgTitleAccess: OrgTitleOverview | null = null;
-  savingOrgTitleUserId: number | null = null;
+  readonly orgTitleAccess = signal<OrgTitleOverview | null>(null);
+  readonly savingOrgTitleUserId = signal<number | null>(null);
 
   readonly orgTitleOptions = [
     { value: 'None', label: 'None' },
@@ -1378,12 +1407,12 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   get canAssignOrgTitle(): boolean {
-    return this.orgTitleAccess?.canAssign === true;
+    return this.orgTitleAccess()?.canAssign === true;
   }
 
   /** Why the dropdown is read-only, in the same words the old Contracts panel used. */
   get orgTitleLockReason(): string {
-    if (this.orgTitleAccess?.isBootstrapMode) {
+    if (this.orgTitleAccess()?.isBootstrapMode) {
       return 'Only a SuperAdmin can assign officer titles until a CTO exists.';
     }
     return 'Locked to the current CTO — only that account can assign or clear officer titles.';
@@ -1391,10 +1420,10 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
 
   private loadOrgTitleAccess(): void {
     this.contractService.getOrgTitles().subscribe({
-      next: overview => this.orgTitleAccess = overview,
+      next: overview => this.orgTitleAccess.set(overview),
       // Unknown authority renders the field read-only rather than offering a control the server
       // would refuse.
-      error: () => this.orgTitleAccess = null
+      error: () => this.orgTitleAccess.set(null)
     });
   }
 
@@ -1404,16 +1433,16 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
     if ((user.orgTitle || 'None') === orgTitle) return;
 
     const previous = user.orgTitle || 'None';
-    this.savingOrgTitleUserId = user.id;
-    this.errorMessage = '';
-    this.successMessage = '';
+    this.savingOrgTitleUserId.set(user.id);
+    this.errorMessage.set('');
+    this.successMessage.set('');
 
     const title = orgTitle === 'CEO' ? OrgTitle.CEO : orgTitle === 'CTO' ? OrgTitle.CTO : OrgTitle.None;
 
     this.contractService.setOrgTitle(user.id, title).subscribe({
       next: res => {
-        this.savingOrgTitleUserId = null;
-        this.successMessage = res.message;
+        this.savingOrgTitleUserId.set(null);
+        this.successMessage.set(res.message);
 
         // A title is held by one person at a time, and granting CTO closes bootstrap mode — which
         // can change who may use this control at all, including the person who just used it. So
@@ -1422,9 +1451,9 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
         this.loadOrgTitleAccess();
       },
       error: err => {
-        this.savingOrgTitleUserId = null;
+        this.savingOrgTitleUserId.set(null);
         user.orgTitle = previous;
-        this.errorMessage = extractApiErrorMessage(err, 'That officer title could not be changed.');
+        this.errorMessage.set(extractApiErrorMessage(err, 'That officer title could not be changed.'));
       }
     });
   }
@@ -1434,11 +1463,11 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
   // ordinary role hierarchy — Manager and CTO hold it, the CEO deliberately does not — so the
   // answer comes from the server rather than from currentUserRole.
 
-  contractPermissions: ContractPermissions | null = null;
-  togglingBusinessUserId: number | null = null;
+  readonly contractPermissions = signal<ContractPermissions | null>(null);
+  readonly togglingBusinessUserId = signal<number | null>(null);
 
   get canToggleBusinessFlag(): boolean {
-    return this.contractPermissions?.toggleBusinessFlag === true;
+    return this.contractPermissions()?.toggleBusinessFlag === true;
   }
 
   /** The flag only means anything on a customer account. */
@@ -1448,8 +1477,8 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
 
   private loadContractPermissions(): void {
     this.contractService.getMyPermissions().subscribe({
-      next: permissions => this.contractPermissions = permissions,
-      error: () => this.contractPermissions = null
+      next: permissions => this.contractPermissions.set(permissions),
+      error: () => this.contractPermissions.set(null)
     });
   }
 
@@ -1459,9 +1488,9 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
     if ((user.isBusiness ?? false) === isBusiness) return;
 
     const previous = user.isBusiness ?? false;
-    this.togglingBusinessUserId = user.id;
-    this.errorMessage = '';
-    this.successMessage = '';
+    this.togglingBusinessUserId.set(user.id);
+    this.errorMessage.set('');
+    this.successMessage.set('');
 
     // Optimistic, like the other toggles in this panel; reverted on failure.
     user.isBusiness = isBusiness;
@@ -1469,18 +1498,18 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
 
     this.contractService.setBusinessFlag(user.id, isBusiness).subscribe({
       next: res => {
-        this.togglingBusinessUserId = null;
+        this.togglingBusinessUserId.set(null);
         user.isBusiness = res.isBusiness;
         this.syncBusinessTabMembership(user.id, res.isBusiness);
-        this.successMessage = res.message;
+        this.successMessage.set(res.message);
       },
       error: err => {
-        this.togglingBusinessUserId = null;
+        this.togglingBusinessUserId.set(null);
         user.isBusiness = previous;
         this.syncBusinessTabMembership(user.id, previous);
         // The server refuses to unflag an account a contract still depends on, and that message
         // is the useful one — surfaced verbatim rather than replaced with a generic failure.
-        this.errorMessage = extractApiErrorMessage(err, 'The business flag could not be changed.');
+        this.errorMessage.set(extractApiErrorMessage(err, 'The business flag could not be changed.'));
       }
     });
   }
@@ -1503,11 +1532,13 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
    * in `users` is the only one the tab filters, and the one the flip never reached.
    */
   private syncBusinessTabMembership(userId: number, isBusiness: boolean): void {
-    const row = this.users.find(u => u.id === userId);
+    const row = this.users().find(u => u.id === userId);
     if (!row) return;
 
     row.isBusiness = isBusiness;
+    this.users.set(this.users());
     row.hasActiveBusinessClient = isBusiness;
+    this.users.set(this.users());
   }
 
   isManagerPosition(user: DetailedUser | UserAdmin | null): boolean {
@@ -1520,14 +1551,14 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
    * cannot be their own manager.
    */
   managerOptionsFor(user: DetailedUser | UserAdmin | null): UserAdmin[] {
-    return this.users.filter(u =>
+    return this.users().filter(u =>
       u.role === 'Admin' &&
       u.adminPosition === 'Manager' &&
       u.isActive &&
       u.id !== user?.id);
   }
 
-  savingAdminPositionUserId: number | null = null;
+  readonly savingAdminPositionUserId = signal<number | null>(null);
 
   updateAdminPosition(user: DetailedUser | UserAdmin, position: string, event?: Event) {
     event?.stopPropagation();
@@ -1555,8 +1586,8 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
   private saveAdminPosition(
     user: DetailedUser | UserAdmin, position: string, managerId: number | null) {
 
-    this.errorMessage = '';
-    this.successMessage = '';
+    this.errorMessage.set('');
+    this.successMessage.set('');
 
     const originalPosition = user.adminPosition;
     const originalManagerId = user.managerId ?? null;
@@ -1567,26 +1598,26 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
       target.adminPosition = pos;
       target.managerId = mid;
       // Resolved from the loaded list so the panel can name the manager without a refetch.
-      const manager = mid == null ? null : this.users.find(u => u.id === mid);
+      const manager = mid == null ? null : this.users().find(u => u.id === mid);
       target.managerName = manager ? `${manager.firstName} ${manager.lastName}` : null;
     };
 
     applyTo(user, position, managerId);
-    if (this.selectedUser && this.selectedUser.id === user.id) {
-      applyTo(this.selectedUser, position, managerId);
+    if (this.selectedUser() && this.selectedUser()!.id === user.id) {
+      applyTo(this.selectedUser(), position, managerId);
     }
-    this.savingAdminPositionUserId = user.id;
+    this.savingAdminPositionUserId.set(user.id);
 
     this.adminService.updateAdminPosition(user.id, position, managerId).subscribe({
       next: (res) => {
-        this.savingAdminPositionUserId = null;
+        this.savingAdminPositionUserId.set(null);
         applyTo(user, res.adminPosition, res.managerId ?? null);
-        if (this.selectedUser && this.selectedUser.id === user.id) {
-          applyTo(this.selectedUser, res.adminPosition, res.managerId ?? null);
+        if (this.selectedUser() && this.selectedUser()!.id === user.id) {
+          applyTo(this.selectedUser(), res.adminPosition, res.managerId ?? null);
         }
       },
       error: (error) => {
-        this.savingAdminPositionUserId = null;
+        this.savingAdminPositionUserId.set(null);
         // Roll back BOTH copies. The most likely rejection is "N administrators still report to
         // this manager", which the admin has to read and act on — so it is shown, not swallowed.
         const restore = (target: DetailedUser | UserAdmin | null) => {
@@ -1596,17 +1627,17 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
           target.managerName = originalManagerName;
         };
         restore(user);
-        if (this.selectedUser && this.selectedUser.id === user.id) restore(this.selectedUser);
+        if (this.selectedUser() && this.selectedUser()!.id === user.id) restore(this.selectedUser());
 
-        this.errorMessage = error.error?.message || 'Failed to update position.';
-        setTimeout(() => this.errorMessage = '', 6000);
+        this.errorMessage.set(error.error?.message || 'Failed to update position.');
+        setTimeout(() => this.errorMessage.set(''), 6000);
       }
     });
   }
 
   updateUserStatus(user: UserAdmin, isActive: boolean) {
-    this.errorMessage = '';
-    this.successMessage = '';
+    this.errorMessage.set('');
+    this.successMessage.set('');
 
     const originalStatus = user.isActive;
     user.isActive = isActive;
@@ -1614,16 +1645,17 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
     this.adminService.updateUserStatus(user.id, isActive).subscribe({
       next: () => {
         const action = isActive ? 'unblocked' : 'blocked';
-        if (this.selectedUser && this.selectedUser.id === user.id) {
-          this.selectedUser.isActive = isActive;
+        if (this.selectedUser() && this.selectedUser()!.id === user.id) {
+          this.selectedUser()!.isActive = isActive;
+          this.selectedUser.set(this.selectedUser());
         }
-        this.successMessage = `${user.firstName} ${user.lastName} has been ${action}.`;
-        setTimeout(() => this.successMessage = '', 4000);
+        this.successMessage.set(`${user.firstName} ${user.lastName} has been ${action}.`);
+        setTimeout(() => this.successMessage.set(''), 4000);
       },
       error: (error) => {
         user.isActive = originalStatus;
-        this.errorMessage = error.error?.message || 'Failed to update user status.';
-        setTimeout(() => this.errorMessage = '', 4000);
+        this.errorMessage.set(error.error?.message || 'Failed to update user status.');
+        setTimeout(() => this.errorMessage.set(''), 4000);
       }
     });
   }
@@ -1636,30 +1668,34 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
    */
   setUserFlag(user: UserAdmin, level: string, event?: Event): void {
     if (event) (event as Event).stopPropagation();
-    if (!this.canUpdate) return;
+    if (!this.canUpdate()) return;
 
-    const row = this.users.find(u => u.id === user.id);
+    const row = this.users().find(u => u.id === user.id);
     const reason = level === 'None' ? null : (user.flagReason ?? row?.flagReason ?? null);
 
-    this.flaggingUserId = user.id;
-    this.errorMessage = '';
+    this.flaggingUserId.set(user.id);
+    this.errorMessage.set('');
     this.adminService.setUserFlag(user.id, level, reason).subscribe({
       next: () => {
-        if (row) { row.flag = level; row.flagReason = level === 'None' ? null : reason; }
-        if (this.selectedUser && this.selectedUser.id === user.id) {
-          this.selectedUser.flag = level;
-          this.selectedUser.flagReason = level === 'None' ? null : reason;
+        if (row) { row.flag = level;
+        this.users.set(this.users()); row.flagReason = level === 'None' ? null : reason;
+        this.users.set(this.users()); }
+        if (this.selectedUser() && this.selectedUser()!.id === user.id) {
+          this.selectedUser()!.flag = level;
+          this.selectedUser.set(this.selectedUser());
+          this.selectedUser()!.flagReason = level === 'None' ? null : reason;
+          this.selectedUser.set(this.selectedUser());
         }
-        this.successMessage = level === 'None'
+        this.successMessage.set(level === 'None'
           ? `Flag cleared for ${user.firstName} ${user.lastName}.`
-          : `${user.firstName} ${user.lastName} flagged ${level}.`;
-        setTimeout(() => { this.successMessage = ''; }, 3000);
+          : `${user.firstName} ${user.lastName} flagged ${level}.`);
+        setTimeout(() => { this.successMessage.set(''); }, 3000);
       },
       error: (err) => {
-        this.errorMessage = err.error?.message || 'Failed to update flag.';
-        setTimeout(() => { this.errorMessage = ''; }, 3000);
+        this.errorMessage.set(err.error?.message || 'Failed to update flag.');
+        setTimeout(() => { this.errorMessage.set(''); }, 3000);
       },
-      complete: () => { this.flaggingUserId = null; }
+      complete: () => { this.flaggingUserId.set(null); }
     });
   }
 
@@ -1668,34 +1704,34 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
     const value = ((event.target as HTMLInputElement)?.value || '').trim();
     const level = user.flag || 'None';
     if (level === 'None') return;
-    const row = this.users.find(u => u.id === user.id);
+    const row = this.users().find(u => u.id === user.id);
     if ((user.flagReason ?? '') === value && (row?.flagReason ?? '') === value) return;
 
     this.adminService.setUserFlag(user.id, level, value || null).subscribe({
       next: () => {
-        if (row) row.flagReason = value || null;
-        if (this.selectedUser && this.selectedUser.id === user.id) this.selectedUser.flagReason = value || null;
+        if (row) { row.flagReason = value || null; this.users.set(this.users()); }
+        if (this.selectedUser() && this.selectedUser()!.id === user.id) { this.selectedUser()!.flagReason = value || null; this.selectedUser.set(this.selectedUser()); }
       },
       error: (err) => {
-        this.errorMessage = err.error?.message || 'Failed to save flag reason.';
-        setTimeout(() => { this.errorMessage = ''; }, 3000);
+        this.errorMessage.set(err.error?.message || 'Failed to save flag reason.');
+        setTimeout(() => { this.errorMessage.set(''); }, 3000);
       }
     });
   }
 
   canModifyUserStatus(user: any): boolean {
-    if (this.currentUserRole === 'Admin' && user.role === 'SuperAdmin') return false;
+    if (this.currentUserRole() === 'Admin' && user.role === 'SuperAdmin') return false;
     return true;
   }
 
   canBanUser(user: any): boolean {
     const currentUserId = this.getCurrentUserId();
     if (user.id === currentUserId) return false;
-    return this.canDeactivate && user.isActive && this.canModifyUserStatus(user);
+    return this.canDeactivate() && user.isActive && this.canModifyUserStatus(user);
   }
 
   canUnbanUser(user: any): boolean {
-    return this.canActivate && !user.isActive && this.canModifyUserStatus(user);
+    return this.canActivate() && !user.isActive && this.canModifyUserStatus(user);
   }
 
   private getCurrentUserId(): number {
@@ -1743,9 +1779,9 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
     const isStaff = (u: UserAdmin) =>
       !!u.role && UserManagementComponent.STAFF_ROLES.includes(u.role.toLowerCase());
 
-    return this.scope === 'staff'
-      ? this.users.filter(isStaff)
-      : this.users.filter(u => !isStaff(u) && !u.hasActiveBusinessClient);
+    return this.scope() === 'staff'
+      ? this.users().filter(isStaff)
+      : this.users().filter(u => !isStaff(u) && !u.hasActiveBusinessClient);
   }
 
   /** Every user matching the current filters, sorted — before pagination slices it. */
@@ -1753,7 +1789,7 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
     // The SCOPE comes first and the filters narrow within it, so no filter can ever surface a
     // staff account on the Customers tab (or the reverse).
     let filtered = this.scopedUsers;
-    const search = this.searchTerm.trim().toLowerCase();
+    const search = this.searchTerm().trim().toLowerCase();
     if (search) {
       filtered = filtered.filter(user =>
         user.id.toString().includes(search) ||
@@ -1762,20 +1798,20 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
         matchesPhoneSearch(user.phone, search)
       );
     }
-    if (this.statusFilter !== 'all') {
+    if (this.statusFilter() !== 'all') {
       filtered = filtered.filter(user =>
-        (this.statusFilter === 'active' && user.isActive) ||
-        (this.statusFilter === 'inactive' && !user.isActive)
+        (this.statusFilter() === 'active' && user.isActive) ||
+        (this.statusFilter() === 'inactive' && !user.isActive)
       );
     }
-    if (this.roleFilter !== 'all') {
-      filtered = filtered.filter(user => user.role && user.role.toLowerCase() === this.roleFilter.toLowerCase());
+    if (this.roleFilter() !== 'all') {
+      filtered = filtered.filter(user => user.role && user.role.toLowerCase() === this.roleFilter().toLowerCase());
     }
-    if (this.customerTypeFilter !== 'all') {
+    if (this.customerTypeFilter() !== 'all') {
       // totalOrdersCount counts REAL orders - not cancelled, not fully refunded (users-list endpoint).
       filtered = filtered.filter(user => {
         const count = user.totalOrdersCount ?? 0;
-        switch (this.customerTypeFilter) {
+        switch (this.customerTypeFilter()) {
           case 'new': return count === 1;
           case 'returning': return count >= 2;
           case 'none': return count === 0;
@@ -1792,14 +1828,13 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
 
   get filteredUsers(): UserAdmin[] {
     const filtered = this.matchingUsers;
-    this.totalPages = Math.ceil(filtered.length / this.itemsPerPage);
-    const start = (this.currentPage - 1) * this.itemsPerPage;
+    const start = (this.currentPage() - 1) * this.itemsPerPage;
     return filtered.slice(start, start + this.itemsPerPage);
   }
 
-  previousPage() { if (this.currentPage > 1) this.currentPage--; }
-  nextPage() { if (this.currentPage < this.totalPages) this.currentPage++; }
-  goToPage(page: number) { if (page >= 1 && page <= this.totalPages) this.currentPage = page; }
+  previousPage() { if (this.currentPage() > 1) this.currentPage.update(v => v - 1); }
+  nextPage() { if (this.currentPage() < this.totalPages) this.currentPage.update(v => v + 1); }
+  goToPage(page: number) { if (page >= 1 && page <= this.totalPages) this.currentPage.set(page); }
 
   formatDate(date: any): string {
     if (!date) return 'N/A';
@@ -1858,27 +1893,23 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
    */
   get pointsReversals(): { points: number; description?: string | null; createdAt: string }[] {
     const reversalTypes = ['RefundReversal', 'RefundCorrection', 'CancellationCorrection'];
-    return ((this.userRewardsSummary?.pointsHistory ?? []) as any[]).filter(h => reversalTypes.includes(h.type));
+    return ((this.userRewardsSummary()?.pointsHistory ?? []) as any[]).filter(h => reversalTypes.includes(h.type));
   }
 
   get historyRealOrderCount(): number {
-    return (this.selectedUser?.orders ?? []).filter((o: OrderList) => !isCancelledOrRefundedStatus(o.status)).length;
+    return (this.selectedUser()?.orders ?? []).filter((o: OrderList) => !isCancelledOrRefundedStatus(o.status)).length;
   }
 
-  get isSuperAdmin(): boolean {
-    return this.currentUserRole === 'SuperAdmin';
-  }
+  readonly isSuperAdmin = computed<boolean>(() => this.currentUserRole() === 'SuperAdmin');
 
   /** True for Admin or SuperAdmin — both can open the user edit form. */
-  get canEditUsers(): boolean {
-    return this.currentUserRole === 'SuperAdmin' || this.currentUserRole === 'Admin';
-  }
+  readonly canEditUsers = computed<boolean>(() => this.currentUserRole() === 'SuperAdmin' || this.currentUserRole() === 'Admin');
 
   /** True if current admin is allowed to edit this specific target user. Admins cannot edit SuperAdmin users. */
   canEditUserDetails(user: any): boolean {
     if (!user) return false;
-    if (this.currentUserRole === 'SuperAdmin') return true;
-    if (this.currentUserRole === 'Admin' && user.role !== 'SuperAdmin') return true;
+    if (this.currentUserRole() === 'SuperAdmin') return true;
+    if (this.currentUserRole() === 'Admin' && user.role !== 'SuperAdmin') return true;
     return false;
   }
 
@@ -1900,9 +1931,9 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
   onAvatarError(user: UserAdmin | DetailedUser | null): void {
     if (!user) return;
     user.profilePictureUrl = null;
-    const listRow = this.users.find(u => u.id === user.id);
-    if (listRow) listRow.profilePictureUrl = null;
-    if (this.selectedUser && this.selectedUser.id === user.id) this.selectedUser.profilePictureUrl = null;
+    const listRow = this.users().find(u => u.id === user.id);
+    if (listRow) { listRow.profilePictureUrl = null; this.users.set(this.users()); }
+    if (this.selectedUser() && this.selectedUser()!.id === user.id) { this.selectedUser()!.profilePictureUrl = null; this.selectedUser.set(this.selectedUser()); }
   }
 
   /** Deterministic avatar bg colour — shared with the Cleaners tab so one person is one colour. */
@@ -1919,127 +1950,127 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   savePointsAdjustment(): void {
-    if (!this.selectedUser || !this.isSuperAdmin || this.savingPoints) return;
-    const newTotal = Number(this.adjustPointsAmount);
+    if (!this.selectedUser() || !this.isSuperAdmin() || this.savingPoints()) return;
+    const newTotal = Number(this.adjustPointsAmount());
     if (isNaN(newTotal) || newTotal < 0) return;
-    const currentPoints = this.userRewardsSummary?.currentPoints ?? 0;
+    const currentPoints = this.userRewardsSummary()?.currentPoints ?? 0;
     const delta = newTotal - currentPoints;
     if (delta === 0) return;
-    this.savingPoints = true;
+    this.savingPoints.set(true);
     this.bubbleRewardsService.adjustUserPoints(
-      this.selectedUser.id,
+      this.selectedUser()!.id,
       delta,
-      this.adjustPointsDesc || 'Admin adjustment'
+      this.adjustPointsDesc() || 'Admin adjustment'
     ).subscribe({
       next: () => {
-        this.savingPoints = false;
-        this.adjustPointsDesc = '';
-        this.pointsSaveMessage = `Points set to ${newTotal.toLocaleString()}.`;
-        this.loadUserRewards(this.selectedUser!.id);
-        setTimeout(() => this.pointsSaveMessage = '', 3000);
+        this.savingPoints.set(false);
+        this.adjustPointsDesc.set('');
+        this.pointsSaveMessage.set(`Points set to ${newTotal.toLocaleString()}.`);
+        this.loadUserRewards(this.selectedUser()!.id);
+        setTimeout(() => this.pointsSaveMessage.set(''), 3000);
       },
-      error: () => { this.savingPoints = false; }
+      error: () => { this.savingPoints.set(false); }
     });
   }
 
   searchReferrals(query: string): void {
-    if (!this.selectedUser || query.length < 2) { this.newReferralSearchResults = []; return; }
-    this.bubbleRewardsService.searchEligibleReferrals(this.selectedUser.id, query).subscribe({
-      next: (r) => this.newReferralSearchResults = r,
-      error: () => this.newReferralSearchResults = []
+    if (!this.selectedUser() || query.length < 2) { this.newReferralSearchResults.set([]); return; }
+    this.bubbleRewardsService.searchEligibleReferrals(this.selectedUser()!.id, query).subscribe({
+      next: (r) => this.newReferralSearchResults.set(r),
+      error: () => this.newReferralSearchResults.set([])
     });
   }
 
   selectReferralSuggestion(email: string): void {
-    this.newReferralEmail = email;
-    this.newReferralSearchResults = [];
+    this.newReferralEmail.set(email);
+    this.newReferralSearchResults.set([]);
   }
 
   addReferredUser(): void {
-    if (!this.selectedUser || !this.isSuperAdmin || this.addingReferral || !this.newReferralEmail.trim()) return;
-    this.addingReferral = true;
-    this.referralActionMessage = '';
-    this.bubbleRewardsService.addReferredUser(this.selectedUser.id, this.newReferralEmail.trim()).subscribe({
+    if (!this.selectedUser() || !this.isSuperAdmin() || this.addingReferral() || !this.newReferralEmail().trim()) return;
+    this.addingReferral.set(true);
+    this.referralActionMessage.set('');
+    this.bubbleRewardsService.addReferredUser(this.selectedUser()!.id, this.newReferralEmail().trim()).subscribe({
       next: () => {
-        this.addingReferral = false;
-        this.newReferralEmail = '';
-        this.newReferralSearchResults = [];
-        this.referralActionMessage = 'Referred user added.';
-        this.loadUserRewards(this.selectedUser!.id);
-        setTimeout(() => this.referralActionMessage = '', 3000);
+        this.addingReferral.set(false);
+        this.newReferralEmail.set('');
+        this.newReferralSearchResults.set([]);
+        this.referralActionMessage.set('Referred user added.');
+        this.loadUserRewards(this.selectedUser()!.id);
+        setTimeout(() => this.referralActionMessage.set(''), 3000);
       },
       error: (err) => {
-        this.addingReferral = false;
-        this.referralActionMessage = err?.error?.message ?? 'Failed to add referred user.';
-        setTimeout(() => this.referralActionMessage = '', 4000);
+        this.addingReferral.set(false);
+        this.referralActionMessage.set(err?.error?.message ?? 'Failed to add referred user.');
+        setTimeout(() => this.referralActionMessage.set(''), 4000);
       }
     });
   }
 
   removeReferredUser(referralId: number): void {
-    if (!this.selectedUser || !this.isSuperAdmin || this.removingReferralId != null) return;
-    this.removingReferralId = referralId;
-    this.referralActionMessage = '';
-    this.bubbleRewardsService.removeReferredUser(this.selectedUser.id, referralId).subscribe({
+    if (!this.selectedUser() || !this.isSuperAdmin() || this.removingReferralId() != null) return;
+    this.removingReferralId.set(referralId);
+    this.referralActionMessage.set('');
+    this.bubbleRewardsService.removeReferredUser(this.selectedUser()!.id, referralId).subscribe({
       next: () => {
-        this.removingReferralId = null;
-        this.loadUserRewards(this.selectedUser!.id);
+        this.removingReferralId.set(null);
+        this.loadUserRewards(this.selectedUser()!.id);
       },
       error: (err) => {
-        this.removingReferralId = null;
-        this.referralActionMessage = err?.error?.message ?? 'Failed to remove.';
-        setTimeout(() => this.referralActionMessage = '', 4000);
+        this.removingReferralId.set(null);
+        this.referralActionMessage.set(err?.error?.message ?? 'Failed to remove.');
+        setTimeout(() => this.referralActionMessage.set(''), 4000);
       }
     });
   }
 
   removeReferredBy(): void {
-    if (!this.selectedUser || !this.isSuperAdmin || this.removingReferredBy) return;
-    this.removingReferredBy = true;
-    this.referralActionMessage = '';
-    this.bubbleRewardsService.removeReferredBy(this.selectedUser.id).subscribe({
+    if (!this.selectedUser() || !this.isSuperAdmin() || this.removingReferredBy()) return;
+    this.removingReferredBy.set(true);
+    this.referralActionMessage.set('');
+    this.bubbleRewardsService.removeReferredBy(this.selectedUser()!.id).subscribe({
       next: () => {
-        this.removingReferredBy = false;
-        this.loadUserRewards(this.selectedUser!.id);
+        this.removingReferredBy.set(false);
+        this.loadUserRewards(this.selectedUser()!.id);
       },
       error: (err) => {
-        this.removingReferredBy = false;
-        this.referralActionMessage = err?.error?.message ?? 'Failed to remove.';
-        setTimeout(() => this.referralActionMessage = '', 4000);
+        this.removingReferredBy.set(false);
+        this.referralActionMessage.set(err?.error?.message ?? 'Failed to remove.');
+        setTimeout(() => this.referralActionMessage.set(''), 4000);
       }
     });
   }
 
   searchReferrers(query: string): void {
-    if (!this.selectedUser || query.length < 2) { this.newReferrerSearchResults = []; return; }
-    this.bubbleRewardsService.searchEligibleReferrers(this.selectedUser.id, query).subscribe({
-      next: (r) => this.newReferrerSearchResults = r,
-      error: () => this.newReferrerSearchResults = []
+    if (!this.selectedUser() || query.length < 2) { this.newReferrerSearchResults.set([]); return; }
+    this.bubbleRewardsService.searchEligibleReferrers(this.selectedUser()!.id, query).subscribe({
+      next: (r) => this.newReferrerSearchResults.set(r),
+      error: () => this.newReferrerSearchResults.set([])
     });
   }
 
   selectReferrerSuggestion(email: string): void {
-    this.newReferrerEmail = email;
-    this.newReferrerSearchResults = [];
+    this.newReferrerEmail.set(email);
+    this.newReferrerSearchResults.set([]);
   }
 
   setReferredBy(): void {
-    if (!this.selectedUser || !this.isSuperAdmin || this.settingReferredBy || !this.newReferrerEmail.trim()) return;
-    this.settingReferredBy = true;
-    this.referralActionMessage = '';
-    this.bubbleRewardsService.setReferredBy(this.selectedUser.id, this.newReferrerEmail.trim()).subscribe({
+    if (!this.selectedUser() || !this.isSuperAdmin() || this.settingReferredBy() || !this.newReferrerEmail().trim()) return;
+    this.settingReferredBy.set(true);
+    this.referralActionMessage.set('');
+    this.bubbleRewardsService.setReferredBy(this.selectedUser()!.id, this.newReferrerEmail().trim()).subscribe({
       next: () => {
-        this.settingReferredBy = false;
-        this.newReferrerEmail = '';
-        this.newReferrerSearchResults = [];
-        this.referralActionMessage = 'Referrer set.';
-        this.loadUserRewards(this.selectedUser!.id);
-        setTimeout(() => this.referralActionMessage = '', 3000);
+        this.settingReferredBy.set(false);
+        this.newReferrerEmail.set('');
+        this.newReferrerSearchResults.set([]);
+        this.referralActionMessage.set('Referrer set.');
+        this.loadUserRewards(this.selectedUser()!.id);
+        setTimeout(() => this.referralActionMessage.set(''), 3000);
       },
       error: (err) => {
-        this.settingReferredBy = false;
-        this.referralActionMessage = err?.error?.message ?? 'Failed to set referrer.';
-        setTimeout(() => this.referralActionMessage = '', 4000);
+        this.settingReferredBy.set(false);
+        this.referralActionMessage.set(err?.error?.message ?? 'Failed to set referrer.');
+        setTimeout(() => this.referralActionMessage.set(''), 4000);
       }
     });
   }
@@ -2054,37 +2085,37 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
   // Moderator View-only) is what the endpoint enforces, and a second copy of it here would be
   // free to drift. The reorder-preview endpoint carries [RequirePermission(Permission.Create)].
 
-  recreateSourceOrderId: number | null = null;
-  showRecreateModal = false;
-  recreateSuccessMessage = '';
+  readonly recreateSourceOrderId = signal<number | null>(null);
+  readonly showRecreateModal = signal(false);
+  readonly recreateSuccessMessage = signal('');
 
   startRecreateOrder(orderId: number, event: Event): void {
     // The whole history row navigates to the order in the admin panel; the button must not.
     event.stopPropagation();
-    if (!this.canCreate) return;
-    this.recreateSuccessMessage = '';
-    this.recreateSourceOrderId = orderId;
-    this.showRecreateModal = true;
+    if (!this.canCreate()) return;
+    this.recreateSuccessMessage.set('');
+    this.recreateSourceOrderId.set(orderId);
+    this.showRecreateModal.set(true);
   }
 
   closeRecreateModal(): void {
-    this.showRecreateModal = false;
-    this.recreateSourceOrderId = null;
+    this.showRecreateModal.set(false);
+    this.recreateSourceOrderId.set(null);
   }
 
   onOrderRecreated(result: { orderId: number; total: number }): void {
-    this.recreateSuccessMessage =
-      `Order #${result.orderId} created. It is on this customer's history below.`;
+    this.recreateSuccessMessage.set(`Order #${result.orderId} created. It is on this customer's history below.`);
     // The new order belongs in the list the admin is looking at, and the header's order count and
     // lifetime total are derived from that same list — reloading is what keeps all three honest.
-    if (this.selectedUser) this.loadUserOrders(this.selectedUser.id);
+    if (this.selectedUser()) this.loadUserOrders(this.selectedUser()!.id);
   }
 
   onEditPhoneInput(event: Event): void {
     const input = event.target as HTMLInputElement;
     const cleaned = sanitizePhoneInput(input.value);
     if (input.value !== cleaned) input.value = cleaned;
-    this.editUserForm.phone = cleaned || null;
+    this.editUserForm().phone = cleaned || null;
+    this.editUserForm.set(this.editUserForm());
   }
 
   callUser(user: UserAdmin, event?: Event): void {
@@ -2095,32 +2126,32 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   startEditUser(): void {
-    if (!this.selectedUser || !this.canEditUserDetails(this.selectedUser)) return;
-    this.editUserForm = {
-      firstName: this.selectedUser.firstName,
-      lastName: this.selectedUser.lastName,
-      email: this.selectedUser.email,
-      phone: normalizePhone10(this.selectedUser.phone),
-      role: this.selectedUser.role,
-      isActive: this.selectedUser.isActive,
-      firstTimeOrder: this.selectedUser.firstTimeOrder,
-      canReceiveCommunications: this.selectedUser.canReceiveCommunications !== false,
-      canReceiveEmails: this.userCanReceiveEmails(this.selectedUser),
-      canReceiveMessages: this.userCanReceiveMessages(this.selectedUser)
-    };
-    this.editingUser = true;
+    if (!this.selectedUser() || !this.canEditUserDetails(this.selectedUser())) return;
+    this.editUserForm.set({
+      firstName: this.selectedUser()!.firstName,
+      lastName: this.selectedUser()!.lastName,
+      email: this.selectedUser()!.email,
+      phone: normalizePhone10(this.selectedUser()!.phone),
+      role: this.selectedUser()!.role,
+      isActive: this.selectedUser()!.isActive,
+      firstTimeOrder: this.selectedUser()!.firstTimeOrder,
+      canReceiveCommunications: this.selectedUser()!.canReceiveCommunications !== false,
+      canReceiveEmails: this.userCanReceiveEmails(this.selectedUser()!),
+      canReceiveMessages: this.userCanReceiveMessages(this.selectedUser()!)
+    });
+    this.editingUser.set(true);
   }
 
   private buildUserEditPayload(): SuperAdminUpdateUserDto {
-    const user = this.selectedUser!;
+    const user = this.selectedUser()!;
     return {
-      firstName: this.editUserForm.firstName,
-      lastName: this.editUserForm.lastName,
+      firstName: this.editUserForm().firstName,
+      lastName: this.editUserForm().lastName,
       // null (not "") when blank — the backend's [EmailAddress] rejects an empty string.
       // Blank is valid only for no-email (cash) accounts, whose email field starts empty.
-      email: this.editUserForm.email?.trim() ? this.editUserForm.email.trim() : null,
-      phone: this.editUserForm.phone,
-      firstTimeOrder: this.editUserForm.firstTimeOrder,
+      email: this.editUserForm().email?.trim() ? this.editUserForm().email!.trim() : null,
+      phone: this.editUserForm().phone,
+      firstTimeOrder: this.editUserForm().firstTimeOrder,
       role: user.role,
       isActive: user.isActive,
       canReceiveCommunications: user.canReceiveCommunications !== false,
@@ -2132,9 +2163,9 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
   /** Send Reminder button: checks reminder history first, confirms (with an "already
    *  reminded N days ago" warning when relevant), then sends the "we miss you" reminder. */
   sendReminderToUser(): void {
-    if (!this.selectedUser || !this.canEditUserDetails(this.selectedUser) || this.sendingReminder) return;
-    const user = this.selectedUser;
-    this.sendingReminder = true;
+    const user = this.selectedUser();
+    if (!user || !this.canEditUserDetails(user) || this.sendingReminder()) return;
+    this.sendingReminder.set(true);
 
     this.adminService.getUserReminderStatus(user.id).subscribe({
       next: (status) => {
@@ -2151,220 +2182,234 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
         }
 
         if (!confirm(question)) {
-          this.sendingReminder = false;
+          this.sendingReminder.set(false);
           return;
         }
 
         this.adminService.sendUserReminder(user.id).subscribe({
           next: (res) => {
-            this.sendingReminder = false;
-            this.successMessage = res.message;
-            setTimeout(() => { this.successMessage = ''; }, 5000);
+            this.sendingReminder.set(false);
+            this.successMessage.set(res.message);
+            setTimeout(() => { this.successMessage.set(''); }, 5000);
           },
           error: (err) => {
-            this.sendingReminder = false;
-            this.errorMessage = err.error?.message || 'Failed to send the reminder.';
-            setTimeout(() => { this.errorMessage = ''; }, 5000);
+            this.sendingReminder.set(false);
+            this.errorMessage.set(err.error?.message || 'Failed to send the reminder.');
+            setTimeout(() => { this.errorMessage.set(''); }, 5000);
           }
         });
       },
       error: (err) => {
-        this.sendingReminder = false;
-        this.errorMessage = err.error?.message || 'Could not check this user\'s reminder history.';
-        setTimeout(() => { this.errorMessage = ''; }, 5000);
+        this.sendingReminder.set(false);
+        this.errorMessage.set(err.error?.message || 'Could not check this user\'s reminder history.');
+        setTimeout(() => { this.errorMessage.set(''); }, 5000);
       }
     });
   }
 
   cancelEditUser(): void {
-    this.editingUser = false;
-    this.editingAddressId = null;
-    this.editAddressDraft = null;
-    this.showAddAddress = false;
-    this.newAddress = { name: '', address: '', city: '', state: '', postalCode: '' };
+    this.editingUser.set(false);
+    this.editingAddressId.set(null);
+    this.editAddressDraft.set(null);
+    this.showAddAddress.set(false);
+    this.newAddress.set({ name: '', address: '', city: '', state: '', postalCode: '' });
   }
 
   saveUserEdit(): void {
-    if (!this.selectedUser || !this.canEditUserDetails(this.selectedUser) || this.savingUser) return;
-    this.editUserForm.phone = normalizePhone10(this.editUserForm.phone);
+    if (!this.selectedUser() || !this.canEditUserDetails(this.selectedUser()) || this.savingUser()) return;
+    this.editUserForm().phone = normalizePhone10(this.editUserForm().phone);
+    this.editUserForm.set(this.editUserForm());
     const payload = this.buildUserEditPayload();
-    this.savingUser = true;
-    this.errorMessage = '';
-    this.successMessage = '';
-    this.adminService.superAdminFullUpdateUser(this.selectedUser.id, payload).subscribe({
+    this.savingUser.set(true);
+    this.errorMessage.set('');
+    this.successMessage.set('');
+    this.adminService.superAdminFullUpdateUser(this.selectedUser()!.id, payload).subscribe({
       next: () => {
-        this.successMessage = 'User updated successfully.';
-        this.editingUser = false;
-        this.selectedUser!.firstName = payload.firstName;
-        this.selectedUser!.lastName = payload.lastName;
-        this.selectedUser!.email = payload.email ?? this.selectedUser!.email;
-        this.selectedUser!.phone = payload.phone ?? this.selectedUser!.phone;
-        this.selectedUser!.firstTimeOrder = payload.firstTimeOrder;
+        this.successMessage.set('User updated successfully.');
+        this.editingUser.set(false);
+        this.selectedUser()!.firstName = payload.firstName;
+        this.selectedUser.set(this.selectedUser());
+        this.selectedUser()!.lastName = payload.lastName;
+        this.selectedUser.set(this.selectedUser());
+        this.selectedUser()!.email = payload.email ?? this.selectedUser()!.email;
+        this.selectedUser.set(this.selectedUser());
+        this.selectedUser()!.phone = payload.phone ?? this.selectedUser()!.phone;
+        this.selectedUser.set(this.selectedUser());
+        this.selectedUser()!.firstTimeOrder = payload.firstTimeOrder;
+        this.selectedUser.set(this.selectedUser());
         // Giving a no-email (cash) account a real email converts it to a normal account.
-        if (this.selectedUser!.isNoEmailUser && payload.email?.trim()) {
-          this.selectedUser!.isNoEmailUser = false;
+        if (this.selectedUser()!.isNoEmailUser && payload.email?.trim()) {
+          this.selectedUser()!.isNoEmailUser = false;
+          this.selectedUser.set(this.selectedUser());
         }
-        const userIndex = this.users.findIndex(user => user.id === this.selectedUser!.id);
+        const userIndex = this.users().findIndex(user => user.id === this.selectedUser()!.id);
         if (userIndex !== -1) {
-          const updatedUser = this.users[userIndex];
+          const updatedUser = this.users()[userIndex];
           updatedUser.firstName = payload.firstName;
+          this.users.set(this.users());
           updatedUser.lastName = payload.lastName;
+          this.users.set(this.users());
           updatedUser.email = payload.email ?? updatedUser.email;
+          this.users.set(this.users());
           updatedUser.phone = payload.phone ?? updatedUser.phone;
+          this.users.set(this.users());
           updatedUser.firstTimeOrder = payload.firstTimeOrder;
-          updatedUser.isNoEmailUser = this.selectedUser!.isNoEmailUser;
+          this.users.set(this.users());
+          updatedUser.isNoEmailUser = this.selectedUser()!.isNoEmailUser;
+          this.users.set(this.users());
         }
         this.loadUsers();
-        setTimeout(() => { this.successMessage = ''; }, 5000);
+        setTimeout(() => { this.successMessage.set(''); }, 5000);
       },
       error: (err) => {
-        this.errorMessage = err.error?.message || 'Failed to update user.';
-        setTimeout(() => { this.errorMessage = ''; }, 5000);
+        this.errorMessage.set(err.error?.message || 'Failed to update user.');
+        setTimeout(() => { this.errorMessage.set(''); }, 5000);
       },
-      complete: () => { this.savingUser = false; }
+      complete: () => { this.savingUser.set(false); }
     });
   }
 
   /** SuperAdmin-only: reset a locked-out / forgotten staff PIN. Clears the PIN, the lock
    *  and all trusted devices; the coworker sets a brand-new PIN on their next login. */
-  resettingPin = false;
+  readonly resettingPin = signal(false);
   resetStaffPin(user: any, event?: Event): void {
     if (event) (event as Event).stopPropagation();
-    if (!this.isSuperAdmin || !this.isStaffRole(user.role) || this.resettingPin) return;
+    if (!this.isSuperAdmin() || !this.isStaffRole(user.role) || this.resettingPin()) return;
     if (!confirm(`Reset the login PIN for ${user.firstName} ${user.lastName}? This unlocks their account and clears the PIN — they'll set a new one on their next login.`)) return;
-    this.errorMessage = '';
-    this.successMessage = '';
-    this.resettingPin = true;
+    this.errorMessage.set('');
+    this.successMessage.set('');
+    this.resettingPin.set(true);
     this.adminService.resetStaffTwoFactorPin(user.id).subscribe({
       next: (res) => {
-        this.successMessage = res?.message || 'PIN reset. The user will set a new PIN on their next login.';
-        setTimeout(() => { this.successMessage = ''; }, 6000);
+        this.successMessage.set(res?.message || 'PIN reset. The user will set a new PIN on their next login.');
+        setTimeout(() => { this.successMessage.set(''); }, 6000);
       },
       error: (err) => {
-        this.errorMessage = err.error?.message || 'Failed to reset PIN.';
-        setTimeout(() => { this.errorMessage = ''; }, 5000);
+        this.errorMessage.set(err.error?.message || 'Failed to reset PIN.');
+        setTimeout(() => { this.errorMessage.set(''); }, 5000);
       },
-      complete: () => { this.resettingPin = false; }
+      complete: () => { this.resettingPin.set(false); }
     });
   }
 
   deleteUser(user: UserAdmin, event?: Event): void {
     if (event) (event as Event).stopPropagation();
-    if (!this.isSuperAdmin) return;
+    if (!this.isSuperAdmin()) return;
     if (!confirm(`Permanently delete ${user.firstName} ${user.lastName} (${user.email})? This cannot be undone.`)) return;
-    this.errorMessage = '';
-    this.successMessage = '';
+    this.errorMessage.set('');
+    this.successMessage.set('');
     this.adminService.deleteUser(user.id).subscribe({
       next: () => {
-        this.successMessage = 'User deleted successfully.';
+        this.successMessage.set('User deleted successfully.');
         this.closeDetailPanel();
         this.loadUsers();
-        setTimeout(() => { this.successMessage = ''; }, 5000);
+        setTimeout(() => { this.successMessage.set(''); }, 5000);
       },
       error: (err) => {
-        this.errorMessage = err.error?.message || 'Failed to delete user.';
-        setTimeout(() => { this.errorMessage = ''; }, 5000);
+        this.errorMessage.set(err.error?.message || 'Failed to delete user.');
+        setTimeout(() => { this.errorMessage.set(''); }, 5000);
       }
     });
   }
 
   // ── Address (apartment) editing (Admin/SuperAdmin) ──
   startEditAddress(apartment: Apartment): void {
-    if (!this.selectedUser || !this.canEditUserDetails(this.selectedUser)) return;
-    this.editingAddressId = apartment.id;
-    this.editAddressDraft = { ...apartment };
-    this.showAddAddress = false;
+    if (!this.selectedUser() || !this.canEditUserDetails(this.selectedUser())) return;
+    this.editingAddressId.set(apartment.id);
+    this.editAddressDraft.set({ ...apartment });
+    this.showAddAddress.set(false);
   }
 
   cancelEditAddress(): void {
-    this.editingAddressId = null;
-    this.editAddressDraft = null;
+    this.editingAddressId.set(null);
+    this.editAddressDraft.set(null);
   }
 
   saveEditAddress(): void {
-    if (!this.selectedUser || !this.editAddressDraft || this.savingAddress) return;
-    const draft = this.editAddressDraft;
-    this.savingAddress = true;
-    this.errorMessage = '';
-    this.adminService.updateUserApartment(this.selectedUser.id, draft.id, { ...draft }).subscribe({
+    const draft = this.editAddressDraft();
+    if (!this.selectedUser() || !draft || this.savingAddress()) return;
+    this.savingAddress.set(true);
+    this.errorMessage.set('');
+    this.adminService.updateUserApartment(this.selectedUser()!.id, draft.id, { ...draft }).subscribe({
       next: (updated) => {
-        const idx = this.selectedUser!.apartments?.findIndex(a => a.id === draft.id) ?? -1;
-        if (idx !== -1 && this.selectedUser!.apartments)
-          this.selectedUser!.apartments[idx] = updated;
-        this.editingAddressId = null;
-        this.editAddressDraft = null;
-        this.successMessage = 'Address updated.';
-        setTimeout(() => { this.successMessage = ''; }, 3000);
+        const idx = this.selectedUser()!.apartments?.findIndex(a => a.id === draft.id) ?? -1;
+        if (idx !== -1 && this.selectedUser()!.apartments)
+          { this.selectedUser()!.apartments![idx] = updated; this.selectedUser.set(this.selectedUser()); }
+        this.editingAddressId.set(null);
+        this.editAddressDraft.set(null);
+        this.successMessage.set('Address updated.');
+        setTimeout(() => { this.successMessage.set(''); }, 3000);
       },
       error: (err) => {
-        this.errorMessage = err.error?.message || 'Failed to update address.';
-        setTimeout(() => { this.errorMessage = ''; }, 5000);
+        this.errorMessage.set(err.error?.message || 'Failed to update address.');
+        setTimeout(() => { this.errorMessage.set(''); }, 5000);
       },
-      complete: () => { this.savingAddress = false; }
+      complete: () => { this.savingAddress.set(false); }
     });
   }
 
   openAddAddress(): void {
-    this.showAddAddress = true;
-    this.newAddress = { name: '', address: '', city: '', state: '', postalCode: '' };
-    this.editingAddressId = null;
-    this.editAddressDraft = null;
+    this.showAddAddress.set(true);
+    this.newAddress.set({ name: '', address: '', city: '', state: '', postalCode: '' });
+    this.editingAddressId.set(null);
+    this.editAddressDraft.set(null);
   }
 
   cancelAddAddress(): void {
-    this.showAddAddress = false;
-    this.newAddress = { name: '', address: '', city: '', state: '', postalCode: '' };
+    this.showAddAddress.set(false);
+    this.newAddress.set({ name: '', address: '', city: '', state: '', postalCode: '' });
   }
 
   addNewAddress(): void {
-    if (!this.selectedUser || !this.canEditUserDetails(this.selectedUser) || this.savingAddress) return;
-    if (!this.newAddress.name?.trim() || !this.newAddress.address?.trim() || !this.newAddress.city?.trim() ||
-        !this.newAddress.state?.trim() || !this.newAddress.postalCode?.trim()) {
-      this.errorMessage = 'Name, address, city, state and postal code are required.';
-      setTimeout(() => { this.errorMessage = ''; }, 5000);
+    if (!this.selectedUser() || !this.canEditUserDetails(this.selectedUser()) || this.savingAddress()) return;
+    if (!this.newAddress().name?.trim() || !this.newAddress().address?.trim() || !this.newAddress().city?.trim() ||
+        !this.newAddress().state?.trim() || !this.newAddress().postalCode?.trim()) {
+      this.errorMessage.set('Name, address, city, state and postal code are required.');
+      setTimeout(() => { this.errorMessage.set(''); }, 5000);
       return;
     }
-    this.savingAddress = true;
-    this.errorMessage = '';
-    this.adminService.addUserApartment(this.selectedUser.id, this.newAddress).subscribe({
+    this.savingAddress.set(true);
+    this.errorMessage.set('');
+    this.adminService.addUserApartment(this.selectedUser()!.id, this.newAddress()).subscribe({
       next: (created) => {
-        if (!this.selectedUser!.apartments) this.selectedUser!.apartments = [];
-        this.selectedUser!.apartments.push(created);
-        this.showAddAddress = false;
-        this.newAddress = { name: '', address: '', city: '', state: '', postalCode: '' };
-        this.successMessage = 'Address added.';
-        setTimeout(() => { this.successMessage = ''; }, 3000);
+        if (!this.selectedUser()!.apartments) { this.selectedUser()!.apartments = []; this.selectedUser.set(this.selectedUser()); }
+        this.selectedUser()!.apartments!.push(created);
+        this.selectedUser.set(this.selectedUser());
+        this.showAddAddress.set(false);
+        this.newAddress.set({ name: '', address: '', city: '', state: '', postalCode: '' });
+        this.successMessage.set('Address added.');
+        setTimeout(() => { this.successMessage.set(''); }, 3000);
       },
       error: (err) => {
-        this.errorMessage = err.error?.message || 'Failed to add address.';
-        setTimeout(() => { this.errorMessage = ''; }, 5000);
+        this.errorMessage.set(err.error?.message || 'Failed to add address.');
+        setTimeout(() => { this.errorMessage.set(''); }, 5000);
       },
-      complete: () => { this.savingAddress = false; }
+      complete: () => { this.savingAddress.set(false); }
     });
   }
 
   deleteAddress(apartment: Apartment, event?: Event): void {
     if (event) event.stopPropagation();
-    if (!this.selectedUser || !this.canEditUserDetails(this.selectedUser) || this.savingAddress) return;
+    if (!this.selectedUser() || !this.canEditUserDetails(this.selectedUser()) || this.savingAddress()) return;
     if (!confirm(`Delete address "${apartment.name}"?`)) return;
-    this.savingAddress = true;
-    this.errorMessage = '';
-    this.adminService.deleteUserApartment(this.selectedUser.id, apartment.id).subscribe({
+    this.savingAddress.set(true);
+    this.errorMessage.set('');
+    this.adminService.deleteUserApartment(this.selectedUser()!.id, apartment.id).subscribe({
       next: () => {
-        if (this.selectedUser!.apartments)
-          this.selectedUser!.apartments = this.selectedUser!.apartments.filter(a => a.id !== apartment.id);
-        if (this.editingAddressId === apartment.id) {
-          this.editingAddressId = null;
-          this.editAddressDraft = null;
+        if (this.selectedUser()!.apartments)
+          { this.selectedUser()!.apartments = this.selectedUser()!.apartments!.filter(a => a.id !== apartment.id); this.selectedUser.set(this.selectedUser()); }
+        if (this.editingAddressId() === apartment.id) {
+          this.editingAddressId.set(null);
+          this.editAddressDraft.set(null);
         }
-        this.successMessage = 'Address deleted.';
-        setTimeout(() => { this.successMessage = ''; }, 3000);
+        this.successMessage.set('Address deleted.');
+        setTimeout(() => { this.successMessage.set(''); }, 3000);
       },
       error: (err) => {
-        this.errorMessage = err.error?.message || 'Failed to delete address.';
-        setTimeout(() => { this.errorMessage = ''; }, 5000);
+        this.errorMessage.set(err.error?.message || 'Failed to delete address.');
+        setTimeout(() => { this.errorMessage.set(''); }, 5000);
       },
-      complete: () => { this.savingAddress = false; }
+      complete: () => { this.savingAddress.set(false); }
     });
   }
 
@@ -2378,71 +2423,71 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
 
   toggleUserEmailsPreference(user: UserAdmin, newValue: boolean, event?: Event): void {
     if (event) (event as Event).stopPropagation();
-    if (!this.canUpdate) return;
-    this.togglingCommsUserId = user.id;
-    this.errorMessage = '';
+    if (!this.canUpdate()) return;
+    this.togglingCommsUserId.set(user.id);
+    this.errorMessage.set('');
     this.adminService.updateUserCommunicationPreference(user.id, 'emails', newValue).subscribe({
       next: () => {
         user.canReceiveEmails = newValue;
-        if (this.selectedUser && this.selectedUser.id === user.id) this.selectedUser.canReceiveEmails = newValue;
-        this.successMessage = newValue ? 'User will receive emails.' : 'User will not receive emails.';
-        setTimeout(() => { this.successMessage = ''; }, 3000);
+        if (this.selectedUser() && this.selectedUser()!.id === user.id) { this.selectedUser()!.canReceiveEmails = newValue; this.selectedUser.set(this.selectedUser()); }
+        this.successMessage.set(newValue ? 'User will receive emails.' : 'User will not receive emails.');
+        setTimeout(() => { this.successMessage.set(''); }, 3000);
       },
       error: (err) => {
-        this.errorMessage = err.error?.message || 'Failed to update email preference.';
-        setTimeout(() => { this.errorMessage = ''; }, 3000);
+        this.errorMessage.set(err.error?.message || 'Failed to update email preference.');
+        setTimeout(() => { this.errorMessage.set(''); }, 3000);
       },
-      complete: () => { this.togglingCommsUserId = null; }
+      complete: () => { this.togglingCommsUserId.set(null); }
     });
   }
 
   toggleUserMessagesPreference(user: UserAdmin, newValue: boolean, event?: Event): void {
     if (event) (event as Event).stopPropagation();
-    if (!this.canUpdate) return;
-    this.togglingCommsUserId = user.id;
-    this.errorMessage = '';
+    if (!this.canUpdate()) return;
+    this.togglingCommsUserId.set(user.id);
+    this.errorMessage.set('');
     this.adminService.updateUserCommunicationPreference(user.id, 'messages', newValue).subscribe({
       next: () => {
         user.canReceiveMessages = newValue;
-        if (this.selectedUser && this.selectedUser.id === user.id) this.selectedUser.canReceiveMessages = newValue;
-        this.successMessage = newValue ? 'User will receive messages.' : 'User will not receive messages.';
-        setTimeout(() => { this.successMessage = ''; }, 3000);
+        if (this.selectedUser() && this.selectedUser()!.id === user.id) { this.selectedUser()!.canReceiveMessages = newValue; this.selectedUser.set(this.selectedUser()); }
+        this.successMessage.set(newValue ? 'User will receive messages.' : 'User will not receive messages.');
+        setTimeout(() => { this.successMessage.set(''); }, 3000);
       },
       error: (err) => {
-        this.errorMessage = err.error?.message || 'Failed to update messages preference.';
-        setTimeout(() => { this.errorMessage = ''; }, 3000);
+        this.errorMessage.set(err.error?.message || 'Failed to update messages preference.');
+        setTimeout(() => { this.errorMessage.set(''); }, 3000);
       },
-      complete: () => { this.togglingCommsUserId = null; }
+      complete: () => { this.togglingCommsUserId.set(null); }
     });
   }
 
   openRegisterModal(): void {
-    this.showRegisterModal = true;
+    this.showRegisterModal.set(true);
   }
 
   closeRegisterModal(): void {
-    this.showRegisterModal = false;
+    this.showRegisterModal.set(false);
   }
 
   /** The shared modal has already created the customer; refresh the table and say so. */
   onCustomerRegistered(customer: RegisteredCustomer): void {
-    this.successMessage = `User ${customer.firstName} ${customer.lastName} registered successfully.`;
+    this.successMessage.set(`User ${customer.firstName} ${customer.lastName} registered successfully.`);
     this.loadUsers();
-    setTimeout(() => { this.successMessage = ''; }, 5000);
+    setTimeout(() => { this.successMessage.set(''); }, 5000);
   }
 
   openExportModal(): void {
-    if (!this.isSuperAdmin) return;
+    if (!this.isSuperAdmin()) return;
     // Reset to all-checked every time per requirement: "show me all that things already checked".
     this.exportColumns.forEach(c => c.selected = true);
-    this.exportError = '';
-    this.showExportModal = true;
+    this.exportError.set('');
+    this.showExportModal.set(true);
   }
 
   closeExportModal(): void {
-    if (this.exporting) return;
-    this.showExportModal = false;
-    this.exportError = '';
+    if (this.exporting()) return;
+    this.showExportModal.set(false);
+    this.exportError.set('');
   }
 
   toggleExportColumn(key: string): void {
@@ -2455,20 +2500,20 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   runExport(): void {
-    if (!this.isSuperAdmin || this.exporting) return;
+    if (!this.isSuperAdmin() || this.exporting()) return;
     const selected = this.exportColumns.filter(c => c.selected).map(c => c.key);
     if (selected.length === 0) {
-      this.exportError = 'Select at least one column to export.';
+      this.exportError.set('Select at least one column to export.');
       return;
     }
-    this.exporting = true;
-    this.exportError = '';
+    this.exporting.set(true);
+    this.exportError.set('');
     this.adminService.exportUsers(selected).subscribe({
       next: (res) => {
         const blob = res.body;
         if (!blob) {
-          this.exportError = 'Export returned an empty file.';
-          this.exporting = false;
+          this.exportError.set('Export returned an empty file.');
+          this.exporting.set(false);
           return;
         }
         // Try to honor the server-provided filename, fall back to a timestamped default.
@@ -2486,14 +2531,14 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
         a.click();
         document.body.removeChild(a);
         window.URL.revokeObjectURL(url);
-        this.exporting = false;
-        this.showExportModal = false;
-        this.successMessage = 'Export downloaded.';
-        setTimeout(() => { this.successMessage = ''; }, 3000);
+        this.exporting.set(false);
+        this.showExportModal.set(false);
+        this.successMessage.set('Export downloaded.');
+        setTimeout(() => { this.successMessage.set(''); }, 3000);
       },
       error: (err) => {
-        this.exporting = false;
-        this.exportError = err?.error?.message || err?.message || 'Failed to export users.';
+        this.exporting.set(false);
+        this.exportError.set(err?.error?.message || err?.message || 'Failed to export users.');
       }
     });
   }
@@ -2505,7 +2550,7 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
     if (this.totalPages <= 5) {
       for (let i = 2; i < this.totalPages; i++) pages.push(i);
     } else {
-      let start = Math.max(2, this.currentPage - 1);
+      let start = Math.max(2, this.currentPage() - 1);
       let end = Math.min(this.totalPages - 1, start + maxVisiblePages - 1);
       if (end === this.totalPages - 1) start = Math.max(2, end - maxVisiblePages + 1);
       for (let i = start; i <= end; i++) pages.push(i);
@@ -2586,11 +2631,13 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
           this.adminService.getOrderDetails(recent.id).subscribe({
             next: (details: any) => {
               const isDeep = this.resolveIsDeepResidential(recent as any, details as any);
-              this.userLastCleaningVariantCache.set(user.id, isDeep ? 'Deep' : 'Regular');
+              this.userLastCleaningVariantCache().set(user.id, isDeep ? 'Deep' : 'Regular');
+              this.userLastCleaningVariantCache.set(this.userLastCleaningVariantCache());
             },
             error: () => {
               const fallbackDeep = this.resolveIsDeepResidential(recent as any);
-              this.userLastCleaningVariantCache.set(user.id, fallbackDeep ? 'Deep' : 'Regular');
+              this.userLastCleaningVariantCache().set(user.id, fallbackDeep ? 'Deep' : 'Regular');
+              this.userLastCleaningVariantCache.set(this.userLastCleaningVariantCache());
             }
           });
         }
@@ -2637,8 +2684,8 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
 
   /** Residential splits into Deep / Regular (cached per user once their last order is resolved). */
   private compactResidentialLabel(lowerName: string, order?: any): string {
-    if (order?.lastCleaningServiceType !== undefined && order?.id && this.userLastCleaningVariantCache.has(order.id)) {
-      return this.userLastCleaningVariantCache.get(order.id) || 'Regular';
+    if (order?.lastCleaningServiceType !== undefined && order?.id && this.userLastCleaningVariantCache().has(order.id)) {
+      return this.userLastCleaningVariantCache().get(order.id) || 'Regular';
     }
     return this.resolveIsDeepResidential(order as any) || lowerName.includes('deep') ? 'Deep' : 'Regular';
   }

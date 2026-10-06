@@ -59,17 +59,17 @@ describe('OrderEditComponent', () => {
 
     /** Seed the page as initializeServices would, incl. the parallel form controls. */
     function seedSelection(bedrooms: number, squareFeet: number) {
-      component.selectedServices = [
+      component.selectedServices.set([
         { service: bedroomsService, quantity: bedrooms },
         { service: sqftService, quantity: squareFeet }
-      ] as any;
+      ] as any);
       component.serviceControls.clear();
       component.serviceControls.push(new FormControl(bedrooms));
       component.serviceControls.push(new FormControl(squareFeet));
     }
 
     const currentSquareFeet = () =>
-      component.selectedServices.find(s => s.service.serviceKey === 'sqft')!.quantity;
+      component.selectedServices().find(s => s.service.serviceKey === 'sqft')!.quantity;
 
     it('preserves a sq.ft the customer raised above the floor', () => {
       seedSelection(2, 2650);
@@ -123,14 +123,14 @@ describe('OrderEditComponent', () => {
      */
     describe('loading an existing order', () => {
       function loadOrderWith(services: { serviceId: number; quantity: number }[]) {
-        component.serviceType = {
+        component.serviceType.set({
           id: 1, name: 'Residential Cleaning', basePrice: 100, isActive: true, hasPoll: false,
           timeDuration: 0, services: [bedroomsService, sqftService], extraServices: []
-        } as any;
-        component.order = {
+        } as any);
+        component.order.set({
           id: 306, serviceTypeId: 1, extraServices: [],
           services: services.map(s => ({ ...s, serviceName: '', duration: 0, cost: 0 }))
-        } as any;
+        } as any);
 
         component.initializeServices();
       }
@@ -170,14 +170,14 @@ describe('OrderEditComponent', () => {
     }) as any;
 
     function hoursAfterLoad(cleanersName: string, hoursName: string, lineKey: string | null, lineName: string): number {
-      component.serviceType = { id: 6, name: 'Post Construction Cleaning', services: [cleaners(cleanersName, lineKey), hours(hoursName)] } as any;
-      component.order = {
+      component.serviceType.set({ id: 6, name: 'Post Construction Cleaning', services: [cleaners(cleanersName, lineKey), hours(hoursName)] } as any);
+      component.order.set({
         id: 1, serviceTypeId: 6, extraServices: [],
         // No Hours line was stored - the fallback case.
         services: [{ id: 1, serviceId: 201, serviceName: lineName, serviceKey: lineKey, quantity: 2, cost: 80, duration: 300 }]
-      } as any;
+      } as any);
       component.initializeServices();
-      return component.selectedServices.find(s => s.service.id === 202)!.quantity;
+      return component.selectedServices().find(s => s.service.id === 202)!.quantity;
     }
 
     it('takes 5 hours from a 300-minute Cleaners line, with production names', () => {
@@ -222,12 +222,12 @@ describe('OrderEditComponent — levels price like booking', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({ providers: [...testProviders], imports: [OrderEditComponent] }).compileComponents();
     component = TestBed.createComponent(OrderEditComponent).componentInstance;
-    component.serviceType = ST;
+    component.serviceType.set(ST);
     // An apartment order as booked: no levels line, so the page seeds Levels at its minimum.
-    component.order = { id: 1, serviceTypeId: 1, propertyType: 'Apartment', levelsQuantity: null,
-      services: [{ serviceId: 10, quantity: 2 }, { serviceId: 20, quantity: 1 }], extraServices: [] } as any;
+    component.order.set({ id: 1, serviceTypeId: 1, propertyType: 'Apartment', levelsQuantity: null,
+      services: [{ serviceId: 10, quantity: 2 }, { serviceId: 20, quantity: 1 }], extraServices: [] } as any);
     component.initializeServices();
-    component.propertyType = 'Apartment';
+    component.propertyType.set('Apartment');
   });
 
   const bookingSubTotal = (levels: number) => calculateQuote(buildQuoteInputFromSelections(ST,
@@ -265,34 +265,34 @@ describe('OrderEditComponent — discounts re-derive like booking (2026-10)', ()
   beforeEach(async () => {
     await TestBed.configureTestingModule({ providers: [...testProviders], imports: [OrderEditComponent] }).compileComponents();
     component = TestBed.createComponent(OrderEditComponent).componentInstance;
-    component.serviceType = ST;
+    component.serviceType.set(ST);
   });
 
   /** The order as booked at 2 bed / 1 bath with its discount, then edited to 2 bed / 3 bath. */
   function editWith(discount: { amount: number; percent?: number | null; fixed?: number | null }) {
-    component.order = { id: 1, serviceTypeId: 1, propertyType: 'Apartment', levelsQuantity: null,
+    component.order.set({ id: 1, serviceTypeId: 1, propertyType: 'Apartment', levelsQuantity: null,
       services: [{ serviceId: 10, quantity: 2 }, { serviceId: 20, quantity: 1 }], extraServices: [],
-      discountAmount: discount.amount, discountPercent: discount.percent ?? null, discountFixedAmount: discount.fixed ?? null } as any;
+      discountAmount: discount.amount, discountPercent: discount.percent ?? null, discountFixedAmount: discount.fixed ?? null } as any);
     component.initializeServices();
-    component.propertyType = 'Apartment';
+    component.propertyType.set('Apartment');
     component.originalRawSubTotal = subTotalOf(2, 1);
     component.originalDiscountAmount = discount.amount;
-    component.selectedServices.find(s => s.service.id === 20)!.quantity = 3;
+    component.selectedServices().find(s => s.service.id === 20)!.quantity = 3;
     component.calculateNewTotal();
   }
 
   it('previews a fixed promo as fixed', () => {
     editWith({ amount: 30, fixed: 30 });
-    expect(component.appliedDiscountAmount).toBe(30);
+    expect(component.appliedDiscountAmount()).toBe(30);
   });
 
   it('previews a percentage promo exactly like booking', () => {
     editWith({ amount: percentOf(subTotalOf(2, 1), 20), percent: 20 });
-    expect(component.appliedDiscountAmount).toBe(percentOf(subTotalOf(2, 3), 20));
+    expect(component.appliedDiscountAmount()).toBe(percentOf(subTotalOf(2, 3), 20));
   });
 
   it('keeps the proportional re-scale for an order with no recorded rule', () => {
     editWith({ amount: 30 });
-    expect(component.appliedDiscountAmount).toBe(round2(subTotalOf(2, 3) * (30 / subTotalOf(2, 1))));
+    expect(component.appliedDiscountAmount()).toBe(round2(subTotalOf(2, 3) * (30 / subTotalOf(2, 1))));
   });
 });

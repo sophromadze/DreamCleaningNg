@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, PLATFORM_ID, inject, DOCUMENT, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, OnDestroy, PLATFORM_ID, inject, DOCUMENT, ChangeDetectionStrategy, signal } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -12,6 +12,7 @@ import { StructuredDataService } from '../../../services/structured-data.service
 import { extractApiErrorMessage } from '../../../utils/http-error.utils';
 import { COMMERCIAL_FIRST_MONTH_DISCOUNT_PERCENT } from '../../../shared/commercial-offer.data';
 import { responsiveImage } from '../../../shared/images/responsive-image.loader';
+import { formViewRefresher } from '../../../shared/forms/form-view-refresher';
 
 /**
  * Sector card photos (1122x1402, object-fit: cover). Measured: one column up to ~580px wide with
@@ -50,7 +51,7 @@ const SECTOR_PHOTO_SIZES = '(max-width: 580px) calc(100vw - 49px), 365px';
   // as order-edit listing booking.component.scss first. Neither homepage sheet uses :host and
   // the handful of selectors they both define (.badge, .btn-cta-secondary) are byte-identical,
   // so loading both into one component is safe.
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: [
     '../../../shared/components/home-hero/home-hero.component.scss',
     '../../../main/main.component.scss',
@@ -58,6 +59,8 @@ const SECTOR_PHOTO_SIZES = '(max-width: 580px) calc(100vw - 49px), 365px';
   ]
 })
 export class CommercialCleaningComponent implements OnInit, OnDestroy {
+  /** Re-renders when a form changes outside a template event (see form-view-refresher). */
+  private readonly watchForm = formViewRefresher();
   private fb = inject(FormBuilder);
   private http = inject(HttpClient);
   private orderSound = inject(OrderSoundService);
@@ -86,10 +89,10 @@ export class CommercialCleaningComponent implements OnInit, OnDestroy {
   };
 
   quoteForm: FormGroup;
-  isSubmitting = false;
-  showSuccess = false;
-  showError = false;
-  errorMessage = '';
+  readonly isSubmitting = signal(false);
+  readonly showSuccess = signal(false);
+  readonly showError = signal(false);
+  readonly errorMessage = signal('');
 
   private readonly isBrowser: boolean;
   private readonly structuredData = inject(StructuredDataService);
@@ -109,6 +112,7 @@ export class CommercialCleaningComponent implements OnInit, OnDestroy {
       frequency: ['', [Validators.required]],
       notes: ['']
     });
+    this.watchForm(this.quoteForm);
   }
 
   ngOnInit(): void {
@@ -136,9 +140,9 @@ export class CommercialCleaningComponent implements OnInit, OnDestroy {
       return;
     }
 
-    this.isSubmitting = true;
-    this.showError = false;
-    this.showSuccess = false;
+    this.isSubmitting.set(true);
+    this.showError.set(false);
+    this.showSuccess.set(false);
 
     const v = this.quoteForm.getRawValue();
 
@@ -158,8 +162,8 @@ export class CommercialCleaningComponent implements OnInit, OnDestroy {
       notes: (v.notes ?? '').trim() || null
     }).subscribe({
       next: () => {
-        this.isSubmitting = false;
-        this.showSuccess = true;
+        this.isSubmitting.set(false);
+        this.showSuccess.set(true);
         this.orderSound.playFormSubmit();
 
         // Same event name as /free-quote so the existing Google Ads conversion counts it.
@@ -174,12 +178,12 @@ export class CommercialCleaningComponent implements OnInit, OnDestroy {
         this.quoteForm.markAsUntouched();
       },
       error: (err) => {
-        this.isSubmitting = false;
-        this.showError = true;
-        this.errorMessage = extractApiErrorMessage(
+        this.isSubmitting.set(false);
+        this.showError.set(true);
+        this.errorMessage.set(extractApiErrorMessage(
           err,
           'Failed to send your request. Please try again, or call us and we will take the details over the phone.'
-        );
+        ));
       }
     });
   }

@@ -17,10 +17,10 @@ describe('Audit content and privacy regression', () => {
     vi.spyOn(AuditHistoryComponent.prototype, 'ngOnInit').mockImplementation(() => {});
     const fixture = TestBed.createComponent(AuditHistoryComponent);
     const c = fixture.componentInstance;
-    c.auditLogs = c.processAuditLogs([{ id: 1, entityId: 7, entityType, action, createdAt: new Date().toISOString(),
+    c.auditLogs.set(c.processAuditLogs([{ id: 1, entityId: 7, entityType, action, createdAt: new Date().toISOString(),
       oldValues: action === 'Delete' ? JSON.stringify(values) : null,
-      newValues: action === 'Delete' ? null : JSON.stringify(values), changedFields: Object.keys(values) }]);
-    c.viewingLogId = 1; fixture.detectChanges(); return fixture;
+      newValues: action === 'Delete' ? null : JSON.stringify(values), changedFields: Object.keys(values) }]));
+    c.viewingLogId.set(1); fixture.detectChanges(); return fixture;
   }
 
   it('renders Order Create once with useful business details and no default dump', () => {

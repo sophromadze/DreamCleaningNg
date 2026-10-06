@@ -53,7 +53,7 @@ describe('CommercialCleaningComponent', () => {
   it('does not submit an incomplete form', () => {
     component.onSubmit();
     http.expectNone(COMMERCIAL_URL);
-    expect(component.isSubmitting).toBe(false);
+    expect(component.isSubmitting()).toBe(false);
   });
 
   // Its own endpoint and DTO. Squeezed into the residential quote-request DTO, the email read
@@ -100,8 +100,8 @@ describe('CommercialCleaningComponent', () => {
     expect(analytics.pushEvent).toHaveBeenCalledWith('quote_form_submit', expect.objectContaining({
       event_label: 'commercial_quote_request'
     }));
-    expect(component.showSuccess).toBe(true);
-    expect(component.isSubmitting).toBe(false);
+    expect(component.showSuccess()).toBe(true);
+    expect(component.isSubmitting()).toBe(false);
   });
 
   it('releases the button and shows a message when the request fails', () => {
@@ -110,9 +110,9 @@ describe('CommercialCleaningComponent', () => {
     http.expectOne(COMMERCIAL_URL)
       .flush({ message: 'Email service is not configured.' }, { status: 500, statusText: 'Server Error' });
 
-    expect(component.isSubmitting).toBe(false);
-    expect(component.showError).toBe(true);
-    expect(component.errorMessage).toContain('Email service is not configured.');
+    expect(component.isSubmitting()).toBe(false);
+    expect(component.showError()).toBe(true);
+    expect(component.errorMessage()).toContain('Email service is not configured.');
     expect(analytics.pushEvent).not.toHaveBeenCalled();
   });
 

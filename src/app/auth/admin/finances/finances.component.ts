@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ViewChild, ElementRef, PLATFORM_ID, ChangeDetectorRef, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, ElementRef, PLATFORM_ID, ChangeDetectorRef, ChangeDetectionStrategy, inject, viewChild, signal, computed } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { forkJoin, from, of, Subject } from 'rxjs';
@@ -173,7 +173,7 @@ interface CompareRow {
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './finances.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./finances.component.scss']
 })
 export class FinancesComponent implements OnInit, OnDestroy {
@@ -182,20 +182,20 @@ export class FinancesComponent implements OnInit, OnDestroy {
   private cdr = inject(ChangeDetectorRef);
   private platformId = inject<Object>(PLATFORM_ID);
 
-  @ViewChild('donutCanvas') donutCanvas!: ElementRef<HTMLCanvasElement>;
+  readonly donutCanvas = viewChild<ElementRef<HTMLCanvasElement>>('donutCanvas');
 
-  stats: OrderStatistics | null = null;
-  prevStats: OrderStatistics | null = null;
-  costLines: CostLine[] = [];
-  donutLegend: DonutSlice[] = [];
-  isLoading = false;
-  error = '';
+  readonly stats = signal<OrderStatistics | null>(null);
+  readonly prevStats = signal<OrderStatistics | null>(null);
+  readonly costLines = signal<CostLine[]>([], { equal: () => false });
+  readonly donutLegend = signal<DonutSlice[]>([]);
+  readonly isLoading = signal(false);
+  readonly error = signal('');
   isBrowser: boolean;
 
-  activeQuickFilter: QuickFilter = 'month';
-  customFrom = '';
-  customTo = '';
-  compareLabel = '';
+  readonly activeQuickFilter = signal<QuickFilter>('month');
+  readonly customFrom = signal('');
+  readonly customTo = signal('');
+  readonly compareLabel = signal('');
 
   /**
    * Folds the period's booked-but-unfinished cleanings into every number, turning
@@ -203,35 +203,35 @@ export class FinancesComponent implements OnInit, OnDestroy {
    * Needs a refetch (the backend decides which orders count), unlike the cost
    * checkboxes which are pure client-side math.
    */
-  includeUpcoming = false;
+  readonly includeUpcoming = signal(false);
 
   /** Percentages are part of the reading, not an extra — on unless deliberately hidden. */
-  showPercents = true;
+  readonly showPercents = signal(true);
 
   /** Info-row visibility (never part of the math). */
-  showTips = true;
+  readonly showTips = signal(true);
 
   // ── Compare mode state ─────────────────────────────────────────────────────
-  showCompareModal = false;
-  compareMode = false;
-  isComparing = false;
-  compareError = '';
-  compareUnit: CompareUnit = 'month';
-  comparePicks: ComparePick[] = [];
-  compareResults: ComparePeriod[] = [];
+  readonly showCompareModal = signal(false);
+  readonly compareMode = signal(false);
+  readonly isComparing = signal(false);
+  readonly compareError = signal('');
+  readonly compareUnit = signal<CompareUnit>('month');
+  readonly comparePicks = signal<ComparePick[]>([], { equal: () => false });
+  readonly compareResults = signal<ComparePeriod[]>([]);
   /** The P&L chain, one column per period — the first comparison card. */
-  compareChainRows: CompareRow[] = [];
+  readonly compareChainRows = signal<CompareRow[]>([]);
   /** Totals, averages and pass-throughs — the second comparison card. */
-  compareSummaryRows: CompareRow[] = [];
+  readonly compareSummaryRows = signal<CompareRow[]>([]);
   /** Both tables in one list, for the export and the unchecked-costs count. */
-  compareRows: CompareRow[] = [];
+  readonly compareRows = signal<CompareRow[]>([]);
   /** Per-period "what's left", recomputed from the CHECKED cost rows only. */
-  compareProfits: number[] = [];
+  readonly compareProfits = signal<number[]>([]);
   /** Per-period net income margin (what's left ÷ total revenue), in percent. */
-  compareMargins: number[] = [];
+  readonly compareMargins = signal<number[]>([]);
   /** Index of the period that kept the most money (-1 when every period ties). */
-  winnerIndex = -1;
-  winnerLine = '';
+  readonly winnerIndex = signal(-1);
+  readonly winnerLine = signal('');
 
   readonly compareUnits: { key: CompareUnit; label: string }[] = [
     { key: 'day', label: 'Days' },
@@ -264,7 +264,7 @@ export class FinancesComponent implements OnInit, OnDestroy {
     this.isBrowser = isPlatformBrowser(this.platformId);
     // Skeleton rows so the receipt structure is visible (labels + shimmer values)
     // while the first load resolves — per the "shimmer the value, not the label" rule.
-    this.costLines = this.buildCostLines(FinancesComponent.EMPTY_STATS, null);
+    this.costLines.set(this.buildCostLines(FinancesComponent.EMPTY_STATS, null));
     const thisYear = new Date().getFullYear();
     this.yearOptions = Array.from({ length: 6 }, (_, i) => thisYear - i);
   }
@@ -314,25 +314,25 @@ export class FinancesComponent implements OnInit, OnDestroy {
   // ── Filters ──────────────────────────────────────────────────────────────
 
   onQuickFilterChange(filter: QuickFilter): void {
-    this.activeQuickFilter = filter;
-    this.customFrom = '';
-    this.customTo = '';
-    this.compareMode = false;
+    this.activeQuickFilter.set(filter);
+    this.customFrom.set('');
+    this.customTo.set('');
+    this.compareMode.set(false);
     this.loadData();
   }
 
   applyCustomRange(): void {
-    if (this.customFrom && this.customTo) {
-      this.compareMode = false;
+    if (this.customFrom() && this.customTo()) {
+      this.compareMode.set(false);
       this.loadData();
     }
   }
 
   clearCustomRange(): void {
-    this.customFrom = '';
-    this.customTo = '';
-    this.activeQuickFilter = 'month';
-    this.compareMode = false;
+    this.customFrom.set('');
+    this.customTo.set('');
+    this.activeQuickFilter.set('month');
+    this.compareMode.set(false);
     this.loadData();
   }
 
@@ -342,7 +342,7 @@ export class FinancesComponent implements OnInit, OnDestroy {
    * comparison, whose periods are re-fetched with the new setting.
    */
   onIncludeUpcomingChange(): void {
-    if (this.compareMode) {
+    if (this.compareMode()) {
       this.reloadCompare();
     } else {
       this.loadData();
@@ -364,7 +364,7 @@ export class FinancesComponent implements OnInit, OnDestroy {
    * either way — the split below is what changes, not this figure.
    */
   get totalRevenue(): number {
-    return (this.stats?.totalAmount ?? 0) + (this.stats?.totalTaxes ?? 0);
+    return (this.stats()?.totalAmount ?? 0) + (this.stats()?.totalTaxes ?? 0);
   }
 
   /** The sales tax line as it currently counts (0 while unchecked). */
@@ -378,13 +378,13 @@ export class FinancesComponent implements OnInit, OnDestroy {
    * Income. Reported here purely so the receipt can name it.
    */
   get retainedTax(): number {
-    return this.stats?.totalTaxRetained ?? 0;
+    return this.stats()?.totalTaxRetained ?? 0;
   }
 
   /** True once any non-card payment in the window carried tax — drives the extra labelling. */
   get hasRetainedTax(): boolean {
-    return this.compareMode
-      ? this.compareResults.some(r => r.stats.totalTaxRetained > 0)
+    return this.compareMode()
+      ? this.compareResults().some(r => r.stats.totalTaxRetained > 0)
       : this.retainedTax > 0;
   }
 
@@ -408,7 +408,7 @@ export class FinancesComponent implements OnInit, OnDestroy {
 
   /** Every checked expense-table category, summed. */
   get operatingExpenses(): number {
-    return this.costLines
+    return this.costLines()
       .filter(l => l.key.startsWith('cat-') && l.included)
       .reduce((sum, l) => sum + l.amount, 0);
   }
@@ -430,7 +430,7 @@ export class FinancesComponent implements OnInit, OnDestroy {
 
   /** Sum of the CHECKED money-out rows. Always Total Revenue − Net Company Income. */
   get moneyOut(): number {
-    return this.costLines.reduce((sum, l) => sum + (l.included ? l.amount : 0), 0);
+    return this.costLines().reduce((sum, l) => sum + (l.included ? l.amount : 0), 0);
   }
 
   /**
@@ -458,7 +458,7 @@ export class FinancesComponent implements OnInit, OnDestroy {
 
   /** A checked cost's amount, or 0 while it is unchecked. */
   private amountOf(key: string): number {
-    const line = this.costLines.find(l => l.key === key);
+    const line = this.costLines().find(l => l.key === key);
     return line && line.included ? line.amount : 0;
   }
 
@@ -486,7 +486,7 @@ export class FinancesComponent implements OnInit, OnDestroy {
       line: opts.line
     });
 
-    const lineFor = (key: string) => this.costLines.find(l => l.key === key);
+    const lineFor = (key: string) => this.costLines().find(l => l.key === key);
     const deduction = (key: string, indent = false) => {
       const line = lineFor(key);
       if (line) push('deduction', line.label, line.amount, { key, indent, line });
@@ -499,7 +499,7 @@ export class FinancesComponent implements OnInit, OnDestroy {
     push('subtotal', 'Gross margin', this.grossMarginAmount);
     push('subtotal', 'Operating expenses', this.operatingExpenses);
 
-    this.costLines
+    this.costLines()
       .filter(l => l.key.startsWith('cat-'))
       .forEach(l => deduction(l.key, true));
 
@@ -512,7 +512,7 @@ export class FinancesComponent implements OnInit, OnDestroy {
   }
 
   get excludedCount(): number {
-    return this.costLines.filter(l => !l.included).length;
+    return this.costLines().filter(l => !l.included).length;
   }
 
   /** With everything checked this equals the official number (same formula, same data). */
@@ -521,7 +521,7 @@ export class FinancesComponent implements OnInit, OnDestroy {
   }
 
   get officialRevenue(): number {
-    return this.stats?.totalCompanyRevenue ?? 0;
+    return this.stats()?.totalCompanyRevenue ?? 0;
   }
 
   /**
@@ -530,35 +530,35 @@ export class FinancesComponent implements OnInit, OnDestroy {
    * can name it.
    */
   get projectedAdSpend(): number {
-    return this.stats?.googleAdsProjectedSpend ?? 0;
+    return this.stats()?.googleAdsProjectedSpend ?? 0;
   }
 
   get projectedAdDays(): number {
-    return this.stats?.googleAdsProjectedDays ?? 0;
+    return this.stats()?.googleAdsProjectedDays ?? 0;
   }
 
   /** How many booked cleanings in this window have not happened yet. */
   get upcomingCount(): number {
-    return this.compareMode
-      ? this.compareResults.reduce((sum, r) => sum + (r.stats?.upcomingOrders ?? 0), 0)
-      : (this.stats?.upcomingOrders ?? 0);
+    return this.compareMode()
+      ? this.compareResults().reduce((sum, r) => sum + (r.stats?.upcomingOrders ?? 0), 0)
+      : (this.stats()?.upcomingOrders ?? 0);
   }
 
   /** True when a comparison window exists (every filter except All Time). */
   get hasComparison(): boolean {
-    return this.prevStats !== null;
+    return this.prevStats() !== null;
   }
 
   /** Previous-window Total Revenue on the same tax-inclusive basis. */
   private get prevTotalRevenue(): number | null {
-    return this.prevStats ? this.prevStats.totalAmount + this.prevStats.totalTaxes : null;
+    return this.prevStats() ? this.prevStats()!.totalAmount + this.prevStats()!.totalTaxes : null;
   }
 
   /** Previous-period profit with the SAME rows checked, so the comparison is apples-to-apples. */
   private get prevProfit(): number | null {
     const prevIn = this.prevTotalRevenue;
     if (prevIn === null) return null;
-    const prevOut = this.costLines.reduce(
+    const prevOut = this.costLines().reduce(
       (sum, l) => sum + (l.included ? (l.prevAmount ?? 0) : 0), 0);
     return prevIn - prevOut;
   }
@@ -585,10 +585,10 @@ export class FinancesComponent implements OnInit, OnDestroy {
 
   /** The previous window's baseline — same denominator rule as percentOfRevenue. */
   private get prevNetRevenueBaseline(): number | null {
-    if (!this.prevStats) return null;
-    const taxLine = this.costLines.find(l => l.key === 'salesTax');
+    if (!this.prevStats()) return null;
+    const taxLine = this.costLines().find(l => l.key === 'salesTax');
     const prevTax = taxLine?.included ? (taxLine.prevAmount ?? 0) : 0;
-    return this.prevStats.totalAmount + this.prevStats.totalTaxes - prevTax;
+    return this.prevStats()!.totalAmount + this.prevStats()!.totalTaxes - prevTax;
   }
 
   private get prevMargin(): number | null {
@@ -613,14 +613,14 @@ export class FinancesComponent implements OnInit, OnDestroy {
   }
 
   get completedCleanings(): number {
-    return this.stats?.totalOrders ?? 0;
+    return this.stats()?.totalOrders ?? 0;
   }
 
   // ── The second card: totals, averages and pass-throughs ──────────────────
 
   get summaryRows(): SummaryRow[] {
     const orders = this.completedCleanings;
-    const prevOrders = this.prevStats?.totalOrders ?? 0;
+    const prevOrders = this.prevStats()?.totalOrders ?? 0;
     const per = (v: number) => (orders > 0 ? v / orders : 0);
     const prevPer = (v: number | null) =>
       v !== null && prevOrders > 0 ? v / prevOrders : null;
@@ -628,8 +628,8 @@ export class FinancesComponent implements OnInit, OnDestroy {
       previous === null ? null : current - previous;
 
     const prevIn = this.prevTotalRevenue;
-    const prevOut = this.prevStats
-      ? this.costLines.reduce((sum, l) => sum + (l.included ? (l.prevAmount ?? 0) : 0), 0)
+    const prevOut = this.prevStats()
+      ? this.costLines().reduce((sum, l) => sum + (l.included ? (l.prevAmount ?? 0) : 0), 0)
       : null;
 
     const revenuePer = per(this.totalRevenue);
@@ -678,10 +678,10 @@ export class FinancesComponent implements OnInit, OnDestroy {
         // Ad spend is the one expense with a real per-day rate (one synced row per day), and
         // it is what the projection extrapolates the remaining days from.
         label: 'Average Google Ads cost per day',
-        value: this.stats?.googleAdsDailyAverage ?? 0,
+        value: this.stats()?.googleAdsDailyAverage ?? 0,
         format: 'money',
-        delta: this.prevStats
-          ? (this.stats?.googleAdsDailyAverage ?? 0) - this.prevStats.googleAdsDailyAverage
+        delta: this.prevStats()
+          ? (this.stats()?.googleAdsDailyAverage ?? 0) - this.prevStats()!.googleAdsDailyAverage
           : null,
         betterWhen: 'none',
         percent: null
@@ -689,23 +689,23 @@ export class FinancesComponent implements OnInit, OnDestroy {
       {
         key: 'discounts',
         label: 'Discounts given to customers',
-        value: this.stats?.totalDiscounts ?? 0,
+        value: this.stats()?.totalDiscounts ?? 0,
         format: 'money',
         // A bigger discount bill is not automatically worse — discounts buy bookings.
-        delta: this.prevStats ? (this.stats?.totalDiscounts ?? 0) - this.prevStats.totalDiscounts : null,
+        delta: this.prevStats() ? (this.stats()?.totalDiscounts ?? 0) - this.prevStats()!.totalDiscounts : null,
         betterWhen: 'none',
-        percent: this.percentOfRevenue(this.stats?.totalDiscounts ?? 0)
+        percent: this.percentOfRevenue(this.stats()?.totalDiscounts ?? 0)
       },
       // Not a deduction and not a pass-through: it is revenue that happens to have arrived as
       // sales tax. Listed so the receipt can account for the gap between the tax the customers
       // were charged and the smaller "Sales tax" line deducted above.
-      ...(this.retainedTax > 0 || (this.prevStats?.totalTaxRetained ?? 0) > 0
+      ...(this.retainedTax > 0 || (this.prevStats()?.totalTaxRetained ?? 0) > 0
         ? [{
           key: 'retainedTax',
           label: 'Tax kept on cash / Zelle / check (counted as revenue)',
           value: this.retainedTax,
           format: 'money' as const,
-          delta: this.prevStats ? this.retainedTax - this.prevStats.totalTaxRetained : null,
+          delta: this.prevStats() ? this.retainedTax - this.prevStats()!.totalTaxRetained : null,
           betterWhen: 'none' as const,
           percent: this.percentOfRevenue(this.retainedTax)
         }]
@@ -713,18 +713,18 @@ export class FinancesComponent implements OnInit, OnDestroy {
       {
         key: 'tips',
         label: 'Tips (pass-through, not profit)',
-        value: this.stats?.totalTips ?? 0,
+        value: this.stats()?.totalTips ?? 0,
         format: 'money',
-        delta: this.prevStats ? (this.stats?.totalTips ?? 0) - this.prevStats.totalTips : null,
+        delta: this.prevStats() ? (this.stats()?.totalTips ?? 0) - this.prevStats()!.totalTips : null,
         betterWhen: 'none',
-        percent: this.percentOfRevenue(this.stats?.totalTips ?? 0)
+        percent: this.percentOfRevenue(this.stats()?.totalTips ?? 0)
       },
       {
         key: 'cleanings',
-        label: this.includeUpcoming ? 'Cleanings (finished + still booked)' : 'Completed cleanings',
+        label: this.includeUpcoming() ? 'Cleanings (finished + still booked)' : 'Completed cleanings',
         value: orders,
         format: 'count',
-        delta: this.prevStats ? orders - this.prevStats.totalOrders : null,
+        delta: this.prevStats() ? orders - this.prevStats()!.totalOrders : null,
         betterWhen: 'high',
         percent: null
       }
@@ -753,7 +753,7 @@ export class FinancesComponent implements OnInit, OnDestroy {
 
   includeEverything(): void {
     this.excludedKeys.clear();
-    this.costLines.forEach(l => (l.included = true));
+    this.costLines().forEach(l => (l.included = true));
     this.afterInclusionChange();
   }
 
@@ -764,12 +764,12 @@ export class FinancesComponent implements OnInit, OnDestroy {
     } else {
       this.excludedKeys.add(key);
     }
-    const line = this.costLines.find(l => l.key === key);
-    if (line) line.included = included;
+    const line = this.costLines().find(l => l.key === key);
+    if (line) { line.included = included; this.costLines.set(this.costLines()); }
   }
 
   private afterInclusionChange(): void {
-    if (this.compareMode) {
+    if (this.compareMode()) {
       // The comparison recomputes from the already-loaded stats — no refetch.
       this.buildCompareView();
     } else {
@@ -786,30 +786,30 @@ export class FinancesComponent implements OnInit, OnDestroy {
   // ── Data loading ─────────────────────────────────────────────────────────
 
   private loadData(): void {
-    this.isLoading = true;
-    this.error = '';
+    this.isLoading.set(true);
+    this.error.set('');
 
     const win = this.getDateWindow();
-    this.compareLabel = win.compareLabel;
+    this.compareLabel.set(win.compareLabel);
 
     forkJoin({
       current: this.adminService.getOrderStatistics(
-        win.from, win.to, this.includeUpcoming, win.fullTo),
+        win.from, win.to, this.includeUpcoming(), win.fullTo),
       previous: win.prevFrom && win.prevTo
-        ? this.adminService.getOrderStatistics(win.prevFrom, win.prevTo, this.includeUpcoming)
+        ? this.adminService.getOrderStatistics(win.prevFrom, win.prevTo, this.includeUpcoming())
         : of(null as OrderStatistics | null)
     }).subscribe({
       next: ({ current, previous }) => {
-        this.stats = current;
-        this.prevStats = previous;
-        this.costLines = this.buildCostLines(current, previous);
-        this.isLoading = false;
+        this.stats.set(current);
+        this.prevStats.set(previous);
+        this.costLines.set(this.buildCostLines(current, previous));
+        this.isLoading.set(false);
         this.cdr.detectChanges();
         this.refreshDonut();
       },
       error: (err) => {
-        this.error = err?.error?.message || 'Failed to load the numbers. Please try again.';
-        this.isLoading = false;
+        this.error.set(err?.error?.message || 'Failed to load the numbers. Please try again.');
+        this.isLoading.set(false);
       }
     });
   }
@@ -924,20 +924,20 @@ export class FinancesComponent implements OnInit, OnDestroy {
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-    if (this.customFrom && this.customTo) {
-      const from = new Date(this.customFrom + 'T00:00:00');
-      const to = new Date(this.customTo + 'T00:00:00');
+    if (this.customFrom() && this.customTo()) {
+      const from = new Date(this.customFrom() + 'T00:00:00');
+      const to = new Date(this.customTo() + 'T00:00:00');
       const lengthDays = Math.round((to.getTime() - from.getTime()) / 86400000) + 1;
       const prevTo = this.addDays(from, -1);
       const prevFrom = this.addDays(from, -lengthDays);
       return {
-        from: this.customFrom, to: this.customTo,
+        from: this.customFrom(), to: this.customTo(),
         prevFrom: fmt(prevFrom), prevTo: fmt(prevTo),
         compareLabel: `vs the ${lengthDays} days before`
       };
     }
 
-    switch (this.activeQuickFilter) {
+    switch (this.activeQuickFilter()) {
       case 'today': {
         const yesterday = this.addDays(today, -1);
         return {
@@ -952,11 +952,11 @@ export class FinancesComponent implements OnInit, OnDestroy {
         const prevStart = this.addDays(start, -7);
         return {
           from: fmt(start),
-          to: fmt(this.includeUpcoming ? end : today),
+          to: fmt(this.includeUpcoming() ? end : today),
           fullTo: fmt(end),
           prevFrom: fmt(prevStart),
-          prevTo: fmt(this.includeUpcoming ? this.addDays(prevStart, 6) : this.addDays(today, -7)),
-          compareLabel: this.includeUpcoming ? 'vs the whole week before' : 'vs the same days last week'
+          prevTo: fmt(this.includeUpcoming() ? this.addDays(prevStart, 6) : this.addDays(today, -7)),
+          compareLabel: this.includeUpcoming() ? 'vs the whole week before' : 'vs the same days last week'
         };
       }
       case 'month': {
@@ -970,11 +970,11 @@ export class FinancesComponent implements OnInit, OnDestroy {
           Math.min(today.getDate(), prevMonthEnd.getDate()));
         return {
           from: fmt(start),
-          to: fmt(this.includeUpcoming ? monthEnd : today),
+          to: fmt(this.includeUpcoming() ? monthEnd : today),
           fullTo: fmt(monthEnd),
           prevFrom: fmt(prevStart),
-          prevTo: fmt(this.includeUpcoming ? prevMonthEnd : prevSameDay),
-          compareLabel: this.includeUpcoming ? 'vs the whole month before' : 'vs the same days last month'
+          prevTo: fmt(this.includeUpcoming() ? prevMonthEnd : prevSameDay),
+          compareLabel: this.includeUpcoming() ? 'vs the whole month before' : 'vs the same days last month'
         };
       }
       case 'lastMonth': {
@@ -995,11 +995,11 @@ export class FinancesComponent implements OnInit, OnDestroy {
         const prevSameDay = new Date(today.getFullYear() - 1, today.getMonth(), today.getDate());
         return {
           from: fmt(start),
-          to: fmt(this.includeUpcoming ? yearEnd : today),
+          to: fmt(this.includeUpcoming() ? yearEnd : today),
           fullTo: fmt(yearEnd),
           prevFrom: fmt(prevStart),
-          prevTo: fmt(this.includeUpcoming ? new Date(today.getFullYear() - 1, 11, 31) : prevSameDay),
-          compareLabel: this.includeUpcoming ? 'vs the whole year before' : 'vs the same period last year'
+          prevTo: fmt(this.includeUpcoming() ? new Date(today.getFullYear() - 1, 11, 31) : prevSameDay),
+          compareLabel: this.includeUpcoming() ? 'vs the whole year before' : 'vs the same period last year'
         };
       }
       case 'lastYear': {
@@ -1049,7 +1049,7 @@ export class FinancesComponent implements OnInit, OnDestroy {
   // ── Donut (where the checked money-out goes) ─────────────────────────────
 
   private donutSlices(): DonutSlice[] {
-    const included = this.costLines.filter(l => l.included && l.amount > 0);
+    const included = this.costLines().filter(l => l.included && l.amount > 0);
     const total = included.reduce((s, l) => s + l.amount, 0);
     if (total <= 0) return [];
 
@@ -1075,31 +1075,32 @@ export class FinancesComponent implements OnInit, OnDestroy {
   }
 
   private refreshDonut(): void {
-    this.donutLegend = this.donutSlices();
+    this.donutLegend.set(this.donutSlices());
     if (this.isBrowser) {
       setTimeout(() => this.buildDonut(), 0);
     }
   }
 
   private buildDonut(): void {
-    if (!this.isBrowser || !this.donutCanvas?.nativeElement) return;
+    const donutCanvas = this.donutCanvas();
+    if (!this.isBrowser || !donutCanvas?.nativeElement) return;
 
     this.donut?.destroy();
     this.donut = null;
-    if (this.donutLegend.length === 0) return;
+    if (this.donutLegend().length === 0) return;
 
     const css = getComputedStyle(document.documentElement);
     const resolve = (v: string | null) =>
       v ? css.getPropertyValue(v).trim() : css.getPropertyValue('--text-muted').trim();
     const surface = css.getPropertyValue('--surface').trim();
 
-    this.donut = new Chart(this.donutCanvas.nativeElement, {
+    this.donut = new Chart(donutCanvas.nativeElement, {
       type: 'doughnut',
       data: {
-        labels: this.donutLegend.map(s => s.label),
+        labels: this.donutLegend().map(s => s.label),
         datasets: [{
-          data: this.donutLegend.map(s => s.amount),
-          backgroundColor: this.donutLegend.map(s => resolve(s.colorVar)),
+          data: this.donutLegend().map(s => s.amount),
+          backgroundColor: this.donutLegend().map(s => resolve(s.colorVar)),
           // 2px surface-colored gap between slices so adjacent fills never touch.
           borderColor: surface,
           borderWidth: 2,
@@ -1115,7 +1116,7 @@ export class FinancesComponent implements OnInit, OnDestroy {
           tooltip: {
             callbacks: {
               label: (ctx) => {
-                const slice = this.donutLegend[ctx.dataIndex];
+                const slice = this.donutLegend()[ctx.dataIndex];
                 return ` ${slice.label}: $${this.formatNumber(slice.amount)} (${slice.percent.toFixed(1)}%)`;
               }
             }
@@ -1128,40 +1129,42 @@ export class FinancesComponent implements OnInit, OnDestroy {
   // ── Compare mode (side-by-side whole days / weeks / months / years) ──────
 
   openCompareModal(): void {
-    if (this.comparePicks.length === 0) {
-      this.comparePicks = this.defaultPicks(this.compareUnit);
+    if (this.comparePicks().length === 0) {
+      this.comparePicks.set(this.defaultPicks(this.compareUnit()));
     }
-    this.compareError = '';
-    this.showCompareModal = true;
+    this.compareError.set('');
+    this.showCompareModal.set(true);
   }
 
   closeCompareModal(): void {
-    this.showCompareModal = false;
+    this.showCompareModal.set(false);
   }
 
   setCompareUnit(unit: CompareUnit): void {
-    if (this.compareUnit === unit) return;
-    this.compareUnit = unit;
-    this.comparePicks = this.defaultPicks(unit);
-    this.compareError = '';
+    if (this.compareUnit() === unit) return;
+    this.compareUnit.set(unit);
+    this.comparePicks.set(this.defaultPicks(unit));
+    this.compareError.set('');
   }
 
   addPick(): void {
     // The next period back from the last one, so adding is one click per period
     // instead of hunting through the dropdowns.
-    const last = this.comparePicks[this.comparePicks.length - 1];
-    this.comparePicks.push(last ? this.stepBack(last) : this.mkPick(new Date()));
+    const last = this.comparePicks()[this.comparePicks().length - 1];
+    this.comparePicks().push(last ? this.stepBack(last) : this.mkPick(new Date()));
+    this.comparePicks.set(this.comparePicks());
   }
 
   removePick(index: number): void {
-    if (this.comparePicks.length > 2) {
-      this.comparePicks.splice(index, 1);
+    if (this.comparePicks().length > 2) {
+      this.comparePicks().splice(index, 1);
+      this.comparePicks.set(this.comparePicks());
     }
   }
 
   /** One whole unit earlier than the given pick. */
   private stepBack(pick: ComparePick): ComparePick {
-    switch (this.compareUnit) {
+    switch (this.compareUnit()) {
       case 'day':
         return this.mkPick(this.addDays(new Date(pick.date + 'T00:00:00'), -1));
       case 'week':
@@ -1175,9 +1178,7 @@ export class FinancesComponent implements OnInit, OnDestroy {
   }
 
   /** Quick-fill sizes offered for the active unit (years are capped by the dropdown). */
-  get quickFillCounts(): number[] {
-    return this.compareUnit === 'year' ? [3, 5] : [6, 12];
-  }
+  readonly quickFillCounts = computed<number[]>(() => this.compareUnit() === 'year' ? [3, 5] : [6, 12]);
 
   /** Fills the list with the last N whole units, oldest first. */
   quickFill(count: number): void {
@@ -1185,7 +1186,7 @@ export class FinancesComponent implements OnInit, OnDestroy {
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const picks: ComparePick[] = [];
     for (let back = count - 1; back >= 0; back--) {
-      switch (this.compareUnit) {
+      switch (this.compareUnit()) {
         case 'day':
           picks.push(this.mkPick(this.addDays(today, -back)));
           break;
@@ -1201,12 +1202,12 @@ export class FinancesComponent implements OnInit, OnDestroy {
           break;
       }
     }
-    this.comparePicks = picks;
-    this.compareError = '';
+    this.comparePicks.set(picks);
+    this.compareError.set('');
   }
 
   get unitNoun(): string {
-    switch (this.compareUnit) {
+    switch (this.compareUnit()) {
       case 'day': return 'day';
       case 'week': return 'week';
       case 'month': return 'month';
@@ -1216,9 +1217,9 @@ export class FinancesComponent implements OnInit, OnDestroy {
   }
 
   get picksValid(): boolean {
-    if (this.comparePicks.length < 2) return false;
-    if (this.compareUnit === 'day' || this.compareUnit === 'week') {
-      return this.comparePicks.every(p => !!p.date);
+    if (this.comparePicks().length < 2) return false;
+    if (this.compareUnit() === 'day' || this.compareUnit() === 'week') {
+      return this.comparePicks().every(p => !!p.date);
     }
     return true;
   }
@@ -1232,23 +1233,23 @@ export class FinancesComponent implements OnInit, OnDestroy {
   }
 
   runCompare(): void {
-    if (!this.picksValid || this.isComparing) return;
+    if (!this.picksValid || this.isComparing()) return;
 
-    const resolved = this.comparePicks.map(p => this.resolvePick(p));
+    const resolved = this.comparePicks().map(p => this.resolvePick(p));
     const seen = new Set<string>();
     for (const r of resolved) {
       const key = `${r.from}|${r.to}`;
       if (seen.has(key)) {
-        this.compareError = `You picked the same ${this.unitNoun} twice (${r.label}). Change one of them.`;
+        this.compareError.set(`You picked the same ${this.unitNoun} twice (${r.label}). Change one of them.`);
         return;
       }
       seen.add(key);
     }
 
-    this.compareError = '';
+    this.compareError.set('');
     this.fetchComparePeriods(resolved, () => {
-      this.showCompareModal = false;
-      this.compareMode = true;
+      this.showCompareModal.set(false);
+      this.compareMode.set(true);
       // The single-period donut canvas leaves the DOM while comparing.
       this.donut?.destroy();
       this.donut = null;
@@ -1257,9 +1258,9 @@ export class FinancesComponent implements OnInit, OnDestroy {
 
   /** Re-runs the already-chosen periods — used when the projection toggle flips. */
   private reloadCompare(): void {
-    if (this.compareResults.length === 0) return;
+    if (this.compareResults().length === 0) return;
     this.fetchComparePeriods(
-      this.compareResults.map(({ label, rangeLabel, from, to }) => ({ label, rangeLabel, from, to })));
+      this.compareResults().map(({ label, rangeLabel, from, to }) => ({ label, rangeLabel, from, to })));
   }
 
   /**
@@ -1272,38 +1273,38 @@ export class FinancesComponent implements OnInit, OnDestroy {
     periods: Omit<ComparePeriod, 'stats'>[],
     onDone?: () => void
   ): void {
-    this.isComparing = true;
+    this.isComparing.set(true);
     from(periods.map((r, i) => ({ r, i }))).pipe(
-      mergeMap(({ r, i }) => this.adminService.getOrderStatistics(r.from, r.to, this.includeUpcoming)
+      mergeMap(({ r, i }) => this.adminService.getOrderStatistics(r.from, r.to, this.includeUpcoming())
         .pipe(map(stats => ({ i, stats }))), MAX_PARALLEL_STAT_REQUESTS),
       toArray()
     ).subscribe({
       next: (loaded) => {
         const statsList: OrderStatistics[] = [];
         loaded.forEach(({ i, stats }) => (statsList[i] = stats));
-        this.compareResults = periods.map((r, i) => ({ ...r, stats: statsList[i] }));
+        this.compareResults.set(periods.map((r, i) => ({ ...r, stats: statsList[i] })));
         this.buildCompareView();
-        this.isComparing = false;
+        this.isComparing.set(false);
         onDone?.();
       },
       error: (err) => {
-        this.isComparing = false;
-        this.compareError = err?.error?.message || 'Could not load the numbers for those periods. Please try again.';
+        this.isComparing.set(false);
+        this.compareError.set(err?.error?.message || 'Could not load the numbers for those periods. Please try again.');
       }
     });
   }
 
   exitCompare(): void {
-    this.compareMode = false;
+    this.compareMode.set(false);
     // Rebuild the donut once the single-period canvas is back in the DOM.
     this.refreshDonut();
   }
 
   /** Bar width for the "what's left" side-by-side bars (negatives render as empty). */
   compareBarWidth(index: number): number {
-    const max = Math.max(...this.compareProfits);
+    const max = Math.max(...this.compareProfits());
     if (max <= 0) return 0;
-    return (Math.max(0, this.compareProfits[index]) / max) * 100;
+    return (Math.max(0, this.compareProfits()[index]) / max) * 100;
   }
 
   isBest(row: CompareRow, index: number): boolean {
@@ -1312,12 +1313,12 @@ export class FinancesComponent implements OnInit, OnDestroy {
 
   /** Cost rows the user unchecked — they stay visible but sit outside the math. */
   get compareExcludedCount(): number {
-    return this.compareRows.filter(r => r.key !== null && !r.included).length;
+    return this.compareRows().filter(r => r.key !== null && !r.included).length;
   }
 
   /** Official "what's left" per period (every cost counted), for the unchecked-costs note. */
   get compareOfficialProfits(): number[] {
-    return this.compareResults.map(r => r.stats.totalCompanyRevenue);
+    return this.compareResults().map(r => r.stats.totalCompanyRevenue);
   }
 
   toggleCompareRow(row: CompareRow): void {
@@ -1353,7 +1354,7 @@ export class FinancesComponent implements OnInit, OnDestroy {
 
   /** Turn a pick into the complete calendar period it means (whole week/month/year). */
   private resolvePick(pick: ComparePick): Omit<ComparePeriod, 'stats'> {
-    switch (this.compareUnit) {
+    switch (this.compareUnit()) {
       case 'day': {
         const d = new Date(pick.date + 'T00:00:00');
         return { from: pick.date, to: pick.date, label: this.shortDateYear(d), rangeLabel: '' };
@@ -1399,7 +1400,7 @@ export class FinancesComponent implements OnInit, OnDestroy {
    * the totals-and-averages block — so the two views read the same way.
    */
   private buildCompareView(): void {
-    const results = this.compareResults;
+    const results = this.compareResults();
     const vals = (f: (s: OrderStatistics) => number) => results.map(r => f(r.stats));
     // Same tax-inclusive basis as the single-period card.
     const totalRevenue = results.map(r => r.stats.totalAmount + r.stats.totalTaxes);
@@ -1477,12 +1478,12 @@ export class FinancesComponent implements OnInit, OnDestroy {
     const additional = totalRevenue.map((_, i) =>
       counted('stripeFees', stripeFees)[i] + counted('adminBonuses', adminBonuses)[i]);
 
-    this.compareProfits = grossMargin.map((v, i) => v - operatingExpenses[i] - additional[i]);
+    this.compareProfits.set(grossMargin.map((v, i) => v - operatingExpenses[i] - additional[i]));
     // Margin against the baseline, matching profitMargin on the single-period card.
-    this.compareMargins = this.compareProfits.map((p, i) => this.share(p, netBaseline[i]));
+    this.compareMargins.set(this.compareProfits().map((p, i) => this.share(p, netBaseline[i])));
 
     // Money out is the mirror image of the chain: Total Revenue − Net Company Income.
-    const moneyOut = totalRevenue.map((v, i) => v - this.compareProfits[i]);
+    const moneyOut = totalRevenue.map((v, i) => v - this.compareProfits()[i]);
 
     // Per-cleaning averages — the size-independent view: how much a single
     // cleaning brought in, what it cost us, and what it left behind.
@@ -1498,7 +1499,7 @@ export class FinancesComponent implements OnInit, OnDestroy {
     // business. Total-cost rows carry no judgment (a bigger month costs more);
     // per-cleaning cost does, because it is size-independent.
     // Card 1 — the same chain, in the same order, as the single-period view.
-    this.compareChainRows = [
+    this.compareChainRows.set([
       row('Total Revenue', 'high', totalRevenue),
       row('Sales tax', 'none', salesTax, { key: 'salesTax' }),
       row('Net Revenue Baseline', 'high', netBaseline, { subtotal: true }),
@@ -1510,21 +1511,21 @@ export class FinancesComponent implements OnInit, OnDestroy {
       row('Additional deductions', 'none', additional, { subtotal: true }),
       row('Card processing fees', 'none', stripeFees, { key: 'stripeFees', indent: true }),
       row('Admin bonuses', 'none', adminBonuses, { key: 'adminBonuses', indent: true }),
-      row('Net Company Income', 'high', this.compareProfits, { emphasize: true }),
+      row('Net Company Income', 'high', this.compareProfits(), { emphasize: true }),
       // Only while something is unchecked: the official figure stays one glance
       // away instead of being buried in a note that grows with the period count.
       ...(this.excludedKeys.size > 0
         ? [row('… if every cost were counted', 'none', this.compareOfficialProfits,
           { officialTotal: true })]
         : [])
-    ];
+    ]);
 
     // Card 2 — the totals and averages, matching the single-period second card.
-    this.compareSummaryRows = [
+    this.compareSummaryRows.set([
       row('Money out (checked costs)', 'none', moneyOut),
       row('Average money in per cleaning', rank('high'), perOrder(totalRevenue), { withShare: false }),
       row('Average cost per cleaning (checked costs)', rank('low'), perOrder(moneyOut), { withShare: false }),
-      row('Average net income per cleaning', rank('high'), perOrder(this.compareProfits),
+      row('Average net income per cleaning', rank('high'), perOrder(this.compareProfits()),
         { emphasize: true, withShare: false }),
       row('Average Google Ads cost per day', 'none', vals(s => s.googleAdsDailyAverage),
         { withShare: false }),
@@ -1535,9 +1536,9 @@ export class FinancesComponent implements OnInit, OnDestroy {
         : []),
       row('Tips (pass-through, not profit)', 'none', vals(s => s.totalTips)),
       row('Completed cleanings', 'high', orders, { format: 'count', withShare: false })
-    ];
+    ]);
 
-    this.compareRows = [...this.compareChainRows, ...this.compareSummaryRows];
+    this.compareRows.set([...this.compareChainRows(), ...this.compareSummaryRows()]);
 
     this.buildWinnerLine();
   }
@@ -1548,31 +1549,31 @@ export class FinancesComponent implements OnInit, OnDestroy {
   }
 
   private buildWinnerLine(): void {
-    const results = this.compareResults;
-    const profits = this.compareProfits;
+    const results = this.compareResults();
+    const profits = this.compareProfits();
     const max = Math.max(...profits);
     // Margin decides ties and colors the sentence: on unequal-sized periods the
     // bigger dollar figure can still be the worse-run period.
-    const marginOf = (i: number) => `${this.compareMargins[i].toFixed(1)}% margin`;
+    const marginOf = (i: number) => `${this.compareMargins()[i].toFixed(1)}% margin`;
 
     if (profits.every(p => p === profits[0])) {
-      this.winnerIndex = -1;
-      this.winnerLine = `It’s a tie — every period left the company ${this.usd(max)}.`;
+      this.winnerIndex.set(-1);
+      this.winnerLine.set(`It’s a tie — every period left the company ${this.usd(max)}.`);
       return;
     }
-    this.winnerIndex = profits.indexOf(max);
+    this.winnerIndex.set(profits.indexOf(max));
     const sortedDesc = [...profits].sort((a, b) => b - a);
     const diff = sortedDesc[0] - sortedDesc[1];
-    const winner = results[this.winnerIndex];
+    const winner = results[this.winnerIndex()];
     if (diff === 0) {
-      this.winnerLine = `${winner.label} ties for the best result — the company kept `
-        + `${this.usd(max)} (${marginOf(this.winnerIndex)}).`;
+      this.winnerLine.set(`${winner.label} ties for the best result — the company kept `
+        + `${this.usd(max)} (${marginOf(this.winnerIndex())}).`);
       return;
     }
-    const runnerIdx = profits.findIndex((p, i) => i !== this.winnerIndex && p === sortedDesc[1]);
-    this.winnerLine = `${winner.label} comes out on top — the company kept ${this.usd(max)} `
-      + `(${marginOf(this.winnerIndex)}), ${this.usd(diff)} more than ${results[runnerIdx].label} `
-      + `(${marginOf(runnerIdx)}).`;
+    const runnerIdx = profits.findIndex((p, i) => i !== this.winnerIndex() && p === sortedDesc[1]);
+    this.winnerLine.set(`${winner.label} comes out on top — the company kept ${this.usd(max)} `
+      + `(${marginOf(this.winnerIndex())}), ${this.usd(diff)} more than ${results[runnerIdx].label} `
+      + `(${marginOf(runnerIdx)}).`);
   }
 
   private usd(v: number): string {
@@ -1589,7 +1590,7 @@ export class FinancesComponent implements OnInit, OnDestroy {
 
   // ── Excel export (.xlsx via SheetJS, loaded on demand on first click) ───
 
-  isExporting = false;
+  readonly isExporting = signal(false);
 
   /** Money cells get a real Excel number format so sums/filters work out of the box. */
   private static readonly MONEY_FMT = '$#,##0.00';
@@ -1599,37 +1600,37 @@ export class FinancesComponent implements OnInit, OnDestroy {
 
   /** The header button exports whatever is on screen: the receipt or the comparison. */
   get canExport(): boolean {
-    return this.compareMode ? this.compareResults.length > 0 : this.stats !== null;
+    return this.compareMode() ? this.compareResults().length > 0 : this.stats() !== null;
   }
 
   async exportExcel(): Promise<void> {
-    if (!this.isBrowser || !this.canExport || this.isExporting) return;
-    this.isExporting = true;
+    if (!this.isBrowser || !this.canExport || this.isExporting()) return;
+    this.isExporting.set(true);
     try {
       const XLSX = await import('xlsx');
-      const wb = this.compareMode
+      const wb = this.compareMode()
         ? this.buildCompareWorkbook(XLSX)
         : this.buildReceiptWorkbook(XLSX);
       XLSX.writeFile(wb, this.exportFileName());
     } finally {
-      this.isExporting = false;
+      this.isExporting.set(false);
     }
   }
 
   private exportFileName(): string {
     // A projection is a different document from the confirmed report — the filename
     // says so, otherwise two exports of the same month look identical on disk.
-    const suffix = this.includeUpcoming ? '_projected' : '';
-    if (this.compareMode) {
+    const suffix = this.includeUpcoming() ? '_projected' : '';
+    if (this.compareMode()) {
       // Naming every period is only readable for a handful of them; past that the
       // filename would run to hundreds of characters.
-      if (this.compareResults.length > 4) {
-        const first = this.compareResults[0];
-        const last = this.compareResults[this.compareResults.length - 1];
-        return `finances_compare_${this.compareResults.length}_periods_`
+      if (this.compareResults().length > 4) {
+        const first = this.compareResults()[0];
+        const last = this.compareResults()[this.compareResults().length - 1];
+        return `finances_compare_${this.compareResults().length}_periods_`
           + `${first.from}_to_${last.to}${suffix}.xlsx`;
       }
-      const labels = this.compareResults
+      const labels = this.compareResults()
         .map(r => r.label.replace(/[^\w]+/g, '-'))
         .join('_vs_');
       return `finances_compare_${labels}${suffix}.xlsx`;
@@ -1663,11 +1664,11 @@ export class FinancesComponent implements OnInit, OnDestroy {
     // written at all — no greyed row, no "counted?" column — so every number in
     // the file adds up to the totals at the bottom.
     const chain = this.pnlRows.filter(r => r.kind !== 'deduction' || r.included);
-    const summary = this.summaryRows.filter(r => r.key !== 'tips' || this.showTips);
+    const summary = this.summaryRows.filter(r => r.key !== 'tips' || this.showTips());
 
     const rows: (string | number)[][] = [
       ['Dream Cleaning — Finances export', period],
-      ...(this.includeUpcoming
+      ...(this.includeUpcoming()
         ? [['PROJECTION — includes cleanings that have not happened yet']]
         : []),
       [],
@@ -1700,7 +1701,7 @@ export class FinancesComponent implements OnInit, OnDestroy {
 
     // Per-expense detail so an accountant can verify every category total —
     // again only for the categories that made it into the sheet above.
-    const detailLines = this.costLines.filter(l => l.included && l.items?.length);
+    const detailLines = this.costLines().filter(l => l.included && l.items?.length);
     if (detailLines.length > 0) {
       const detailRows: (string | number)[][] = [
         ['Category', 'Expense', 'Date', 'Amount (USD)'],
@@ -1718,16 +1719,16 @@ export class FinancesComponent implements OnInit, OnDestroy {
 
   /** Mirrors the on-screen "Everything, side by side" table, one column per period. */
   private buildCompareWorkbook(XLSX: typeof import('xlsx')): import('xlsx').WorkBook {
-    const results = this.compareResults;
+    const results = this.compareResults();
     // Same rule as the receipt sheet: only the selected rows are written. An
     // unchecked cost leaves no trace, and the on-screen "if every cost were
     // counted" reference row is not part of the selection either.
-    const exportRows = this.compareRows.filter(row =>
+    const exportRows = this.compareRows().filter(row =>
       (row.key === null || row.included) && !row.isOfficialTotal);
 
     const rows: (string | number)[][] = [
       ['Dream Cleaning — Side-by-side comparison'],
-      ...(this.includeUpcoming
+      ...(this.includeUpcoming()
         ? [['PROJECTION — includes cleanings that have not happened yet']]
         : []),
       [],
@@ -1736,9 +1737,9 @@ export class FinancesComponent implements OnInit, OnDestroy {
       ...exportRows.map(row =>
         [row.indent ? `    ${row.label}` : row.label, ...row.values] as (string | number)[])
     ];
-    if (this.winnerLine) {
+    if (this.winnerLine()) {
       rows.push([]);
-      rows.push([this.winnerLine]);
+      rows.push([this.winnerLine()]);
     }
 
     const ws = XLSX.utils.aoa_to_sheet(rows);
@@ -1746,7 +1747,7 @@ export class FinancesComponent implements OnInit, OnDestroy {
 
     // Each metric row carries its own number format: money, percent, or a plain
     // count (completed cleanings), so Excel shows what the screen shows.
-    const compareRowsStart = rows.length - exportRows.length - (this.winnerLine ? 2 : 0);
+    const compareRowsStart = rows.length - exportRows.length - (this.winnerLine() ? 2 : 0);
     exportRows.forEach((row, i) => {
       const fmt = row.format === 'money' ? FinancesComponent.MONEY_FMT
         : row.format === 'percent' ? FinancesComponent.PERCENT_FMT

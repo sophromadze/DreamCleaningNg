@@ -1,4 +1,4 @@
-import { Component, OnInit, AfterViewInit, OnDestroy, ViewChild, ElementRef, HostListener, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, OnInit, AfterViewInit, OnDestroy, ElementRef, HostListener, ChangeDetectionStrategy, inject, viewChild, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AdminService, AuditLog, AuditMetadata, UserPermissions } from '../../../services/admin.service';
@@ -22,18 +22,18 @@ import { ORDER_SERVICE_KEYS, orderServiceIs } from '../../../shared/booking/orde
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './audit-history.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./audit-history.component.scss']
 })
 export class AuditHistoryComponent implements OnInit, AfterViewInit, OnDestroy {
   private adminService = inject(AdminService);
 
-  @ViewChild('tableWrapper', { static: false }) tableWrapper!: ElementRef<HTMLDivElement>;
-  @ViewChild('tableHeader', { static: false }) tableHeader!: ElementRef<HTMLTableSectionElement>;
+  readonly tableWrapper = viewChild<ElementRef<HTMLDivElement>>('tableWrapper');
+  readonly tableHeader = viewChild<ElementRef<HTMLTableSectionElement>>('tableHeader');
   
-  auditLogs: AuditLog[] = [];
-  isLoading = false;
-  errorMessage = '';
+  readonly auditLogs = signal<AuditLog[]>([]);
+  readonly isLoading = signal(false);
+  readonly errorMessage = signal('');
   
   // Sticky header management
   private scrollListener?: () => void;
@@ -50,38 +50,38 @@ export class AuditHistoryComponent implements OnInit, AfterViewInit, OnDestroy {
   }
   
   // ── Filters. All of these are sent to the server; none of them filter in the browser. ──
-  selectedEntityType = 'all';
-  selectedAction = 'all';
-  selectedAdminId: number | 'all' = 'all';
-  selectedDays = 180; // Default to 6 months (all available logs)
-  searchTerm = '';
+  readonly selectedEntityType = signal('all');
+  readonly selectedAction = signal('all');
+  readonly selectedAdminId = signal<number | 'all'>('all');
+  readonly selectedDays = signal(180); // Default to 6 months (all available logs)
+  readonly searchTerm = signal('');
   /** Explicit date range (yyyy-MM-dd). When either is set it OVERRIDES the days dropdown. */
-  fromDate = '';
-  toDate = '';
+  readonly fromDate = signal('');
+  readonly toDate = signal('');
 
   /** Debounce handle for the search box — one request per pause, not one per keystroke. */
   private searchDebounce?: ReturnType<typeof setTimeout>;
 
   // ── Pagination. Server-side: `auditLogs` holds ONE page, never the whole window. ──
-  currentPage = 1;
+  readonly currentPage = signal(1);
   itemsPerPage = 20;
-  totalPages = 1;
-  totalCount = 0;
+  readonly totalPages = signal(1);
+  readonly totalCount = signal(0);
 
   /** Entity types / actions / admins that actually occur in the log. Filled from the API. */
-  metadata: AuditMetadata = {
+  readonly metadata = signal<AuditMetadata>({
     entityTypes: [], actions: [], admins: [],
     undoBlockedEntityTypes: [], undoBlockedReasons: {},
-  };
+  });
 
   /** Admin id -> display name, for rendering "Paid By: 4" as a person. */
-  private adminNames = new Map<number, string>();
+  private readonly adminNames = signal(new Map<number, string>());
   
   // Expanded row state
-  viewingLogId: number | null = null;
+  readonly viewingLogId = signal<number | null>(null);
   
   // User permissions
-  userRole: string = '';
+  readonly userRole = signal<string>('');
   userPermissions: UserPermissions = {
     role: '',
     permissions: {
@@ -105,14 +105,14 @@ export class AuditHistoryComponent implements OnInit, AfterViewInit, OnDestroy {
   get entityTypes(): { value: string; label: string }[] {
     return [
       { value: 'all', label: 'All Changes' },
-      ...this.metadata.entityTypes.map(t => ({ value: t, label: getAuditEntityLabel(t) })),
+      ...this.metadata().entityTypes.map(t => ({ value: t, label: getAuditEntityLabel(t) })),
     ];
   }
 
   get actionOptions(): { value: string; label: string }[] {
     return [
       { value: 'all', label: 'All Actions' },
-      ...this.metadata.actions.map(a => ({ value: a, label: getAuditActionLabel(a) })),
+      ...this.metadata().actions.map(a => ({ value: a, label: getAuditActionLabel(a) })),
     ];
   }
 
@@ -121,14 +121,16 @@ export class AuditHistoryComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   /** Resolve an admin/user id to a name for the diff table. Null when we do not know them. */
-  private resolveAdminName = (id: number): string | null => this.adminNames.get(id) ?? null;
+  private resolveAdminName = (id: number): string | null => this.adminNames().get(id) ?? null;
 
   ngAfterViewInit() {
     this.initializeStickyHeader();
   }
 
   private initializeStickyHeader() {
-    if (!this.tableWrapper || !this.tableHeader) {
+    const tableWrapper = this.tableWrapper();
+    const tableHeader = this.tableHeader();
+    if (!tableWrapper || !tableHeader) {
       if (this.initializationRetries < this.maxRetries) {
         this.initializationRetries++;
         setTimeout(() => {
@@ -138,7 +140,7 @@ export class AuditHistoryComponent implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
     
-    if (!this.tableWrapper.nativeElement || !this.tableHeader.nativeElement) {
+    if (!tableWrapper.nativeElement || !tableHeader.nativeElement) {
       if (this.initializationRetries < this.maxRetries) {
         this.initializationRetries++;
         setTimeout(() => {
@@ -156,8 +158,9 @@ export class AuditHistoryComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this.scrollListener) {
       window.removeEventListener('scroll', this.scrollListener, true);
     }
-    if (this.horizontalScrollListener && this.tableWrapper) {
-      const wrapperEl = this.tableWrapper.nativeElement;
+    const tableWrapper = this.tableWrapper();
+    if (this.horizontalScrollListener && tableWrapper) {
+      const wrapperEl = tableWrapper.nativeElement;
       wrapperEl.removeEventListener('scroll', this.horizontalScrollListener);
       wrapperEl.removeEventListener('touchmove', this.horizontalScrollListener);
       wrapperEl.removeEventListener('wheel', this.horizontalScrollListener);
@@ -174,7 +177,8 @@ export class AuditHistoryComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private setupStickyHeader() {
-    if (!this.tableWrapper || !this.tableHeader) {
+    const tableWrapper = this.tableWrapper();
+    if (!tableWrapper || !this.tableHeader()) {
       return;
     }
 
@@ -192,7 +196,7 @@ export class AuditHistoryComponent implements OnInit, AfterViewInit, OnDestroy {
     this.horizontalScrollListener = () => {
       this.syncHorizontalScroll();
     };
-    const wrapperEl = this.tableWrapper.nativeElement;
+    const wrapperEl = tableWrapper.nativeElement;
     wrapperEl.addEventListener('scroll', this.horizontalScrollListener, { passive: true });
     wrapperEl.addEventListener('touchmove', this.horizontalScrollListener, { passive: true });
     wrapperEl.addEventListener('wheel', this.horizontalScrollListener, { passive: true });
@@ -202,12 +206,14 @@ export class AuditHistoryComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private updateStickyHeader() {
-    if (!this.tableWrapper || !this.tableHeader) {
+    const tableWrapper = this.tableWrapper();
+    const tableHeader = this.tableHeader();
+    if (!tableWrapper || !tableHeader) {
       return;
     }
 
-    const wrapper = this.tableWrapper.nativeElement;
-    const header = this.tableHeader.nativeElement;
+    const wrapper = tableWrapper.nativeElement;
+    const header = tableHeader.nativeElement;
     const rect = wrapper.getBoundingClientRect();
     const offset = this.headerStickyOffset;
     
@@ -349,12 +355,14 @@ export class AuditHistoryComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private syncHorizontalScroll() {
-    if (!this.tableWrapper || !this.tableHeader) {
+    const tableWrapper = this.tableWrapper();
+    const tableHeader = this.tableHeader();
+    if (!tableWrapper || !tableHeader) {
       return;
     }
 
-    const wrapper = this.tableWrapper.nativeElement;
-    const header = this.tableHeader.nativeElement;
+    const wrapper = tableWrapper.nativeElement;
+    const header = tableHeader.nativeElement;
     
     // Sync horizontal scroll position by translating the header
     // Only sync if header is currently fixed/sticky
@@ -382,14 +390,14 @@ export class AuditHistoryComponent implements OnInit, AfterViewInit, OnDestroy {
   loadUserPermissions() {
     this.adminService.getUserPermissions().subscribe({
       next: (response) => {
-        this.userRole = response.role;
+        this.userRole.set(response.role);
         this.userPermissions = response;
         this.loadMetadata();
         this.loadRecentLogs();
       },
       error: (error) => {
         console.error('Error loading permissions:', error);
-        this.errorMessage = 'Failed to load permissions. Please try again.';
+        this.errorMessage.set('Failed to load permissions. Please try again.');
       }
     });
   }
@@ -399,35 +407,35 @@ export class AuditHistoryComponent implements OnInit, AfterViewInit, OnDestroy {
    * are all query parameters — nothing is filtered in the browser any more.
    */
   loadRecentLogs() {
-    this.isLoading = true;
-    this.errorMessage = '';
+    this.isLoading.set(true);
+    this.errorMessage.set('');
 
-    const hasRange = !!this.fromDate || !!this.toDate;
+    const hasRange = !!this.fromDate() || !!this.toDate();
 
     this.adminService.getAuditLogs({
       // An explicit range wins over the dropdown; sending both would let the narrower one silently
       // clip the range the admin actually picked.
-      days: hasRange ? undefined : this.selectedDays,
-      from: this.fromDate || undefined,
-      to: this.toDate || undefined,
-      entityType: this.selectedEntityType === 'all' ? undefined : this.selectedEntityType,
-      action: this.selectedAction === 'all' ? undefined : this.selectedAction,
-      changedByUserId: this.selectedAdminId === 'all' ? undefined : Number(this.selectedAdminId),
-      search: this.searchTerm.trim() || undefined,
-      page: this.currentPage,
+      days: hasRange ? undefined : this.selectedDays(),
+      from: this.fromDate() || undefined,
+      to: this.toDate() || undefined,
+      entityType: this.selectedEntityType() === 'all' ? undefined : this.selectedEntityType(),
+      action: this.selectedAction() === 'all' ? undefined : this.selectedAction(),
+      changedByUserId: this.selectedAdminId() === 'all' ? undefined : Number(this.selectedAdminId()),
+      search: this.searchTerm().trim() || undefined,
+      page: this.currentPage(),
       pageSize: this.itemsPerPage,
     }).subscribe({
       next: (page) => {
-        this.auditLogs = this.processAuditLogs(page?.items ?? []);
-        this.totalCount = page?.totalCount ?? 0;
-        this.totalPages = Math.max(1, page?.totalPages ?? 1);
+        this.auditLogs.set(this.processAuditLogs(page?.items ?? []));
+        this.totalCount.set(page?.totalCount ?? 0);
+        this.totalPages.set(Math.max(1, page?.totalPages ?? 1));
         // A filter change can leave the current page past the end of a shorter result set.
-        if (this.currentPage > this.totalPages) {
-          this.currentPage = this.totalPages;
+        if (this.currentPage() > this.totalPages()) {
+          this.currentPage.set(this.totalPages());
           this.loadRecentLogs();
           return;
         }
-        this.isLoading = false;
+        this.isLoading.set(false);
         setTimeout(() => {
           if (!this.stickyHeaderInitialized) {
             this.initializeStickyHeader();
@@ -437,8 +445,8 @@ export class AuditHistoryComponent implements OnInit, AfterViewInit, OnDestroy {
         }, 150);
       },
       error: () => {
-        this.errorMessage = 'Failed to load audit logs';
-        this.isLoading = false;
+        this.errorMessage.set('Failed to load audit logs');
+        this.isLoading.set(false);
       }
     });
   }
@@ -447,8 +455,8 @@ export class AuditHistoryComponent implements OnInit, AfterViewInit, OnDestroy {
   private loadMetadata() {
     this.adminService.getAuditMetadata(180).subscribe({
       next: (meta) => {
-        this.metadata = meta ?? this.metadata;
-        this.adminNames = new Map((meta?.admins ?? []).map(a => [a.id, a.name || a.email]));
+        this.metadata.set(meta ?? this.metadata());
+        this.adminNames.set(new Map((meta?.admins ?? []).map(a => [a.id, a.name || a.email])));
       },
       // A missing metadata response costs the dropdowns their options, not the page — the feed
       // itself still renders, so this must not surface as an error banner.
@@ -459,7 +467,7 @@ export class AuditHistoryComponent implements OnInit, AfterViewInit, OnDestroy {
   /** Any filter other than the page: reset to page 1, because page 5 of the old result set is
    *  meaningless against the new one. */
   onFilterChange() {
-    this.currentPage = 1;
+    this.currentPage.set(1);
     this.loadRecentLogs();
   }
 
@@ -470,34 +478,30 @@ export class AuditHistoryComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   /** Picking an explicit range makes the days dropdown meaningless, so it is visibly disabled. */
-  get hasExplicitDateRange(): boolean {
-    return !!this.fromDate || !!this.toDate;
-  }
+  readonly hasExplicitDateRange = computed<boolean>(() => !!this.fromDate() || !!this.toDate());
 
   clearDateRange() {
-    this.fromDate = '';
-    this.toDate = '';
+    this.fromDate.set('');
+    this.toDate.set('');
     this.onFilterChange();
   }
 
   clearAllFilters() {
-    this.selectedEntityType = 'all';
-    this.selectedAction = 'all';
-    this.selectedAdminId = 'all';
-    this.selectedDays = 180;
-    this.searchTerm = '';
-    this.fromDate = '';
-    this.toDate = '';
+    this.selectedEntityType.set('all');
+    this.selectedAction.set('all');
+    this.selectedAdminId.set('all');
+    this.selectedDays.set(180);
+    this.searchTerm.set('');
+    this.fromDate.set('');
+    this.toDate.set('');
     this.onFilterChange();
   }
 
-  get hasActiveFilters(): boolean {
-    return this.selectedEntityType !== 'all'
-        || this.selectedAction !== 'all'
-        || this.selectedAdminId !== 'all'
-        || !!this.searchTerm.trim()
-        || this.hasExplicitDateRange;
-  }
+  readonly hasActiveFilters = computed<boolean>(() => this.selectedEntityType() !== 'all'
+        || this.selectedAction() !== 'all'
+        || this.selectedAdminId() !== 'all'
+        || !!this.searchTerm().trim()
+        || this.hasExplicitDateRange());
 
   /**
    * Readable name for a changed field.
@@ -739,15 +743,15 @@ export class AuditHistoryComponent implements OnInit, AfterViewInit, OnDestroy {
    * assigns nothing.
    */
   get filteredLogs(): any[] {
-    return this.auditLogs;
+    return this.auditLogs();
   }
 
   /** "Showing 21–40 of 512" — a page count means nothing without the total behind it. */
   get pageRangeLabel(): string {
-    if (this.totalCount === 0) return 'No changes found';
-    const first = (this.currentPage - 1) * this.itemsPerPage + 1;
-    const last = Math.min(this.currentPage * this.itemsPerPage, this.totalCount);
-    return `Showing ${first}–${last} of ${this.totalCount}`;
+    if (this.totalCount() === 0) return 'No changes found';
+    const first = (this.currentPage() - 1) * this.itemsPerPage + 1;
+    const last = Math.min(this.currentPage() * this.itemsPerPage, this.totalCount());
+    return `Showing ${first}–${last} of ${this.totalCount()}`;
   }
 
   formatDate(date: any): string {
@@ -898,7 +902,7 @@ export class AuditHistoryComponent implements OnInit, AfterViewInit, OnDestroy {
   getFieldDisplayValue(value: any, fieldName?: string): string {
     // Gift card codes stay masked for anyone below SuperAdmin — a permission rule, not
     // formatting, so it is decided here rather than in the shared module.
-    if (fieldName === 'Code' && this.userRole !== 'SuperAdmin' && typeof value === 'string') {
+    if (fieldName === 'Code' && this.userRole() !== 'SuperAdmin' && typeof value === 'string') {
       return '*'.repeat(value.length);
     }
 
@@ -1038,35 +1042,35 @@ export class AuditHistoryComponent implements OnInit, AfterViewInit, OnDestroy {
 
   // Pagination. Each move refetches — the browser only ever holds one page.
   previousPage() {
-    if (this.currentPage > 1) {
-      this.currentPage--;
+    if (this.currentPage() > 1) {
+      this.currentPage.update(v => v - 1);
       this.loadRecentLogs();
     }
   }
 
   nextPage() {
-    if (this.currentPage < this.totalPages) {
-      this.currentPage++;
+    if (this.currentPage() < this.totalPages()) {
+      this.currentPage.update(v => v + 1);
       this.loadRecentLogs();
     }
   }
 
   goToPage(page: number) {
-    if (page >= 1 && page <= this.totalPages && page !== this.currentPage) {
-      this.currentPage = page;
+    if (page >= 1 && page <= this.totalPages() && page !== this.currentPage()) {
+      this.currentPage.set(page);
       this.loadRecentLogs();
     }
   }
 
   clearMessages() {
-    this.errorMessage = '';
+    this.errorMessage.set('');
   }
 
   viewLogDetails(logId: number) {
-    if (this.viewingLogId === logId) {
-      this.viewingLogId = null;
+    if (this.viewingLogId() === logId) {
+      this.viewingLogId.set(null);
     } else {
-      this.viewingLogId = logId;
+      this.viewingLogId.set(logId);
     }
   }
 
@@ -1115,46 +1119,50 @@ export class AuditHistoryComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   // Pending state per row keeps two undo buttons in different rows independent.
-  undoingLogIds = new Set<number>();
-  successMessage = '';
+  readonly undoingLogIds = signal(new Set<number>(), { equal: () => false });
+  readonly successMessage = signal('');
 
   undoLog(log: AuditLog, event?: Event) {
     event?.stopPropagation();
-    if (this.undoingLogIds.has(log.id)) return;
-    this.undoingLogIds.add(log.id);
-    this.errorMessage = '';
-    this.successMessage = '';
+    if (this.undoingLogIds().has(log.id)) return;
+    this.undoingLogIds().add(log.id);
+    this.undoingLogIds.set(this.undoingLogIds());
+    this.errorMessage.set('');
+    this.successMessage.set('');
     this.adminService.undoAuditLog(log.id).subscribe({
       next: () => {
         log.undoneAt = new Date();
-        this.successMessage = `Change #${log.id} undone.`;
-        setTimeout(() => { this.successMessage = ''; }, 4000);
+        this.successMessage.set(`Change #${log.id} undone.`);
+        setTimeout(() => { this.successMessage.set(''); }, 4000);
       },
       error: (err) => {
-        this.errorMessage = err.error?.message || 'Failed to undo change.';
-        setTimeout(() => { this.errorMessage = ''; }, 5000);
+        this.errorMessage.set(err.error?.message || 'Failed to undo change.');
+        setTimeout(() => { this.errorMessage.set(''); }, 5000);
       },
-      complete: () => { this.undoingLogIds.delete(log.id); }
+      complete: () => { this.undoingLogIds().delete(log.id);
+      this.undoingLogIds.set(this.undoingLogIds()); }
     });
   }
 
   redoLog(log: AuditLog, event?: Event) {
     event?.stopPropagation();
-    if (this.undoingLogIds.has(log.id)) return;
-    this.undoingLogIds.add(log.id);
-    this.errorMessage = '';
-    this.successMessage = '';
+    if (this.undoingLogIds().has(log.id)) return;
+    this.undoingLogIds().add(log.id);
+    this.undoingLogIds.set(this.undoingLogIds());
+    this.errorMessage.set('');
+    this.successMessage.set('');
     this.adminService.redoAuditLog(log.id).subscribe({
       next: () => {
         log.undoneAt = null;
-        this.successMessage = `Change #${log.id} redone.`;
-        setTimeout(() => { this.successMessage = ''; }, 4000);
+        this.successMessage.set(`Change #${log.id} redone.`);
+        setTimeout(() => { this.successMessage.set(''); }, 4000);
       },
       error: (err) => {
-        this.errorMessage = err.error?.message || 'Failed to redo change.';
-        setTimeout(() => { this.errorMessage = ''; }, 5000);
+        this.errorMessage.set(err.error?.message || 'Failed to redo change.');
+        setTimeout(() => { this.errorMessage.set(''); }, 5000);
       },
-      complete: () => { this.undoingLogIds.delete(log.id); }
+      complete: () => { this.undoingLogIds().delete(log.id);
+      this.undoingLogIds.set(this.undoingLogIds()); }
     });
   }
 
@@ -1162,15 +1170,15 @@ export class AuditHistoryComponent implements OnInit, AfterViewInit, OnDestroy {
     const pages: number[] = [];
     const maxVisiblePages = 3;
 
-    if (this.totalPages <= 5) {
-      for (let i = 2; i < this.totalPages; i++) {
+    if (this.totalPages() <= 5) {
+      for (let i = 2; i < this.totalPages(); i++) {
         pages.push(i);
       }
     } else {
-      let start = Math.max(2, this.currentPage - 1);
-      let end = Math.min(this.totalPages - 1, start + maxVisiblePages - 1);
+      let start = Math.max(2, this.currentPage() - 1);
+      let end = Math.min(this.totalPages() - 1, start + maxVisiblePages - 1);
 
-      if (end === this.totalPages - 1) {
+      if (end === this.totalPages() - 1) {
         start = Math.max(2, end - maxVisiblePages + 1);
       }
 

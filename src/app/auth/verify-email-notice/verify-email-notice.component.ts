@@ -2,6 +2,7 @@ import { Component, ChangeDetectionStrategy, inject, signal } from '@angular/cor
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { RouterLink, Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
+import { formViewRefresher } from '../../shared/forms/form-view-refresher';
 
 @Component({
   selector: 'app-verify-email-notice',
@@ -12,6 +13,8 @@ import { AuthService } from '../../services/auth.service';
   styleUrls: ['./verify-email-notice.component.scss']
 })
 export class VerifyEmailNoticeComponent {
+  /** Re-renders when a form changes outside a template event (see form-view-refresher). */
+  private readonly watchForm = formViewRefresher();
   private fb = inject(FormBuilder);
   private authService = inject(AuthService);
   private router = inject(Router);
@@ -30,6 +33,7 @@ export class VerifyEmailNoticeComponent {
     this.otpForm = this.fb.group({
       code: ['', [Validators.required, Validators.minLength(6), Validators.maxLength(6), Validators.pattern(/^\d{6}$/)]]
     });
+    this.watchForm(this.otpForm);
   }
 
   onOtpSubmit() {

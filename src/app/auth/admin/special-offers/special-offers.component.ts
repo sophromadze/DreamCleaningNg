@@ -1,22 +1,25 @@
 // src/app/auth/admin/special-offers/special-offers.component.ts
 
-import { Component, OnInit, AfterViewInit, OnDestroy, ElementRef, HostListener, ChangeDetectionStrategy, inject, viewChild } from '@angular/core';
+import { Component, OnInit, AfterViewInit, OnDestroy, ElementRef, HostListener, ChangeDetectionStrategy, inject, viewChild, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { SpecialOfferService, SpecialOffer, CreateSpecialOffer, UpdateSpecialOffer, OfferType } from '../../../services/special-offer.service';
 import { AuthService } from '../../../services/auth.service';
 import { FIRST_TIME_OFFER_KEY, offerKeyOf } from '../../../shared/booking/special-offer-keys';
 import { readableLabelColor } from '../../../shared/admin/readable-label-color';
+import { formViewRefresher } from '../../../shared/forms/form-view-refresher';
 
 @Component({
   selector: 'app-special-offers',
   standalone: true,
   imports: [CommonModule, FormsModule, ReactiveFormsModule],
   templateUrl: './special-offers.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./special-offers.component.scss']
 })
 export class SpecialOffersComponent implements OnInit, AfterViewInit, OnDestroy {
+  /** Re-renders when a form changes outside a template event (see form-view-refresher). */
+  private readonly watchForm = formViewRefresher();
   private specialOfferService = inject(SpecialOfferService);
   private authService = inject(AuthService);
   private fb = inject(FormBuilder);
@@ -24,10 +27,10 @@ export class SpecialOffersComponent implements OnInit, AfterViewInit, OnDestroy 
   readonly tableWrapper = viewChild<ElementRef<HTMLDivElement>>('tableWrapper');
   readonly tableHeader = viewChild<ElementRef<HTMLTableSectionElement>>('tableHeader');
   
-  specialOffers: SpecialOffer[] = [];
-  isLoading = false;
-  errorMessage = '';
-  successMessage = '';
+  readonly specialOffers = signal<SpecialOffer[]>([]);
+  readonly isLoading = signal(false);
+  readonly errorMessage = signal('');
+  readonly successMessage = signal('');
   
   // Sticky header management
   private scrollListener?: () => void;
@@ -43,11 +46,11 @@ export class SpecialOffersComponent implements OnInit, AfterViewInit, OnDestroy 
     return 80;
   }
   
-  showCreateForm = false;
-  editingOfferId: number | null = null;
+  readonly showCreateForm = signal(false);
+  readonly editingOfferId = signal<number | null>(null);
   specialOfferForm!: FormGroup;
 
-  editingOfferType: { [key: number]: number } = {};
+  readonly editingOfferType = signal<{ [key: number]: number }>({}, { equal: () => false });
   
   offerTypes = [
     { value: OfferType.FirstTime, label: 'New Registered Users' },
@@ -57,10 +60,10 @@ export class SpecialOffersComponent implements OnInit, AfterViewInit, OnDestroy 
   ];
 
   // Permissions
-  userRole: string = '';
-  canCreate = false;
-  canUpdate = false;
-  canDelete = false;
+  readonly userRole = signal<string>('');
+  readonly canCreate = signal(false);
+  readonly canUpdate = signal(false);
+  readonly canDelete = signal(false);
 
   constructor() {
     this.initializeForm();
@@ -331,6 +334,7 @@ export class SpecialOffersComponent implements OnInit, AfterViewInit, OnDestroy 
       icon: [''],
       badgeColor: ['#28a745']
     });
+    this.watchForm(this.specialOfferForm);
 
     // Add validator for percentage discount
     this.specialOfferForm.get('discountValue')?.valueChanges.subscribe(() => {
@@ -353,18 +357,16 @@ export class SpecialOffersComponent implements OnInit, AfterViewInit, OnDestroy 
 
   setUserPermissions() {
     const currentUser = this.authService.currentUserValue;
-    this.userRole = currentUser?.role || '';
+    this.userRole.set(currentUser?.role || '');
     
     // Only Admin and SuperAdmin can manage special offers
-    this.canCreate = this.userRole === 'Admin' || this.userRole === 'SuperAdmin';
-    this.canUpdate = this.userRole === 'Admin' || this.userRole === 'SuperAdmin';
-    this.canDelete = this.userRole === 'SuperAdmin'; // Only SuperAdmin can delete
+    this.canCreate.set(this.userRole() === 'Admin' || this.userRole() === 'SuperAdmin');
+    this.canUpdate.set(this.userRole() === 'Admin' || this.userRole() === 'SuperAdmin');
+    this.canDelete.set(this.userRole() === 'SuperAdmin'); // Only SuperAdmin can delete
   }
 
   /** The offer key is SuperAdmin-only (the API refuses anyone else's change). */
-  get canEditOfferKey(): boolean {
-    return this.userRole === 'SuperAdmin';
-  }
+  readonly canEditOfferKey = computed<boolean>(() => this.userRole() === 'SuperAdmin');
 
   /** Blank means "no key" - sent as null, which the API stores as NULL. */
   private normalizedOfferKey(raw: string | null | undefined): string | null {
@@ -373,11 +375,11 @@ export class SpecialOffersComponent implements OnInit, AfterViewInit, OnDestroy 
   }
 
   loadSpecialOffers() {
-    this.isLoading = true;
+    this.isLoading.set(true);
     this.specialOfferService.getAllSpecialOffers().subscribe({
       next: (offers) => {
-        this.specialOffers = offers;
-        this.isLoading = false;
+        this.specialOffers.set(offers);
+        this.isLoading.set(false);
         setTimeout(() => {
           if (!this.stickyHeaderInitialized) {
             this.initializeStickyHeader();
@@ -389,16 +391,16 @@ export class SpecialOffersComponent implements OnInit, AfterViewInit, OnDestroy 
       },
       error: (error) => {
         console.error('Error loading special offers:', error);
-        this.errorMessage = error.error?.message || 'Failed to load special offers';
-        this.isLoading = false;
+        this.errorMessage.set(error.error?.message || 'Failed to load special offers');
+        this.isLoading.set(false);
       }
     });
   }
 
   clearMessages() {
     setTimeout(() => {
-      this.successMessage = '';
-      this.errorMessage = '';
+      this.successMessage.set('');
+      this.errorMessage.set('');
     }, 5000);
   }
 
@@ -414,8 +416,8 @@ export class SpecialOffersComponent implements OnInit, AfterViewInit, OnDestroy 
   }
 
   showCreateOfferForm() {
-    this.showCreateForm = true;
-    this.editingOfferId = null;
+    this.showCreateForm.set(true);
+    this.editingOfferId.set(null);
     this.specialOfferForm.reset({
       isPercentage: true,
       discountValue: 20,
@@ -430,13 +432,14 @@ export class SpecialOffersComponent implements OnInit, AfterViewInit, OnDestroy 
   }
 
   editOffer(offer: SpecialOffer) {
-    this.editingOfferId = offer.id;
-    this.showCreateForm = false;
+    this.editingOfferId.set(offer.id);
+    this.showCreateForm.set(false);
     // The API sends "2026-05-01T00:00:00"; a date input shows only "yyyy-MM-dd".
     offer.validFrom = this.toDateInputValue(offer.validFrom) as any;
     offer.validTo = this.toDateInputValue(offer.validTo) as any;
     // Store the numeric type value
-    this.editingOfferType[offer.id] = this.getOfferTypeValue(offer.type);
+    this.editingOfferType()[offer.id] = this.getOfferTypeValue(offer.type);
+    this.editingOfferType.set(this.editingOfferType());
     
     // Ensure badge color has a valid value
     if (!offer.badgeColor || offer.badgeColor === '') {
@@ -469,18 +472,18 @@ export class SpecialOffersComponent implements OnInit, AfterViewInit, OnDestroy 
   }
 
   saveOffer() {
-    if (this.editingOfferId) {
+    if (this.editingOfferId()) {
       // Save inline edited offer
-      const offer = this.specialOffers.find(o => o.id === this.editingOfferId);
+      const offer = this.specialOffers().find(o => o.id === this.editingOfferId());
       if (offer) {
-        this.isLoading = true;
+        this.isLoading.set(true);
         
         const updateData: UpdateSpecialOffer = {
           name: offer.name,
           description: offer.description,
           isPercentage: offer.isPercentage,
           discountValue: offer.discountValue,
-          type: this.editingOfferType[offer.id],
+          type: this.editingOfferType()[offer.id],
           // Sent as the "yyyy-MM-dd" the date input holds. Re-parsing it with new Date() read it as
           // local time and serialized it as UTC, so every save moved the date by the UTC offset.
           validFrom: (this.toDateInputValue(offer.validFrom) ?? undefined) as any,
@@ -492,20 +495,20 @@ export class SpecialOffersComponent implements OnInit, AfterViewInit, OnDestroy 
           isActive: offer.isActive
         };
         // Only a SuperAdmin sends the key; leaving it out keeps the stored one.
-        if (this.canEditOfferKey) {
+        if (this.canEditOfferKey()) {
           updateData.offerKey = this.normalizedOfferKey(offer.offerKey);
         }
 
         this.specialOfferService.updateSpecialOffer(offer.id, updateData).subscribe({
           next: () => {
-            this.successMessage = 'Special offer updated successfully';
-            this.editingOfferId = null;
+            this.successMessage.set('Special offer updated successfully');
+            this.editingOfferId.set(null);
             this.loadSpecialOffers();
-            this.isLoading = false;
+            this.isLoading.set(false);
           },
           error: (error) => {
-            this.errorMessage = error.error?.message || 'Failed to update special offer';
-            this.isLoading = false;
+            this.errorMessage.set(error.error?.message || 'Failed to update special offer');
+            this.isLoading.set(false);
           }
         });
       }
@@ -516,26 +519,26 @@ export class SpecialOffersComponent implements OnInit, AfterViewInit, OnDestroy 
         return;
       }
 
-      this.isLoading = true;
+      this.isLoading.set(true);
       const formValue = this.specialOfferForm.value;
 
       // Create new offer
       const createData: CreateSpecialOffer = {
         ...formValue,
         type: formValue.type,
-        offerKey: this.canEditOfferKey ? this.normalizedOfferKey(formValue.offerKey) : null
+        offerKey: this.canEditOfferKey() ? this.normalizedOfferKey(formValue.offerKey) : null
       };
 
       this.specialOfferService.createSpecialOffer(createData).subscribe({
         next: () => {
-          this.successMessage = 'Special offer created successfully';
-          this.showCreateForm = false;
+          this.successMessage.set('Special offer created successfully');
+          this.showCreateForm.set(false);
           this.loadSpecialOffers();
-          this.isLoading = false;
+          this.isLoading.set(false);
         },
         error: (error) => {
-          this.errorMessage = error.error?.message || 'Failed to create special offer';
-          this.isLoading = false;
+          this.errorMessage.set(error.error?.message || 'Failed to create special offer');
+          this.isLoading.set(false);
         }
       });
     }
@@ -553,15 +556,15 @@ export class SpecialOffersComponent implements OnInit, AfterViewInit, OnDestroy 
   }
 
   cancelEdit() {
-    this.showCreateForm = false;
-    this.editingOfferId = null;
+    this.showCreateForm.set(false);
+    this.editingOfferId.set(null);
     this.specialOfferForm.reset();
     this.specialOfferForm.get('type')?.enable();
   }
 
   deleteOffer(offer: SpecialOffer) {
     if (this.isProtectedFirstTimeOffer(offer)) {
-      this.errorMessage = 'Cannot delete the first-time customer discount';
+      this.errorMessage.set('Cannot delete the first-time customer discount');
       return;
     }
 
@@ -571,11 +574,11 @@ export class SpecialOffersComponent implements OnInit, AfterViewInit, OnDestroy 
 
     this.specialOfferService.deleteSpecialOffer(offer.id).subscribe({
       next: () => {
-        this.successMessage = 'Special offer deleted successfully';
+        this.successMessage.set('Special offer deleted successfully');
         this.loadSpecialOffers();
       },
       error: (error) => {
-        this.errorMessage = error.error?.message || 'Failed to delete special offer';
+        this.errorMessage.set(error.error?.message || 'Failed to delete special offer');
       }
     });
   }
@@ -592,11 +595,11 @@ export class SpecialOffersComponent implements OnInit, AfterViewInit, OnDestroy 
   
     serviceCall.subscribe({
       next: (response) => {
-        this.successMessage = response.message;
+        this.successMessage.set(response.message);
         this.loadSpecialOffers();
       },
       error: (error) => {
-        this.errorMessage = error.error?.message || `Failed to ${action} special offer`;
+        this.errorMessage.set(error.error?.message || `Failed to ${action} special offer`);
       }
     });
   }
@@ -624,8 +627,8 @@ export class SpecialOffersComponent implements OnInit, AfterViewInit, OnDestroy 
   }
 
   isEditingFirstTimeOffer(): boolean {
-    if (!this.editingOfferId) return false;
-    const offer = this.specialOffers.find(o => o.id === this.editingOfferId);
+    if (!this.editingOfferId()) return false;
+    const offer = this.specialOffers().find(o => o.id === this.editingOfferId());
     return offer ? this.isFirstTimeOffer(offer) : false;
   }
 

@@ -38,9 +38,11 @@ describe('BookingServicesComponent', () => {
 
     beforeEach(() => {
       admin = TestBed.inject(AdminService);
-      component.userPermissions.permissions.canUpdate = true;
-      component.userPermissions.permissions.canCreate = true;
-      component.selectedServiceType = { id: 1, name: 'Residential', extraServices: [] } as unknown as ServiceType;
+      component.userPermissions().permissions.canUpdate = true;
+      component.userPermissions.set(component.userPermissions());
+      component.userPermissions().permissions.canCreate = true;
+      component.userPermissions.set(component.userPermissions());
+      component.selectedServiceType.set({ id: 1, name: 'Residential', extraServices: [] } as unknown as ServiceType);
       vi.spyOn(component, 'loadServiceTypes').mockImplementation(() => {});
     });
 
@@ -59,23 +61,26 @@ describe('BookingServicesComponent', () => {
       })));
       vi.spyOn(console, 'error').mockReturnValue(undefined);
       component.saveExtraService(extra({ extraServiceKey: 'Vacuum' }));
-      expect(component.extraServiceMessage.error).toContain('must be lowercase');
+      expect(component.extraServiceMessage().error).toContain('must be lowercase');
     });
 
     it('sends the key when creating', () => {
       const create = vi.spyOn(admin, 'createExtraService').mockReturnValue(of(extra({ id: 9 })));
-      component.newExtraService.name = 'Oven';
-      component.newExtraService.extraServiceKey = 'oven';
+      component.newExtraService().name = 'Oven';
+      component.newExtraService.set(component.newExtraService());
+      component.newExtraService().extraServiceKey = 'oven';
+      component.newExtraService.set(component.newExtraService());
       component.addExtraService();
       expect(vi.mocked(create).mock.lastCall![0].extraServiceKey).toBe('oven');
     });
 
     it('offers a copy only of extras the type does not already have, by key first', () => {
-      component.selectedServiceType!.extraServices = [extra({ id: 15, name: 'Extra Cleaners', extraServiceKey: 'extra-cleaners' })];
-      component.allExtraServices = [
+      component.selectedServiceType()!.extraServices = [extra({ id: 15, name: 'Extra Cleaners', extraServiceKey: 'extra-cleaners' })];
+      component.selectedServiceType.set(component.selectedServiceType());
+      component.allExtraServices.set([
         extra({ id: 34, name: 'Additional Cleaners', extraServiceKey: 'extra-cleaners' }), // same extra, renamed copy
         extra({ id: 36, name: 'Pets', extraServiceKey: 'pets' })
-      ];
+      ]);
       expect(component.getAvailableExtraServicesForCopy().map(e => e.id)).toEqual([36]);
     });
   });

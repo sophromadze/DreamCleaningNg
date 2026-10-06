@@ -32,38 +32,38 @@ describe('Recurring and commercial refinement', () => {
 
   function form(): InvoiceFormComponent {
     const component = TestBed.runInInjectionContext(() => new InvoiceFormComponent());
-    component.existing = invoice();
-    component.lines = [{ description: 'Cleaning', quantity: 1, unitPrice: 925.43 }];
-    component.taxType = InvoiceTaxType.Included; component.taxRate = 8.875;
-    component.discountType = InvoiceDiscountType.None;
+    component.existing.set(invoice());
+    component.lines.set([{ description: 'Cleaning', quantity: 1, unitPrice: 925.43 }]);
+    component.taxType.set(InvoiceTaxType.Included); component.taxRate.set(8.875);
+    component.discountType.set(InvoiceDiscountType.None);
     return component;
   }
 
   it('keeps cloned price until an explicit choice and acknowledges only its warning', () => {
     const c = form(); expect(c.totals.total).toBe(925.43);
-    c.chooseDrift(c.existing!.draftWarnings[0], false);
+    c.chooseDrift(c.existing()!.draftWarnings[0], false);
     expect(c.totals.total).toBe(925.43);
-    expect(c.existing!.draftWarnings).toEqual(['Current contract tax rate differs.']);
+    expect(c.existing()!.draftWarnings).toEqual(['Current contract tax rate differs.']);
     expect(c.driftChoices).toEqual(['KeepPrice']);
   });
 
   it('uses current contract pricing only on request without saving or sending', () => {
     const c = form(); vi.spyOn(c, 'saveDraft').mockReturnValue(undefined);
-    c.chooseDrift(c.existing!.draftWarnings[0], true);
-    expect(c.totals.total).toBe(1000); expect(c.taxRate).toBe(8.875);
+    c.chooseDrift(c.existing()!.draftWarnings[0], true);
+    expect(c.totals.total).toBe(1000); expect(c.taxRate()).toBe(8.875);
     expect(c.driftChoices).toEqual(['CurrentPrice']); expect(c.saveDraft).not.toHaveBeenCalled();
   });
 
   it('keeps cloned tax unchanged when acknowledged', () => {
-    const c = form(); c.chooseDrift(c.existing!.draftWarnings[1], false);
-    expect(c.taxRate).toBe(8.875); expect(c.totals.taxAmount).toBe(75.44);
+    const c = form(); c.chooseDrift(c.existing()!.draftWarnings[1], false);
+    expect(c.taxRate()).toBe(8.875); expect(c.totals.taxAmount).toBe(75.44);
     expect(c.driftChoices).toEqual(['KeepTax']);
-    expect(c.existing!.draftWarnings).toEqual(['Current contract pricing differs.']);
+    expect(c.existing()!.draftWarnings).toEqual(['Current contract pricing differs.']);
   });
 
   it('uses current contract tax and preserves a tax-inclusive total exactly', () => {
-    const c = form(); c.chooseDrift(c.existing!.draftWarnings[1], true);
-    expect(c.taxRate).toBe(9); expect(c.totals.total).toBe(925.43);
+    const c = form(); c.chooseDrift(c.existing()!.draftWarnings[1], true);
+    expect(c.taxRate()).toBe(9); expect(c.totals.total).toBe(925.43);
     expect(c.totals.taxAmount).toBe(76.41);
     expect(c.totals.total - c.totals.taxAmount).toBeCloseTo(849.02, 2);
     expect(c.driftChoices).toEqual(['CurrentTax']);
@@ -90,28 +90,28 @@ describe('Recurring and commercial refinement', () => {
   });
 
   it('excludes business accounts from Customers while preserving the staff scope', () => {
-    const c = Object.create(UserManagementComponent.prototype) as any;
+    const host = TestBed.createComponent(UserManagementComponent); const c = host.componentInstance as any;
     // #5 is the "Move to Customers" case: the business flag is off and the linked client was
     // deactivated rather than deleted, so the account belongs back under Customers. It used to
     // vanish from every tab, because the old flag only asked whether a client row existed.
-    c.users = [{ id: 1, role: 'Customer' },
+    c.users.set([{ id: 1, role: 'Customer' },
                { id: 2, role: 'Customer', isBusiness: true, hasActiveBusinessClient: true },
                { id: 3, role: 'Admin' },
                { id: 4, role: 'Customer', hasActiveBusinessClient: true },
-               { id: 5, role: 'Customer', isBusiness: false, hasActiveBusinessClient: false }];
-    c.scope = 'customers'; expect(c.scopedUsers.map((u: any) => u.id)).toEqual([1, 5]);
-    c.scope = 'staff'; expect(c.scopedUsers.map((u: any) => u.id)).toEqual([3]);
-    expect(c.users.length).toBe(5);
+               { id: 5, role: 'Customer', isBusiness: false, hasActiveBusinessClient: false }]);
+    host.componentRef.setInput('scope', 'customers'); expect(c.scopedUsers.map((u: any) => u.id)).toEqual([1, 5]);
+    host.componentRef.setInput('scope', 'staff'); expect(c.scopedUsers.map((u: any) => u.id)).toEqual([3]);
+    expect(c.users().length).toBe(5);
   });
 
   it('moves a row off Customers the moment the business flag is turned on', () => {
     // The tab membership the filter reads is the SERVER's hasActiveBusinessClient, so the
     // optimistic flag flip alone left the account sitting under Customers until the next full
     // list load - it looked as though the toggle had not taken.
-    const c = Object.create(UserManagementComponent.prototype) as any;
+    const host = TestBed.createComponent(UserManagementComponent); const c = host.componentInstance as any;
     const row = { id: 9, role: 'Customer', isBusiness: false, hasActiveBusinessClient: false };
-    c.users = [row]; c.scope = 'customers';
-    c.contractPermissions = { toggleBusinessFlag: true };
+    c.users.set([row]); host.componentRef.setInput('scope', 'customers');
+    c.contractPermissions.set({ toggleBusinessFlag: true });
 
     c.contractService = { setBusinessFlag: () => of({ isBusiness: true, message: 'Flagged.' }) };
     c.toggleBusinessFlag(row, true);
@@ -126,10 +126,10 @@ describe('Recurring and commercial refinement', () => {
   it('puts the row back on Customers when the flag change fails', () => {
     // The server refuses to unflag an account a live contract depends on. The optimistic removal
     // has to come back with the flag, or the customer is hidden by a change that never happened.
-    const c = Object.create(UserManagementComponent.prototype) as any;
+    const host = TestBed.createComponent(UserManagementComponent); const c = host.componentInstance as any;
     const row = { id: 9, role: 'Customer', isBusiness: false, hasActiveBusinessClient: false };
-    c.users = [row]; c.scope = 'customers';
-    c.contractPermissions = { toggleBusinessFlag: true };
+    c.users.set([row]); host.componentRef.setInput('scope', 'customers');
+    c.contractPermissions.set({ toggleBusinessFlag: true });
     c.contractService = { setBusinessFlag: () => throwError(() => ({ status: 400 })) };
 
     c.toggleBusinessFlag(row, true);
@@ -143,9 +143,9 @@ describe('Recurring and commercial refinement', () => {
     // The flag and the link are separate columns. If the flag outlives an active client - a
     // failed auto-create, a client deactivated by another route - Business Clients cannot show
     // the account (that list is active-only), so Customers must.
-    const c = Object.create(UserManagementComponent.prototype) as any;
-    c.users = [{ id: 7, role: 'Customer', isBusiness: true, hasActiveBusinessClient: false }];
-    c.scope = 'customers'; expect(c.scopedUsers.map((u: any) => u.id)).toEqual([7]);
+    const host = TestBed.createComponent(UserManagementComponent); const c = host.componentInstance as any;
+    c.users.set([{ id: 7, role: 'Customer', isBusiness: true, hasActiveBusinessClient: false }]);
+    host.componentRef.setInput('scope', 'customers'); expect(c.scopedUsers.map((u: any) => u.id)).toEqual([7]);
   });
 
   it('blocks recurring customer edits and cancellation but retains ordinary behavior', () => {
@@ -164,14 +164,16 @@ describe('Recurring and commercial refinement', () => {
     vi.spyOn(InvoiceDetailComponent.prototype, 'ngOnInit').mockImplementation(() => {});
     const fixture = TestBed.createComponent(InvoiceDetailComponent);
     const c = fixture.componentInstance;
-    c.loading = false; c.invoice = invoice();
-    c.invoice.cleaningsCovered = [{ orderId: 4, serviceDate: '2026-10-04', serviceAddress: '1579 Flatbush Ave.',
+    c.loading.set(false); c.invoice.set(invoice());
+    c.invoice()!.cleaningsCovered = [{ orderId: 4, serviceDate: '2026-10-04', serviceAddress: '1579 Flatbush Ave.',
       allocatedAmount: 875, orderStatus: 'Pending' } as any];
+    c.invoice.set(c.invoice());
     fixture.detectChanges();
     const text = fixture.nativeElement.textContent;
     expect(text).toContain('Cleanings Covered'); expect(text).toContain('1579 Flatbush Ave.');
     expect(text).toContain('$875.00'); expect(text).toContain('Order #4');
-    c.invoice.cleaningsCovered = []; fixture.detectChanges();
+    c.invoice()!.cleaningsCovered = [];
+    c.invoice.set(c.invoice()); fixture.detectChanges();
     expect(fixture.nativeElement.textContent).not.toContain('Cleanings Covered');
   });
 });

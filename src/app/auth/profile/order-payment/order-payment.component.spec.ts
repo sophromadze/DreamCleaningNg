@@ -119,8 +119,8 @@ describe('OrderPaymentComponent — consent gate', () => {
   it('blocks the payment intent on an admin-created order until consent is given', () => {
     setup(makeOrder({ bookedByAdmin: true }));
 
-    expect(component.consentRequired).toBe(true);
-    expect(component.consentAccepted).toBe(false);
+    expect(component.consentRequired()).toBe(true);
+    expect(component.consentAccepted()).toBe(false);
     expect(component.showPaymentSection).toBe(false);
     // The gate is only real if no client secret is requested — without one, no card can be charged.
     expect(bookingService.createPaymentIntentForOrder).not.toHaveBeenCalled();
@@ -129,14 +129,14 @@ describe('OrderPaymentComponent — consent gate', () => {
   it('records consent and only then creates the payment intent', () => {
     setup(makeOrder({ bookedByAdmin: true }));
 
-    component.smsConsent = true;
-    component.cancellationConsent = true;
+    component.smsConsent.set(true);
+    component.cancellationConsent.set(true);
     component.acceptConsentAndContinue();
     // Two of three: still nothing recorded, still nothing chargeable.
     expect(bookingService.acceptPaymentConsent).not.toHaveBeenCalled();
     expect(bookingService.createPaymentIntentForOrder).not.toHaveBeenCalled();
 
-    component.termsConsent = true;
+    component.termsConsent.set(true);
     component.acceptConsentAndContinue();
 
     expect(bookingService.acceptPaymentConsent).toHaveBeenCalledWith(
@@ -149,7 +149,7 @@ describe('OrderPaymentComponent — consent gate', () => {
   it('does not ask a self-booking customer to consent again', () => {
     setup(makeOrder({ bookedByAdmin: false }));
 
-    expect(component.consentRequired).toBe(false);
+    expect(component.consentRequired()).toBe(false);
     expect(component.showPaymentSection).toBe(true);
     expect(bookingService.createPaymentIntentForOrder).toHaveBeenCalled();
   });
@@ -157,7 +157,7 @@ describe('OrderPaymentComponent — consent gate', () => {
   it('skips the gate once consent is already recorded on the order', () => {
     setup(makeOrder({ bookedByAdmin: true, paymentConsentAcceptedAt: '2026-08-17T12:00:00Z' }));
 
-    expect(component.consentAccepted).toBe(true);
+    expect(component.consentAccepted()).toBe(true);
     expect(component.showPaymentSection).toBe(true);
     expect(bookingService.createPaymentIntentForOrder).toHaveBeenCalled();
   });
@@ -165,8 +165,8 @@ describe('OrderPaymentComponent — consent gate', () => {
   it('never gates an additional payment on an already-paid admin order', () => {
     setup(makeOrder({ bookedByAdmin: true, isPaid: true, pendingUpdateAmount: 40 }));
 
-    expect(component.paymentType).toBe('update');
-    expect(component.consentRequired).toBe(false);
+    expect(component.paymentType()).toBe('update');
+    expect(component.consentRequired()).toBe(false);
     expect(orderService.createPendingUpdatePaymentIntent).toHaveBeenCalled();
   });
 
@@ -175,7 +175,7 @@ describe('OrderPaymentComponent — consent gate', () => {
   it('shows "nothing to pay" and NO payment form when the order is already paid', () => {
     setup(makeOrder({ isPaid: true, pendingUpdateAmount: 0 }));
 
-    expect(component.nothingDue).toBe(true);
+    expect(component.nothingDue()).toBe(true);
     expect(component.showPaymentSection).toBe(false);
     const el: HTMLElement = fixture.nativeElement;
     expect(el.textContent).toContain('Nothing to pay');
@@ -186,7 +186,7 @@ describe('OrderPaymentComponent — consent gate', () => {
   it('shows "nothing to pay" for an order settled outside the website', () => {
     setup(makeOrder({ paymentMethod: 'Cash' as any }));
 
-    expect(component.nothingDue).toBe(true);
+    expect(component.nothingDue()).toBe(true);
     expect(fixture.nativeElement.querySelector('.pay-btn')).toBeNull();
   });
 
@@ -194,13 +194,13 @@ describe('OrderPaymentComponent — consent gate', () => {
     setup(makeOrder({ bookedByAdmin: true }));
     bookingService.acceptPaymentConsent.mockReturnValue({ subscribe: ({ error }: any) => error({ error: { message: 'nope' } }) } as any);
 
-    component.smsConsent = true;
-    component.cancellationConsent = true;
-    component.termsConsent = true;
+    component.smsConsent.set(true);
+    component.cancellationConsent.set(true);
+    component.termsConsent.set(true);
     component.acceptConsentAndContinue();
 
-    expect(component.consentError).toBe('nope');
-    expect(component.consentAccepted).toBe(false);
+    expect(component.consentError()).toBe('nope');
+    expect(component.consentAccepted()).toBe(false);
     expect(bookingService.createPaymentIntentForOrder).not.toHaveBeenCalled();
   });
 });
@@ -336,10 +336,10 @@ describe('OrderPaymentComponent — part-payments', () => {
   it('charges the amount the admin asked for, not the order total', () => {
     setup(orderWithRequest());
 
-    expect(component.paymentType).toBe('partial');
-    expect(component.orderTotal).toBe(1000);
-    expect(component.remainingAfterPayment).toBe(1743.65);
-    expect(component.isFinalPartialPayment).toBe(false);
+    expect(component.paymentType()).toBe('partial');
+    expect(component.orderTotal()).toBe(1000);
+    expect(component.remainingAfterPayment()).toBe(1743.65);
+    expect(component.isFinalPartialPayment()).toBe(false);
     expect(bookingService.createPartialPaymentIntent).toHaveBeenCalledWith(7, undefined, false, null);
     expect(bookingService.createPaymentIntentForOrder).not.toHaveBeenCalled();
   });
@@ -349,9 +349,9 @@ describe('OrderPaymentComponent — part-payments', () => {
     // order.total here would take the $1,000 deposit a second time.
     setup(makeOrder({ amountPaid: 1000, amountDue: 1743.65, isPartiallyPaid: true }));
 
-    expect(component.paymentType).toBe('order');
-    expect(component.orderTotal).toBe(1743.65);
-    expect(component.amountAlreadyPaid).toBe(1000);
+    expect(component.paymentType()).toBe('order');
+    expect(component.orderTotal()).toBe(1743.65);
+    expect(component.amountAlreadyPaid()).toBe(1000);
     expect(bookingService.createPaymentIntentForOrder).toHaveBeenCalled();
   });
 
@@ -360,8 +360,8 @@ describe('OrderPaymentComponent — part-payments', () => {
     // survive into the charge.
     setup(orderWithRequest({ total: 600, amountDue: 600 }));
 
-    expect(component.orderTotal).toBe(600);
-    expect(component.isFinalPartialPayment).toBe(true);
+    expect(component.orderTotal()).toBe(600);
+    expect(component.isFinalPartialPayment()).toBe(true);
   });
 
   it('lets the payer settle the whole balance instead', () => {
@@ -370,7 +370,7 @@ describe('OrderPaymentComponent — part-payments', () => {
 
     component.selectPayFullBalance(true);
 
-    expect(component.payFullBalance).toBe(true);
+    expect(component.payFullBalance()).toBe(true);
     // Re-asked rather than re-computed locally: the server decides the amount and cancels the
     // previous client secret before issuing a replacement.
     expect(bookingService.createPartialPaymentIntent).toHaveBeenCalledWith(7, undefined, true, null);
@@ -385,14 +385,14 @@ describe('OrderPaymentComponent — part-payments', () => {
 
     setup(orderWithRequest());
 
-    expect(component.orderTotal).toBe(1000);
-    expect(component.remainingAfterPayment).toBe(1743.65);
+    expect(component.orderTotal()).toBe(1000);
+    expect(component.remainingAfterPayment()).toBe(1743.65);
   });
 
   it('still gates an admin-created order on consent — a deposit is a first payment', () => {
     setup(orderWithRequest({ bookedByAdmin: true }));
 
-    expect(component.consentRequired).toBe(true);
+    expect(component.consentRequired()).toBe(true);
     expect(bookingService.createPartialPaymentIntent).not.toHaveBeenCalled();
   });
 
@@ -401,10 +401,10 @@ describe('OrderPaymentComponent — part-payments', () => {
 
     setup(orderWithRequest());
 
-    expect(component.paymentType).toBe('order');
-    expect(component.orderTotal).toBe(2743.65);
+    expect(component.paymentType()).toBe('order');
+    expect(component.orderTotal()).toBe(2743.65);
     expect(bookingService.createPaymentIntentForOrder).toHaveBeenCalled();
-    expect(component.errorMessage).toBe('');
+    expect(component.errorMessage()).toBe('');
   });
 
   it('reports the remaining balance instead of confirming a booking that is not paid for', () => {
@@ -412,8 +412,8 @@ describe('OrderPaymentComponent — part-payments', () => {
 
     component['handlePaymentSuccess']({ orderFullyPaid: false, amountDue: 1743.65 });
 
-    expect(component.paymentCompleted).toBe(true);
-    expect(component.partialPaymentRemaining).toBe(1743.65);
+    expect(component.paymentCompleted()).toBe(true);
+    expect(component.partialPaymentRemaining()).toBe(1743.65);
   });
 
   it('confirms the booking once the final slice clears the balance', () => {
@@ -425,7 +425,7 @@ describe('OrderPaymentComponent — part-payments', () => {
     // orderFullyPaid flag at all — absent must read as "settled", not as "still owing".
     component['handlePaymentSuccess']({ success: true, orderId: 7, status: 'Active' });
 
-    expect(component.partialPaymentRemaining).toBeNull();
+    expect(component.partialPaymentRemaining()).toBeNull();
   });
 });
 
@@ -517,13 +517,13 @@ describe('OrderPaymentComponent — save-card modal', () => {
     setup(true);
 
     component.onPayClicked();
-    expect(component.showSaveCardModal).toBe(true);
+    expect(component.showSaveCardModal()).toBe(true);
     expect(stripeService.confirmCardPayment).not.toHaveBeenCalled();
 
     component.onSaveCardDismissed();
-    expect(component.showSaveCardModal).toBe(false);
+    expect(component.showSaveCardModal()).toBe(false);
     expect(stripeService.confirmCardPayment).not.toHaveBeenCalled();
-    expect(component.isProcessing).toBe(false);
+    expect(component.isProcessing()).toBe(false);
   });
 
   it('pays once and records the card on "Save Card & Pay"', async () => {
@@ -556,7 +556,7 @@ describe('OrderPaymentComponent — save-card modal', () => {
     component.onPayClicked();
     await fixture.whenStable();
 
-    expect(component.showSaveCardModal).toBe(false);
+    expect(component.showSaveCardModal()).toBe(false);
     expect(stripeService.confirmCardPayment).toHaveBeenCalledTimes(1);   // it just pays
   });
 
@@ -566,6 +566,6 @@ describe('OrderPaymentComponent — save-card modal', () => {
 
     component.onPayClicked();
 
-    expect(component.showSaveCardModal).toBe(false);
+    expect(component.showSaveCardModal()).toBe(false);
   });
 });

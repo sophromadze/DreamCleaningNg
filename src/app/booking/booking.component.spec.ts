@@ -86,8 +86,8 @@ describe('BookingComponent', () => {
     beforeEach(() => {
       // The wiring lives in setupFormListeners, which normally runs from afterNextRender.
       component['setupFormListeners']();
-      component.states = ['New York'];
-      component.cities = ['Manhattan', 'Brooklyn', 'Queens'];
+      component.states.set(['New York']);
+      component.cities.set(['Manhattan', 'Brooklyn', 'Queens']);
     });
 
     it('drops the city list and any stale borough when an out-of-area state arrives', () => {
@@ -95,7 +95,7 @@ describe('BookingComponent', () => {
 
       component.state.setValue('New Jersey');
 
-      expect(component.cities).toEqual([]);
+      expect(component.cities()).toEqual([]);
       expect(component.city.value).toBe('');
     });
 
@@ -158,14 +158,14 @@ describe('BookingComponent', () => {
 
     /** Seed the page with a bedrooms + sq.ft selection, as selectServiceType would. */
     function seedSelection(bedrooms: number, squareFeet: number) {
-      component.selectedServices = [
+      component.selectedServices.set([
         { service: bedroomsService, quantity: bedrooms },
         { service: sqftService, quantity: squareFeet }
-      ] as any;
+      ] as any);
     }
 
     const currentSquareFeet = () =>
-      component.selectedServices.find(s => s.service.serviceKey === 'sqft')!.quantity;
+      component.selectedServices().find(s => s.service.serviceKey === 'sqft')!.quantity;
 
     describe('changing bedrooms', () => {
       it('preserves a sq.ft the customer raised above the floor', () => {
@@ -237,7 +237,7 @@ describe('BookingComponent', () => {
           id: 1, name: 'Residential Cleaning', basePrice: 100, isActive: true, hasPoll: false,
           timeDuration: 0, services: [bedroomsService, sqftService], extraServices: []
         } as any;
-        component.serviceTypes = [serviceType];
+        component.serviceTypes.set([serviceType]);
 
         vi.spyOn(component['orderService'], 'getOrderById').mockReturnValue(of({
           id: 7, serviceTypeId: 1, services, extraServices: [],
@@ -282,7 +282,7 @@ describe('BookingComponent', () => {
   describe('discounts are dropped when the order owner changes', () => {
     /** Put the page in "every kind of discount is applied" state. */
     function applyEveryDiscount() {
-      component.selectedSpecialOffer = {
+      component.selectedSpecialOffer.set({
         id: 11,
         specialOfferId: 3,
         name: 'First Time Customer',
@@ -290,33 +290,33 @@ describe('BookingComponent', () => {
         isPercentage: true,
         discountValue: 10,
         isUsed: false
-      } as any;
-      component.specialOfferApplied = true;
+      } as any);
+      component.specialOfferApplied.set(true);
       component.firstTimeDiscountApplied = true;
-      component.promoCodeApplied = true;
-      component.promoDiscount = 25;
-      component.giftCardApplied = true;
-      component.isGiftCard = true;
-      component.giftCardBalance = 100;
-      component.giftCardAmountToUse = 40;
-      component.selectedPointsToRedeem = 500;
-      component.pointsDiscountAmount = 5;
-      component.useCredits = true;
+      component.promoCodeApplied.set(true);
+      component.promoDiscount.set(25);
+      component.giftCardApplied.set(true);
+      component.isGiftCard.set(true);
+      component.giftCardBalance.set(100);
+      component.giftCardAmountToUse.set(40);
+      component.selectedPointsToRedeem.set(500);
+      component.pointsDiscountAmount.set(5);
+      component.useCredits.set(true);
       component.promoCode.setValue('SAVE25');
     }
 
     function expectNoDiscountsApplied() {
-      expect(component.selectedSpecialOffer).toBeNull();
-      expect(component.specialOfferApplied).toBe(false);
+      expect(component.selectedSpecialOffer()).toBeNull();
+      expect(component.specialOfferApplied()).toBe(false);
       expect(component.firstTimeDiscountApplied).toBe(false);
-      expect(component.promoCodeApplied).toBe(false);
-      expect(component.promoDiscount).toBe(0);
-      expect(component.giftCardApplied).toBe(false);
-      expect(component.isGiftCard).toBe(false);
-      expect(component.giftCardAmountToUse).toBe(0);
-      expect(component.selectedPointsToRedeem).toBe(0);
-      expect(component.pointsDiscountAmount).toBe(0);
-      expect(component.useCredits).toBe(false);
+      expect(component.promoCodeApplied()).toBe(false);
+      expect(component.promoDiscount()).toBe(0);
+      expect(component.giftCardApplied()).toBe(false);
+      expect(component.isGiftCard()).toBe(false);
+      expect(component.giftCardAmountToUse()).toBe(0);
+      expect(component.selectedPointsToRedeem()).toBe(0);
+      expect(component.pointsDiscountAmount()).toBe(0);
+      expect(component.useCredits()).toBe(false);
       expect(component.promoCode.value).toBe('');
       // The promo input is disabled while a special offer is applied — it must come back.
       expect(component.promoCode.disabled).toBe(false);
@@ -327,38 +327,38 @@ describe('BookingComponent', () => {
 
       component.toggleAdminMode();
 
-      expect(component.isAdminMode).toBe(true);
+      expect(component.isAdminMode()).toBe(true);
       expectNoDiscountsApplied();
-      expect(component.discountsClearedForAccountSwitch).toBe(true);
+      expect(component.discountsClearedForAccountSwitch()).toBe(true);
     });
 
     it('clears them when a target user is picked in admin mode', () => {
-      component.isAdminMode = true;
+      component.isAdminMode.set(true);
       applyEveryDiscount();
 
       component.selectUser({ id: 42, firstName: 'Ann', lastName: 'Lee', email: 'ann@example.com' } as any);
 
-      expect(component.selectedTargetUser?.id).toBe(42);
+      expect(component.selectedTargetUser()?.id).toBe(42);
       expectNoDiscountsApplied();
-      expect(component.discountsClearedForAccountSwitch).toBe(true);
+      expect(component.discountsClearedForAccountSwitch()).toBe(true);
     });
 
     it('clears them when the target user selection is cleared', () => {
-      component.isAdminMode = true;
-      component.selectedTargetUser = { id: 42, firstName: 'Ann', lastName: 'Lee', email: 'ann@example.com' } as any;
+      component.isAdminMode.set(true);
+      component.selectedTargetUser.set({ id: 42, firstName: 'Ann', lastName: 'Lee', email: 'ann@example.com' } as any);
       applyEveryDiscount();
 
       component.clearSelectedUser();
 
-      expect(component.selectedTargetUser).toBeNull();
+      expect(component.selectedTargetUser()).toBeNull();
       expectNoDiscountsApplied();
-      expect(component.discountsClearedForAccountSwitch).toBe(true);
+      expect(component.discountsClearedForAccountSwitch()).toBe(true);
     });
 
     it('does not show the re-apply notice when nothing was applied', () => {
       component.toggleAdminMode();
 
-      expect(component.discountsClearedForAccountSwitch).toBe(false);
+      expect(component.discountsClearedForAccountSwitch()).toBe(false);
     });
   });
 
@@ -370,7 +370,7 @@ describe('BookingComponent', () => {
    */
   describe('picking a customer in admin mode', () => {
     beforeEach(() => {
-      component.isAdminMode = true;
+      component.isAdminMode.set(true);
     });
 
     it('empties the phone when the customer has none on file', () => {
@@ -430,10 +430,10 @@ describe('BookingComponent', () => {
     const extraCleaners = extra(4, 'Extra Cleaners', { hasQuantity: true });
 
     beforeEach(() => {
-      component.selectedServiceType = { ...customServiceType, extraServices: [fridge, deep, sameDay, extraCleaners] };
-      component.showCustomPricing = true;
-      component.selectedServices = [];
-      component.selectedExtraServices = [{ extraService: fridge, quantity: 1, hours: 0 }] as any;
+      component.selectedServiceType.set({ ...customServiceType, extraServices: [fridge, deep, sameDay, extraCleaners] });
+      component.showCustomPricing.set(true);
+      component.selectedServices.set([]);
+      component.selectedExtraServices.set([{ extraService: fridge, quantity: 1, hours: 0 }] as any);
       component.customCleaners.setValue(2);
       component.customDuration.setValue(240);
     });
@@ -443,9 +443,9 @@ describe('BookingComponent', () => {
 
       component.calculateTotal();
 
-      expect(component.calculation.subTotal).toBe(0);
-      expect(component.calculation.tax).toBe(0);
-      expect(component.calculation.total).toBe(0);
+      expect(component.calculation().subTotal).toBe(0);
+      expect(component.calculation().tax).toBe(0);
+      expect(component.calculation().total).toBe(0);
     });
 
     it('charges exactly the entered amount, extras included', () => {
@@ -453,13 +453,13 @@ describe('BookingComponent', () => {
 
       component.calculateTotal();
 
-      expect(component.calculation.subTotal + component.calculation.tax).toBe(300);
+      expect(component.calculation().subTotal + component.calculation().tax).toBe(300);
 
       // Same amount with no extras selected — the extras contributed nothing.
-      const withExtras = component.calculation.subTotal;
-      component.selectedExtraServices = [];
+      const withExtras = component.calculation().subTotal;
+      component.selectedExtraServices.set([]);
       component.calculateTotal();
-      expect(component.calculation.subTotal).toBe(withExtras);
+      expect(component.calculation().subTotal).toBe(withExtras);
     });
 
     it('reports the entered duration, not the extras durations', () => {
@@ -489,35 +489,35 @@ describe('BookingComponent', () => {
     it('offers BOTH supply extras as cards, since the supplies modal never opens here', () => {
       const supplies = extra(5, 'Cleaning Supplies', { price: 30 });
       const essentials = extra(6, 'Cleaning Essentials', { price: 15 });
-      component.selectedServiceType = {
+      component.selectedServiceType.set({
         ...customServiceType,
         extraServices: [fridge, deep, sameDay, extraCleaners, supplies, essentials]
-      };
+      });
 
       const offered = component.getFilteredExtraServices().map(e => e.name);
 
       expect(offered).toEqual(['Inside the Fridge', 'Cleaning Supplies', 'Cleaning Essentials']);
       // ...and the modal stays out of the way on this path.
-      component.currentStep = 1;
+      component.currentStep.set(1);
       expect(component['shouldConfirmCleaningSuppliesBeforeContinuing']()).toBe(false);
     });
 
     it('records the supply extras without charging for them', () => {
       const supplies = extra(5, 'Cleaning Supplies', { price: 30 });
       const essentials = extra(6, 'Cleaning Essentials', { price: 15 });
-      component.selectedServiceType = {
+      component.selectedServiceType.set({
         ...customServiceType,
         extraServices: [fridge, supplies, essentials]
-      };
-      component.selectedExtraServices = [
+      });
+      component.selectedExtraServices.set([
         { extraService: supplies, quantity: 1, hours: 0 },
         { extraService: essentials, quantity: 1, hours: 0 }
-      ] as any;
+      ] as any);
       component.customAmount.setValue('300');
 
       component.calculateTotal();
 
-      expect(component.calculation.subTotal + component.calculation.tax).toBe(300);
+      expect(component.calculation().subTotal + component.calculation().tax).toBe(300);
       expect(component.actualTotalDuration).toBe(480);
     });
   });
@@ -549,11 +549,11 @@ describe('BookingComponent', () => {
     const fridge = extra(3, 'Inside the Fridge', 40);
 
     beforeEach(() => {
-      component.selectedServiceType = { ...serviceType, extraServices: [supplies, essentials, fridge] };
-      component.showCustomPricing = false;
-      component.showPollForm = false;
-      component.currentStep = 1;
-      component.selectedExtraServices = [];
+      component.selectedServiceType.set({ ...serviceType, extraServices: [supplies, essentials, fridge] });
+      component.showCustomPricing.set(false);
+      component.showPollForm.set(false);
+      component.currentStep.set(1);
+      component.selectedExtraServices.set([]);
     });
 
     it('is filtered out of the extras grid while ordinary extras stay', () => {
@@ -568,18 +568,18 @@ describe('BookingComponent', () => {
     it('opens the modal while EITHER supply extra is still unselected', () => {
       expect(component['shouldConfirmCleaningSuppliesBeforeContinuing'](), 'neither selected').toBe(true);
 
-      component.selectedExtraServices = [{ extraService: supplies, quantity: 1, hours: 0 }] as any;
+      component.selectedExtraServices.set([{ extraService: supplies, quantity: 1, hours: 0 }] as any);
       expect(component['shouldConfirmCleaningSuppliesBeforeContinuing'](), 'supplies taken, essentials not').toBe(true);
 
-      component.selectedExtraServices = [{ extraService: essentials, quantity: 1, hours: 0 }] as any;
+      component.selectedExtraServices.set([{ extraService: essentials, quantity: 1, hours: 0 }] as any);
       expect(component['shouldConfirmCleaningSuppliesBeforeContinuing'](), 'essentials taken, supplies not').toBe(true);
     });
 
     it('stops opening the modal only once BOTH are on the order', () => {
-      component.selectedExtraServices = [
+      component.selectedExtraServices.set([
         { extraService: supplies, quantity: 1, hours: 0 },
         { extraService: essentials, quantity: 1, hours: 0 }
-      ] as any;
+      ] as any);
 
       expect(component['shouldConfirmCleaningSuppliesBeforeContinuing']()).toBe(false);
     });
@@ -587,28 +587,28 @@ describe('BookingComponent', () => {
     // Configuration is respected rather than assumed. This is also the window before the admin
     // creates the Cleaning Essentials row: the modal keeps its original Cleaning Supplies job.
     it('only counts the supply extras this service type actually offers', () => {
-      component.selectedServiceType = { ...serviceType, extraServices: [supplies, fridge] };
+      component.selectedServiceType.set({ ...serviceType, extraServices: [supplies, fridge] });
 
       expect(component['shouldConfirmCleaningSuppliesBeforeContinuing'](), 'supplies unselected').toBe(true);
 
-      component.selectedExtraServices = [{ extraService: supplies, quantity: 1, hours: 0 }] as any;
+      component.selectedExtraServices.set([{ extraService: supplies, quantity: 1, hours: 0 }] as any);
       expect(component['shouldConfirmCleaningSuppliesBeforeContinuing'](), 'the only offered extra is taken').toBe(false);
 
-      component.selectedServiceType = { ...serviceType, extraServices: [fridge] };
-      component.selectedExtraServices = [];
+      component.selectedServiceType.set({ ...serviceType, extraServices: [fridge] });
+      component.selectedExtraServices.set([]);
       expect(component['shouldConfirmCleaningSuppliesBeforeContinuing'](), 'neither extra configured — never block').toBe(false);
     });
 
     it('adds it as an ordinary extra when taken from the modal', () => {
       component.toggleSupplyExtraFromModal(component.cleaningEssentialsExtra);
 
-      expect(component.selectedExtraServices.map((s: any) => s.extraService.name))
+      expect(component.selectedExtraServices().map((s: any) => s.extraService.name))
         .toEqual(['Cleaning Essentials']);
       expect(component.cleaningEssentialsSelected).toBe(true);
 
       // ...and can be taken back off from the same button.
       component.toggleSupplyExtraFromModal(component.cleaningEssentialsExtra);
-      expect(component.selectedExtraServices).toEqual([]);
+      expect(component.selectedExtraServices()).toEqual([]);
     });
 
     // The "you provide" list (step 3's accordion) is the shared checklist, so it shrinks as
@@ -638,14 +638,14 @@ describe('BookingComponent', () => {
       vi.spyOn(component, 'canProceedToNextStep').mockReturnValue(true);
 
       component.onNextButtonClick();
-      expect(component.showCleaningSuppliesConfirm, 'first Continue').toBe(true);
+      expect(component.showCleaningSuppliesConfirm(), 'first Continue').toBe(true);
 
       component.continueFromCleaningSuppliesConfirm();
-      expect(component.showCleaningSuppliesConfirm, 'dismissed').toBe(false);
+      expect(component.showCleaningSuppliesConfirm(), 'dismissed').toBe(false);
       component.previousStep();
 
       component.onNextButtonClick();
-      expect(component.showCleaningSuppliesConfirm, 'second Continue').toBe(true);
+      expect(component.showCleaningSuppliesConfirm(), 'second Continue').toBe(true);
 
       // Taking BOTH is what finally lets Continue through untouched.
       component.toggleSupplyExtraFromModal(component.cleaningSuppliesExtra);
@@ -654,17 +654,17 @@ describe('BookingComponent', () => {
       component.previousStep();
 
       component.onNextButtonClick();
-      expect(component.showCleaningSuppliesConfirm, 'both taken').toBe(false);
+      expect(component.showCleaningSuppliesConfirm(), 'both taken').toBe(false);
     });
 
     // The Vacuum Cleaner extra still drops the broom line on its own — it answers the same need
     // Cleaning Essentials' broom does, and the customer was only ever asked for one of the pair.
     it('drops the broom line for the Vacuum Cleaner extra without touching the rest', () => {
       const vacuum = extra(4, 'Vacuum Cleaner', 25);
-      component.selectedServiceType = {
+      component.selectedServiceType.set({
         ...serviceType, extraServices: [supplies, essentials, fridge, vacuum]
-      };
-      component.selectedExtraServices = [{ extraService: vacuum, quantity: 1, hours: 0 }] as any;
+      });
+      component.selectedExtraServices.set([{ extraService: vacuum, quantity: 1, hours: 0 }] as any);
 
       expect(component.modalSupplyChecklistItems).not.toContain('Broom or vacuum cleaner');
       expect(component.modalSupplyChecklistItems).toContain('Paper towels');
@@ -743,17 +743,17 @@ describe('BookingComponent', () => {
     } as any;
 
     beforeEach(() => {
-      component.showCustomPricing = false;
-      component.showPollForm = false;
-      component.selectedServiceType = residential;
+      component.showCustomPricing.set(false);
+      component.showPollForm.set(false);
+      component.selectedServiceType.set(residential);
       // Mirrors what initializeRegularServices produces: every service EXCEPT levels.
-      component.selectedServices = [
+      component.selectedServices.set([
         { service: bedrooms, quantity: 2 },
         { service: sqft, quantity: 850 }
-      ] as any;
-      component.selectedExtraServices = [];
-      component.propertyType = null;
-      component.levelsQuantity = null;
+      ] as any);
+      component.selectedExtraServices.set([]);
+      component.propertyType.set(null);
+      component.levelsQuantity.set(null);
       component.cleaningType.setValue('normal');
       component.serviceTypeControl.setValue(residential.id);
     });
@@ -763,11 +763,11 @@ describe('BookingComponent', () => {
 
       // Hourly type: no bedrooms, no levels, but the question is still asked because admins and
       // cleaners need to know about parking, a walk-up, travel time and equipment.
-      component.selectedServiceType = office;
+      component.selectedServiceType.set(office);
       expect(component.showPropertyTypeSelector()).toBe(true);
 
       // Custom ("Pre-Arranged") too - it is an Order like any other.
-      component.showCustomPricing = true;
+      component.showCustomPricing.set(true);
       expect(component.showPropertyTypeSelector()).toBe(true);
     });
 
@@ -777,11 +777,11 @@ describe('BookingComponent', () => {
       expect(component.levelsArePriced()).toBe(true);
 
       // Hourly type: chips still render, because the crew needs to know about the stairs...
-      component.selectedServiceType = office;
-      component.selectedServices = [
+      component.selectedServiceType.set(office);
+      component.selectedServices.set([
         { service: cleaners, quantity: 2 },
         { service: hours, quantity: 3 }
-      ] as any;
+      ] as any);
       expect(component.showLevelsSelector()).toBe(true);
       // ...but the answer is informational only, because stair time is already inside the hours.
       expect(component.levelsArePriced()).toBe(false);
@@ -791,19 +791,19 @@ describe('BookingComponent', () => {
       component.selectPropertyType('Apartment');
       expect(component.showLevelsSelector()).toBe(false);
 
-      component.selectedServiceType = office;
+      component.selectedServiceType.set(office);
       expect(component.showLevelsSelector()).toBe(false);
     });
 
     it('has NO default selection', () => {
-      expect(component.propertyType).toBeNull();
-      expect(component.levelsQuantity).toBeNull();
+      expect(component.propertyType()).toBeNull();
+      expect(component.levelsQuantity()).toBeNull();
     });
 
     it('never seeds a levels line into selectedServices before a chip is clicked', () => {
       // The whole reason levelsQuantity is a separate field: a seeded minValue of 1 would make
       // "not yet chosen" indistinguishable from "chose 1 level".
-      expect(component.selectedServices.some(s => s.service.serviceKey === 'levels')).toBe(false);
+      expect(component.selectedServices().some(s => s.service.serviceKey === 'levels')).toBe(false);
     });
 
     it('blocks step 1 until a property type is chosen', () => {
@@ -822,12 +822,12 @@ describe('BookingComponent', () => {
     });
 
     it('requires the property type AND the level count on a type that prices no rooms', () => {
-      component.selectedServiceType = office;
+      component.selectedServiceType.set(office);
       component.serviceTypeControl.setValue(office.id);
-      component.selectedServices = [
+      component.selectedServices.set([
         { service: cleaners, quantity: 2 },
         { service: hours, quantity: 3 }
-      ] as any;
+      ] as any);
 
       expect(component.isStep1Valid()).toBe(false);
 
@@ -842,59 +842,59 @@ describe('BookingComponent', () => {
     });
 
     it('captures an informational level count with no line, no charge and no summary row', () => {
-      component.selectedServiceType = office;
-      component.selectedServices = [
+      component.selectedServiceType.set(office);
+      component.selectedServices.set([
         { service: cleaners, quantity: 2 },
         { service: hours, quantity: 3 }
-      ] as any;
+      ] as any);
       component.calculateTotal();
-      const before = component.calculation.subTotal;
+      const before = component.calculation().subTotal;
       const beforeDuration = component.actualTotalDuration;
 
       component.selectPropertyType('House');
       component.selectLevels(4);
 
       // The answer is recorded...
-      expect(component.levelsQuantity).toBe(4);
+      expect(component.levelsQuantity()).toBe(4);
       // ...but nothing priced happens: no OrderService line, no cost, no duration, no summary row.
-      expect(component.selectedServices.some(s => s.service.serviceKey === 'levels')).toBe(false);
+      expect(component.selectedServices().some(s => s.service.serviceKey === 'levels')).toBe(false);
       expect(component.getAdditionalLevelsCost()).toBe(0);
-      expect(component.calculation.subTotal).toBe(before);
+      expect(component.calculation().subTotal).toBe(before);
       expect(component.actualTotalDuration).toBe(beforeDuration);
       expect(component.getSummaryPriceLines(false).some(l => l.label.startsWith('Additional levels')))
         .toBe(false);
     });
 
     it('picking House does not throw where there is no bedrooms service', () => {
-      component.selectedServiceType = office;
-      component.selectedServices = [
+      component.selectedServiceType.set(office);
+      component.selectedServices.set([
         { service: cleaners, quantity: 2 },
         { service: hours, quantity: 3 }
-      ] as any;
+      ] as any);
 
       expect(() => component.selectPropertyType('House')).not.toThrow();
     });
 
     it('leaves the apartment flow exactly as it was', () => {
       component.calculateTotal();
-      const before = component.calculation.subTotal;
+      const before = component.calculation().subTotal;
 
       component.selectPropertyType('Apartment');
 
       expect(component.showLevelsSelector()).toBe(false);
-      expect(component.selectedServices.some(s => s.service.serviceKey === 'levels')).toBe(false);
-      expect(component.calculation.subTotal).toBe(before);
+      expect(component.selectedServices().some(s => s.service.serviceKey === 'levels')).toBe(false);
+      expect(component.calculation().subTotal).toBe(before);
     });
 
     it('prices a one-level house exactly like the apartment', () => {
       component.selectPropertyType('Apartment');
       component.calculateTotal();
-      const apartment = component.calculation.subTotal;
+      const apartment = component.calculation().subTotal;
 
       component.selectPropertyType('House');
       component.selectLevels(1);
 
-      expect(component.calculation.subTotal).toBe(apartment);
+      expect(component.calculation().subTotal).toBe(apartment);
       expect(component.getAdditionalLevelsCost()).toBe(0);
     });
 
@@ -915,7 +915,7 @@ describe('BookingComponent', () => {
       component.selectPropertyType('House');
       component.selectLevels(3);
 
-      const line = component.selectedServices.find(s => s.service.serviceKey === 'levels');
+      const line = component.selectedServices().find(s => s.service.serviceKey === 'levels');
       expect(line?.quantity).toBe(3);
     });
 
@@ -926,21 +926,21 @@ describe('BookingComponent', () => {
 
       component.selectPropertyType('Apartment');
 
-      expect(component.levelsQuantity).toBeNull();
-      expect(component.selectedServices.some(s => s.service.serviceKey === 'levels')).toBe(false);
+      expect(component.levelsQuantity()).toBeNull();
+      expect(component.selectedServices().some(s => s.service.serviceKey === 'levels')).toBe(false);
       expect(component.getAdditionalLevelsCost()).toBe(0);
     });
 
     it('raises a studio to one bedroom for a house, and the sq.ft floor follows', () => {
-      component.selectedServices = [
+      component.selectedServices.set([
         { service: bedrooms, quantity: 0 },
         { service: sqft, quantity: 400 }
-      ] as any;
+      ] as any);
 
       component.selectPropertyType('House');
 
-      expect(component.selectedServices.find(s => s.service.serviceKey === 'bedrooms')?.quantity).toBe(1);
-      expect(component.selectedServices.find(s => s.service.serviceKey === 'sqft')?.quantity).toBe(650);
+      expect(component.selectedServices().find(s => s.service.serviceKey === 'bedrooms')?.quantity).toBe(1);
+      expect(component.selectedServices().find(s => s.service.serviceKey === 'sqft')?.quantity).toBe(650);
     });
 
     it('stops offering Studio while House is selected', () => {
@@ -951,16 +951,16 @@ describe('BookingComponent', () => {
     });
 
     it('does not lower the values back when switching to apartment', () => {
-      component.selectedServices = [
+      component.selectedServices.set([
         { service: bedrooms, quantity: 0 },
         { service: sqft, quantity: 400 }
-      ] as any;
+      ] as any);
       component.selectPropertyType('House');
 
       component.selectPropertyType('Apartment');
 
-      expect(component.selectedServices.find(s => s.service.serviceKey === 'bedrooms')?.quantity).toBe(1);
-      expect(component.selectedServices.find(s => s.service.serviceKey === 'sqft')?.quantity).toBe(650);
+      expect(component.selectedServices().find(s => s.service.serviceKey === 'bedrooms')?.quantity).toBe(1);
+      expect(component.selectedServices().find(s => s.service.serviceKey === 'sqft')?.quantity).toBe(650);
       expect(component.getServiceMinValue(bedrooms)).toBe(0);
     });
 
@@ -1013,8 +1013,8 @@ describe('BookingComponent', () => {
         component.selectPropertyType('House');
 
         expect(component.isLevelsMissing()).toBe(true);
-        expect(component.propertyTypeTouched, 'selecting a card must not mark the block touched').toBe(false);
-        expect(component.formSubmitted).toBe(false);
+        expect(component.propertyTypeTouched(), 'selecting a card must not mark the block touched').toBe(false);
+        expect(component.formSubmitted()).toBe(false);
       });
 
       it('reveals the errors once a blocked Continue is pressed', () => {
@@ -1022,15 +1022,15 @@ describe('BookingComponent', () => {
 
         component.onNextButtonClick();
 
-        expect(component.propertyTypeTouched).toBe(true);
+        expect(component.propertyTypeTouched()).toBe(true);
       });
 
       it('clears the revealed state when step-1 errors are cleared', () => {
-        component.propertyTypeTouched = true;
+        component.propertyTypeTouched.set(true);
 
         (component as any).clearCurrentStepValidationErrors();
 
-        expect(component.propertyTypeTouched).toBe(false);
+        expect(component.propertyTypeTouched()).toBe(false);
       });
 
       it('feeds the blocker diagnostics the same predicates the inline errors read', () => {
@@ -1171,12 +1171,12 @@ describe('BookingComponent', () => {
       });
 
       expect(persistence.getFormData()).toBeNull();
-      expect(reloaded.adminDraftDiscarded).toBe(true);
+      expect(reloaded.adminDraftDiscarded()).toBe(true);
       // Nothing of the customer's booking may survive into the admin's own form.
       expect(reloaded.contactFirstName.value).toBeFalsy();
       expect(reloaded.contactEmail.value).toBeFalsy();
       // And the admin starts over rather than landing on an empty step 3.
-      expect(reloaded.currentStep).toBe(1);
+      expect(reloaded.currentStep()).toBe(1);
     });
 
     it('leaves an ordinary customer draft alone', () => {
@@ -1187,7 +1187,7 @@ describe('BookingComponent', () => {
       });
 
       expect(persistence.getFormData()).not.toBeNull();
-      expect(reloaded.adminDraftDiscarded).toBe(false);
+      expect(reloaded.adminDraftDiscarded()).toBe(false);
       expect(reloaded.contactFirstName.value).toBe('Ann');
     });
 
@@ -1219,45 +1219,45 @@ describe('BookingComponent', () => {
     });
 
     it('resolves to the customer branch for a plain booking', () => {
-      component.isAdminMode = false;
-      component.selectedTargetUser = null;
+      component.isAdminMode.set(false);
+      component.selectedTargetUser.set(null);
 
       expect(resolve()).toBe('self');
     });
 
     it('resolves to the admin branch when admin mode is on with a customer selected', () => {
       vi.spyOn((component as any).authService, 'isLoggedIn').mockReturnValue(true);
-      component.isAdmin = true;
-      component.isAdminMode = true;
-      component.selectedTargetUser = targetUser;
+      component.isAdmin.set(true);
+      component.isAdminMode.set(true);
+      component.selectedTargetUser.set(targetUser);
 
       expect(resolve()).toBe('admin-for-user');
     });
 
     it('blocks admin mode with no customer selected', () => {
-      component.isAdminMode = true;
-      component.selectedTargetUser = null;
+      component.isAdminMode.set(true);
+      component.selectedTargetUser.set(null);
 
       expect(resolve()).toBeNull();
-      expect(component.errorMessage).toContain('select a user');
+      expect(component.errorMessage()).toContain('select a user');
     });
 
     it('blocks a selected customer while admin mode is off, instead of booking as the admin', () => {
-      component.isAdminMode = false;
-      component.selectedTargetUser = targetUser;
+      component.isAdminMode.set(false);
+      component.selectedTargetUser.set(targetUser);
 
       expect(resolve()).toBeNull();
-      expect(component.errorMessage).toContain('Admin Mode is off');
+      expect(component.errorMessage()).toContain('Admin Mode is off');
     });
 
     it('blocks a draft flagged wasAdminMode when admin mode is off', () => {
       TestBed.inject(FormPersistenceService).saveFormData({ wasAdminMode: true } as BookingFormData);
-      component.isAdminMode = false;
-      component.selectedTargetUser = null;
+      component.isAdminMode.set(false);
+      component.selectedTargetUser.set(null);
 
       expect(resolve()).toBeNull();
-      expect(component.adminDraftDiscarded).toBe(true);
-      expect(component.errorMessage).toContain('start the booking again');
+      expect(component.adminDraftDiscarded()).toBe(true);
+      expect(component.errorMessage()).toContain('start the booking again');
     });
   });
 
@@ -1269,44 +1269,44 @@ describe('BookingComponent', () => {
     const targetUser = { id: 42, firstName: 'Ann', lastName: 'Lee', email: 'ann@example.com' } as any;
 
     it('reads "Book Now" for a customer booking', () => {
-      component.showPollForm = false;
-      component.isAdminMode = false;
-      component.selectedTargetUser = null;
+      component.showPollForm.set(false);
+      component.isAdminMode.set(false);
+      component.selectedTargetUser.set(null);
 
       expect(component.submitButtonLabel).toBe('Book Now');
     });
 
     it('reads "Send Payment" for an admin booking paid through Stripe', () => {
-      component.showPollForm = false;
-      component.isAdminMode = true;
-      component.selectedTargetUser = targetUser;
-      component.adminPaymentMethod = 'Normal';
+      component.showPollForm.set(false);
+      component.isAdminMode.set(true);
+      component.selectedTargetUser.set(targetUser);
+      component.adminPaymentMethod.set('Normal');
 
       expect(component.submitButtonLabel).toBe('Send Payment');
     });
 
     for (const method of ['Cash', 'Zelle', 'Check', 'Other'] as const) {
       it('reads "Book for User" for an admin booking paid by ' + method, () => {
-        component.showPollForm = false;
-        component.isAdminMode = true;
-        component.selectedTargetUser = targetUser;
-        component.adminPaymentMethod = method;
+        component.showPollForm.set(false);
+        component.isAdminMode.set(true);
+        component.selectedTargetUser.set(targetUser);
+        component.adminPaymentMethod.set(method);
 
         expect(component.submitButtonLabel).toBe('Book for User');
       });
     }
 
     it('reads "Send for Quote" for a poll form, admin mode included', () => {
-      component.showPollForm = true;
-      component.isAdminMode = true;
-      component.selectedTargetUser = targetUser;
-      component.adminPaymentMethod = 'Normal';
+      component.showPollForm.set(true);
+      component.isAdminMode.set(true);
+      component.selectedTargetUser.set(targetUser);
+      component.adminPaymentMethod.set('Normal');
 
       expect(component.submitButtonLabel).toBe('Send for Quote');
     });
 
     it('asks a poll form for email and service address as well as name and phone', () => {
-      component.showPollForm = true;
+      component.showPollForm.set(true);
       component.contactFirstName.setValue('Ana');
       component.contactPhone.setValue('2125550147');
       component.contactEmail.setValue('');
@@ -1321,9 +1321,9 @@ describe('BookingComponent', () => {
     });
 
     it('keeps the customer-facing label while admin mode is on but no customer is picked', () => {
-      component.showPollForm = false;
-      component.isAdminMode = true;
-      component.selectedTargetUser = null;
+      component.showPollForm.set(false);
+      component.isAdminMode.set(true);
+      component.selectedTargetUser.set(null);
 
       expect(component.submitButtonLabel).toBe('Book Now');
     });
@@ -1405,16 +1405,16 @@ describe('BookingComponent', () => {
       fixture.nativeElement.querySelector('.register-customer-btn') as HTMLElement | null;
 
     it('is hidden for an admin who may not create users', () => {
-      component.isAdmin = true;
-      component.canRegisterCustomers = false;
+      component.isAdmin.set(true);
+      component.canRegisterCustomers.set(false);
       fixture.detectChanges();
 
       expect(renderedButton()).toBeNull();
     });
 
     it('is shown beside the Admin Mode toggle once create is granted', () => {
-      component.isAdmin = true;
-      component.canRegisterCustomers = true;
+      component.isAdmin.set(true);
+      component.canRegisterCustomers.set(true);
       fixture.detectChanges();
 
       const button = renderedButton();
@@ -1424,34 +1424,34 @@ describe('BookingComponent', () => {
     });
 
     it('never opens the modal for someone without the permission', () => {
-      component.canRegisterCustomers = false;
+      component.canRegisterCustomers.set(false);
 
       component.openRegisterCustomerModal();
 
-      expect(component.showRegisterCustomerModal).toBe(false);
+      expect(component.showRegisterCustomerModal()).toBe(false);
     });
 
     it('selects the new customer when Admin Mode is already on', () => {
-      component.isAdminMode = true;
+      component.isAdminMode.set(true);
       const selectUser = vi.spyOn(component, 'selectUser').mockReturnValue(undefined);
 
       component.onCustomerRegistered(newCustomer);
 
       expect(selectUser).toHaveBeenCalled();
       expect(vi.mocked(selectUser).mock.lastCall![0].id).toBe(501);
-      expect(component.registeredCustomerMessage).toContain('Nino Beridze');
-      expect(component.registeredCustomerMessage).toContain('selected');
+      expect(component.registeredCustomerMessage()).toContain('Nino Beridze');
+      expect(component.registeredCustomerMessage()).toContain('selected');
     });
 
     it('only confirms the registration when Admin Mode is off', () => {
-      component.isAdminMode = false;
+      component.isAdminMode.set(false);
       const selectUser = vi.spyOn(component, 'selectUser').mockReturnValue(undefined);
 
       component.onCustomerRegistered(newCustomer);
 
       expect(selectUser).not.toHaveBeenCalled();
-      expect(component.registeredCustomerMessage).toContain('Nino Beridze');
-      expect(component.registeredCustomerMessage).not.toContain('selected');
+      expect(component.registeredCustomerMessage()).toContain('Nino Beridze');
+      expect(component.registeredCustomerMessage()).not.toContain('selected');
     });
 
     /**
@@ -1466,38 +1466,38 @@ describe('BookingComponent', () => {
 
         component.onCustomerRegistered(newCustomer);
 
-        expect(component.registeredCustomers.map(u => u.id)).toEqual([501]);
+        expect(component.registeredCustomers().map(u => u.id)).toEqual([501]);
       });
 
       it('adds them even with Admin Mode off, so they are there when it is switched on', () => {
-        component.isAdminMode = false;
+        component.isAdminMode.set(false);
 
         component.onCustomerRegistered(newCustomer);
 
-        expect(component.registeredCustomers.map(u => u.id)).toEqual([501]);
+        expect(component.registeredCustomers().map(u => u.id)).toEqual([501]);
       });
 
       /** `seedUsers` is an @Input — mutating the array in place would not notify the search box. */
       it('replaces the array rather than mutating it', () => {
-        const before = component.registeredCustomers;
+        const before = component.registeredCustomers();
 
         component.onCustomerRegistered(newCustomer);
 
-        expect(component.registeredCustomers).not.toBe(before);
+        expect(component.registeredCustomers()).not.toBe(before);
       });
 
       it('never lists the same customer twice', () => {
         component.onCustomerRegistered(newCustomer);
         component.onCustomerRegistered(newCustomer);
 
-        expect(component.registeredCustomers.map(u => u.id)).toEqual([501]);
+        expect(component.registeredCustomers().map(u => u.id)).toEqual([501]);
       });
 
       it('keeps several customers registered in a row, newest first', () => {
         component.onCustomerRegistered(newCustomer);
         component.onCustomerRegistered({ ...newCustomer, id: 502, firstName: 'Dato' });
 
-        expect(component.registeredCustomers.map(u => u.id)).toEqual([502, 501]);
+        expect(component.registeredCustomers().map(u => u.id)).toEqual([502, 501]);
       });
 
       /**
@@ -1507,7 +1507,7 @@ describe('BookingComponent', () => {
        */
       it('forces the server list to refresh past the HTTP cache', () => {
         const searchBox = { loadUsers: vi.fn().mockName('AdminUserSearchComponent.loadUsers') } as any;
-        (component as any).adminUserSearch = searchBox;
+        (component as any).adminUserSearch = () => searchBox;
 
         component.onCustomerRegistered(newCustomer);
 
@@ -1515,8 +1515,8 @@ describe('BookingComponent', () => {
       });
 
       it('does not fall over when the search box is absent (Admin Mode off)', () => {
-        component.isAdminMode = false;
-        (component as any).adminUserSearch = undefined;
+        component.isAdminMode.set(false);
+        (component as any).adminUserSearch = () => undefined;
 
         expect(() => component.onCustomerRegistered(newCustomer)).not.toThrow();
       });
@@ -1524,7 +1524,7 @@ describe('BookingComponent', () => {
 
     /** A no-email cash customer arrives with a null email; nothing downstream may be handed "null". */
     it('carries a no-email customer through without inventing an address', () => {
-      component.isAdminMode = true;
+      component.isAdminMode.set(true);
       const selectUser = vi.spyOn(component, 'selectUser').mockReturnValue(undefined);
 
       component.onCustomerRegistered({ ...newCustomer, email: null, isNoEmailUser: true });
@@ -1582,7 +1582,7 @@ describe('BookingComponent', () => {
      */
     it('hides them in custom pricing mode even for an admin', () => {
       asRole('Admin');
-      component.showCustomPricing = true;
+      component.showCustomPricing.set(true);
 
       expect(component.showExtraServicePrices).toBe(false);
     });
@@ -1612,13 +1612,13 @@ describe('BookingComponent', () => {
 
     /** A fixed subtotal through the real calculator: custom pricing, $300 tax-inclusive. */
     function priceAFixedJob() {
-      component.selectedServiceType = {
+      component.selectedServiceType.set({
         id: 9, name: 'Pre-Arranged Cleaning', basePrice: 0, timeDuration: 60,
         isCustom: true, isActive: true, services: [], extraServices: []
-      } as any;
-      component.showCustomPricing = true;
-      component.selectedServices = [];
-      component.selectedExtraServices = [];
+      } as any);
+      component.showCustomPricing.set(true);
+      component.selectedServices.set([]);
+      component.selectedExtraServices.set([]);
       component.customCleaners.setValue(1);
       component.customDuration.setValue(180);
       component.customAmount.setValue('300');
@@ -1626,18 +1626,18 @@ describe('BookingComponent', () => {
 
     function discountsFor(plans: any[], selectedId: number, userSubscription: any | null, offer: any | null) {
       priceAFixedJob();
-      component.subscriptions = plans;
-      component.selectedSubscription = plans.find(p => p.id === selectedId);
-      component.hasActiveSubscription = !!userSubscription;
-      component.userSubscription = userSubscription;
+      component.subscriptions.set(plans);
+      component.selectedSubscription.set(plans.find(p => p.id === selectedId));
+      component.hasActiveSubscription.set(!!userSubscription);
+      component.userSubscription.set(userSubscription);
       component.removeSpecialOffer();
       if (offer) component.applySpecialOffer(offer);
       component.calculateTotal();
       return {
-        subTotal: component.calculation.subTotal,
-        subscription: component.subscriptionDiscountAmount,
-        offer: component.promoOrFirstTimeDiscountAmount,
-        total: component.calculation.total,
+        subTotal: component.calculation().subTotal,
+        subscription: component.subscriptionDiscountAmount(),
+        offer: component.promoOrFirstTimeDiscountAmount(),
+        total: component.calculation().total,
         firstTimeApplied: component.firstTimeDiscountApplied
       };
     }
@@ -1645,7 +1645,7 @@ describe('BookingComponent', () => {
     const round2 = (n: number) => Math.round(n * 100) / 100;
 
     it('starts a fresh form on the one-off plan by its period, whatever it is called', () => {
-      component.subscriptions = renamedPlans().reverse();
+      component.subscriptions.set(renamedPlans().reverse());
       expect((component as any).findOneTimeSubscription().id).toBe(1);
     });
 
@@ -1714,11 +1714,11 @@ describe('BookingComponent', () => {
     });
 
     it('shows the "Most popular" badge on the flagged plan, whatever the plans are called', () => {
-      component.selectedServiceType = {
+      component.selectedServiceType.set({
         id: 1, name: 'Residential Cleaning', serviceKey: 'residential', basePrice: 90, timeDuration: 120,
         isCustom: false, isActive: true, services: [], extraServices: []
-      } as any;
-      component.subscriptions = renamedPlans();
+      } as any);
+      component.subscriptions.set(renamedPlans());
       fixture.detectChanges();
 
       const badges = Array.from(fixture.nativeElement.querySelectorAll('.subscription-card__badge')) as HTMLElement[];
@@ -1739,13 +1739,13 @@ describe('BookingComponent', () => {
     }) as any;
 
     function priceAFixedJob() {
-      component.selectedServiceType = {
+      component.selectedServiceType.set({
         id: 9, name: 'Pre-Arranged Cleaning', basePrice: 0, timeDuration: 60,
         isCustom: true, isActive: true, services: [], extraServices: []
-      } as any;
-      component.showCustomPricing = true;
-      component.selectedServices = [];
-      component.selectedExtraServices = [];
+      } as any);
+      component.showCustomPricing.set(true);
+      component.selectedServices.set([]);
+      component.selectedExtraServices.set([]);
       component.customCleaners.setValue(1);
       component.customDuration.setValue(180);
       component.customAmount.setValue('300');
@@ -1758,9 +1758,9 @@ describe('BookingComponent', () => {
         component.applySpecialOffer(firstTimeOffer({ name }));
         component.calculateTotal();
 
-        expect(component.promoOrFirstTimeDiscountAmount).toBe(Math.round(component.calculation.subTotal * 10) / 100);
+        expect(component.promoOrFirstTimeDiscountAmount()).toBe(Math.round(component.calculation().subTotal * 10) / 100);
         expect(component.resolveSubmittedPromoCode('')).toBeNull();
-        expect(component.selectedSpecialOffer?.specialOfferId).toBe(1);
+        expect(component.selectedSpecialOffer()?.specialOfferId).toBe(1);
       }
     });
 
@@ -1775,22 +1775,22 @@ describe('BookingComponent', () => {
       component.calculateTotal();
 
       expect(component.firstTimeDiscountApplied).toBe(false);
-      expect(component.promoOrFirstTimeDiscountAmount).toBe(0);
+      expect(component.promoOrFirstTimeDiscountAmount()).toBe(0);
       expect(component.resolveSubmittedPromoCode('')).not.toBe('firstUse' as any);
       expect(component.resolveSubmittedPromoCode('SAVE10')).toBe('SAVE10');
 
       // ...and re-applying the offer prices it exactly as the first time.
       component.applySpecialOffer(firstTimeOffer());
       component.calculateTotal();
-      expect(component.promoOrFirstTimeDiscountAmount).toBe(Math.round(component.calculation.subTotal * 10) / 100);
+      expect(component.promoOrFirstTimeDiscountAmount()).toBe(Math.round(component.calculation().subTotal * 10) / 100);
     });
 
     it('restoring a reorder clears the first-time flag too', () => {
       component.applySpecialOffer(firstTimeOffer());
-      component.serviceTypes = [{
+      component.serviceTypes.set([{
         id: 1, name: 'Residential Cleaning', serviceKey: 'residential', basePrice: 100, isActive: true,
         hasPoll: false, timeDuration: 0, services: [], extraServices: []
-      } as any];
+      } as any]);
       vi.spyOn(component['orderService'], 'getOrderById').mockReturnValue(of({
         id: 7, serviceTypeId: 1, services: [], extraServices: [],
         contactFirstName: '', contactLastName: '', contactEmail: '', contactPhone: '',
@@ -1800,7 +1800,7 @@ describe('BookingComponent', () => {
 
       component.selectOrderToReorder(7);
 
-      expect(component.specialOfferApplied).toBe(false);
+      expect(component.specialOfferApplied()).toBe(false);
       expect(component.firstTimeDiscountApplied).toBe(false);
       expect(component.resolveSubmittedPromoCode(undefined)).toBeUndefined();
     });
@@ -1810,12 +1810,12 @@ describe('BookingComponent', () => {
       component.hasFirstTimeDiscount = true;
       component.firstTimeDiscountPercentage = 10;
       component.firstTimeDiscountApplied = true;   // the old stale state
-      component.specialOfferApplied = false;
-      component.selectedSpecialOffer = null;
+      component.specialOfferApplied.set(false);
+      component.selectedSpecialOffer.set(null);
 
       component.calculateTotal();
 
-      expect(component.promoOrFirstTimeDiscountAmount).toBe(0);
+      expect(component.promoOrFirstTimeDiscountAmount()).toBe(0);
       expect(component.resolveSubmittedPromoCode('')).toBe('');
     });
   });

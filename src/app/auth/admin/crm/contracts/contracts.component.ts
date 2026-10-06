@@ -25,7 +25,7 @@ type ContractsView = 'list' | 'form' | 'detail';
   standalone: true,
   imports: [CommonModule, FormsModule, ContractFormComponent, ContractDetailComponent],
   templateUrl: './contracts.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./contracts.component.scss']
 })
 export class ContractsComponent implements OnInit, OnChanges {

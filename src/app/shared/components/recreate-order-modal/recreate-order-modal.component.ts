@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, OnChanges, SimpleChanges, ChangeDetectionStrategy, inject, output, input, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { forkJoin } from 'rxjs';
@@ -96,7 +96,7 @@ type CleaningType = 'normal' | 'deep' | 'superdeep';
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './recreate-order-modal.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./recreate-order-modal.component.scss']
 })
 export class RecreateOrderModalComponent implements OnChanges {
@@ -104,29 +104,32 @@ export class RecreateOrderModalComponent implements OnChanges {
   private bookingService = inject(BookingService);
 
   /** The order to recreate. Loading starts when this and `open` are both set. */
-  @Input() sourceOrderId: number | null = null;
-  @Input() open = false;
+  readonly sourceOrderId = input<number | null>(null);
+  readonly open = input(false);
 
-  @Output() closed = new EventEmitter<void>();
+  readonly closed = output<void>();
   /** Emitted after the new order is created, so the host can refresh its list. */
-  @Output() created = new EventEmitter<{ orderId: number; total: number }>();
+  readonly created = output<{
+    orderId: number;
+    total: number;
+}>();
 
-  step: Step = 'loading';
-  errorMessage = '';
-  submitting = false;
+  readonly step = signal<Step>('loading');
+  readonly errorMessage = signal('');
+  readonly submitting = signal(false);
 
-  preview: ReorderPreview | null = null;
-  serviceType: ServiceType | null = null;
+  readonly preview = signal<ReorderPreview | null>(null);
+  readonly serviceType = signal<ServiceType | null>(null);
 
-  selectedServices: SelectedService[] = [];
-  selectedExtraServices: SelectedExtra[] = [];
-  propertyType: PropertyType | null = null;
-  levelsQuantity: number | null = null;
+  readonly selectedServices = signal<SelectedService[]>([], { equal: () => false });
+  readonly selectedExtraServices = signal<SelectedExtra[]>([], { equal: () => false });
+  readonly propertyType = signal<PropertyType | null>(null);
+  readonly levelsQuantity = signal<number | null>(null);
 
   /** Custom ("Pre-Arranged") pricing fields — only shown when the source type is custom. */
-  customAmount = 0;
-  customCleaners = 1;
-  customDuration = 0;
+  readonly customAmount = signal(0);
+  readonly customCleaners = signal(1);
+  readonly customDuration = signal(0);
 
   /**
    * INFORMATIONAL bed/bath, for a service type that prices neither — a custom ("Pre-Arranged")
@@ -138,53 +141,53 @@ export class RecreateOrderModalComponent implements OnChanges {
    * OrderServices are empty, which is exactly where the payload used to read them from — and the
    * crew got a job sheet with no property details on it at all.
    */
-  informationalBedrooms = 0;
-  informationalBathrooms = 1;
+  readonly informationalBedrooms = signal(0);
+  readonly informationalBathrooms = signal(1);
 
   // ─── The form ───────────────────────────────────────────────────────────────────────────
-  serviceDate = '';           // yyyy-MM-dd; deliberately starts EMPTY (see resetForm)
-  serviceTime = '';
-  entryMethod = '';
-  specialInstructions = '';
-  contactFirstName = '';
-  contactLastName = '';
-  contactEmail = '';
-  contactPhone = '';
-  serviceAddress = '';
-  aptSuite = '';
-  city = '';
-  state = '';
-  zipCode = '';
-  tips = 0;
+  readonly serviceDate = signal('');           // yyyy-MM-dd; deliberately starts EMPTY (see resetForm)
+  readonly serviceTime = signal('');
+  readonly entryMethod = signal('');
+  readonly specialInstructions = signal('');
+  readonly contactFirstName = signal('');
+  readonly contactLastName = signal('');
+  readonly contactEmail = signal('');
+  readonly contactPhone = signal('');
+  readonly serviceAddress = signal('');
+  readonly aptSuite = signal('');
+  readonly city = signal('');
+  readonly state = signal('');
+  readonly zipCode = signal('');
+  readonly tips = signal(0);
 
   /** Seeded from the SOURCE order in resetForm — never a hardcoded default. */
-  paymentMethod: PaymentMethodValue = 'Cash';
-  paymentReference = '';
-  paymentNotes = '';
+  readonly paymentMethod = signal<PaymentMethodValue>('Cash');
+  readonly paymentReference = signal('');
+  readonly paymentNotes = signal('');
 
   /** Carried through for an Invoice-method recreation: who the new order is billed to. */
-  contractClientId: number | null = null;
-  contractClientName: string | null = null;
-  orderStatus: 'Pending' | 'Active' | 'Done' = 'Done';
+  readonly contractClientId = signal<number | null>(null);
+  readonly contractClientName = signal<string | null>(null);
+  readonly orderStatus = signal<'Pending' | 'Active' | 'Done'>('Done');
   /** True once the admin has touched the status picker — stops the date/method default from
    *  overwriting a deliberate choice on every later keystroke. */
   private statusTouched = false;
 
-  notifyByEmail = false;
-  notifyBySms = false;
-  applyCurrentDiscounts = false;
+  readonly notifyByEmail = signal(false);
+  readonly notifyBySms = signal(false);
+  readonly applyCurrentDiscounts = signal(false);
 
   // ─── Live quote ─────────────────────────────────────────────────────────────────────────
-  quoteSubTotal = 0;
-  quoteTax = 0;
-  quoteTotal = 0;
+  readonly quoteSubTotal = signal(0);
+  readonly quoteTax = signal(0);
+  readonly quoteTotal = signal(0);
   /** Per-cleaner minutes — what the label shows. */
-  quoteDisplayDuration = 0;
+  readonly quoteDisplayDuration = signal(0);
   /** TOTAL cleaner-minutes — what Order.TotalDuration stores, so what gets submitted. */
   quoteTotalDuration = 0;
   quoteMaids = 1;
-  appliedLoyalty = 0;
-  appliedSubscription = 0;
+  readonly appliedLoyalty = signal(0);
+  readonly appliedSubscription = signal(0);
 
   readonly paymentMethods = PAYMENT_METHOD_OPTIONS;
   readonly levelOptions: readonly number[] = LEVEL_OPTIONS;
@@ -194,17 +197,18 @@ export class RecreateOrderModalComponent implements OnChanges {
   readonly houseType: PropertyType = PROPERTY_TYPE_HOUSE;
 
   ngOnChanges(changes: SimpleChanges): void {
-    if ((changes['open'] || changes['sourceOrderId']) && this.open && this.sourceOrderId) {
-      this.load(this.sourceOrderId);
+    const sourceOrderId = this.sourceOrderId();
+    if ((changes['open'] || changes['sourceOrderId']) && this.open() && sourceOrderId) {
+      this.load(sourceOrderId);
     }
   }
 
   // ═══ Loading ════════════════════════════════════════════════════════════════════════════
 
   private load(orderId: number): void {
-    this.step = 'loading';
-    this.errorMessage = '';
-    this.preview = null;
+    this.step.set('loading');
+    this.errorMessage.set('');
+    this.preview.set(null);
 
     // The catalogue is needed to render the steppers and the extras grid; the preview supplies
     // the prefill and the diff. One forkJoin so the form can never paint half-built.
@@ -215,41 +219,40 @@ export class RecreateOrderModalComponent implements OnChanges {
       next: ({ serviceTypes, preview }) => {
         const type = serviceTypes.find(st => st.id === preview.prefill.serviceTypeId) ?? null;
         if (!type) {
-          this.step = 'error';
-          this.errorMessage =
-            'The service type this order was booked on is no longer available, so it cannot be recreated.';
+          this.step.set('error');
+          this.errorMessage.set('The service type this order was booked on is no longer available, so it cannot be recreated.');
           return;
         }
         this.applyPreview(preview, type);
-        this.step = 'changes';
+        this.step.set('changes');
       },
       error: (err) => {
-        this.step = 'error';
-        this.errorMessage = extractApiErrorMessage(err, 'Failed to load this order for recreation.');
+        this.step.set('error');
+        this.errorMessage.set(extractApiErrorMessage(err, 'Failed to load this order for recreation.'));
       }
     });
   }
 
   private applyPreview(preview: ReorderPreview, type: ServiceType): void {
-    this.preview = preview;
-    this.serviceType = type;
+    this.preview.set(preview);
+    this.serviceType.set(type);
     const p = preview.prefill;
 
     // Services: only lines the server kept (it already dropped anything deactivated or deleted,
     // and listed each one under `unavailable` for the diff screen).
-    this.selectedServices = (p.services || [])
+    this.selectedServices.set((p.services || [])
       .map((line: { serviceId: number; quantity: number }) => {
         const service = type.services.find(s => s.id === line.serviceId);
         return service ? { service, quantity: line.quantity } : null;
       })
-      .filter((s: SelectedService | null): s is SelectedService => s !== null);
+      .filter((s: SelectedService | null): s is SelectedService => s !== null));
 
     // Same rule as the booking page's restore path: the stored Sq.ft is an explicit choice, so it
     // is floored to the current allowance and NEVER lowered — and clamped ONCE, after the whole
     // loop, because the lines arrive in database order.
     this.clampSquareFeetToBedroomMinimum();
 
-    this.selectedExtraServices = (p.extraServices || [])
+    this.selectedExtraServices.set((p.extraServices || [])
       .map((line: { extraServiceId: number; quantity: number; hours: number }) => {
         const extraService = type.extraServices.find(es => es.id === line.extraServiceId);
         return extraService
@@ -260,20 +263,20 @@ export class RecreateOrderModalComponent implements OnChanges {
             }
           : null;
       })
-      .filter((s: SelectedExtra | null): s is SelectedExtra => s !== null);
+      .filter((s: SelectedExtra | null): s is SelectedExtra => s !== null));
 
-    this.propertyType = normalizePropertyType(p.propertyType);
-    this.levelsQuantity = this.resolveInitialLevels(p.levelsQuantity);
+    this.propertyType.set(normalizePropertyType(p.propertyType));
+    this.levelsQuantity.set(this.resolveInitialLevels(p.levelsQuantity));
 
-    this.customAmount = Number(p.customAmount) || 0;
-    this.customCleaners = Number(p.customCleaners) || 1;
-    this.customDuration = Number(p.customDuration) || 0;
+    this.customAmount.set(Number(p.customAmount) || 0);
+    this.customCleaners.set(Number(p.customCleaners) || 1);
+    this.customDuration.set(Number(p.customDuration) || 0);
 
     // The source order's own display columns. Null is a real answer here — every pre-arranged
     // order booked before this was fixed carries it — so it falls back to the booking page's
     // defaults rather than staying blank, and the admin sees the steppers and can correct them.
-    this.informationalBedrooms = p.bedroomsQuantity == null ? 0 : Number(p.bedroomsQuantity);
-    this.informationalBathrooms = p.bathroomsQuantity == null ? 1 : Number(p.bathroomsQuantity);
+    this.informationalBedrooms.set(p.bedroomsQuantity == null ? 0 : Number(p.bedroomsQuantity));
+    this.informationalBathrooms.set(p.bathroomsQuantity == null ? 1 : Number(p.bathroomsQuantity));
 
     this.resetForm(p);
     this.recalculate();
@@ -281,7 +284,7 @@ export class RecreateOrderModalComponent implements OnChanges {
 
   /** Levels come from the priced line when there is one, and from the display column otherwise. */
   private resolveInitialLevels(fallback: number | null | undefined): number | null {
-    const levelsLine = this.selectedServices.find(s => isLevelsService(s.service));
+    const levelsLine = this.selectedServices().find(s => isLevelsService(s.service));
     if (levelsLine) return levelsLine.quantity;
     return fallback == null ? null : Number(fallback);
   }
@@ -290,20 +293,20 @@ export class RecreateOrderModalComponent implements OnChanges {
     // The DATE STARTS EMPTY on purpose. Prefilling the original service date would make it one
     // Enter away from creating a duplicate of the order the admin is looking at; the original is
     // offered as a one-click fill instead, right next to the field.
-    this.serviceDate = '';
-    this.serviceTime = (p.serviceTime || '').slice(0, 5);
-    this.entryMethod = p.entryMethod || '';
-    this.specialInstructions = p.specialInstructions || '';
-    this.contactFirstName = p.contactFirstName || '';
-    this.contactLastName = p.contactLastName || '';
-    this.contactEmail = p.contactEmail || '';
-    this.contactPhone = p.contactPhone || '';
-    this.serviceAddress = p.serviceAddress || '';
-    this.aptSuite = p.aptSuite || '';
-    this.city = p.city || '';
-    this.state = p.state || '';
-    this.zipCode = p.zipCode || '';
-    this.tips = Number(p.tips) || 0;
+    this.serviceDate.set('');
+    this.serviceTime.set((p.serviceTime || '').slice(0, 5));
+    this.entryMethod.set(p.entryMethod || '');
+    this.specialInstructions.set(p.specialInstructions || '');
+    this.contactFirstName.set(p.contactFirstName || '');
+    this.contactLastName.set(p.contactLastName || '');
+    this.contactEmail.set(p.contactEmail || '');
+    this.contactPhone.set(p.contactPhone || '');
+    this.serviceAddress.set(p.serviceAddress || '');
+    this.aptSuite.set(p.aptSuite || '');
+    this.city.set(p.city || '');
+    this.state.set(p.state || '');
+    this.zipCode.set(p.zipCode || '');
+    this.tips.set(Number(p.tips) || 0);
 
     // THE SOURCE ORDER'S METHOD, not a hardcoded default.
     //
@@ -316,44 +319,44 @@ export class RecreateOrderModalComponent implements OnChanges {
     // Read off the PREVIEW, not the prefill `p`: the prefill is a booking request and has no
     // payment fields at all — which is exactly the property that makes old transaction state
     // unrepresentable, and is why the method has to travel separately.
-    this.paymentMethod = (this.preview?.sourcePaymentMethod as PaymentMethodValue) || 'Cash';
-    this.contractClientId = this.preview?.sourceContractClientId ?? null;
-    this.contractClientName = this.preview?.sourceContractClientName ?? null;
-    this.paymentReference = '';
-    this.paymentNotes = '';
+    this.paymentMethod.set((this.preview()?.sourcePaymentMethod as PaymentMethodValue) || 'Cash');
+    this.contractClientId.set(this.preview()?.sourceContractClientId ?? null);
+    this.contractClientName.set(this.preview()?.sourceContractClientName ?? null);
+    this.paymentReference.set('');
+    this.paymentNotes.set('');
     // Suggestion only, and immediately re-derived by onScheduleChange once a date is picked.
-    this.orderStatus = 'Done';
+    this.orderStatus.set('Done');
     this.statusTouched = false;
 
     // Both OFF: recreating a job must never text a customer about it unless asked. A channel with
     // no destination stays off and is disabled in the template.
-    this.notifyByEmail = false;
-    this.notifyBySms = false;
-    this.applyCurrentDiscounts = false;
-    this.submitting = false;
-    this.errorMessage = '';
+    this.notifyByEmail.set(false);
+    this.notifyBySms.set(false);
+    this.applyCurrentDiscounts.set(false);
+    this.submitting.set(false);
+    this.errorMessage.set('');
   }
 
   // ═══ Diff screen ════════════════════════════════════════════════════════════════════════
 
-  get hasLineChanges(): boolean { return (this.preview?.lineChanges.length ?? 0) > 0; }
-  get hasUnavailable(): boolean { return (this.preview?.unavailable.length ?? 0) > 0; }
-  get hasDiscountChanges(): boolean { return (this.preview?.discounts.length ?? 0) > 0; }
+  get hasLineChanges(): boolean { return (this.preview()?.lineChanges.length ?? 0) > 0; }
+  get hasUnavailable(): boolean { return (this.preview()?.unavailable.length ?? 0) > 0; }
+  get hasDiscountChanges(): boolean { return (this.preview()?.discounts.length ?? 0) > 0; }
 
   /** The bottom line only earns a section when it actually moved. */
   get hasTotalChange(): boolean {
-    if (!this.preview) return false;
-    return round2(this.preview.original.total) !== round2(this.preview.recreated.total);
+    if (!this.preview()) return false;
+    return round2(this.preview()!.original.total) !== round2(this.preview()!.recreated.total);
   }
 
   get totalDelta(): number {
-    if (!this.preview) return 0;
-    return round2(this.preview.recreated.total - this.preview.original.total);
+    if (!this.preview()) return 0;
+    return round2(this.preview()!.recreated.total - this.preview()!.original.total);
   }
 
   /** Discounts the admin can put back — the only two the customer may still be entitled to. */
   get reapplicableDiscounts(): ReorderDiscountChange[] {
-    return (this.preview?.discounts ?? []).filter(d => d.canReapply);
+    return (this.preview()?.discounts ?? []).filter(d => d.canReapply);
   }
 
   get reapplicableTotal(): number {
@@ -361,18 +364,18 @@ export class RecreateOrderModalComponent implements OnChanges {
   }
 
   continueToForm(): void {
-    this.step = 'form';
+    this.step.set('form');
   }
 
   backToChanges(): void {
-    this.step = 'changes';
+    this.step.set('changes');
   }
 
   // ═══ Services ═══════════════════════════════════════════════════════════════════════════
 
   /** Levels is excluded here because it has its own chips block, exactly like the booking page. */
   get stepperServices(): SelectedService[] {
-    return this.selectedServices.filter(s => !isLevelsService(s.service));
+    return this.selectedServices().filter(s => !isLevelsService(s.service));
   }
 
   /**
@@ -383,73 +386,73 @@ export class RecreateOrderModalComponent implements OnChanges {
    * controls for one number.
    */
   showInformationalBedBath(): boolean {
-    if (!this.serviceType) return false;
-    return !this.selectedServices.some(
+    if (!this.serviceType()) return false;
+    return !this.selectedServices().some(
       s => s.service.serviceKey === 'bedrooms' || s.service.serviceKey === 'bathrooms');
   }
 
   /** Studio at zero, same wording the booking page and the admin panel use. */
-  get informationalBedroomsLabel(): string {
-    return this.informationalBedrooms === 0 ? 'Studio' : String(this.informationalBedrooms);
-  }
+  readonly informationalBedroomsLabel = computed<string>(() => this.informationalBedrooms() === 0 ? 'Studio' : String(this.informationalBedrooms()));
 
   changeInformationalBedrooms(delta: number): void {
     // A house has no studio — the same floor the priced bedrooms row gets from getServiceMinValue.
-    const min = isHouse(this.propertyType) ? 1 : 0;
-    this.informationalBedrooms = Math.min(Math.max(this.informationalBedrooms + delta, min), 10);
+    const min = isHouse(this.propertyType()) ? 1 : 0;
+    this.informationalBedrooms.set(Math.min(Math.max(this.informationalBedrooms() + delta, min), 10));
   }
 
   changeInformationalBathrooms(delta: number): void {
-    this.informationalBathrooms = Math.min(Math.max(this.informationalBathrooms + delta, 0), 10);
+    this.informationalBathrooms.set(Math.min(Math.max(this.informationalBathrooms() + delta, 0), 10));
   }
 
   getServiceMinValue(service: Service): number {
     const baseMin = service.minValue || 0;
     // A house has no studio — raising the floor here greys out the minus button at one bedroom
     // rather than adding a second rule to the template.
-    if (service.serviceKey === 'bedrooms' && isHouse(this.propertyType)) {
+    if (service.serviceKey === 'bedrooms' && isHouse(this.propertyType())) {
       return Math.max(baseMin, 1);
     }
     return baseMin;
   }
 
   incrementService(service: Service): void {
-    const selected = this.selectedServices.find(s => s.service.id === service.id);
+    const selected = this.selectedServices().find(s => s.service.id === service.id);
     if (!selected) return;
     const step = service.stepValue || 1;
     this.updateServiceQuantity(service, Math.min(selected.quantity + step, service.maxValue || 10));
   }
 
   decrementService(service: Service): void {
-    const selected = this.selectedServices.find(s => s.service.id === service.id);
+    const selected = this.selectedServices().find(s => s.service.id === service.id);
     if (!selected) return;
     const step = service.stepValue || 1;
     this.updateServiceQuantity(service, Math.max(selected.quantity - step, this.getServiceMinValue(service)));
   }
 
   updateServiceQuantity(service: Service, quantity: number): void {
-    const selected = this.selectedServices.find(s => s.service.id === service.id);
+    const selected = this.selectedServices().find(s => s.service.id === service.id);
     if (!selected) return;
 
     // Captured BEFORE the write: the bedrooms→sqft rule needs the OUTGOING bedroom count to tell
     // an inherited sq.ft from one the customer chose.
     const previousQuantity = selected.quantity;
     selected.quantity = quantity;
+    this.selectedServices.set(this.selectedServices());
 
     if (service.serviceKey === 'bedrooms') {
-      const sqft = this.selectedServices.find(s => s.service.serviceKey === 'sqft');
+      const sqft = this.selectedServices().find(s => s.service.serviceKey === 'sqft');
       if (sqft) {
         sqft.quantity = resolveSquareFeetForBedroomChange(
           sqft.quantity,
           this.squareFeetForBedrooms(previousQuantity),
           this.squareFeetForBedrooms(quantity)
         );
+        this.selectedServices.set(this.selectedServices());
       }
     }
 
     if (service.serviceKey === 'sqft') {
       const min = this.squareFeetMinimum();
-      if (quantity < min) selected.quantity = min;
+      if (quantity < min) { selected.quantity = min; this.selectedServices.set(this.selectedServices()); }
     }
 
     this.sqftOptionsCache = null;
@@ -460,20 +463,21 @@ export class RecreateOrderModalComponent implements OnChanges {
   private sqftOptionsCache: { key: string; options: number[] } | null = null;
 
   private squareFeetForBedrooms(bedrooms: number): number {
-    const sqft = this.selectedServices.find(s => s.service.serviceKey === 'sqft');
-    const bedroomsService = this.selectedServices.find(s => s.service.serviceKey === 'bedrooms');
+    const sqft = this.selectedServices().find(s => s.service.serviceKey === 'sqft');
+    const bedroomsService = this.selectedServices().find(s => s.service.serviceKey === 'bedrooms');
     return getSquareFeetForBedrooms(bedrooms, sqft?.service?.thresholds, bedroomsService?.service?.id);
   }
 
   private squareFeetMinimum(): number {
-    const bedroomsService = this.selectedServices.find(s => s.service.serviceKey === 'bedrooms');
+    const bedroomsService = this.selectedServices().find(s => s.service.serviceKey === 'bedrooms');
     return bedroomsService ? this.squareFeetForBedrooms(bedroomsService.quantity) : 400;
   }
 
   private clampSquareFeetToBedroomMinimum(): void {
-    const sqft = this.selectedServices.find(s => s.service.serviceKey === 'sqft');
+    const sqft = this.selectedServices().find(s => s.service.serviceKey === 'sqft');
     if (!sqft) return;
     sqft.quantity = clampRestoredSquareFeet(sqft.quantity, this.squareFeetMinimum());
+    this.selectedServices.set(this.selectedServices());
   }
 
   private squareFeetOptionsFor(service: Service): number[] {
@@ -484,7 +488,7 @@ export class RecreateOrderModalComponent implements OnChanges {
     if (this.sqftOptionsCache?.key !== key) {
       this.sqftOptionsCache = { key, options: getSquareFeetOptions(min, max, step) };
     }
-    return this.sqftOptionsCache.options;
+    return this.sqftOptionsCache!.options;
   }
 
   squareFeetSliderMaxIndex(service: Service): number {
@@ -511,42 +515,42 @@ export class RecreateOrderModalComponent implements OnChanges {
   // ═══ Property type + levels ═════════════════════════════════════════════════════════════
 
   showPropertyTypeSelector(): boolean {
-    return serviceTypeCollectsPropertyType(this.serviceType);
+    return serviceTypeCollectsPropertyType(this.serviceType());
   }
 
   /** Levels are never priced on a custom type — same rule as the booking page. */
   showLevelsSelector(): boolean {
     return this.showPropertyTypeSelector()
-      && isHouse(this.propertyType)
-      && !this.serviceType?.isCustom;
+      && isHouse(this.propertyType())
+      && !this.serviceType()?.isCustom;
   }
 
   selectPropertyType(type: PropertyType): void {
-    if (this.propertyType === type) return;
-    this.propertyType = type;
+    if (this.propertyType() === type) return;
+    this.propertyType.set(type);
 
     if (!isHouse(type)) {
       // An apartment can never carry a stair charge. Forcing the line to the included count
       // rather than deleting it keeps the submitted selection an honest image of the answer and
       // matches what the server clamps to anyway.
-      this.levelsQuantity = null;
+      this.levelsQuantity.set(null);
       this.setLevelsLineQuantity(1);
     } else {
       // A house has no studio — raise bedrooms to at least one before anything is priced. The
       // informational count follows the same rule; it is priced by nothing, so it just moves.
-      if (this.informationalBedrooms < 1) this.informationalBedrooms = 1;
-      const bedrooms = this.selectedServices.find(s => s.service.serviceKey === 'bedrooms');
+      if (this.informationalBedrooms() < 1) this.informationalBedrooms.set(1);
+      const bedrooms = this.selectedServices().find(s => s.service.serviceKey === 'bedrooms');
       if (bedrooms && bedrooms.quantity < 1) {
         this.updateServiceQuantity(bedrooms.service, 1);
         return; // updateServiceQuantity already recalculated
       }
-      if (this.levelsQuantity != null) this.setLevelsLineQuantity(this.levelsQuantity);
+      if (this.levelsQuantity() != null) this.setLevelsLineQuantity(this.levelsQuantity()!);
     }
     this.recalculate();
   }
 
   selectLevels(levels: number): void {
-    this.levelsQuantity = levels;
+    this.levelsQuantity.set(levels);
     this.setLevelsLineQuantity(levels);
     this.recalculate();
   }
@@ -557,14 +561,16 @@ export class RecreateOrderModalComponent implements OnChanges {
    * display column the server derives from it.
    */
   private setLevelsLineQuantity(levels: number): void {
-    const existing = this.selectedServices.find(s => isLevelsService(s.service));
+    const existing = this.selectedServices().find(s => isLevelsService(s.service));
     if (existing) {
       existing.quantity = levels;
+      this.selectedServices.set(this.selectedServices());
       return;
     }
-    const catalogueLine = this.serviceType?.services?.find(s => isLevelsService(s) && s.isActive);
+    const catalogueLine = this.serviceType()?.services?.find(s => isLevelsService(s) && s.isActive);
     if (catalogueLine) {
-      this.selectedServices.push({ service: catalogueLine, quantity: levels });
+      this.selectedServices().push({ service: catalogueLine, quantity: levels });
+      this.selectedServices.set(this.selectedServices());
     }
   }
 
@@ -579,8 +585,8 @@ export class RecreateOrderModalComponent implements OnChanges {
    *  it is served the WHOLE catalogue, so it "has" a deep row it must never be able to select —
    *  the same reason booking's getActiveDeepCleaningExtraService returns null in custom mode. */
   private findCleaningTypeExtra(match: (e: ExtraService) => boolean): ExtraService | null {
-    if (!this.serviceType || this.serviceType.isCustom) return null;
-    return this.serviceType.extraServices.find(e => match(e) && e.isActive !== false) ?? null;
+    if (!this.serviceType() || this.serviceType()!.isCustom) return null;
+    return this.serviceType()!.extraServices.find(e => match(e) && e.isActive !== false) ?? null;
   }
 
   get deepCleaningExtra(): ExtraService | null {
@@ -616,25 +622,26 @@ export class RecreateOrderModalComponent implements OnChanges {
 
   /** Derived from the selection, never stored separately — one source of truth for the price. */
   get cleaningType(): CleaningType {
-    if (this.selectedExtraServices.some(s => s.extraService.isSuperDeepCleaning)) return 'superdeep';
-    if (this.selectedExtraServices.some(s => s.extraService.isDeepCleaning)) return 'deep';
+    if (this.selectedExtraServices().some(s => s.extraService.isSuperDeepCleaning)) return 'superdeep';
+    if (this.selectedExtraServices().some(s => s.extraService.isDeepCleaning)) return 'deep';
     return 'normal';
   }
 
   selectCleaningType(type: CleaningType): void {
     // Mutually exclusive: two multipliers must never stack.
-    this.selectedExtraServices = this.selectedExtraServices.filter(
-      s => !s.extraService.isDeepCleaning && !s.extraService.isSuperDeepCleaning);
+    this.selectedExtraServices.set(this.selectedExtraServices().filter(
+      s => !s.extraService.isDeepCleaning && !s.extraService.isSuperDeepCleaning));
 
     const extra = type === 'deep' ? this.deepCleaningExtra
                 : type === 'superdeep' ? this.superDeepCleaningExtra
                 : null;
     if (extra) {
-      this.selectedExtraServices.push({
+      this.selectedExtraServices().push({
         extraService: extra,
         quantity: 1,
         hours: extra.hasHours ? 0.5 : 0
       });
+      this.selectedExtraServices.set(this.selectedExtraServices());
     }
     this.recalculate();
   }
@@ -651,52 +658,56 @@ export class RecreateOrderModalComponent implements OnChanges {
    * because its extras carry no price at all.
    */
   get selectableExtras(): ExtraService[] {
-    const all = (this.serviceType?.extraServices ?? [])
+    const all = (this.serviceType()?.extraServices ?? [])
       .filter(es => !es.isDeepCleaning && !es.isSuperDeepCleaning);
-    if (!this.serviceType?.isCustom) return all;
+    if (!this.serviceType()?.isCustom) return all;
     return all.filter(es => !es.isSameDayService
       && !extraIs(es, EXTRA_SERVICE_KEYS.extraCleaners, (_lower, name) => name === EXTRA_CLEANERS_NAME));
   }
 
   isExtraSelected(extra: ExtraService): boolean {
-    return this.selectedExtraServices.some(s => s.extraService.id === extra.id);
+    return this.selectedExtraServices().some(s => s.extraService.id === extra.id);
   }
 
   extraQuantity(extra: ExtraService): number {
-    return this.selectedExtraServices.find(s => s.extraService.id === extra.id)?.quantity ?? 1;
+    return this.selectedExtraServices().find(s => s.extraService.id === extra.id)?.quantity ?? 1;
   }
 
   extraHours(extra: ExtraService): number {
-    return this.selectedExtraServices.find(s => s.extraService.id === extra.id)?.hours ?? 0.5;
+    return this.selectedExtraServices().find(s => s.extraService.id === extra.id)?.hours ?? 0.5;
   }
 
   toggleExtra(extra: ExtraService): void {
-    const index = this.selectedExtraServices.findIndex(s => s.extraService.id === extra.id);
+    const index = this.selectedExtraServices().findIndex(s => s.extraService.id === extra.id);
     if (index >= 0) {
-      this.selectedExtraServices.splice(index, 1);
+      this.selectedExtraServices().splice(index, 1);
+      this.selectedExtraServices.set(this.selectedExtraServices());
     } else {
-      this.selectedExtraServices.push({
+      this.selectedExtraServices().push({
         extraService: extra,
         quantity: 1,
         hours: extra.hasHours ? 0.5 : 0
       });
+      this.selectedExtraServices.set(this.selectedExtraServices());
     }
-    this.selectedExtraServices = [...this.selectedExtraServices];
+    this.selectedExtraServices.set(this.selectedExtraServices());
     this.recalculate();
   }
 
   changeExtraQuantity(extra: ExtraService, delta: number): void {
-    const selection = this.selectedExtraServices.find(s => s.extraService.id === extra.id);
+    const selection = this.selectedExtraServices().find(s => s.extraService.id === extra.id);
     if (!selection) return;
     selection.quantity = Math.max(1, selection.quantity + delta);
+    this.selectedExtraServices.set(this.selectedExtraServices());
     this.recalculate();
   }
 
   /** Hours are bought in 30-minute steps with a half-hour floor, same as the booking page. */
   changeExtraHours(extra: ExtraService, delta: number): void {
-    const selection = this.selectedExtraServices.find(s => s.extraService.id === extra.id);
+    const selection = this.selectedExtraServices().find(s => s.extraService.id === extra.id);
     if (!selection) return;
     selection.hours = Math.max(0.5, selection.hours + delta);
+    this.selectedExtraServices.set(this.selectedExtraServices());
     this.recalculate();
   }
 
@@ -706,22 +717,22 @@ export class RecreateOrderModalComponent implements OnChanges {
     // Gated on the MODE, never on the amount being filled in: a custom order with the Total
     // Amount cleared is $0 until one is typed, and must not fall through to catalogue pricing
     // and charge the informational extras as a real line.
-    if (this.serviceType?.isCustom) {
+    if (this.serviceType()?.isCustom) {
       return {
-        basePrice: this.serviceType.basePrice ?? 0,
-        baseDuration: this.serviceType.timeDuration ?? 0,
-        minimumPrice: this.serviceType.minimumPrice ?? 0,
+        basePrice: this.serviceType()!.basePrice ?? 0,
+        baseDuration: this.serviceType()!.timeDuration ?? 0,
+        minimumPrice: this.serviceType()!.minimumPrice ?? 0,
         services: [],
         extraServices: buildQuoteInputFromSelections(
-          this.serviceType, [], this.selectedExtraServices).extraServices,
+          this.serviceType(), [], this.selectedExtraServices()).extraServices,
         isCustomPricing: true,
-        customAmount: this.customAmount || 0,
-        customCleaners: Math.max(1, this.customCleaners || 1),
-        customDuration: this.customDuration || 0
+        customAmount: this.customAmount() || 0,
+        customCleaners: Math.max(1, this.customCleaners() || 1),
+        customDuration: this.customDuration() || 0
       };
     }
     return buildQuoteInputFromSelections(
-      this.serviceType, this.selectedServices, this.selectedExtraServices);
+      this.serviceType(), this.selectedServices(), this.selectedExtraServices());
   }
 
   recalculate(): void {
@@ -733,10 +744,10 @@ export class RecreateOrderModalComponent implements OnChanges {
     let loyalty = 0;
     let loyaltyPct = 0;
     let subscription = 0;
-    if (this.applyCurrentDiscounts && this.preview) {
-      const base = this.preview.recreated.subTotal;
-      const loyaltySlot = this.preview.discounts.find(d => d.kind === 'Loyalty' && d.canReapply);
-      const subscriptionSlot = this.preview.discounts.find(d => d.kind === 'Subscription' && d.canReapply);
+    if (this.applyCurrentDiscounts() && this.preview()) {
+      const base = this.preview()!.recreated.subTotal;
+      const loyaltySlot = this.preview()!.discounts.find(d => d.kind === 'Loyalty' && d.canReapply);
+      const subscriptionSlot = this.preview()!.discounts.find(d => d.kind === 'Subscription' && d.canReapply);
       if (loyaltySlot) {
         loyalty = rescaleDiscountToSubTotal(loyaltySlot.availableAmount, base, quote.subTotal);
         // Any positive percentage keeps the stacking gate live; the real figure is the server's.
@@ -756,39 +767,37 @@ export class RecreateOrderModalComponent implements OnChanges {
       taxOverride: quote.taxOverride,
       loyaltyDiscountAmount: loyalty,
       subscriptionDiscountAmount: subscription,
-      tips: Number(this.tips) || 0
+      tips: Number(this.tips()) || 0
     });
 
-    this.quoteSubTotal = quote.subTotal;
-    this.quoteTax = totals.tax;
-    this.quoteTotal = totals.total;
-    this.quoteDisplayDuration = quote.displayDuration;
+    this.quoteSubTotal.set(quote.subTotal);
+    this.quoteTax.set(totals.tax);
+    this.quoteTotal.set(totals.total);
+    this.quoteDisplayDuration.set(quote.displayDuration);
     this.quoteTotalDuration = quote.totalDuration;
     this.quoteMaids = quote.maidsCount;
-    this.appliedLoyalty = loyalty;
-    this.appliedSubscription = subscription;
+    this.appliedLoyalty.set(loyalty);
+    this.appliedSubscription.set(subscription);
   }
 
   /**
    * Nearest-increment rounding, the same mode the booking page and the chat agent use. A quoted
    * duration must read identically on every customer-facing surface.
    */
-  get formattedDuration(): string {
-    return DurationUtils.formatDurationRounded(this.quoteDisplayDuration);
-  }
+  readonly formattedDuration = computed<string>(() => DurationUtils.formatDurationRounded(this.quoteDisplayDuration()));
 
   // ═══ Form behaviour ═════════════════════════════════════════════════════════════════════
 
   useOriginalDate(): void {
-    if (!this.preview) return;
-    this.serviceDate = this.preview.originalServiceDate.slice(0, 10);
+    if (!this.preview()) return;
+    this.serviceDate.set(this.preview()!.originalServiceDate.slice(0, 10));
     this.onScheduleChange();
   }
 
   /** True when the chosen date is before today — the banner and the status default hang on it. */
   get isBackDated(): boolean {
-    if (!this.serviceDate) return false;
-    return this.serviceDate < this.todayIso();
+    if (!this.serviceDate()) return false;
+    return this.serviceDate() < this.todayIso();
   }
 
   private todayIso(): string {
@@ -808,9 +817,9 @@ export class RecreateOrderModalComponent implements OnChanges {
     // Only a method whose money has ALREADY arrived can start the order Active. Stripe starts
     // Pending because nothing is paid yet, and so does Invoice — an invoice-billed order is
     // activated by its invoice being settled in full, never by the method being chosen.
-    this.orderStatus = isSettledOnRecord(this.paymentMethod)
+    this.orderStatus.set(isSettledOnRecord(this.paymentMethod())
       ? (this.isBackDated ? 'Done' : 'Active')
-      : 'Pending';
+      : 'Pending');
   }
 
   onStatusChange(): void {
@@ -819,9 +828,7 @@ export class RecreateOrderModalComponent implements OnChanges {
 
   /** True when the chosen method means the money has already changed hands — see
    *  shared/payment-method.ts. Drives the reference/notes fields. */
-  get isSettledMethod(): boolean {
-    return isSettledOnRecord(this.paymentMethod);
-  }
+  readonly isSettledMethod = computed<boolean>(() => isSettledOnRecord(this.paymentMethod()));
 
   onTipsChange(): void {
     this.recalculate();
@@ -832,96 +839,96 @@ export class RecreateOrderModalComponent implements OnChanges {
   }
 
   get canNotifyByEmail(): boolean {
-    return !!this.preview?.notificationEmail;
+    return !!this.preview()?.notificationEmail;
   }
 
   get canNotifyBySms(): boolean {
-    return !!this.preview?.notificationPhone;
+    return !!this.preview()?.notificationPhone;
   }
 
   // ═══ Submit ═════════════════════════════════════════════════════════════════════════════
 
   get validationError(): string | null {
-    if (!this.serviceDate) return 'Choose a service date.';
-    if (!this.serviceTime) return 'Choose a service time.';
-    if (!this.entryMethod.trim()) return 'Entry method is required.';
-    if (!this.contactFirstName.trim() || !this.contactLastName.trim()) return 'Contact name is required.';
-    if (!this.contactPhone.trim()) return 'Contact phone is required.';
-    if (!this.serviceAddress.trim()) return 'Service address is required.';
-    if (!this.city.trim() || !this.state.trim() || !this.zipCode.trim()) return 'City, state and ZIP are required.';
-    if (this.paymentMethod === 'Invoice' && !this.contractClientId)
+    if (!this.serviceDate()) return 'Choose a service date.';
+    if (!this.serviceTime()) return 'Choose a service time.';
+    if (!this.entryMethod().trim()) return 'Entry method is required.';
+    if (!this.contactFirstName().trim() || !this.contactLastName().trim()) return 'Contact name is required.';
+    if (!this.contactPhone().trim()) return 'Contact phone is required.';
+    if (!this.serviceAddress().trim()) return 'Service address is required.';
+    if (!this.city().trim() || !this.state().trim() || !this.zipCode().trim()) return 'City, state and ZIP are required.';
+    if (this.paymentMethod() === 'Invoice' && !this.contractClientId())
       return 'This order has no commercial client, so it cannot be billed by invoice. '
            + 'Choose a different payment method.';
-    if (this.showPropertyTypeSelector() && !this.propertyType) return 'Choose the property type.';
-    if (this.showLevelsSelector() && this.levelsQuantity == null) return 'Choose how many levels need cleaning.';
-    if (this.serviceType?.isCustom && !(this.customAmount > 0)) return 'Enter the total amount for this pre-arranged job.';
+    if (this.showPropertyTypeSelector() && !this.propertyType()) return 'Choose the property type.';
+    if (this.showLevelsSelector() && this.levelsQuantity() == null) return 'Choose how many levels need cleaning.';
+    if (this.serviceType()?.isCustom && !(this.customAmount() > 0)) return 'Enter the total amount for this pre-arranged job.';
     return null;
   }
 
   submit(): void {
-    if (this.submitting) return;
+    if (this.submitting()) return;
     const invalid = this.validationError;
     if (invalid) {
-      this.errorMessage = invalid;
+      this.errorMessage.set(invalid);
       return;
     }
-    if (!this.preview || !this.serviceType) return;
+    if (!this.preview() || !this.serviceType()) return;
 
-    this.errorMessage = '';
-    this.submitting = true;
+    this.errorMessage.set('');
+    this.submitting.set(true);
 
     const bookingData = this.buildBookingData();
-    const outsideStripe = isOutsideStripe(this.paymentMethod);
+    const outsideStripe = isOutsideStripe(this.paymentMethod());
 
     this.bookingService.createBookingForUser(
-      this.preview.customerUserId,
+      this.preview()!.customerUserId,
       bookingData,
-      this.paymentMethod,
-      outsideStripe ? (this.paymentReference || null) : null,
-      outsideStripe ? (this.paymentNotes || null) : null,
+      this.paymentMethod(),
+      outsideStripe ? (this.paymentReference() || null) : null,
+      outsideStripe ? (this.paymentNotes() || null) : null,
       {
         // Always EXPLICIT, never omitted: an omitted flag means "send", which is precisely the
         // behaviour this flow exists to opt out of.
-        sendCustomerEmail: this.notifyByEmail && this.canNotifyByEmail,
-        sendCustomerSms: this.notifyBySms && this.canNotifyBySms,
-        applyCurrentDiscounts: this.applyCurrentDiscounts,
-        initialStatus: this.orderStatus,
-        recreatedFromOrderId: this.preview.sourceOrderId,
+        sendCustomerEmail: this.notifyByEmail() && this.canNotifyByEmail,
+        sendCustomerSms: this.notifyBySms() && this.canNotifyBySms,
+        applyCurrentDiscounts: this.applyCurrentDiscounts(),
+        initialStatus: this.orderStatus(),
+        recreatedFromOrderId: this.preview()!.sourceOrderId,
         // Only read by the server for the Invoice method; harmless (and null) otherwise.
-        contractClientId: this.contractClientId
+        contractClientId: this.contractClientId()
       }
     )
-      .pipe(finalize(() => { this.submitting = false; }))
+      .pipe(finalize(() => { this.submitting.set(false); }))
       .subscribe({
         next: (response) => {
           this.created.emit({ orderId: response.orderId, total: response.total });
           this.close();
         },
         error: (err) => {
-          this.errorMessage = extractApiErrorMessage(err, 'Failed to recreate this order.');
+          this.errorMessage.set(extractApiErrorMessage(err, 'Failed to recreate this order.'));
         }
       });
   }
 
   private buildBookingData(): any {
-    const prefill = this.preview!.prefill;
+    const prefill = this.preview()!.prefill;
 
     // Levels rides as an ordinary priced line, exactly like bedrooms; levelsQuantity is only the
     // informational fallback for a type that does not price levels.
-    const services = this.selectedServices.map(s => ({
+    const services = this.selectedServices().map(s => ({
       serviceId: s.service.id,
       quantity: isLevelsService(s.service)
-        ? levelsToSubmit(this.propertyType, this.levelsQuantity)
+        ? levelsToSubmit(this.propertyType(), this.levelsQuantity())
         : s.quantity
     }));
 
     return {
-      serviceTypeId: this.serviceType!.id,
-      customServiceDisplayName: this.serviceType!.isCustom
+      serviceTypeId: this.serviceType()!.id,
+      customServiceDisplayName: this.serviceType()!.isCustom
         ? (prefill.customServiceDisplayName || null)
         : undefined,
       services,
-      extraServices: this.selectedExtraServices.map(s => ({
+      extraServices: this.selectedExtraServices().map(s => ({
         extraServiceId: s.extraService.id,
         quantity: s.quantity,
         hours: s.hours
@@ -929,21 +936,21 @@ export class RecreateOrderModalComponent implements OnChanges {
       // The plan the original job was on, so the recreated order still counts as recurring in the
       // CRM. Its DISCOUNT is a separate decision, carried by applyCurrentDiscounts.
       subscriptionId: prefill.subscriptionId || 0,
-      serviceDate: this.serviceDate,
-      serviceTime: this.serviceTime,
-      entryMethod: this.entryMethod.trim(),
-      specialInstructions: this.specialInstructions || null,
-      contactFirstName: this.contactFirstName.trim(),
-      contactLastName: this.contactLastName.trim(),
+      serviceDate: this.serviceDate(),
+      serviceTime: this.serviceTime(),
+      entryMethod: this.entryMethod().trim(),
+      specialInstructions: this.specialInstructions() || null,
+      contactFirstName: this.contactFirstName().trim(),
+      contactLastName: this.contactLastName().trim(),
       // null, never '' — the backend's [EmailAddress] accepts null but rejects an empty string,
       // which is how a no-email cash customer gets booked at all.
-      contactEmail: this.contactEmail.trim() ? this.contactEmail.trim() : null,
-      contactPhone: this.contactPhone.trim(),
-      serviceAddress: this.serviceAddress.trim(),
-      aptSuite: this.aptSuite || null,
-      city: this.city.trim(),
-      state: this.state.trim(),
-      zipCode: this.zipCode.trim(),
+      contactEmail: this.contactEmail().trim() ? this.contactEmail().trim() : null,
+      contactPhone: this.contactPhone().trim(),
+      serviceAddress: this.serviceAddress().trim(),
+      aptSuite: this.aptSuite() || null,
+      city: this.city().trim(),
+      state: this.state().trim(),
+      zipCode: this.zipCode().trim(),
       apartmentId: prefill.apartmentId ?? null,
       apartmentName: prefill.apartmentName || null,
 
@@ -961,27 +968,27 @@ export class RecreateOrderModalComponent implements OnChanges {
       subscriptionDiscountAmount: 0,
       loyaltyDiscountAmount: 0,
 
-      tips: Number(this.tips) || 0,
+      tips: Number(this.tips()) || 0,
       maidsCount: this.quoteMaids,
       totalDuration: this.quoteTotalDuration,
-      subTotal: this.quoteSubTotal,
-      tax: this.quoteTax,
-      total: this.quoteTotal,
+      subTotal: this.quoteSubTotal(),
+      tax: this.quoteTax(),
+      total: this.quoteTotal(),
 
-      isCustomPricing: !!this.serviceType!.isCustom,
-      customAmount: this.serviceType!.isCustom ? this.customAmount : undefined,
-      customCleaners: this.serviceType!.isCustom ? this.customCleaners : undefined,
-      customDuration: this.serviceType!.isCustom ? this.customDuration : undefined,
+      isCustomPricing: !!this.serviceType()!.isCustom,
+      customAmount: this.serviceType()!.isCustom ? this.customAmount() : undefined,
+      customCleaners: this.serviceType()!.isCustom ? this.customCleaners() : undefined,
+      customDuration: this.serviceType()!.isCustom ? this.customDuration() : undefined,
 
       // A PRICED line always wins — it is what the customer is charged from. When the type
       // prices neither (custom / cleaner+hours) the informational steppers are the only record,
       // exactly as they are on the booking page.
-      bedroomsQuantity: this.selectedServices.find(s => s.service.serviceKey === 'bedrooms')?.quantity
-        ?? (this.showInformationalBedBath() ? this.informationalBedrooms : null),
-      bathroomsQuantity: this.selectedServices.find(s => s.service.serviceKey === 'bathrooms')?.quantity
-        ?? (this.showInformationalBedBath() ? this.informationalBathrooms : null),
-      propertyType: this.propertyType ?? null,
-      levelsQuantity: this.levelsQuantity,
+      bedroomsQuantity: this.selectedServices().find(s => s.service.serviceKey === 'bedrooms')?.quantity
+        ?? (this.showInformationalBedBath() ? this.informationalBedrooms() : null),
+      bathroomsQuantity: this.selectedServices().find(s => s.service.serviceKey === 'bathrooms')?.quantity
+        ?? (this.showInformationalBedBath() ? this.informationalBathrooms() : null),
+      propertyType: this.propertyType() ?? null,
+      levelsQuantity: this.levelsQuantity(),
       floorTypes: prefill.floorTypes || null,
       floorTypeOther: prefill.floorTypeOther || null,
       uploadedPhotos: [],
@@ -990,14 +997,14 @@ export class RecreateOrderModalComponent implements OnChanges {
   }
 
   close(): void {
-    this.step = 'loading';
-    this.preview = null;
-    this.serviceType = null;
-    this.selectedServices = [];
-    this.selectedExtraServices = [];
-    this.informationalBedrooms = 0;
-    this.informationalBathrooms = 1;
-    this.errorMessage = '';
+    this.step.set('loading');
+    this.preview.set(null);
+    this.serviceType.set(null);
+    this.selectedServices.set([]);
+    this.selectedExtraServices.set([]);
+    this.informationalBedrooms.set(0);
+    this.informationalBathrooms.set(1);
+    this.errorMessage.set('');
     this.closed.emit();
   }
 

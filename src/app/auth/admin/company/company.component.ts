@@ -16,7 +16,7 @@ import { canViewAdminPage } from '../../../shared/admin-viewable-pages';
   standalone: true,
   imports: [RouterLink, RouterLinkActive, RouterOutlet],
   templateUrl: './company.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./company.component.scss']
 })
 export class CompanyComponent implements OnInit, OnDestroy {

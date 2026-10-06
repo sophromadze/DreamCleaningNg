@@ -17,16 +17,16 @@
     <div class="filters-left">
       <div class="view-toggle" role="group" aria-label="Level of detail">
         <button type="button"
-                [class.active]="viewMode === 'simple'"
-                [attr.aria-pressed]="viewMode === 'simple'"
+                [class.active]="viewMode() === 'simple'"
+                [attr.aria-pressed]="viewMode() === 'simple'"
                 (click)="setViewMode('simple')">Simple</button>
         <button type="button"
-                [class.active]="viewMode === 'full'"
-                [attr.aria-pressed]="viewMode === 'full'"
+                [class.active]="viewMode() === 'full'"
+                [attr.aria-pressed]="viewMode() === 'full'"
                 (click)="setViewMode('full')">Full</button>
       </div>
       <div class="quick-filter-dropdown">
-        <select aria-label="Period" [ngModel]="activeQuickFilter" (ngModelChange)="onQuickFilterChange($event)">
+        <select aria-label="Period" [ngModel]="activeQuickFilter()" (ngModelChange)="onQuickFilterChange($event)">
           @for (f of quickFilters; track f.key) {
           <option [value]="f.key">{{ f.label }}</option>
           }
@@ -40,37 +40,37 @@
     <div class="custom-range">
       <label>From <input type="date" [(ngModel)]="customFrom" /></label>
       <label>To <input type="date" [(ngModel)]="customTo" /></label>
-      <button class="apply-btn" (click)="applyCustomRange()" [disabled]="!customFrom || !customTo">Apply</button>
-      @if (customFrom || customTo) {
+      <button class="apply-btn" (click)="applyCustomRange()" [disabled]="!customFrom() || !customTo()">Apply</button>
+      @if (customFrom() || customTo()) {
       <button class="clear-btn" (click)="clearCustomRange()">Clear</button>
       }
     </div>
   </div>
 
   <!-- Error -->
-  @if (error && !isLoading && !compareMode) {
+  @if (error() && !isLoading() && !compareMode()) {
   <div class="error-state">
-    <p>{{ error }}</p>
+    <p>{{ error() }}</p>
   </div>
   }
 
   <!-- ══ SIMPLE ══════════════════════════════════════════════════════════════
        The answer to the question the page was asked: are customers coming back,
        is it getting better or worse, are follow-ups doing anything. -->
-  @if (viewMode === 'simple' && !error && !compareMode) {
+  @if (viewMode() === 'simple' && !error() && !compareMode()) {
 
-    @if (summary && !isLoading) {
-    <p class="summary-line">{{ summary }}</p>
+    @if (summary() && !isLoading()) {
+    <p class="summary-line">{{ summary() }}</p>
     }
-    @if (isLoading) {
+    @if (isLoading()) {
     <p class="summary-line shimmer-loading">&nbsp;</p>
     }
 
     <div class="headline-grid simple">
-      @for (item of simpleCards; track $index) {
+      @for (item of simpleCards(); track $index) {
       <div class="headline-card">
         <div class="headline-label">{{ item.label }}</div>
-        <div class="headline-value" [class.shimmer-loading]="isLoading">
+        <div class="headline-value" [class.shimmer-loading]="isLoading()">
           <ng-container *ngTemplateOutlet="metricValue;
             context: { v: item.card.value, f: item.card.def.format,
                        s: item.card.suppressed, tid: tooltipId(item.card.def),
@@ -79,7 +79,7 @@
         <!-- The delta describes the HEADLINE figure, so it sits directly under it. Below the
              subline it read as though the subline's number had moved by that much. -->
         <ng-container *ngTemplateOutlet="deltaBlock; context: { card: item.card }"></ng-container>
-        @if (!isLoading && item.subline) {
+        @if (!isLoading() && item.subline) {
         <div class="headline-subline">
           <ng-container *ngTemplateOutlet="metricValue;
             context: { v: item.subline.value, f: item.subline.def.format }"></ng-container>
@@ -90,7 +90,7 @@
       }
 
       <!-- Placeholder keeps the grid shape while the first load resolves. -->
-      @if (simpleCards.length === 0) {
+      @if (simpleCards().length === 0) {
       <div class="headline-card">
         <div class="headline-label">Customers who came back</div>
         <div class="headline-value shimmer-loading">—</div>
@@ -101,7 +101,7 @@
     <ng-container *ngTemplateOutlet="splitCard"></ng-container>
     <ng-container *ngTemplateOutlet="trendCard"></ng-container>
 
-    @if (simpleFollowUpCards.length > 0) {
+    @if (simpleFollowUpCards().length > 0) {
     <div class="detail-card">
       <h2 class="viz-title">Follow-ups (CRM)</h2>
       <p class="section-note">
@@ -109,7 +109,7 @@
       </p>
       <table class="detail-table">
         <tbody>
-          @for (card of simpleFollowUpCards; track card) {
+          @for (card of simpleFollowUpCards(); track card) {
           <tr>
             <ng-container *ngTemplateOutlet="detailRow; context: { card: card }"></ng-container>
           </tr>
@@ -121,13 +121,13 @@
   }
 
   <!-- ══ FULL ════════════════════════════════════════════════════════════════ -->
-  @if (viewMode === 'full' && !error && !compareMode) {
+  @if (viewMode() === 'full' && !error() && !compareMode()) {
 
     <div class="headline-grid">
-      @for (card of headlineCards; track $index) {
+      @for (card of headlineCards(); track $index) {
       <div class="headline-card">
         <div class="headline-label">{{ card.def.label }}</div>
-        <div class="headline-value" [class.shimmer-loading]="isLoading">
+        <div class="headline-value" [class.shimmer-loading]="isLoading()">
           <ng-container *ngTemplateOutlet="metricValue;
             context: { v: card.value, f: card.def.format, s: card.suppressed, tid: tooltipId(card.def), why: suppressionReason(card, card.def) }"></ng-container>
         </div>
@@ -138,7 +138,7 @@
       </div>
       }
 
-      @if (headlineCards.length === 0) {
+      @if (headlineCards().length === 0) {
       <div class="headline-card">
         <div class="headline-label">Customers who came back</div>
         <div class="headline-value shimmer-loading">—</div>
@@ -146,7 +146,7 @@
       }
     </div>
 
-    @if (stats) {
+    @if (stats(); as stats) {
     <div class="content-grid">
       <ng-container *ngTemplateOutlet="splitCard"></ng-container>
 
@@ -174,7 +174,7 @@
     <ng-container *ngTemplateOutlet="trendCard"></ng-container>
 
     <!-- Everything else, grouped, with the period-over-period movement on each row -->
-    @for (section of groupedCards; track $index) {
+    @for (section of groupedCards(); track $index) {
     <div class="detail-card">
       <h2 class="viz-title">{{ section.group }}</h2>
       @if (section.note) {
@@ -195,29 +195,29 @@
       <!-- Sits outside the metric list on purpose: it is measured over a fixed twelve months
            rather than the selected period, so it is the same figure in every compared column
            and is not offered as a comparison row. -->
-      @if (section.showMedian && stats) {
+      @if (section.showMedian && stats()) {
       <div class="median-line">
         <span class="median-label">Customers typically rebook every</span>
-        @if (stats.medianDaysBetweenBookings !== null) {
+        @if (stats()!.medianDaysBetweenBookings !== null) {
         <span class="median-value">
-          {{ stats.medianDaysBetweenBookings }} days
+          {{ stats()!.medianDaysBetweenBookings }} days
         </span>
         }
-        @if (stats.medianDaysBetweenBookings === null) {
+        @if (stats()!.medianDaysBetweenBookings === null) {
         <span class="median-value muted">
           — not enough repeat bookings yet
         </span>
         }
         <span class="median-window">
           median over {{ medianWindowLabel }},
-          {{ stats.medianGapSampleSize | number }} gap{{ stats.medianGapSampleSize === 1 ? '' : 's' }}
+          {{ stats()!.medianGapSampleSize | number }} gap{{ stats()!.medianGapSampleSize === 1 ? '' : 's' }}
         </span>
       </div>
       }
     </div>
     }
 
-    @if (stats && stats.topCustomers.length > 0) {
+    @if (stats() && stats()!.topCustomers.length > 0) {
     <div class="detail-card">
       <h2 class="viz-title">Biggest customers this period</h2>
       <div class="table-wrap">
@@ -230,7 +230,7 @@
             </tr>
           </thead>
           <tbody>
-            @for (c of stats.topCustomers; track $index) {
+            @for (c of stats()!.topCustomers; track $index) {
             <tr>
               <td>
                 <span class="cust-name">{{ c.fullName }}</span>
@@ -254,7 +254,7 @@
 
   <!-- ══ COMPARE ═════════════════════════════════════════════════════════════
        One table for both views — Simple narrows the row list, Full takes every metric. -->
-  @if (compareMode) {
+  @if (compareMode()) {
   <div class="compare-section">
     <div class="compare-head">
       <h2>Side-by-side comparison</h2>
@@ -274,7 +274,7 @@
           <thead>
             <tr>
               <th class="metric-col"></th>
-              @for (r of compareResults; track $index) {
+              @for (r of compareResults(); track $index) {
               <th>
                 <div class="col-label">{{ r.label }}</div>
                 @if (r.rangeLabel) {
@@ -291,16 +291,16 @@
             </tr>
           </thead>
           <tbody>
-            @for (row of compareRows; track $index) {
+            @for (row of compareRows(); track $index) {
               @if (row.groupStart) {
               <tr class="group-row">
-                <td [attr.colspan]="compareResults.length + 1">{{ row.def.group }}</td>
+                <td [attr.colspan]="compareResults().length + 1">{{ row.def.group }}</td>
               </tr>
               }
               <tr>
                 <td class="metric-col">
                   <span class="metric-label">{{ row.label }}</span>
-                  @if (row.def.hint && viewMode === 'full') {
+                  @if (row.def.hint && viewMode() === 'full') {
                   <span class="metric-hint">{{ row.def.hint }}</span>
                   }
                 </td>
@@ -329,7 +329,7 @@
   <!-- Declared once and outlet into both views, so #trendCanvas has exactly one declaration
        for @ViewChild to resolve no matter which view is on screen. -->
   <ng-template #splitCard>
-    @if (stats) {
+    @if (stats(); as stats) {
     <div class="viz-card">
       <h2 class="viz-title">First-time vs returning</h2>
       <p class="viz-hint">
@@ -358,7 +358,7 @@
         <!-- The percentage is the number the reader actually uses; the count alone leaves him
              doing the division. It goes through the same suppression path as any other rate, so
              a thin month shows a dash here exactly as it does everywhere else. -->
-        @if (splitLegend) {
+        @if (splitLegend(); as splitLegend) {
         <div class="split-legend">
           <span><i class="dot returning"></i> Returning {{ stats.returningCustomers | number }}
             (<ng-container *ngTemplateOutlet="metricValue;
@@ -397,7 +397,7 @@
   </ng-template>
 
   <ng-template #trendCard>
-    @if (trend.length > 0) {
+    @if (trend().length > 0) {
     <div class="viz-card wide">
       <div class="chart-head">
         <div>
@@ -425,11 +425,11 @@
   <ng-template #detailRow let-card="card">
     <td class="metric-col">
       <span class="metric-label">{{ card.def.label }}</span>
-      @if (card.def.hint && viewMode === 'full') {
+      @if (card.def.hint && viewMode() === 'full') {
       <span class="metric-hint">{{ card.def.hint }}</span>
       }
     </td>
-    <td class="value-col" [class.shimmer-loading]="isLoading">
+    <td class="value-col" [class.shimmer-loading]="isLoading()">
       <ng-container *ngTemplateOutlet="metricValue;
         context: { v: card.value, f: card.def.format, s: card.suppressed, tid: tooltipId(card.def), why: suppressionReason(card, card.def) }"></ng-container>
     </td>
@@ -441,7 +441,7 @@
   <!-- Movement against the previous period. Never rendered for a suppressed value: the delta is
        computed from two numbers we are not willing to print. -->
   <ng-template #deltaBlock let-card="card" let-inline="inline">
-    @if (!isLoading && hasDelta(card)) {
+    @if (!isLoading() && hasDelta(card)) {
     <span
           [class.row-delta]="inline"
           [class.headline-delta]="!inline"
@@ -455,7 +455,7 @@
           context: { v: deltaValue(card), f: card.def.format }"></ng-container>
       </span>
       @if (!inline) {
-      <span class="delta-label">{{ compareLabel }}</span>
+      <span class="delta-label">{{ compareLabel() }}</span>
       }
     </span>
     }
@@ -492,7 +492,7 @@
   </ng-template>
 
   <!-- Compare periods modal -->
-  @if (showCompareModal) {
+  @if (showCompareModal()) {
   <div class="modal-overlay" (click)="closeCompareModal()">
     <div class="compare-modal" (click)="$event.stopPropagation()">
       <div class="modal-head">
@@ -507,26 +507,26 @@
       <div class="unit-tabs">
         @for (u of compareUnits; track u.key) {
         <button
-                [class.active]="compareUnit === u.key"
+                [class.active]="compareUnit() === u.key"
                 (click)="setCompareUnit(u.key)">{{ u.label }}</button>
         }
       </div>
 
       <div class="quick-fill">
         <span class="quick-fill-label">Quick fill:</span>
-        @for (n of quickFillCounts; track n) {
+        @for (n of quickFillCounts(); track n) {
         <button (click)="quickFill(n)">
-          Last {{ n }} {{ unitNoun }}s
+          Last {{ n }} {{ unitNoun() }}s
         </button>
         }
       </div>
 
       <div class="pick-list">
-        @for (pick of comparePicks; track $index; let i = $index) {
+        @for (pick of comparePicks(); track $index; let i = $index) {
         <div class="pick-row">
           <span class="pick-num">{{ i + 1 }}</span>
 
-        @switch (compareUnit) {
+        @switch (compareUnit()) {
             @case ('day') {
             <input aria-label="Day" type="date" [(ngModel)]="pick.date" />
             }
@@ -559,7 +559,7 @@
             }
         }
 
-          @if (comparePicks.length > 2) {
+          @if (comparePicks().length > 2) {
           <button class="remove-pick"
                   (click)="removePick(i)"
                   aria-label="Remove this period">×</button>
@@ -569,21 +569,21 @@
       </div>
 
       <button class="add-pick" (click)="addPick()">
-        <i class="fas fa-plus"></i> Add another {{ unitNoun }}
+        <i class="fas fa-plus"></i> Add another {{ unitNoun() }}
       </button>
 
-      @if (compareError) {
-      <div class="modal-error">{{ compareError }}</div>
+      @if (compareError()) {
+      <div class="modal-error">{{ compareError() }}</div>
       }
 
       <div class="modal-footer">
         <span class="pick-count">
-          {{ comparePicks.length }} {{ unitNoun }}{{ comparePicks.length === 1 ? '' : 's' }} selected
+          {{ comparePicks().length }} {{ unitNoun() }}{{ comparePicks().length === 1 ? '' : 's' }} selected
         </span>
         <button class="cancel-btn" (click)="closeCompareModal()">Cancel</button>
-        <button class="run-compare-btn" (click)="runCompare()" [disabled]="!picksValid || isComparing">
-          <i class="fas" [ngClass]="isComparing ? 'fa-spinner fa-spin' : 'fa-balance-scale'"></i>
-          {{ isComparing ? 'Comparing…' : 'Compare' }}
+        <button class="run-compare-btn" (click)="runCompare()" [disabled]="!picksValid || isComparing()">
+          <i class="fas" [ngClass]="isComparing() ? 'fa-spinner fa-spin' : 'fa-balance-scale'"></i>
+          {{ isComparing() ? 'Comparing…' : 'Compare' }}
         </button>
       </div>
     </div>

@@ -1,11 +1,11 @@
-@if (open) {
+@if (open()) {
 <div class="rom-backdrop" (click)="close()">
   <div class="rom-panel" (click)="onPanelClick($event)" role="dialog" aria-modal="true">
 
     <header class="rom-header">
       <div class="rom-header__text">
         <h3>Recreate order</h3>
-        @if (preview) {
+        @if (preview(); as preview) {
         <p class="rom-subtitle">
           #{{ preview.sourceOrderId }} · {{ preview.serviceTypeName }} ·
           {{ preview.originalServiceDate | date:'mediumDate' }} · {{ preview.customerName }}
@@ -16,35 +16,35 @@
     </header>
 
     <!-- ─── Loading ─────────────────────────────────────────────────────────────────── -->
-    @if (step === 'loading') {
+    @if (step() === 'loading') {
     <div class="rom-body">
       <p class="rom-muted rom-center">Working out what has changed since this order…</p>
     </div>
     }
 
     <!-- ─── Load failure ────────────────────────────────────────────────────────────── -->
-    @if (step === 'error') {
+    @if (step() === 'error') {
     <div class="rom-body">
-      <div class="rom-error">{{ errorMessage }}</div>
+      <div class="rom-error">{{ errorMessage() }}</div>
     </div>
     }
 
     <!-- ─── Step 1: what will be different ──────────────────────────────────────────── -->
-    @if (step === 'changes' && preview) {
+    @if (step() === 'changes' && preview()) {
     <div class="rom-body">
 
       <p class="rom-lead">
-        This will create a <strong>new</strong> order for {{ preview.customerName }}. The original
+        This will create a <strong>new</strong> order for {{ preview()!.customerName }}. The original
         order is not touched.
       </p>
 
       <!-- Nothing moved: say so in one line rather than render four empty sections. -->
-      @if (!preview.hasChanges) {
+      @if (!preview()!.hasChanges) {
       <div class="rom-nochange">
         Nothing has changed since this order was booked — the same job costs the same today.
       </div>
       }
-      @if (preview.hasChanges) {
+      @if (preview()!.hasChanges) {
 
 
         <!-- Bottom line -->
@@ -58,52 +58,52 @@
             <tbody>
               <tr>
                 <td>Subtotal</td>
-                <td>{{ preview.original.subTotal | currency }}</td>
-                <td>{{ preview.recreated.subTotal | currency }}</td>
+                <td>{{ preview()!.original.subTotal | currency }}</td>
+                <td>{{ preview()!.recreated.subTotal | currency }}</td>
               </tr>
-              @if (preview.original.discountAmount
-                       || preview.original.subscriptionDiscountAmount
-                       || preview.original.loyaltyDiscountAmount) {
+              @if (preview()!.original.discountAmount
+                       || preview()!.original.subscriptionDiscountAmount
+                       || preview()!.original.loyaltyDiscountAmount) {
         <tr>
                 <td>Discounts</td>
                 <td class="rom-neg">
-                  −{{ preview.original.discountAmount
-                      + preview.original.subscriptionDiscountAmount
-                      + preview.original.loyaltyDiscountAmount | currency }}
+                  −{{ preview()!.original.discountAmount
+                      + preview()!.original.subscriptionDiscountAmount
+                      + preview()!.original.loyaltyDiscountAmount | currency }}
                 </td>
                 <td class="rom-muted">none</td>
               </tr>
         }
-              @if (preview.original.giftCardAmountUsed
-                       || preview.original.pointsRedeemedDiscount
-                       || preview.original.rewardBalanceUsed) {
+              @if (preview()!.original.giftCardAmountUsed
+                       || preview()!.original.pointsRedeemedDiscount
+                       || preview()!.original.rewardBalanceUsed) {
       <tr>
                 <td>Gift card / points / reward balance</td>
                 <td class="rom-neg">
-                  −{{ preview.original.giftCardAmountUsed
-                      + preview.original.pointsRedeemedDiscount
-                      + preview.original.rewardBalanceUsed | currency }}
+                  −{{ preview()!.original.giftCardAmountUsed
+                      + preview()!.original.pointsRedeemedDiscount
+                      + preview()!.original.rewardBalanceUsed | currency }}
                 </td>
                 <td class="rom-muted">none</td>
               </tr>
       }
               <tr>
                 <td>Sales tax</td>
-                <td>{{ preview.original.tax | currency }}</td>
-                <td>{{ preview.recreated.tax | currency }}</td>
+                <td>{{ preview()!.original.tax | currency }}</td>
+                <td>{{ preview()!.recreated.tax | currency }}</td>
               </tr>
-              @if (preview.original.tips || preview.recreated.tips) {
+              @if (preview()!.original.tips || preview()!.recreated.tips) {
               <tr>
                 <td>Tips</td>
-                <td>{{ preview.original.tips | currency }}</td>
-                <td>{{ preview.recreated.tips | currency }}</td>
+                <td>{{ preview()!.original.tips | currency }}</td>
+                <td>{{ preview()!.recreated.tips | currency }}</td>
               </tr>
               }
               <tr class="rom-total-row">
                 <td>Total</td>
-                <td>{{ preview.original.total | currency }}</td>
+                <td>{{ preview()!.original.total | currency }}</td>
                 <td>
-                  {{ preview.recreated.total | currency }}
+                  {{ preview()!.recreated.total | currency }}
                   <span class="rom-delta" [class.up]="totalDelta > 0" [class.down]="totalDelta < 0">
                     {{ totalDelta > 0 ? '+' : '' }}{{ totalDelta | currency }}
                   </span>
@@ -126,7 +126,7 @@
               <tr><th>Item</th><th>Then</th><th>Now</th><th>Time</th></tr>
             </thead>
             <tbody>
-              @for (line of preview.lineChanges; track $index) {
+              @for (line of preview()!.lineChanges; track $index) {
               <tr>
                 <td>
                   {{ line.name }}
@@ -164,7 +164,7 @@
         <section class="rom-section">
           <h4>No longer available — these will be left out</h4>
           <ul class="rom-list">
-            @for (line of preview.unavailable; track $index) {
+            @for (line of preview()!.unavailable; track $index) {
             <li>
               <strong>{{ line.name }}</strong>
               @if (line.quantity > 1) {
@@ -183,7 +183,7 @@
         <section class="rom-section">
           <h4>Discounts</h4>
           <ul class="rom-list">
-            @for (d of preview.discounts; track $index) {
+            @for (d of preview()!.discounts; track $index) {
             <li [class.reapplicable]="d.canReapply">
               <strong>{{ d.label }}</strong>
               @if (d.originalAmount > 0) {
@@ -203,7 +203,7 @@
 }
 
     <!-- ─── Step 2: the mini booking form ───────────────────────────────────────────── -->
-    @if (step === 'form' && preview && serviceType) {
+    @if (step() === 'form' && preview() && serviceType()) {
     <div class="rom-body">
 
       <!-- Schedule -->
@@ -222,7 +222,7 @@
           </label>
         </div>
         <button type="button" class="rom-link" (click)="useOriginalDate()">
-          Use the original date ({{ preview.originalServiceDate | date:'mediumDate' }})
+          Use the original date ({{ preview()!.originalServiceDate | date:'mediumDate' }})
         </button>
 
         @if (isBackDated) {
@@ -257,7 +257,7 @@
         <!-- Reference and notes describe money that has ALREADY changed hands, so they are
              offered for cash/Zelle/cheque/other and NOT for Invoice — an invoice-billed order has
              not been paid yet, and a reference for it would be a record of nothing. -->
-        @if (isSettledMethod) {
+        @if (isSettledMethod()) {
           <div class="rom-grid">
             <label class="rom-field">
               <span>Payment reference</span>
@@ -269,19 +269,19 @@
             </label>
           </div>
         }
-        @if (paymentMethod === 'Normal') {
+        @if (paymentMethod() === 'Normal') {
         <p class="rom-note">
           Stripe: the order is created unpaid. Nothing is charged here, and no payment link goes
           out unless you turn a notification on below.
         </p>
         }
-        @if (paymentMethod === 'Invoice') {
+        @if (paymentMethod() === 'Invoice') {
         <p class="rom-note">
-          Invoice{{ contractClientName ? ' — billed to ' + contractClientName : '' }}: the order is
+          Invoice{{ contractClientName() ? ' — billed to ' + contractClientName() : '' }}: the order is
           created Pending. It becomes Active when a commercial invoice covering it is paid in full.
         </p>
         }
-        @if (paymentMethod === 'Invoice' && !contractClientId) {
+        @if (paymentMethod() === 'Invoice' && !contractClientId()) {
         <p class="rom-note rom-note--warn"
           >
           The original order has no commercial client on it, so this one cannot be billed by
@@ -291,7 +291,7 @@
       </section>
 
       <!-- Custom ("Pre-Arranged") pricing -->
-      @if (serviceType.isCustom) {
+      @if (serviceType()!.isCustom) {
       <section class="rom-section">
         <h4>Pre-arranged price</h4>
         <div class="rom-grid rom-grid--three">
@@ -319,7 +319,7 @@
       }
 
       <!-- Services -->
-      @if (!serviceType.isCustom && stepperServices.length) {
+      @if (!serviceType()!.isCustom && stepperServices.length) {
       <section class="rom-section">
         <h4>The job</h4>
         <div class="rom-services">
@@ -370,11 +370,11 @@
             <div class="rom-service-input">
               <span class="rom-stepper">
                 <button type="button" aria-label="Decrease"
-                        [disabled]="informationalBedrooms <= (propertyType === houseType ? 1 : 0)"
+                        [disabled]="informationalBedrooms() <= (propertyType() === houseType ? 1 : 0)"
                         (click)="changeInformationalBedrooms(-1)">&minus;</button>
-                <span class="rom-stepper__value">{{ informationalBedroomsLabel }}</span>
+                <span class="rom-stepper__value">{{ informationalBedroomsLabel() }}</span>
                 <button type="button" aria-label="Increase"
-                        [disabled]="informationalBedrooms >= 10"
+                        [disabled]="informationalBedrooms() >= 10"
                         (click)="changeInformationalBedrooms(1)">+</button>
               </span>
             </div>
@@ -385,11 +385,11 @@
             <div class="rom-service-input">
               <span class="rom-stepper">
                 <button type="button" aria-label="Decrease"
-                        [disabled]="informationalBathrooms <= 0"
+                        [disabled]="informationalBathrooms() <= 0"
                         (click)="changeInformationalBathrooms(-1)">&minus;</button>
-                <span class="rom-stepper__value">{{ informationalBathrooms }}</span>
+                <span class="rom-stepper__value">{{ informationalBathrooms() }}</span>
                 <button type="button" aria-label="Increase"
-                        [disabled]="informationalBathrooms >= 10"
+                        [disabled]="informationalBathrooms() >= 10"
                         (click)="changeInformationalBathrooms(1)">+</button>
               </span>
             </div>
@@ -407,10 +407,10 @@
         <h4>What kind of place is it?</h4>
         <div class="rom-chips">
           <button type="button" class="rom-chip"
-                  [class.selected]="propertyType === apartmentType"
+                  [class.selected]="propertyType() === apartmentType"
                   (click)="selectPropertyType(apartmentType)">Apartment / Condo</button>
           <button type="button" class="rom-chip"
-                  [class.selected]="propertyType === houseType"
+                  [class.selected]="propertyType() === houseType"
                   (click)="selectPropertyType(houseType)">House / Townhouse</button>
         </div>
 
@@ -420,7 +420,7 @@
           <div class="rom-chips">
             @for (level of levelOptions; track level) {
             <button type="button" class="rom-chip rom-chip--small"
-                    [class.selected]="levelsQuantity === level"
+                    [class.selected]="levelsQuantity() === level"
                     (click)="selectLevels(level)">{{ level }}</button>
             }
           </div>
@@ -592,7 +592,7 @@
         <label class="rom-check" [class.disabled]="!canNotifyByEmail">
           <input type="checkbox" [(ngModel)]="notifyByEmail" [disabled]="!canNotifyByEmail">
           @if (canNotifyByEmail) {
-          <span>Email {{ preview.notificationEmail }}</span>
+          <span>Email {{ preview()!.notificationEmail }}</span>
           }
           @if (!canNotifyByEmail) {
           <span>
@@ -603,7 +603,7 @@
         <label class="rom-check" [class.disabled]="!canNotifyBySms">
           <input type="checkbox" [(ngModel)]="notifyBySms" [disabled]="!canNotifyBySms">
           @if (canNotifyBySms) {
-          <span>Text {{ preview.notificationPhone }}</span>
+          <span>Text {{ preview()!.notificationPhone }}</span>
           }
           @if (!canNotifyBySms) {
           <span>
@@ -616,53 +616,53 @@
       <!-- Live summary -->
       <section class="rom-section rom-summary">
         <h4>This order</h4>
-        <div class="rom-summary__row"><span>Subtotal</span><span>{{ quoteSubTotal | currency }}</span></div>
-        @if (appliedLoyalty > 0) {
+        <div class="rom-summary__row"><span>Subtotal</span><span>{{ quoteSubTotal() | currency }}</span></div>
+        @if (appliedLoyalty() > 0) {
         <div class="rom-summary__row">
-          <span>Loyalty discount</span><span class="rom-neg">−{{ appliedLoyalty | currency }}</span>
+          <span>Loyalty discount</span><span class="rom-neg">−{{ appliedLoyalty() | currency }}</span>
         </div>
         }
-        @if (appliedSubscription > 0) {
+        @if (appliedSubscription() > 0) {
         <div class="rom-summary__row">
-          <span>Plan discount</span><span class="rom-neg">−{{ appliedSubscription | currency }}</span>
+          <span>Plan discount</span><span class="rom-neg">−{{ appliedSubscription() | currency }}</span>
         </div>
         }
-        <div class="rom-summary__row"><span>Sales tax</span><span>{{ quoteTax | currency }}</span></div>
-        @if (tips > 0) {
-        <div class="rom-summary__row"><span>Tips</span><span>{{ tips | currency }}</span></div>
+        <div class="rom-summary__row"><span>Sales tax</span><span>{{ quoteTax() | currency }}</span></div>
+        @if (tips() > 0) {
+        <div class="rom-summary__row"><span>Tips</span><span>{{ tips() | currency }}</span></div>
         }
         <div class="rom-summary__row rom-summary__row--total">
-          <span>Total</span><span>{{ quoteTotal | currency }}</span>
+          <span>Total</span><span>{{ quoteTotal() | currency }}</span>
         </div>
         <div class="rom-summary__row rom-muted">
-          <span>Estimated duration</span><span>{{ formattedDuration }}</span>
+          <span>Estimated duration</span><span>{{ formattedDuration() }}</span>
         </div>
       </section>
 
-      @if (errorMessage) {
-      <div class="rom-error">{{ errorMessage }}</div>
+      @if (errorMessage()) {
+      <div class="rom-error">{{ errorMessage() }}</div>
       }
     </div>
     }
 
     <!-- ─── Footer ──────────────────────────────────────────────────────────────────── -->
     <footer class="rom-footer">
-      @if (step === 'changes') {
+      @if (step() === 'changes') {
         <button type="button" class="rom-btn ghost" (click)="close()">Cancel</button>
         <button type="button" class="rom-btn primary" (click)="continueToForm()">
           Continue to booking
         </button>
       }
-      @if (step === 'form') {
+      @if (step() === 'form') {
 
-        <button type="button" class="rom-btn ghost" (click)="backToChanges()" [disabled]="submitting">
+        <button type="button" class="rom-btn ghost" (click)="backToChanges()" [disabled]="submitting()">
           Back to changes
         </button>
-        <button type="button" class="rom-btn primary" (click)="submit()" [disabled]="submitting">
-          {{ submitting ? 'Creating…' : 'Create order' }}
+        <button type="button" class="rom-btn primary" (click)="submit()" [disabled]="submitting()">
+          {{ submitting() ? 'Creating…' : 'Create order' }}
         </button>
       }
-      @if (step === 'error' || step === 'loading') {
+      @if (step() === 'error' || step() === 'loading') {
 
         <button type="button" class="rom-btn ghost" (click)="close()">Close</button>
       }

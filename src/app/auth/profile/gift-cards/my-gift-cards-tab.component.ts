@@ -7,6 +7,7 @@ import { GiftCardService, MyGiftCard } from '../../../services/gift-card.service
 import { AuthService } from '../../../services/auth.service';
 import { extractApiErrorMessage } from '../../../utils/http-error.utils';
 import { describeEmailProblem } from '../../../utils/email.utils';
+import { formViewRefresher } from '../../../shared/forms/form-view-refresher';
 
 /**
  * Profile → Gift Cards (2026-10): the gift cards the signed-in customer bought, in both modes.
@@ -23,6 +24,8 @@ import { describeEmailProblem } from '../../../utils/email.utils';
   styleUrls: ['./my-gift-cards-tab.component.scss']
 })
 export class MyGiftCardsTabComponent implements OnInit, OnDestroy {
+  /** Re-renders when a form changes outside a template event (see form-view-refresher). */
+  private readonly watchForm = formViewRefresher();
   private giftCardService = inject(GiftCardService);
   private authService = inject(AuthService);
   private fb = inject(FormBuilder);
@@ -58,6 +61,7 @@ export class MyGiftCardsTabComponent implements OnInit, OnDestroy {
       senderName: ['', [Validators.required, Validators.maxLength(100)]],
       message: ['', [Validators.required, Validators.maxLength(this.messageMax)]]
     });
+    this.watchForm(this.sendForm);
   }
 
   ngOnInit(): void {

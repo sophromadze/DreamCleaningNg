@@ -30,7 +30,7 @@
                content hidden by the shimmer), so they size exactly like the loaded form at every
                breakpoint and the swap does not shift anything. Shown only when the server could
                not load the service types (see loadServiceTypes). -->
-          @if (isLoadingServiceTypes) {
+          @if (isLoadingServiceTypes()) {
           <div class="service-type-dropdown" aria-hidden="true" inert>
             <button type="button" tabindex="-1" class="dropdown-toggle hero-skeleton" [shimmer]="true">
               <span class="dropdown-toggle__label">
@@ -41,7 +41,7 @@
             </button>
           </div>
           }
-          @if (!isLoadingServiceTypes) {
+          @if (!isLoadingServiceTypes()) {
           <div class="service-type-dropdown">
             <button
               type="button"
@@ -49,19 +49,19 @@
               [class.error]="serviceTypeControl.invalid && serviceTypeControl.touched"
               (click)="toggleServiceTypeDropdown()">
               <span class="dropdown-toggle__label">
-                <i [appIcon]="getServiceTypeIcon(selectedServiceType)" class="dropdown-toggle__icon"
+                <i [appIcon]="getServiceTypeIcon(selectedServiceType())" class="dropdown-toggle__icon"
                    aria-hidden="true"></i>
-                <span>{{ selectedServiceType ? selectedServiceType.name : 'Select a service type' }}</span>
+                <span>{{ selectedServiceType() ? selectedServiceType()!.name : 'Select a service type' }}</span>
               </span>
               <i [appIcon]="icons.faChevronDown" class="dropdown-toggle__chevron"></i>
             </button>
-            @if (serviceTypeDropdownOpen) {
+            @if (serviceTypeDropdownOpen()) {
             <div class="dropdown-menu">
-              @for (type of serviceTypes; track type.id) {
+              @for (type of serviceTypes(); track type.id) {
               <button
                 type="button"
                 class="dropdown-item"
-                [class.is-active]="selectedServiceType?.id === type.id"
+                [class.is-active]="selectedServiceType()?.id === type.id"
                 (click)="selectServiceType(type)">
                 <i [appIcon]="getServiceTypeIcon(type)" class="dropdown-item__icon"
                    aria-hidden="true"></i>
@@ -72,7 +72,7 @@
             }
           </div>
           }
-          @if (!isLoadingServiceTypes && serviceTypeControl.invalid && serviceTypeControl.touched) {
+          @if (!isLoadingServiceTypes() && serviceTypeControl.invalid && serviceTypeControl.touched) {
           <div class="error-message">
             Service type is required
           </div>
@@ -80,10 +80,10 @@
         </div>
 
         <!-- About Your Home -->
-        @if (isLoadingServiceTypes || selectedServiceType) {
+        @if (isLoadingServiceTypes() || selectedServiceType()) {
         <div class="form-section">
           <h3 class="section-title">About Your Home</h3>
-          @if (isLoadingServiceTypes) {
+          @if (isLoadingServiceTypes()) {
           <div class="services" aria-hidden="true" inert>
             @for (label of skeletonServiceLabels; track label) {
             <div class="service-item hero-skeleton" [shimmer]="true">
@@ -101,9 +101,9 @@
             }
           </div>
           }
-          @if (!isLoadingServiceTypes && selectedServiceType) {
+          @if (!isLoadingServiceTypes() && selectedServiceType()) {
           <div class="services">
-            @for (selected of selectedServices; track $index) {
+            @for (selected of selectedServices(); track $index) {
               <!-- Sq.ft has its own slider below. Levels is never offered here at all: the hero
                    asks four questions and a fifth would defeat the point of a quick estimate. -->
               @if (selected.service.serviceKey !== 'sqft' && !isLevelsService(selected.service)) {
@@ -149,10 +149,10 @@
         }
 
         <!-- Cleaning Type -->
-        @if (isLoadingServiceTypes || canSelectDeepCleaning) {
+        @if (isLoadingServiceTypes() || canSelectDeepCleaning) {
         <div class="form-section">
           <h3 class="section-title">Cleaning Type</h3>
-          @if (isLoadingServiceTypes) {
+          @if (isLoadingServiceTypes()) {
           <div class="cleaning-type-buttons" aria-hidden="true" inert>
             <button type="button" tabindex="-1" class="cleaning-type-btn hero-skeleton" [shimmer]="true">
               <i [appIcon]="icons.faBroom" class="cleaning-type-btn__icon"></i>
@@ -172,7 +172,7 @@
             </button>
           </div>
           }
-          @if (!isLoadingServiceTypes && canSelectDeepCleaning) {
+          @if (!isLoadingServiceTypes() && canSelectDeepCleaning) {
           <div class="cleaning-type-buttons">
             <button
               type="button"
@@ -201,7 +201,7 @@
             </button>
           </div>
           }
-          @if (!isLoadingServiceTypes && cleaningTypeControl.invalid && cleaningTypeControl.touched) {
+          @if (!isLoadingServiceTypes() && cleaningTypeControl.invalid && cleaningTypeControl.touched) {
           <div class="error-message">
             Cleaning type is required
           </div>
@@ -254,14 +254,14 @@
         }
 
         <!-- CTA -->
-        @if (isLoadingServiceTypes) {
+        @if (isLoadingServiceTypes()) {
         <button type="button" tabindex="-1" aria-hidden="true" inert
                 class="btn-cta-secondary btn-cta-secondary--full hero-skeleton" [shimmer]="true">
           See Exact Times &amp; Price
           <svg class="btn-arrow" viewBox="0 0 24 24" aria-hidden="true"></svg>
         </button>
         }
-        @if (!isLoadingServiceTypes) {
+        @if (!isLoadingServiceTypes()) {
         <button type="submit" class="btn-cta-secondary btn-cta-secondary--full">
           See Exact Times &amp; Price
           <svg class="btn-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -271,13 +271,13 @@
         }
 
         <!-- Starting estimate -->
-        @if (isLoadingServiceTypes || selectedServiceType) {
+        @if (isLoadingServiceTypes() || selectedServiceType()) {
         <div class="estimate-row">
           <span class="estimate-row__label">Starting estimate</span>
-          @if (isLoadingServiceTypes) {
+          @if (isLoadingServiceTypes()) {
           <span class="estimate-row__price hero-skeleton" [shimmer]="true" aria-hidden="true">from $000</span>
           }
-          @if (!isLoadingServiceTypes) {
+          @if (!isLoadingServiceTypes()) {
           <span class="estimate-row__price">from ${{ getEstimatedPrice() }}</span>
           }
         </div>
@@ -303,17 +303,17 @@
         <svg viewBox="0 0 24 24" fill="currentColor" class="star-icon" aria-hidden="true">
           <path d="M12 2.75 14.86 8.55l6.4.93-4.63 4.51 1.09 6.37L12 17.35 6.28 20.36l1.09-6.37-4.63-4.51 6.4-.93L12 2.75Z"/>
         </svg>
-        @if (reviewCountLabel) {
-        <span>{{ reviewCountLabel }} ·&nbsp;</span>
+        @if (reviewCountLabel()) {
+        <span>{{ reviewCountLabel() }} ·&nbsp;</span>
         }Trusted NYC Cleaners
       </div>
 
       <h1 class="hero-title">
-        Professional Cleaning Services in <span class="hero-title__accent">{{ locationName }}</span>
+        Professional Cleaning Services in <span class="hero-title__accent">{{ locationName() }}</span>
       </h1>
       <p class="hero-slogan">Where dreams feel clean</p>
 
-      @if (showLocations) {
+      @if (showLocations()) {
       <div class="hero-locations">
         <a routerLink="/services/manhattan-cleaning" class="location-pill">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -340,7 +340,7 @@
       }
 
       <p class="hero-subtitle">
-        {{ heroSubtitle }}
+        {{ heroSubtitle() }}
       </p>
 
       <!-- Hero image card with overlay badges -->

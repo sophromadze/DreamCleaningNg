@@ -35,7 +35,7 @@ import { AdminCustomerInvoicesComponent } from './customer-invoices/admin-custom
     AdminCustomerInvoicesComponent
 ],
   templateUrl: './admin.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./admin.component.scss']
 })
 export class AdminComponent implements OnInit {

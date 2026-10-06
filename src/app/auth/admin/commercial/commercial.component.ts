@@ -20,7 +20,7 @@ import { AuthService } from '../../../services/auth.service';
   standalone: true,
   imports: [RouterLink, RouterLinkActive, RouterOutlet],
   templateUrl: './commercial.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./commercial.component.scss']
 })
 export class CommercialComponent implements OnInit, OnDestroy {

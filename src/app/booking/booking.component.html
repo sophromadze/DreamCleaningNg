@@ -5,11 +5,11 @@
       <h1>Book Your Cleaning Service</h1>
 
       <!-- Admin/Moderator Mode Toggle -->
-      @if (isAdmin) {
+      @if (isAdmin()) {
       <div class="admin-mode-toggle">
         <!-- Same "Register Customer" action as the admin Users tab, gated on the same
              `canCreate` permission (Admin + SuperAdmin; Moderators have View only). -->
-        @if (canRegisterCustomers) {
+        @if (canRegisterCustomers()) {
         <button
           type="button"
           class="register-customer-btn"
@@ -21,17 +21,17 @@
         <button
           type="button"
           class="admin-toggle-btn"
-          [class.active]="isAdminMode"
+          [class.active]="isAdminMode()"
           (click)="toggleAdminMode()">
           <i [appIcon]="icons.faUserShield"></i>
-          @if (isModerator) {
+          @if (isModerator()) {
           <span>
-            {{ isAdminMode ? 'Moderator Mode: ON' : 'Moderator Mode: OFF' }}
+            {{ isAdminMode() ? 'Moderator Mode: ON' : 'Moderator Mode: OFF' }}
           </span>
           }
-          @if (!isModerator) {
+          @if (!isModerator()) {
           <span>
-            {{ isAdminMode ? 'Admin Mode: ON' : 'Admin Mode: OFF' }}
+            {{ isAdminMode() ? 'Admin Mode: ON' : 'Admin Mode: OFF' }}
           </span>
           }
         </button>
@@ -42,7 +42,7 @@
     <!-- A draft written in Admin Mode was thrown away on load: the admin context behind it does
          not survive a reload, and resuming it silently would submit the booking as the admin.
          See discardAdminDraftIfPresent(). -->
-    @if (adminDraftDiscarded) {
+    @if (adminDraftDiscarded()) {
     <div class="admin-draft-discarded">
       <i [appIcon]="icons.faTriangleExclamation"></i>
       <span>
@@ -53,15 +53,15 @@
     }
 
     <!-- Result of the header's Register Customer action. -->
-    @if (registeredCustomerMessage) {
+    @if (registeredCustomerMessage()) {
     <div class="customer-registered-note">
       <i [appIcon]="icons.faCircleCheck"></i>
-      <span>{{ registeredCustomerMessage }}</span>
+      <span>{{ registeredCustomerMessage() }}</span>
     </div>
     }
 
     <!-- Admin User Selector -->
-    @if (isAdminMode) {
+    @if (isAdminMode()) {
     <div class="admin-user-selector">
       <div class="user-selector-header">
         <h3>Create Booking For User</h3>
@@ -71,13 +71,13 @@
       <!-- seedUsers: customers registered from the header this session, so they are searchable
            without a page reload (see onCustomerRegistered). -->
       <app-admin-user-search
-        [selectedUser]="selectedTargetUser"
-        [seedUsers]="registeredCustomers"
+        [selectedUser]="selectedTargetUser()"
+        [seedUsers]="registeredCustomers()"
         (userSelected)="selectUser($event)"
         (cleared)="clearSelectedUser()">
       </app-admin-user-search>
       
-      @if (selectedTargetUser) {
+      @if (selectedTargetUser(); as selectedTargetUser) {
       <div class="selected-user-info">
         <div class="selected-user-panel">
           <div class="selected-user-card">
@@ -97,7 +97,7 @@
             </p>
 
             <div class="payment-method-options">
-              @for (opt of paymentMethodOptions; track opt.value) {
+              @for (opt of paymentMethodOptions(); track opt.value) {
               <label class="radio-row">
                 <input type="radio" name="paymentMethod"
                        [(ngModel)]="adminPaymentMethod"
@@ -111,7 +111,7 @@
             <!-- Reference and notes record money that has ALREADY changed hands, so they are
                  offered for cash/Zelle/cheque/other and not for Invoice — which is unpaid by
                  definition until its invoice is settled. -->
-            @if (adminPaymentMethod !== 'Normal' && adminPaymentMethod !== 'Invoice' && adminPaymentMethod !== 'RegularInvoice') {
+            @if (adminPaymentMethod() !== 'Normal' && adminPaymentMethod() !== 'Invoice' && adminPaymentMethod() !== 'RegularInvoice') {
               <div class="field">
                 <label>Reference (Zelle ID, check #, etc.)</label>
                 <input type="text"
@@ -129,7 +129,7 @@
 
             <!-- REGULAR INVOICE (2026-09): nothing to choose. The server creates the invoice and
                  sends it instead of the Pay Now link. -->
-            @if (adminPaymentMethod === 'RegularInvoice') {
+            @if (adminPaymentMethod() === 'RegularInvoice') {
               <small class="payment-method-hint">
                 An invoice for this order is created and emailed / texted to the customer. They can pay
                 it by card or by bank transfer — find it in Admin → Invoices to resend it or mark a
@@ -139,10 +139,10 @@
 
             <!-- COMMERCIAL INVOICE: only offered when the customer has a linked business client, and
                  billed to that client automatically — no dropdown to get wrong. -->
-            @if (adminPaymentMethod === 'Invoice') {
+            @if (adminPaymentMethod() === 'Invoice') {
               <div class="field">
                 <label>Billed to</label>
-                @if (adminBusinessClient) {
+                @if (adminBusinessClient(); as adminBusinessClient) {
                 <div><strong>{{ adminBusinessClient.legalEntityName }}</strong> (commercial client)</div>
                 }
                 <small class="payment-method-hint">
@@ -159,7 +159,7 @@
     }
 
     <!-- Discounts are account-scoped: switching admin mode / customer clears them. -->
-    @if (discountsClearedForAccountSwitch) {
+    @if (discountsClearedForAccountSwitch()) {
     <div class="admin-discount-notice">
       <i [appIcon]="icons.faTriangleExclamation"></i>
       <span>
@@ -169,56 +169,56 @@
     </div>
     }
 
-    @if (errorMessage) {
+    @if (errorMessage()) {
     <div class="error-message">
-      {{ errorMessage }}
+      {{ errorMessage() }}
     </div>
     }
 
     <div class="booking-grid"
-         [class.full-width]="showPollForm"
-         [class.has-summary]="!showPollForm"
-         [class.step-3-active]="currentStep === 3 && !showPollForm">
+         [class.full-width]="showPollForm()"
+         [class.has-summary]="!showPollForm()"
+         [class.step-3-active]="currentStep() === 3 && !showPollForm()">
       <!-- Left Side - Service Selection -->
       <div class="booking-form">
         <!-- Sticky "who is this for" bar. The Create Booking For User panel sits at the very top
              of the page, off-screen by step 3 — which is exactly where Book Now lives, and where
              an admin booked for the wrong customer without noticing (2026-08). -->
-        @if (isAdminMode && selectedTargetUser && currentStep === 3) {
+        @if (isAdminMode() && selectedTargetUser() && currentStep() === 3) {
         <div class="admin-target-banner"
             >
           <i [appIcon]="icons.faUserCheck"></i>
           <span class="admin-target-banner__text">
             Booking for
-            <strong>{{ selectedTargetUser.firstName }} {{ selectedTargetUser.lastName }}</strong>
+            <strong>{{ selectedTargetUser()!.firstName }} {{ selectedTargetUser()!.lastName }}</strong>
             <span class="admin-target-banner__meta">
-              {{ selectedTargetUser.isNoEmailUser ? 'No email' : selectedTargetUser.email }} · ID {{ selectedTargetUser.id }}
+              {{ selectedTargetUser()!.isNoEmailUser ? 'No email' : selectedTargetUser()!.email }} · ID {{ selectedTargetUser()!.id }}
             </span>
           </span>
           <span class="admin-target-banner__method">
-            {{ adminPaymentMethod === 'Normal' ? 'Payment request'
-               : adminPaymentMethod === 'RegularInvoice' ? 'Invoice'
-               : adminPaymentMethod === 'Invoice' ? 'Commercial invoice'
-               : adminPaymentMethod }}
+            {{ adminPaymentMethod() === 'Normal' ? 'Payment request'
+               : adminPaymentMethod() === 'RegularInvoice' ? 'Invoice'
+               : adminPaymentMethod() === 'Invoice' ? 'Commercial invoice'
+               : adminPaymentMethod() }}
           </span>
         </div>
         }
 
-        @if (!showPollForm && currentStep === 1) {
+        @if (!showPollForm() && currentStep() === 1) {
         <div class="booking-form-top">
           <!-- Reorder Section - only when loaded and user has previous orders (no shimmer; guests and users without orders don't see it) -->
-          @if (!loading.previousOrders && previousOrders.length > 0 && currentStep === 1) {
+          @if (!loading().previousOrders && previousOrders().length > 0 && currentStep() === 1) {
           <app-reorder-section
-            [orders]="previousOrders"
-            [isLoading]="isLoadingOrders"
-            [reorderingOrderId]="reorderingOrderId"
+            [orders]="previousOrders()"
+            [isLoading]="isLoadingOrders()"
+            [reorderingOrderId]="reorderingOrderId()"
             (opened)="onReorderOpened()"
             (orderSelected)="selectOrderToReorder($event)">
           </app-reorder-section>
           }
 
           <!-- Step progress indicator (decorative; visualises currentStep) -->
-          <div class="booking-progress-stepper booking-progress-stepper--compact" [attr.data-current-step]="currentStep">
+          <div class="booking-progress-stepper booking-progress-stepper--compact" [attr.data-current-step]="currentStep()">
             <div class="booking-progress-stepper__step"
                 [class.is-active]="true">
               <div class="booking-progress-stepper__bubble" aria-hidden="true">
@@ -251,18 +251,18 @@
         </div> -->
         
         <!-- PART 1: Service Selection and Configuration -->
-        <div class="form-step" [class.active]="currentStep === 1" [class.hidden]="currentStep !== 1">
+        <div class="form-step" [class.active]="currentStep() === 1" [class.hidden]="currentStep() !== 1">
           <!-- Your offers: one shimmer while loading, then section with content. Hidden for poll service types (no payment). -->
-          @if (loading.promoBanner && !showPollForm) {
+          @if (loading().promoBanner && !showPollForm()) {
           <div class="special-offers-loading-shimmer" [shimmer]="true"></div>
           }
-          @if (!loading.promoBanner && userSpecialOffers.length > 0 && !showPollForm) {
+          @if (!loading().promoBanner && userSpecialOffers().length > 0 && !showPollForm()) {
           <section class="special-offers-section">
             <h2 class="special-offers-heading">Special Discount</h2>
             <div class="special-offers-grid">
-              @for (offer of userSpecialOffers; track offer.id) {
+              @for (offer of userSpecialOffers(); track offer.id) {
               <div class="special-offer-card"
-                    [class.applied]="specialOfferApplied && selectedSpecialOffer?.id === offer.id"
+                    [class.applied]="specialOfferApplied() && selectedSpecialOffer()?.id === offer.id"
                     (click)="onSpecialOfferCardClick(offer)">
                 <div class="offer-info">
                   <div class="offer-content">
@@ -288,7 +288,7 @@
                   </div>
                 </div>
                 <div class="offer-actions">
-                  @if (!(specialOfferApplied && selectedSpecialOffer?.id === offer.id)) {
+                  @if (!(specialOfferApplied() && selectedSpecialOffer()?.id === offer.id)) {
                   <button
                     type="button"
                     class="apply-btn"
@@ -297,7 +297,7 @@
                     Apply offer
                   </button>
                   }
-                  @if (specialOfferApplied && selectedSpecialOffer?.id === offer.id) {
+                  @if (specialOfferApplied() && selectedSpecialOffer()?.id === offer.id) {
                   <button
                     type="button"
                     class="remove-btn"
@@ -318,27 +318,27 @@
             <div class="service-type-selection">
               <div class="form-group">
                 <label>Service Type <span class="required">*</span></label>
-                <div class="service-type-dropdown" [shimmer]="loading.serviceTypes">
+                <div class="service-type-dropdown" [shimmer]="loading().serviceTypes">
                   <button
                     type="button"
                     class="dropdown-toggle"
-                    [class.pulsate-soft-red]="!selectedServiceType && (serviceTypeControl.touched || serviceTypeControl.invalid || formSubmitted)"
+                    [class.pulsate-soft-red]="!selectedServiceType() && (serviceTypeControl.touched || serviceTypeControl.invalid || formSubmitted())"
                     (click)="toggleServiceTypeDropdown()"
-                    [disabled]="isLoading">
+                    [disabled]="isLoading()">
                     <span class="dropdown-toggle__label">
-                      <i [appIcon]="getServiceTypeIcon(selectedServiceType)" class="dropdown-toggle__icon"
+                      <i [appIcon]="getServiceTypeIcon(selectedServiceType())" class="dropdown-toggle__icon"
                          aria-hidden="true"></i>
-                      <span>{{ selectedServiceType ? selectedServiceType.name : 'Select a service type' }}</span>
+                      <span>{{ selectedServiceType() ? selectedServiceType()!.name : 'Select a service type' }}</span>
                     </span>
                     <i [appIcon]="icons.faChevronDown" class="dropdown-toggle__chevron"></i>
                   </button>
-                  @if (serviceTypeDropdownOpen) {
+                  @if (serviceTypeDropdownOpen()) {
                   <div class="dropdown-menu">
                     @for (type of visibleServiceTypes; track type.id) {
                     <button
                       type="button"
                       class="dropdown-item"
-                      [class.is-active]="selectedServiceType?.id === type.id"
+                      [class.is-active]="selectedServiceType()?.id === type.id"
                       (click)="selectServiceType(type)">
                       <i [appIcon]="getServiceTypeIcon(type)" class="dropdown-item__icon"
                          aria-hidden="true"></i>
@@ -386,7 +386,7 @@
           </section>
 
           <!-- Poll Form Section (when service type has poll) -->
-          @if (selectedServiceType && showPollForm) {
+          @if (selectedServiceType() && showPollForm()) {
           <section class="booking-section">
             <h2>Tell us about your cleaning needs</h2>
             <p class="poll-description">
@@ -394,7 +394,7 @@
             </p>
             
             <div class="poll-questions">
-              @for (question of pollQuestions; track question.id; let questionIndex = $index) {
+              @for (question of pollQuestions(); track question.id; let questionIndex = $index) {
               <div class="poll-question">
                 <label class="question-label">
                   {{ question.question }}
@@ -407,32 +407,32 @@
                 @if (question.questionType === 'text') {
                 <input 
                   type="text" 
-                  [(ngModel)]="pollAnswers[question.id]"
+                  [(ngModel)]="pollAnswers()[question.id]"
                   (input)="onPollAnswerChange()"
                   [required]="question.isRequired"
                   class="poll-input"
-                  [class.ng-invalid]="pollFormSubmitted && question.isRequired && (!pollAnswers[question.id] || pollAnswers[question.id].trim() === '')">
+                  [class.ng-invalid]="pollFormSubmitted() && question.isRequired && (!pollAnswers()[question.id] || pollAnswers()[question.id].trim() === '')">
                 }
                 
                 <!-- Textarea -->
                 @if (question.questionType === 'textarea') {
                 <textarea 
-                  [(ngModel)]="pollAnswers[question.id]"
+                  [(ngModel)]="pollAnswers()[question.id]"
                   (input)="onPollAnswerChange()"
                   [required]="question.isRequired"
                   rows="3"
                   class="poll-textarea"
-                  [class.ng-invalid]="pollFormSubmitted && question.isRequired && (!pollAnswers[question.id] || pollAnswers[question.id].trim() === '')"></textarea>
+                  [class.ng-invalid]="pollFormSubmitted() && question.isRequired && (!pollAnswers()[question.id] || pollAnswers()[question.id].trim() === '')"></textarea>
                 }
                 
                 <!-- Dropdown -->
                 @if (question.questionType === 'dropdown') {
                 <select 
-                  [(ngModel)]="pollAnswers[question.id]"
+                  [(ngModel)]="pollAnswers()[question.id]"
                   (change)="onPollAnswerChange()"
                   [required]="question.isRequired"
                   class="poll-select"
-                  [class.ng-invalid]="pollFormSubmitted && question.isRequired && (!pollAnswers[question.id] || pollAnswers[question.id].trim() === '')">
+                  [class.ng-invalid]="pollFormSubmitted() && question.isRequired && (!pollAnswers()[question.id] || pollAnswers()[question.id].trim() === '')">
                   <option value="">Select an option</option>
                   @for (option of question.options?.split(',') || []; track $index) {
                   <option [value]="option.trim()">
@@ -454,7 +454,7 @@
                       [name]="'question_' + question.id"
                       [id]="'question_' + question.id + '_' + i"
                       [value]="option.trim()"
-                      [(ngModel)]="pollAnswers[question.id]"
+                      [(ngModel)]="pollAnswers()[question.id]"
                       (change)="onPollAnswerChange()"
                       [required]="question.isRequired">
                     <span>{{ option.trim() }}</span>
@@ -482,7 +482,7 @@
                 }
                 
                 <!-- Single error message per question -->
-                @if (pollFormSubmitted && question.isRequired && (!pollAnswers[question.id] || pollAnswers[question.id].trim() === '')) {
+                @if (pollFormSubmitted() && question.isRequired && (!pollAnswers()[question.id] || pollAnswers()[question.id].trim() === '')) {
                 <div class="poll-error-message" 
                      [attr.data-question-id]="question.id"
                      [attr.data-question-index]="questionIndex">
@@ -496,7 +496,7 @@
           }
 
           <!-- Custom Pricing Section (when service type has custom pricing) -->
-          @if (selectedServiceType && showCustomPricing) {
+          @if (selectedServiceType() && showCustomPricing()) {
           <section class="booking-section">
             <h2>Custom Service Details</h2>
             <p class="custom-description">
@@ -508,7 +508,7 @@
                 <label>Service Type Name <span class="required">*</span></label>
                 <select [formControl]="customServiceName" id="customServiceName">
                   <option value="" disabled>Select a service type name…</option>
-                  @for (name of customServiceNameOptions; track name) {
+                  @for (name of customServiceNameOptions(); track name) {
                   <option [value]="name">{{ name }}</option>
                   }
                 </select>
@@ -631,11 +631,11 @@
 
               <div class="form-group">
                 <label>Service Date <span class="required">*</span></label>
-                <div class="date-time-field" [shimmer]="loading.availableDates">
+                <div class="date-time-field" [shimmer]="loading().availableDates">
                   <app-date-selector
                     [value]="serviceDate.value"
                     [minDate]="getMinDateString()"
-                    [isSameDaySelected]="isSameDaySelected"
+                    [isSameDaySelected]="isSameDaySelected()"
                     [blockedDates]="getBlockedDates()"
                     [partiallyBlockedDates]="getPartiallyBlockedDates()"
                     (valueChange)="onDateSelectorChange($event)">
@@ -657,13 +657,13 @@
               <div class="form-group">
                 <label>Service Time <span class="required">*</span></label>
                 <div class="date-time-field date-time-field--time">
-                  @if (loading.timeSlots) {
+                  @if (loading().timeSlots) {
                   <div class="time-shimmer-fields">
                     <div class="time-field-shimmer" [shimmer]="true"></div>
                     <div class="time-field-shimmer" [shimmer]="true"></div>
                   </div>
                   }
-                  @if (!loading.timeSlots) {
+                  @if (!loading().timeSlots) {
                   <app-time-selector
                     [value]="serviceTime.value"
                     [availableTimeSlots]="getAvailableTimeSlots()"
@@ -685,10 +685,10 @@
           }
 
           <!-- Regular Booking Sections - show during load (shimmer) or when service type selected -->
-          @if (loading.serviceTypes || (selectedServiceType && !showPollForm && !showCustomPricing)) {
+          @if (loading().serviceTypes || (selectedServiceType() && !showPollForm() && !showCustomPricing())) {
             <!-- Cleaning Type + what's included: loading shimmer, or Residential with deep-cleaning option -->
-            @if (loading.serviceTypes || loading.cleaningTypes || (selectedServiceType && isResidentialCleaningServiceType() && canSelectDeepCleaning)) {
-              @if (!loading.serviceTypes && !loading.cleaningTypes && selectedServiceType && isResidentialCleaningServiceType() && canSelectDeepCleaning) {
+            @if (loading().serviceTypes || loading().cleaningTypes || (selectedServiceType() && isResidentialCleaningServiceType() && canSelectDeepCleaning)) {
+              @if (!loading().serviceTypes && !loading().cleaningTypes && selectedServiceType() && isResidentialCleaningServiceType() && canSelectDeepCleaning) {
               <div
                 class="cleaning-type-cta-banner"
                 role="note">
@@ -703,11 +703,11 @@
               <label>Cleaning Type <span class="required">*</span></label>
               <div class="cleaning-type-selection">
                 <!-- Shimmer when loading service types or cleaning types (visible on page refresh) -->
-                @if (loading.serviceTypes || loading.cleaningTypes) {
+                @if (loading().serviceTypes || loading().cleaningTypes) {
                 <div class="cleaning-type-buttons" [shimmer]="true"></div>
                 }
                 <!-- Real buttons when loaded and this service type has deep cleaning -->
-                @if (!loading.serviceTypes && !loading.cleaningTypes && selectedServiceType && isResidentialCleaningServiceType() && canSelectDeepCleaning) {
+                @if (!loading().serviceTypes && !loading().cleaningTypes && selectedServiceType() && isResidentialCleaningServiceType() && canSelectDeepCleaning) {
                 <div class="cleaning-type-buttons">
                   <button
                     type="button"
@@ -736,7 +736,7 @@
                   </button>
                 </div>
                 }
-                @if (!loading.serviceTypes && !loading.cleaningTypes && cleaningType.invalid && cleaningType.touched) {
+                @if (!loading().serviceTypes && !loading().cleaningTypes && cleaningType.invalid && cleaningType.touched) {
                 <div class="error-message">
                   @if (cleaningType.errors?.['required']) {
                   <div>Cleaning type is required</div>
@@ -744,14 +744,14 @@
                 </div>
                 }
               </div>
-              @if (!loading.serviceTypes && !loading.cleaningTypes && selectedServiceType && isResidentialCleaningServiceType() && canSelectDeepCleaning) {
+              @if (!loading().serviceTypes && !loading().cleaningTypes && selectedServiceType() && isResidentialCleaningServiceType() && canSelectDeepCleaning) {
               <app-cleaning-type-details-expandable
                 [cleaningType]="cleaningType.value === 'deep' ? 'deep' : 'normal'">
               </app-cleaning-type-details-expandable>
               }
             }
 
-            @if (!loading.serviceTypes && isMoveInOutCleaningServiceType()) {
+            @if (!loading().serviceTypes && isMoveInOutCleaningServiceType()) {
             <app-move-in-out-checklist></app-move-in-out-checklist>
             }
 
@@ -760,20 +760,20 @@
             <section class="booking-section">
               <div class="services">
                 <!-- Single full-width shimmer when loading and no services yet -->
-                @if (loading.serviceDetails && selectedServices.length === 0) {
+                @if (loading().serviceDetails && selectedServices().length === 0) {
                 <div class="services-shimmer-single" [shimmer]="true"></div>
                 }
                 <!-- Levels is excluded here even though it is an ordinary service: it has its own
                      gated block above, and rendering it twice would let a customer set a level
                      count without ever answering the property-type question. -->
-                @for (selected of selectedServices; track $index) {
+                @for (selected of selectedServices(); track $index) {
                 @if (!isLevelsService(selected.service)) {
                 <div class="service-item">
                   <label>{{ selected.service.name }}</label>
                   
                   <!-- Quantity Control Input -->
                   @if (selected.service.inputType === 'dropdown') {
-                  <div class="service-input" [shimmer]="loading.serviceDetails">
+                  <div class="service-input" [shimmer]="loading().serviceDetails">
                     <app-quantity-control class="quantity-control" [label]="selected.service.name"
                       [value]="selected.service.serviceKey === 'bedrooms' && selected.quantity === 0 ? 'Studio' : selected.quantity"
                       [decrementDisabled]="selected.quantity <= getServiceMinValue(selected.service)"
@@ -786,7 +786,7 @@
 
                   <!-- Slider Input for Square Feet -->
                   @if (selected.service.isRangeInput) {
-                  <div class="service-input slider-input" [shimmer]="loading.serviceDetails">
+                  <div class="service-input slider-input" [shimmer]="loading().serviceDetails">
                     <div class="slider-container">
                       <span class="slider-quantity">{{ selected.quantity }}</span>
                       <!-- Index-based: the allowed Sq.ft values are a list, not a fixed step
@@ -883,7 +883,7 @@
               <!-- A greyed-out Continue with no explanation is not acceptable: the customer has
                    to be told which choice is missing. Shown once they have tried to move on,
                    matching how every other required step-1 field surfaces its error. -->
-              @if (isPropertyTypeMissing() && (formSubmitted || propertyTypeTouched)) {
+              @if (isPropertyTypeMissing() && (formSubmitted() || propertyTypeTouched())) {
               <div class="error-message property-type-error"
                   >
                 Please tell us whether this is an apartment or a house.
@@ -908,7 +908,7 @@
                   }
                 </div>
                 <p class="levels-hint">Count the basement if it needs cleaning.</p>
-                @if (isLevelsMissing() && (formSubmitted || propertyTypeTouched)) {
+                @if (isLevelsMissing() && (formSubmitted() || propertyTypeTouched())) {
                 <div class="error-message levels-error"
                     >
                   Please choose how many levels need cleaning.
@@ -925,18 +925,18 @@
                informational only — they cost $0 and add 0 minutes, and exist so the admin panel
                and the cleaner's job email know what work was agreed. The floor-type picker stays
                regular-booking-only, so this section renders identically to before on that path. -->
-          @if (loading.serviceTypes || (selectedServiceType && !showPollForm)) {
+          @if (loading().serviceTypes || (selectedServiceType() && !showPollForm())) {
           <section class="booking-section">
             <!-- Floor Type (Optional) — moved from step 2, sits right above Extra Services -->
-            @if (!showCustomPricing) {
+            @if (!showCustomPricing()) {
             <app-floor-type-selector
-              [selectedTypes]="floorTypes"
-              [otherText]="floorTypeOther"
+              [selectedTypes]="floorTypes()"
+              [otherText]="floorTypeOther()"
               (selectionChange)="onFloorTypeSelectionChange($event)">
             </app-floor-type-selector>
             }
 
-            @if (showCustomPricing) {
+            @if (showCustomPricing()) {
             <p class="custom-extras-note">
               Selected extras are recorded for the admin panel and the cleaners' job details.
               They do not change the total amount or the duration set above.
@@ -945,13 +945,13 @@
 
             <app-extra-services-grid
               [extras]="getExtraServicesToDisplay()"
-              [selections]="selectedExtraServices"
+              [selections]="selectedExtraServices()"
               [tooltips]="mobileTooltips"
-              [sameDayServiceAvailable]="isSameDayServiceAvailable || isAdminOrSuperAdmin"
-              [sameDayDisabledReason]="sameDayServiceDisabledReason"
-              [loading]="loading.extras"
+              [sameDayServiceAvailable]="isSameDayServiceAvailable() || isAdminOrSuperAdmin"
+              [sameDayDisabledReason]="sameDayServiceDisabledReason()"
+              [loading]="loading().extras"
               [showPrices]="showExtraServicePrices"
-              [containerMaxWidth]="extraServicesContainerMaxWidth"
+              [containerMaxWidth]="extraServicesContainerMaxWidth()"
               (cardClick)="onExtraServiceCardClick($event)"
               (quantityChange)="updateExtraServiceQuantity($event.extra, $event.quantity)"
               (hoursChange)="updateExtraServiceHours($event.extra, $event.hours)">
@@ -960,7 +960,7 @@
           }
 
           <!-- Same-day fully booked warning -->
-          @if (isSameDaySelected && isSameDayFullyBooked()) {
+          @if (isSameDaySelected() && isSameDayFullyBooked()) {
           <div class="blocked-date-warning">
             We are fully booked for today. Please uncheck Same Day Service and select a different date.
           </div>
@@ -969,45 +969,45 @@
         </div>
 
         <!-- PART 2: Subscription and Scheduling -->
-        <div class="form-step" [class.active]="currentStep === 2" [class.hidden]="currentStep !== 2">
+        <div class="form-step" [class.active]="currentStep() === 2" [class.hidden]="currentStep() !== 2">
           <div class="step-top-nav">
             <!-- Top-left chevron for Part 2 -->
             <button type="button" class="top-left-chevron" (click)="previousStep()" aria-label="Go back to previous step">
               <span class="chevron-left">‹</span>
             </button>
 
-            @if (!showPollForm) {
+            @if (!showPollForm()) {
             <div class="booking-progress-stepper booking-progress-stepper--compact booking-progress-stepper--inline"
-                 [attr.data-current-step]="currentStep">
+                 [attr.data-current-step]="currentStep()">
               <div class="booking-progress-stepper__step"
-                  [class.is-active]="currentStep === 1"
-                  [class.is-complete]="currentStep > 1">
+                  [class.is-active]="currentStep() === 1"
+                  [class.is-complete]="currentStep() > 1">
                 <div class="booking-progress-stepper__bubble" aria-hidden="true">
-                  @if (currentStep > 1) {
+                  @if (currentStep() > 1) {
                   <i [appIcon]="icons.faCheck"></i>
                   }
-                  @if (currentStep <= 1) {
+                  @if (currentStep() <= 1) {
                   <span>1</span>
                   }
                 </div>
                 <span class="booking-progress-stepper__label">Configure</span>
               </div>
-              <div class="booking-progress-stepper__line" [class.is-complete]="currentStep > 1" aria-hidden="true"></div>
+              <div class="booking-progress-stepper__line" [class.is-complete]="currentStep() > 1" aria-hidden="true"></div>
               <div class="booking-progress-stepper__step"
-                  [class.is-active]="currentStep === 2"
-                  [class.is-complete]="currentStep > 2">
+                  [class.is-active]="currentStep() === 2"
+                  [class.is-complete]="currentStep() > 2">
                 <div class="booking-progress-stepper__bubble" aria-hidden="true">
-                  @if (currentStep > 2) {
+                  @if (currentStep() > 2) {
                   <i [appIcon]="icons.faCheck"></i>
                   }
-                  @if (currentStep <= 2) {
+                  @if (currentStep() <= 2) {
                   <span>2</span>
                   }
                 </div>
                 <span class="booking-progress-stepper__label">Schedule</span>
               </div>
-              <div class="booking-progress-stepper__line" [class.is-complete]="currentStep > 2" aria-hidden="true"></div>
-              <div class="booking-progress-stepper__step" [class.is-active]="currentStep === 3">
+              <div class="booking-progress-stepper__line" [class.is-complete]="currentStep() > 2" aria-hidden="true"></div>
+              <div class="booking-progress-stepper__step" [class.is-active]="currentStep() === 3">
                 <div class="booking-progress-stepper__bubble" aria-hidden="true">
                   <span>3</span>
                 </div>
@@ -1018,21 +1018,21 @@
           </div>
           
           <!-- Common sections for both regular and custom pricing (hidden only for poll) -->
-          @if (selectedServiceType && !showPollForm) {
+          @if (selectedServiceType() && !showPollForm()) {
             <!-- Date & Time (moved to top of step 2 — was previously in step 1).
                  Hidden for custom pricing because that flow asks for date/time
                  inline in step 1 already, on the same FormControls. -->
-            @if (!showCustomPricing) {
+            @if (!showCustomPricing()) {
             <section class="booking-section">
               <h2>When would you like us to come?</h2>
               <div class="date-time-selection">
                 <div class="form-group">
                   <label>Service Date <span class="required">*</span></label>
-                  <div class="date-time-field" [shimmer]="loading.availableDates">
+                  <div class="date-time-field" [shimmer]="loading().availableDates">
                     <app-date-selector
                       [value]="serviceDate.value"
                       [minDate]="getMinDateString()"
-                      [isSameDaySelected]="isSameDaySelected"
+                      [isSameDaySelected]="isSameDaySelected()"
                       [blockedDates]="getBlockedDates()"
                       [partiallyBlockedDates]="getPartiallyBlockedDates()"
                       (valueChange)="onDateSelectorChange($event)">
@@ -1054,13 +1054,13 @@
                 <div class="form-group">
                   <label>Service Time <span class="required">*</span></label>
                   <div class="date-time-field date-time-field--time">
-                    @if (loading.timeSlots) {
+                    @if (loading().timeSlots) {
                     <div class="time-shimmer-fields">
                       <div class="time-field-shimmer" [shimmer]="true"></div>
                       <div class="time-field-shimmer" [shimmer]="true"></div>
                     </div>
                     }
-                    @if (!loading.timeSlots) {
+                    @if (!loading().timeSlots) {
                     <app-time-selector
                       [value]="serviceTime.value"
                       [availableTimeSlots]="getAvailableTimeSlots()"
@@ -1088,18 +1088,18 @@
                 <i [appIcon]="icons.faCircleCheck"></i>
                 No extra fee - a plan just lowers your price. Cancel anytime.
               </p>
-              @if (hasActiveSubscription && userSubscription) {
+              @if (hasActiveSubscription() && userSubscription()) {
               <div class="active-subscription-notice">
                 <i [appIcon]="icons.faCircleInfo"></i>
-                <span>Your current plan: {{ userSubscription?.subscriptionName }} 
-                      ({{ userSubscription?.discountPercentage }}% discount)</span>
+                <span>Your current plan: {{ userSubscription()?.subscriptionName }} 
+                      ({{ userSubscription()?.discountPercentage }}% discount)</span>
               </div>
               }
-              <div class="subscription-options" [shimmer]="loading.serviceTypes">
-                @for (subscription of subscriptions; track subscription.id) {
+              <div class="subscription-options" [shimmer]="loading().serviceTypes">
+                @for (subscription of subscriptions(); track subscription.id) {
                 <div class="subscription-card"
-                     [class.selected]="selectedSubscription?.id === subscription.id"
-                     [class.user-subscription]="hasActiveSubscription && userSubscription?.subscriptionId === subscription.id"
+                     [class.selected]="selectedSubscription()?.id === subscription.id"
+                     [class.user-subscription]="hasActiveSubscription() && userSubscription()?.subscriptionId === subscription.id"
                      [class.mobile-tooltip-visible]="isMobileTooltipVisible(subscription.id)"
                      [class.subscription-card--popular]="subscription.isMostPopular"
                      (click)="selectSubscription(subscription)"
@@ -1128,13 +1128,13 @@
                   <button 
                     type="button"
                     class="dropdown-toggle"
-                    [class.pulsate-soft-red]="!entryMethod.value && (entryMethod.touched || entryMethod.invalid || formSubmitted)"
+                    [class.pulsate-soft-red]="!entryMethod.value && (entryMethod.touched || entryMethod.invalid || formSubmitted())"
                     (click)="toggleEntryMethodDropdown()"
-                    [disabled]="isLoading">
+                    [disabled]="isLoading()">
                     <span>{{ entryMethod.value || 'Select entry method' }}</span>
                     <i [appIcon]="icons.faChevronDown"></i>
                   </button>
-                  @if (entryMethodDropdownOpen) {
+                  @if (entryMethodDropdownOpen()) {
                   <div class="dropdown-menu">
                     @for (method of entryMethods; track method) {
                     <button 
@@ -1172,15 +1172,15 @@
             <section class="booking-section">
               
               <!-- Show error message if there is one -->
-              @if (errorMessage) {
+              @if (errorMessage()) {
               <div class="discount-error">
-                <p class="error-message">{{ errorMessage }}</p>
+                <p class="error-message">{{ errorMessage() }}</p>
               </div>
               }
               
               <div class="discounts">
                 <!-- Gift Card Applied Message -->
-                @if (giftCardApplied && isGiftCard) {
+                @if (giftCardApplied() && isGiftCard()) {
                 <div class="gift-card-applied">
                   <div class="gift-card-info">
                     <div class="gift-card-icon">🎁</div>
@@ -1210,7 +1210,7 @@
                  a hidden-but-validated control. -->
 
             <!-- Step 11: Special Instructions (hidden when custom pricing uses the same field earlier) -->
-            @if (!showCustomPricing) {
+            @if (!showCustomPricing()) {
             <section class="booking-section">
               <h2>Special Instructions (Optional)</h2>
               <div class="form-group">
@@ -1229,7 +1229,7 @@
           }
 
           <!-- Photo Upload Section -->
-          @if (selectedServiceType) {
+          @if (selectedServiceType()) {
           <section class="booking-section">
             <h2>Upload Photos (Optional)</h2>
             <p class="upload-description">
@@ -1239,7 +1239,7 @@
             <div class="photo-upload-section">
               <div class="upload-container">
                 <!-- Mobile-friendly upload options -->
-                @if (uploadedPhotos.length < maxPhotos) {
+                @if (uploadedPhotos().length < maxPhotos) {
                 <div class="upload-options">
                   <!-- Take Photo Button (Mobile Only) -->
                   @if (isMobileDevice) {
@@ -1250,7 +1250,7 @@
                       accept="image/*"
                       capture="environment"
                       (change)="onPhotoSelect($event)"
-                      [disabled]="isUploadingPhoto"
+                      [disabled]="isUploadingPhoto()"
                       #cameraInput
                     >
                     <label for="camera-capture" class="upload-label camera">
@@ -1273,7 +1273,7 @@
                       [accept]="acceptedFormats"
                       multiple
                       (change)="onPhotoSelect($event)"
-                      [disabled]="isUploadingPhoto"
+                      [disabled]="isUploadingPhoto()"
                       #photoInput
                     >
                     <label for="photo-upload" class="upload-label gallery">
@@ -1284,16 +1284,16 @@
                         </svg>
                       </div>
                       <span>{{ isMobileDevice ? 'Choose from Gallery' : 'Upload Photos' }}</span>
-                      <small>{{ uploadedPhotos.length }}/{{ maxPhotos }}</small>
+                      <small>{{ uploadedPhotos().length }}/{{ maxPhotos }}</small>
                     </label>
                   </div>
                 </div>
                 }
                 
                 <!-- Photo previews -->
-                @if (uploadedPhotos.length > 0) {
+                @if (uploadedPhotos().length > 0) {
                 <div class="photo-previews">
-                  @for (photo of uploadedPhotos; track $index; let i = $index) {
+                  @for (photo of uploadedPhotos(); track $index; let i = $index) {
                   <div class="photo-preview">
                     <img [src]="photo.preview" [alt]="photo.file.name">
                             <button 
@@ -1313,7 +1313,7 @@
                 }
                 
                 <!-- Loading indicator -->
-                @if (isUploadingPhoto) {
+                @if (isUploadingPhoto()) {
                 <div class="upload-loading">
                   <svg class="loading-icon" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M12,4V2A10,10 0 0,0 2,12H4A8,8 0 0,1 12,4Z">
@@ -1325,12 +1325,12 @@
                 }
                 
                 <!-- Error message -->
-                @if (photoUploadError) {
+                @if (photoUploadError()) {
                 <div class="upload-error">
                   <svg class="error-icon" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M12,2L13.09,8.26L22,9L13.09,9.74L12,16L10.91,9.74L2,9L10.91,8.26L12,2Z"/>
                   </svg>
-                  {{ photoUploadError }}
+                  {{ photoUploadError() }}
                 </div>
                 }
               </div>
@@ -1340,7 +1340,7 @@
           }
 
           <!-- Poll Form Contact Information - On Step 2 -->
-          @if (selectedServiceType && showPollForm) {
+          @if (selectedServiceType() && showPollForm()) {
           <section class="booking-section">
             <h2>Contact Information</h2>
             <div class="contact-privacy-note">
@@ -1405,46 +1405,46 @@
 
 
         <!-- PART 3: Contact Information and Final Details -->
-        @if (!showPollForm) {
-        <div class="form-step step-3" [class.active]="currentStep === 3" [class.hidden]="currentStep !== 3">
+        @if (!showPollForm()) {
+        <div class="form-step step-3" [class.active]="currentStep() === 3" [class.hidden]="currentStep() !== 3">
           <div class="step-top-nav">
             <!-- Top-left chevron for Part 3 -->
             <button type="button" class="top-left-chevron" (click)="previousStep()" aria-label="Go back to previous step">
               <span class="chevron-left">‹</span>
             </button>
 
-            @if (!showPollForm) {
+            @if (!showPollForm()) {
             <div class="booking-progress-stepper booking-progress-stepper--compact booking-progress-stepper--inline"
-                 [attr.data-current-step]="currentStep">
+                 [attr.data-current-step]="currentStep()">
               <div class="booking-progress-stepper__step"
-                  [class.is-active]="currentStep === 1"
-                  [class.is-complete]="currentStep > 1">
+                  [class.is-active]="currentStep() === 1"
+                  [class.is-complete]="currentStep() > 1">
                 <div class="booking-progress-stepper__bubble" aria-hidden="true">
-                  @if (currentStep > 1) {
+                  @if (currentStep() > 1) {
                   <i [appIcon]="icons.faCheck"></i>
                   }
-                  @if (currentStep <= 1) {
+                  @if (currentStep() <= 1) {
                   <span>1</span>
                   }
                 </div>
                 <span class="booking-progress-stepper__label">Configure</span>
               </div>
-              <div class="booking-progress-stepper__line" [class.is-complete]="currentStep > 1" aria-hidden="true"></div>
+              <div class="booking-progress-stepper__line" [class.is-complete]="currentStep() > 1" aria-hidden="true"></div>
               <div class="booking-progress-stepper__step"
-                  [class.is-active]="currentStep === 2"
-                  [class.is-complete]="currentStep > 2">
+                  [class.is-active]="currentStep() === 2"
+                  [class.is-complete]="currentStep() > 2">
                 <div class="booking-progress-stepper__bubble" aria-hidden="true">
-                  @if (currentStep > 2) {
+                  @if (currentStep() > 2) {
                   <i [appIcon]="icons.faCheck"></i>
                   }
-                  @if (currentStep <= 2) {
+                  @if (currentStep() <= 2) {
                   <span>2</span>
                   }
                 </div>
                 <span class="booking-progress-stepper__label">Schedule</span>
               </div>
-              <div class="booking-progress-stepper__line" [class.is-complete]="currentStep > 2" aria-hidden="true"></div>
-              <div class="booking-progress-stepper__step" [class.is-active]="currentStep === 3">
+              <div class="booking-progress-stepper__line" [class.is-complete]="currentStep() > 2" aria-hidden="true"></div>
+              <div class="booking-progress-stepper__step" [class.is-active]="currentStep() === 3">
                 <div class="booking-progress-stepper__bubble" aria-hidden="true">
                   <span>3</span>
                 </div>
@@ -1455,13 +1455,13 @@
           </div>
 
           <!-- Contact Information - Moved to bottom -->
-          @if (selectedServiceType) {
+          @if (selectedServiceType()) {
           <section class="booking-section">
             <h2>Contact Information</h2>
             <div class="contact-privacy-note">
               <p>We will use this information to stay in touch with you. We don't share your personal information with anyone.</p>
             </div>
-            @if (!showPollForm) {
+            @if (!showPollForm()) {
             <div class="form-grid">
               <!-- Full contact form for regular bookings -->
               <div class="form-group">
@@ -1516,11 +1516,11 @@
           }
 
           <!-- Service Address - Moved to bottom -->
-          @if (selectedServiceType && !showPollForm) {
+          @if (selectedServiceType() && !showPollForm()) {
           <section class="booking-section">
             
             <!-- Saved Address Dropdown - Always visible if user has apartments -->
-            @if (userApartments.length > 0) {
+            @if (userApartments().length > 0) {
             <div class="address-options">
               <div class="saved-address-container">
                 <div class="dropdown-with-clear">
@@ -1532,13 +1532,13 @@
                       <span [class.is-placeholder]="!selectedApartmentId.value">{{ savedAddressLabel }}</span>
                       <i [appIcon]="icons.faChevronDown"></i>
                     </button>
-                    @if (savedAddressDropdownOpen) {
+                    @if (savedAddressDropdownOpen()) {
                     <div class="dropdown-menu">
                       <button type="button"
                               class="dropdown-item"
                               [class.is-active]="!selectedApartmentId.value"
                               (click)="selectSavedAddress('')">Enter new address</button>
-                      @for (apt of userApartments; track apt.id) {
+                      @for (apt of userApartments(); track apt.id) {
                       <button
                               type="button"
                               class="dropdown-item"
@@ -1577,9 +1577,9 @@
                          and knocked the address field out of line with Apt/Suite. -->
                     <div class="address-autocomplete-wrapper"
                          #addressAutocompleteContainer
-                         [hidden]="autocompleteError || showAddressFallbackAfterDelay">
+                         [hidden]="autocompleteError() || showAddressFallbackAfterDelay()">
                     </div>
-                    @if (autocompleteError || showAddressFallbackAfterDelay) {
+                    @if (autocompleteError() || showAddressFallbackAfterDelay()) {
                     <input
                            [formControl]="serviceAddress"
                            placeholder="Address *"
@@ -1606,23 +1606,23 @@
                 <div class="service-type-dropdown compact-dropdown city-dropdown">
                   <button type="button"
                           class="dropdown-toggle"
-                          [class.pulsate-soft-red]="!city.value && (city.touched || formSubmitted)"
+                          [class.pulsate-soft-red]="!city.value && (city.touched || formSubmitted())"
                           (click)="toggleCityDropdown()"
                           id="city"
                           aria-label="City">
                     <span [class.is-placeholder]="!city.value">{{ city.value || 'City *' }}</span>
                     <i [appIcon]="icons.faChevronDown"></i>
                   </button>
-                  @if (cityDropdownOpen) {
+                  @if (cityDropdownOpen()) {
                   <div class="dropdown-menu">
-                    @for (cityOption of cities; track cityOption) {
+                    @for (cityOption of cities(); track cityOption) {
                     <button
                             type="button"
                             class="dropdown-item"
                             [class.is-active]="city.value === cityOption"
                             (click)="selectCity(cityOption)">{{ cityOption }}</button>
                     }
-                    @if (cities.length === 0) {
+                    @if (cities().length === 0) {
                     <div class="dropdown-empty">
                       {{ state.value ? 'We do not serve this state yet' : 'Choose a state first' }}
                     </div>
@@ -1642,16 +1642,16 @@
                 <div class="service-type-dropdown compact-dropdown state-dropdown">
                   <button type="button"
                           class="dropdown-toggle"
-                          [class.pulsate-soft-red]="!state.value && (state.touched || formSubmitted)"
+                          [class.pulsate-soft-red]="!state.value && (state.touched || formSubmitted())"
                           (click)="toggleStateDropdown()"
                           id="state"
                           aria-label="State">
                     <span [class.is-placeholder]="!state.value">{{ state.value || 'State *' }}</span>
                     <i [appIcon]="icons.faChevronDown"></i>
                   </button>
-                  @if (stateDropdownOpen) {
+                  @if (stateDropdownOpen()) {
                   <div class="dropdown-menu">
-                    @for (stateOption of states; track stateOption) {
+                    @for (stateOption of states(); track stateOption) {
                     <button
                             type="button"
                             class="dropdown-item"
@@ -1685,34 +1685,34 @@
               <!-- Address name: Home (default) / Office / Other. Picking "Other" closes the
                    menu and puts a free-text field right next to the dropdown. -->
               <div class="form-group address-name-group">
-                <div class="address-name-row" [class.has-custom]="addressNameType === 'Other'">
+                <div class="address-name-row" [class.has-custom]="addressNameType() === 'Other'">
                   <div class="service-type-dropdown compact-dropdown address-name-dropdown">
                     <button type="button"
                             class="dropdown-toggle"
                             (click)="toggleAddressNameDropdown()"
                             title="Address name"
                             aria-label="Address name">
-                      <span>{{ addressNameType }}</span>
+                      <span>{{ addressNameType() }}</span>
                       <i [appIcon]="icons.faChevronDown"></i>
                     </button>
-                    @if (addressNameDropdownOpen) {
+                    @if (addressNameDropdownOpen()) {
                     <div class="dropdown-menu">
                       <button type="button"
                               class="dropdown-item"
-                              [class.is-active]="addressNameType === 'Home'"
+                              [class.is-active]="addressNameType() === 'Home'"
                               (click)="selectAddressNameType('Home')">Home</button>
                       <button type="button"
                               class="dropdown-item"
-                              [class.is-active]="addressNameType === 'Office'"
+                              [class.is-active]="addressNameType() === 'Office'"
                               (click)="selectAddressNameType('Office')">Office</button>
                       <button type="button"
                               class="dropdown-item"
-                              [class.is-active]="addressNameType === 'Other'"
+                              [class.is-active]="addressNameType() === 'Other'"
                               (click)="selectAddressNameType('Other')">Other</button>
                     </div>
                     }
                   </div>
-                  @if (addressNameType === 'Other') {
+                  @if (addressNameType() === 'Other') {
                   <input
                          type="text"
                          class="address-name-custom-input"
@@ -1732,33 +1732,33 @@
           <!-- Combined Rewards (Reward balance + Bubble points) — compact two-row panel.
                Replaces the two previous standalone panels so the rewards block
                doesn't dominate vertical space when both are present. -->
-          @if (currentUser && (userBubbleCredits > 0 || bubblePointsOptions.length > 0) && !showPollForm) {
+          @if (currentUser() && (userBubbleCredits() > 0 || bubblePointsOptions().length > 0) && !showPollForm()) {
           <section class="booking-section bubble-points-form-section bubble-rewards-combined"
                   >
             <h2>Your rewards</h2>
             <div class="bubble-rewards-stack">
               <!-- Reward balance row -->
-              @if (userBubbleCredits > 0) {
+              @if (userBubbleCredits() > 0) {
               <div class="bubble-reward-row">
                 <div class="bubble-reward-row__info">
                   <i [appIcon]="icons.faPiggyBank" class="bubble-reward-row__icon" aria-hidden="true"></i>
                   <div class="bubble-reward-row__text">
                     <span class="bubble-reward-row__title">Reward balance</span>
                     <span class="bubble-reward-row__sub">
-                      <span class="bubble-dollar">${{ userBubbleCredits.toFixed(2) }}</span> from referrals &amp; bonuses
+                      <span class="bubble-dollar">${{ userBubbleCredits().toFixed(2) }}</span> from referrals &amp; bonuses
                     </span>
                   </div>
                 </div>
                 <button class="bubble-reward-row__btn credits-toggle-btn"
-                        [class.selected]="useCredits"
-                        (click)="useCredits = !useCredits; calculateTotal()"
+                        [class.selected]="useCredits()"
+                        (click)="useCredits.set(!useCredits()); calculateTotal()"
                         type="button">
                   <span class="pts-num">
-                    @if (useCredits) {
+                    @if (useCredits()) {
                     Remove
                     }
-                    @if (!useCredits) {
-                    Apply <span class="bubble-dollar">${{ userBubbleCredits.toFixed(2) }}</span>
+                    @if (!useCredits()) {
+                    Apply <span class="bubble-dollar">${{ userBubbleCredits().toFixed(2) }}</span>
                     }
                   </span>
                 </button>
@@ -1766,22 +1766,22 @@
               }
 
               <!-- Bubble points row -->
-              @if (bubblePointsOptions.length > 0) {
+              @if (bubblePointsOptions().length > 0) {
               <div class="bubble-reward-row bubble-reward-row--points">
                 <div class="bubble-reward-row__info">
                   <i [appIcon]="icons.faCoins" class="bubble-reward-row__icon" aria-hidden="true"></i>
                   <div class="bubble-reward-row__text">
                     <span class="bubble-reward-row__title">Bubble points</span>
                     <span class="bubble-reward-row__sub">
-                      <strong class="bubble-pts-total">{{ userBubblePoints | number }}</strong> pts available
+                      <strong class="bubble-pts-total">{{ userBubblePoints() | number }}</strong> pts available
                     </span>
                   </div>
                 </div>
                 <div class="bubble-points-form-options">
-                  @for (opt of bubblePointsOptions; track $index) {
+                  @for (opt of bubblePointsOptions(); track $index) {
                   <button
                           class="points-form-btn"
-                          [class.selected]="selectedPointsToRedeem === opt.points"
+                          [class.selected]="selectedPointsToRedeem() === opt.points"
                           [class.unavailable]="!opt.available"
                           [disabled]="!opt.available"
                           (click)="selectPointsToRedeem(opt.points)"
@@ -1799,7 +1799,7 @@
           }
 
           <!-- Tips for Cleaners - Moved to bottom -->
-          @if (!showPollForm) {
+          @if (!showPollForm()) {
           <section class="booking-section">
             <div class="entry-tips-container">
               <!-- Tips for Cleaners -->
@@ -1814,7 +1814,7 @@
                       ${{ tipsAmount }}
                       <span class="dropdown-arrow">▼</span>
                     </button>
-                    @if (tipDropdownOpen) {
+                    @if (tipDropdownOpen()) {
                     <div class="tip-dropdown-menu">
                       <button type="button"
                               class="tip-dropdown-item"
@@ -1871,7 +1871,7 @@
           }
 
           <!-- Promo Code or Gift Card Section -->
-          @if (selectedServiceType && !showPollForm) {
+          @if (selectedServiceType() && !showPollForm()) {
           <section class="booking-section">
             <div class="promo-code-input-section">
               <div class="promo-code-group">
@@ -1889,7 +1889,7 @@
                   Apply
                 </button>
               </div>
-              @if (promoCodeApplied || giftCardApplied) {
+              @if (promoCodeApplied() || giftCardApplied()) {
               <button
                 class="remove-promo-btn"
                 (click)="removePromoCode()"
@@ -1897,7 +1897,7 @@
                 Remove Promo Code
               </button>
               }
-              @if (specialOfferApplied) {
+              @if (specialOfferApplied()) {
               <p class="promo-note-info">
                 <i [appIcon]="icons.faCircleInfo"></i> Remove special offer to use a promo code
               </p>
@@ -1907,7 +1907,7 @@
           }
 
           <!-- SMS Consent Checkbox -->
-          @if (!showPollForm && !isAdminMode) {
+          @if (!showPollForm() && !isAdminMode()) {
           <div class="sms-consent-section">
             <div class="checkbox-group">
               <input 
@@ -1933,7 +1933,7 @@
           }
 
           <!-- Cancellation Fee and Booking Details Consent Checkbox -->
-          @if (!showPollForm && !isAdminMode) {
+          @if (!showPollForm() && !isAdminMode()) {
           <div class="cancellation-consent-section">
             <div class="checkbox-group">
               <input 
@@ -1957,7 +1957,7 @@
           }
 
           <!-- Privacy Policy and Terms of Service Consent Checkbox -->
-          @if (!showPollForm && !isAdminMode) {
+          @if (!showPollForm() && !isAdminMode()) {
           <div class="terms-consent-section">
             <div class="checkbox-group">
               <input
@@ -1983,7 +1983,7 @@
           }
 
           <!-- Mobile Booking Summary - Only visible on Step 3 in the flow -->
-          @if (!showPollForm) {
+          @if (!showPollForm()) {
           <div class="mobile-booking-summary">
             <app-order-summary-card
               variant="mobile"
@@ -1991,7 +1991,7 @@
               [details]="getSummaryDetailLines(true)"
               [priceLines]="getSummaryPriceLines(true)"
               totalLabel="Total:"
-              [totalValue]="'$' + calculation.total.toFixed(2)"
+              [totalValue]="'$' + calculation().total.toFixed(2)"
               [estimatedPoints]="getEstimatedPointsDisplay()">
 
               <!-- Promo / Gift Card code (mobile-only; replaces the standalone section at this step) -->
@@ -2009,7 +2009,7 @@
                       type="button">
                       Apply
                     </button>
-                    @if (promoCodeApplied || giftCardApplied) {
+                    @if (promoCodeApplied() || giftCardApplied()) {
                     <button
                       class="remove-btn"
                       (click)="removePromoCode()"
@@ -2018,7 +2018,7 @@
                     </button>
                     }
                   </div>
-                  @if (specialOfferApplied) {
+                  @if (specialOfferApplied()) {
                   <p class="promo-note">
                     <i [appIcon]="icons.faCircleInfo"></i> Remove special offer to use a promo code
                   </p>
@@ -2027,17 +2027,17 @@
               </div>
 
               <!-- Show next order discount for subscription -->
-              @if (selectedSubscription && (selectedSubscription.subscriptionDays || 0) > 0 && !hasActiveSubscription) {
+              @if (selectedSubscription() && (selectedSubscription()!.subscriptionDays || 0) > 0 && !hasActiveSubscription()) {
               <div summary-footer class="next-order-info">
                 <div class="divider"></div>
-                <div class="next-order-title">Continue with {{ selectedSubscription.name }} plan:</div>
+                <div class="next-order-title">Continue with {{ selectedSubscription()!.name }} plan:</div>
                 <div class="price-item">
-                  <span>Discount ({{ selectedSubscription.discountPercentage }}%):</span>
-                  <span class="discount"> ${{ nextOrderDiscount.toFixed(2) }}</span>
+                  <span>Discount ({{ selectedSubscription()!.discountPercentage }}%):</span>
+                  <span class="discount"> ${{ nextOrderDiscount().toFixed(2) }}</span>
                 </div>
                 <div class="price-item next-total">
                   <span>Continue Order Total:</span>
-                  <span>${{ nextOrderTotal.toFixed(2) }}</span>
+                  <span>${{ nextOrderTotal().toFixed(2) }}</span>
                 </div>
               </div>
               }
@@ -2051,21 +2051,21 @@
         <!-- Step Navigation - Always visible -->
         <div class="step-navigation">
           <!-- Part 1 Navigation (no shimmer on button: step 2/3 must never show a loading bar here) -->
-          @if (currentStep === 1) {
+          @if (currentStep() === 1) {
           <div class="step-nav-wrap">
             <button 
               type="button" 
               class="next-btn" 
-              [disabled]="isLoading"
+              [disabled]="isLoading()"
               (click)="onNextButtonClick()"
-              [class.disabled]="!canProceedToNextStep() || isLoading">
+              [class.disabled]="!canProceedToNextStep() || isLoading()">
               Continue
             </button>
           </div>
           }
           
           <!-- Part 2 Navigation -->
-          @if (currentStep === 2) {
+          @if (currentStep() === 2) {
           <div class="step-buttons-container">
             <button 
               type="button" 
@@ -2074,24 +2074,24 @@
               Back
             </button>
             <!-- For poll forms, show "Send for Quote" button that submits -->
-            @if (showPollForm) {
+            @if (showPollForm()) {
             <button 
               type="button"
               class="book-now-btn" 
-              [disabled]="isLoading"
-              [class.disabled]="!canProceedToNextStep() || isLoading"
+              [disabled]="isLoading()"
+              [class.disabled]="!canProceedToNextStep() || isLoading()"
               (click)="onSubmit()">
-              {{ isLoading ? 'Processing...' : 'Send for Quote' }}
+              {{ isLoading() ? 'Processing...' : 'Send for Quote' }}
             </button>
             }
             <!-- For regular bookings, show "Continue" button (no shimmer on step 2 to avoid shimmer on refresh) -->
-            @if (!showPollForm) {
+            @if (!showPollForm()) {
             <button 
               type="button" 
               class="next-btn" 
-              [disabled]="isLoading"
+              [disabled]="isLoading()"
               (click)="onNextButtonClick()"
-              [class.disabled]="!canProceedToNextStep() || isLoading">
+              [class.disabled]="!canProceedToNextStep() || isLoading()">
               Continue
             </button>
             }
@@ -2099,7 +2099,7 @@
           }
           
           <!-- Part 3 Navigation -->
-          @if (currentStep === 3) {
+          @if (currentStep() === 3) {
           <div class="step-buttons-container">
             <button
               type="button"
@@ -2110,10 +2110,10 @@
             <button
               type="button"
               class="book-now-btn"
-              [disabled]="isLoading"
-              [class.disabled]="!isFormValid() || isLoading"
+              [disabled]="isLoading()"
+              [class.disabled]="!isFormValid() || isLoading()"
               (click)="onSubmit()">
-              {{ isLoading ? 'Processing...' : submitButtonLabel }}
+              {{ isLoading() ? 'Processing...' : submitButtonLabel }}
             </button>
           </div>
           }
@@ -2122,13 +2122,13 @@
         <!-- Partnership Overview — compact accordion shown only on step 3,
              below the Book Now button. Reuses the existing toggleExtraInfoExpansion()
              handler and isExtraInfoExpanded state. -->
-        @if (currentStep === 3 && !showPollForm && selectedServiceType) {
+        @if (currentStep() === 3 && !showPollForm() && selectedServiceType()) {
         <div class="partnership-accordion"
             >
           <button type="button"
                   class="partnership-accordion__toggle"
-                  [class.is-open]="isExtraInfoExpanded"
-                  [attr.aria-expanded]="isExtraInfoExpanded"
+                  [class.is-open]="isExtraInfoExpanded()"
+                  [attr.aria-expanded]="isExtraInfoExpanded()"
                   (click)="toggleExtraInfoExpansion()">
             <span class="partnership-accordion__title">
               <i [appIcon]="icons.faCircleInfo" class="partnership-accordion__icon" aria-hidden="true"></i>
@@ -2136,7 +2136,7 @@
             </span>
             <i [appIcon]="icons.faChevronDown" class="partnership-accordion__chevron" aria-hidden="true"></i>
           </button>
-          @if (isExtraInfoExpanded) {
+          @if (isExtraInfoExpanded()) {
           <div class="partnership-accordion__body">
             <!-- ONLY what the customer has to provide, and it depends on whether they added
                  Cleaning Supplies / Cleaning Essentials (and Vacuum Cleaner, Oven Cleaning, Deep).
@@ -2188,7 +2188,7 @@
              cannot name different items from the confirmation email, the SMS or the order
              pages. Both toggles go through the ordinary toggleExtraService, so an added extra
              lands in the summary total and on the order like any other. -->
-        @if (showCleaningSuppliesConfirm) {
+        @if (showCleaningSuppliesConfirm()) {
         <div class="dc-modal-backdrop" (click)="closeCleaningSuppliesConfirm()">
           <div class="dc-modal" (click)="$event.stopPropagation()" role="dialog" aria-modal="true" aria-label="Cleaning supplies and essentials">
             <div class="dc-modal-header">
@@ -2349,7 +2349,7 @@
         }
 
         <!-- Guest-user Special Offer Login Required Modal -->
-        @if (showGuestOfferLoginModal) {
+        @if (showGuestOfferLoginModal()) {
         <div class="dc-modal-backdrop" (click)="closeGuestOfferLoginModal()">
           <div class="dc-modal" (click)="$event.stopPropagation()" role="dialog" aria-modal="true" aria-label="Login required to apply special offer">
             <div class="dc-modal-header">
@@ -2374,7 +2374,7 @@
         }
 
         <!-- Payment Note -->
-        @if (selectedServiceType && currentStep === 3) {
+        @if (selectedServiceType() && currentStep() === 3) {
         <div class="payment-note">
           <p><span class="note-label">Please note:</span> We accept credit or debit cards, and all online payments are securely processed through Stripe. When you book with Dream Cleaning, you can rest assured that your transaction is safe and protected. By ordering our services and providing your credit card details, you consent to us charging your card for the service fee.</p>
         </div>
@@ -2384,24 +2384,24 @@
 
       <!-- Right Side - Booking Summary (Fixed) -->
 <!-- Card always visible when not in poll form; only dynamic values shimmer -->
-@if (!showPollForm) {
+@if (!showPollForm()) {
 <div class="booking-summary">
   <app-order-summary-card
     title="Booking Summary"
-    [collapsed]="isSummaryCollapsed"
-    [showSavingsBanner]="subscriptionDiscountAmount > 0 || promoOrFirstTimeDiscountAmount > 0 || loyaltyDiscountAmount > 0 || giftCardApplied || (selectedPointsToRedeem || 0) > 0 || useCredits"
+    [collapsed]="isSummaryCollapsed()"
+    [showSavingsBanner]="subscriptionDiscountAmount() > 0 || promoOrFirstTimeDiscountAmount() > 0 || loyaltyDiscountAmount() > 0 || giftCardApplied() || (selectedPointsToRedeem() || 0) > 0 || useCredits()"
     [details]="getSummaryDetailLines(false)"
     [priceLines]="getSummaryPriceLines(false)"
     totalLabel="Total:"
-    [totalValue]="'$' + calculation.total.toFixed(2)"
-    [totalShimmer]="loading.pricing"
+    [totalValue]="'$' + calculation().total.toFixed(2)"
+    [totalShimmer]="loading().pricing"
     [estimatedPoints]="getEstimatedPointsDisplay()"
     (toggleCollapsed)="toggleBookingSummary()">
 
     <!-- Promo Code Section - static input, no shimmer on section -->
-    <div summary-top class="promo-code-section" [class.hidden]="isSummaryCollapsed">
+    <div summary-top class="promo-code-section" [class.hidden]="isSummaryCollapsed()">
       <div class="promo-code">
-        <div class="promo-input" [shimmer]="loading.summary">
+        <div class="promo-input" [shimmer]="loading().summary">
           <input
             type="text"
             [value]="promoCode.value"
@@ -2412,7 +2412,7 @@
             [disabled]="isPromoCodeDisabled()">
             Apply
           </button>
-          @if (promoCodeApplied || giftCardApplied) {
+          @if (promoCodeApplied() || giftCardApplied()) {
           <button
             class="remove-btn"
             (click)="removePromoCode()"
@@ -2421,7 +2421,7 @@
           </button>
           }
         </div>
-        @if (specialOfferApplied) {
+        @if (specialOfferApplied()) {
         <p class="promo-note">
           <i [appIcon]="icons.faCircleInfo"></i> Remove special offer to use a promo code
         </p>
@@ -2430,17 +2430,17 @@
     </div>
 
     <!-- Show next order discount for subscription -->
-    @if (selectedSubscription && (selectedSubscription.subscriptionDays || 0) > 0 && !hasActiveSubscription) {
-    <div summary-footer class="next-order-info" [class.hidden]="isSummaryCollapsed">
+    @if (selectedSubscription() && (selectedSubscription()!.subscriptionDays || 0) > 0 && !hasActiveSubscription()) {
+    <div summary-footer class="next-order-info" [class.hidden]="isSummaryCollapsed()">
       <div class="divider"></div>
-      <div class="next-order-title">Continue with {{ selectedSubscription.name }} plan:</div>
+      <div class="next-order-title">Continue with {{ selectedSubscription()!.name }} plan:</div>
       <div class="price-item">
-        <span>Discount ({{ selectedSubscription.discountPercentage }}%):</span>
-        <span class="discount" [shimmer]="loading.pricing">${{ nextOrderDiscount.toFixed(2) }}</span>
+        <span>Discount ({{ selectedSubscription()!.discountPercentage }}%):</span>
+        <span class="discount" [shimmer]="loading().pricing">${{ nextOrderDiscount().toFixed(2) }}</span>
       </div>
       <div class="price-item next-total">
         <span>Continue Order Total:</span>
-        <span [shimmer]="loading.pricing" class="summary-value">${{ nextOrderTotal.toFixed(2) }}</span>
+        <span [shimmer]="loading().pricing" class="summary-value">${{ nextOrderTotal().toFixed(2) }}</span>
       </div>
     </div>
     }
@@ -2450,7 +2450,7 @@
 </div>
 
 <!-- Trust strip (decorative reassurance) -->
-@if (!isAdminMode) {
+@if (!isAdminMode()) {
 <div class="booking-trust-strip">
   <div class="booking-trust-strip__item">
     <i [appIcon]="icons.faShieldHalved" class="booking-trust-strip__icon booking-trust-strip__icon--green" aria-hidden="true"></i>
@@ -2480,7 +2480,7 @@
      Deliberately outside .booking-container — .booking-content establishes a stacking
      context (z-index: 1), so a fixed overlay nested inside it would sit under the header. -->
 <app-register-customer-modal
-  [open]="showRegisterCustomerModal"
+  [open]="showRegisterCustomerModal()"
   (closed)="closeRegisterCustomerModal()"
   (registered)="onCustomerRegistered($event)">
 </app-register-customer-modal>

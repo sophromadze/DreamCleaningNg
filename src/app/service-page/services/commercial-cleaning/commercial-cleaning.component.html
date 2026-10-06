@@ -24,7 +24,7 @@
         </header>
 
         <!-- Success / error banners -->
-        @if (showSuccess) {
+        @if (showSuccess()) {
         <div class="quote-alert quote-alert--success" role="status">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <circle cx="12" cy="12" r="9"/><path d="m8 12 2.5 2.5L16 9"/>
@@ -32,12 +32,12 @@
           <span>Thanks - we have your details. We will call you back to arrange the walkthrough, usually the same business day.</span>
         </div>
         }
-        @if (showError) {
+        @if (showError()) {
         <div class="quote-alert quote-alert--error" role="alert">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/>
           </svg>
-          <span>{{ errorMessage }}</span>
+          <span>{{ errorMessage() }}</span>
         </div>
         }
 
@@ -147,8 +147,8 @@
                       placeholder="Access hours, number of restrooms, COI requirements…"></textarea>
           </div>
 
-          <button type="submit" class="btn-cta-primary btn-cta-primary--full" [disabled]="isSubmitting">
-            {{ isSubmitting ? 'Sending…' : 'Request My Quote' }}
+          <button type="submit" class="btn-cta-primary btn-cta-primary--full" [disabled]="isSubmitting()">
+            {{ isSubmitting() ? 'Sending…' : 'Request My Quote' }}
           </button>
 
           <p class="quote-form__reassure">

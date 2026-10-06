@@ -3,7 +3,7 @@
   <div class="section">
     <div class="section-header">
       <h2>Service Types</h2>
-      @if (userPermissions.permissions.canCreate) {
+      @if (userPermissions().permissions.canCreate) {
       <button 
               class="action-btn add" 
               (click)="startAddingServiceType()">
@@ -13,19 +13,19 @@
     </div>
 
     <!-- Service Types Messages -->
-    @if (serviceTypeMessage.error) {
+    @if (serviceTypeMessage().error) {
     <div class="alert alert-danger">
-      {{serviceTypeMessage.error}}
+      {{serviceTypeMessage().error}}
     </div>
     }
-    @if (serviceTypeMessage.success) {
+    @if (serviceTypeMessage().success) {
     <div class="alert alert-success">
-      {{serviceTypeMessage.success}}
+      {{serviceTypeMessage().success}}
     </div>
     }
 
     <!-- Add Service Type Form -->
-    @if (isAddingServiceType) {
+    @if (isAddingServiceType()) {
     <div class="form-section">
       <h3>Add New Service Type</h3>
       <form (ngSubmit)="addServiceType()">
@@ -33,7 +33,7 @@
           <label for="newServiceTypeName">Name:</label>
           <input type="text" 
                  id="newServiceTypeName" 
-                 [(ngModel)]="newServiceType.name" 
+                 [(ngModel)]="newServiceType().name" 
                  name="name" 
                  required>
         </div>
@@ -41,7 +41,7 @@
           <label for="newServiceTypeBasePrice">Price:</label>
           <input type="number" 
                  id="newServiceTypeBasePrice" 
-                 [(ngModel)]="newServiceType.basePrice" 
+                 [(ngModel)]="newServiceType().basePrice" 
                  name="basePrice" 
                  required>
         </div>
@@ -49,7 +49,7 @@
           <label for="newServiceTypeTimeDuration">Time Duration (minutes) *</label>
           <input type="number"
                  id="newServiceTypeTimeDuration"
-                 [(ngModel)]="newServiceType.timeDuration"
+                 [(ngModel)]="newServiceType().timeDuration"
                  name="timeDuration"
                  required>
         </div>
@@ -59,7 +59,7 @@
                  id="newServiceTypeMinimumPrice"
                  step="0.01"
                  min="0"
-                 [(ngModel)]="newServiceType.minimumPrice"
+                 [(ngModel)]="newServiceType().minimumPrice"
                  name="minimumPrice">
           <small class="form-note">
             Lowest price for the cleaning itself. Extras are added on top. 0 means no minimum.
@@ -71,10 +71,10 @@
                  id="newServiceTypeDisplayPrice"
                  step="0.01"
                  min="0"
-                 [(ngModel)]="newServiceType.displayPrice"
+                 [(ngModel)]="newServiceType().displayPrice"
                  name="displayPrice"
                  placeholder="none">
-          <select aria-label="Display price unit" [(ngModel)]="newServiceType.displayPriceUnit" name="displayPriceUnit">
+          <select aria-label="Display price unit" [(ngModel)]="newServiceType().displayPriceUnit" name="displayPriceUnit">
             <option [ngValue]="null">no unit</option>
             @for (unit of displayPriceUnits; track unit.value) {
             <option [ngValue]="unit.value">{{ unit.label }}</option>
@@ -90,7 +90,7 @@
           <label for="newServiceTypeServiceKey">Service Key</label>
           <input type="text"
                  id="newServiceTypeServiceKey"
-                 [(ngModel)]="newServiceType.serviceKey"
+                 [(ngModel)]="newServiceType().serviceKey"
                  name="serviceKey"
                  placeholder="e.g. residential"
                  maxlength="50"
@@ -105,7 +105,7 @@
           <label for="newServiceTypeDisplayOrder">Display Order:</label>
           <input type="number" 
                  id="newServiceTypeDisplayOrder" 
-                 [(ngModel)]="newServiceType.displayOrder" 
+                 [(ngModel)]="newServiceType().displayOrder" 
                  name="displayOrder" 
                  min="1"
                  required>
@@ -113,7 +113,7 @@
         <div class="form-group">
           <label for="newServiceTypeDescription">Description:</label>
           <textarea id="newServiceTypeDescription" 
-                    [(ngModel)]="newServiceType.description" 
+                    [(ngModel)]="newServiceType().description" 
                     name="description" 
                     required></textarea>
         </div>
@@ -123,22 +123,22 @@
             <label>
               <input type="radio" 
                      name="newServiceTypeMode" 
-                     [checked]="!newServiceType.hasPoll && !newServiceType.isCustom"
-                     (change)="newServiceType.hasPoll = false; newServiceType.isCustom = false">
+                     [checked]="!newServiceType().hasPoll && !newServiceType().isCustom"
+                     (change)="newServiceType().hasPoll = false; newServiceType().isCustom = false">
               Regular (Services & Extra Services)
             </label>
             <label>
               <input type="radio" 
                      name="newServiceTypeMode" 
-                     [checked]="newServiceType.hasPoll"
-                     (change)="newServiceType.hasPoll = true; newServiceType.isCustom = false">
+                     [checked]="newServiceType().hasPoll"
+                     (change)="newServiceType().hasPoll = true; newServiceType().isCustom = false">
               Poll (Custom Quote)
             </label>
             <label>
               <input type="radio" 
                      name="newServiceTypeMode" 
-                     [checked]="newServiceType.isCustom"
-                     (change)="newServiceType.hasPoll = false; newServiceType.isCustom = true">
+                     [checked]="newServiceType().isCustom"
+                     (change)="newServiceType().hasPoll = false; newServiceType().isCustom = true">
               Custom Pricing
             </label>
           </div>
@@ -174,23 +174,23 @@
             <th>Description</th>
             <th>Order</th>
             <th>Status</th>
-            @if (userRole !== 'Moderator') {
+            @if (userRole() !== 'Moderator') {
             <th>Actions</th>
             }
           </tr>
         </thead>
         <tbody>
-          @for (type of serviceTypes; track type.id) {
+          @for (type of serviceTypes(); track type.id) {
           <tr 
-              [class.selected]="selectedServiceType?.id === type.id"
-              [class.editing]="isEditingServiceType && selectedServiceType?.id === type.id"
+              [class.selected]="selectedServiceType()?.id === type.id"
+              [class.editing]="isEditingServiceType() && selectedServiceType()?.id === type.id"
               (click)="selectServiceType(type)">
             <td>{{type.id}}</td>
             <td>
-              @if (!isEditingServiceType || selectedServiceType?.id !== type.id) {
+              @if (!isEditingServiceType() || selectedServiceType()?.id !== type.id) {
                 {{type.name}}
               }
-              @if (isEditingServiceType && selectedServiceType?.id === type.id) {
+              @if (isEditingServiceType() && selectedServiceType()?.id === type.id) {
               <input aria-label="Name" 
                      type="text" 
                      [(ngModel)]="type.name"
@@ -198,7 +198,7 @@
               }
             </td>
             <td>
-              @if (!isEditingServiceType || selectedServiceType?.id !== type.id) {
+              @if (!isEditingServiceType() || selectedServiceType()?.id !== type.id) {
                 @if (type.serviceKey) {
                 <code>{{type.serviceKey}}</code>
                 }
@@ -208,7 +208,7 @@
               }
               <!-- Blank saves as "no key". Format and uniqueness are checked by the server,
                    which answers with the exact problem (shown in the message bar above). -->
-              @if (isEditingServiceType && selectedServiceType?.id === type.id) {
+              @if (isEditingServiceType() && selectedServiceType()?.id === type.id) {
               <input aria-label="Key"
                      type="text"
                      [(ngModel)]="type.serviceKey"
@@ -219,10 +219,10 @@
               }
             </td>
             <td>
-              @if (!isEditingServiceType || selectedServiceType?.id !== type.id) {
+              @if (!isEditingServiceType() || selectedServiceType()?.id !== type.id) {
                 {{type.basePrice | currency}}
               }
-              @if (isEditingServiceType && selectedServiceType?.id === type.id) {
+              @if (isEditingServiceType() && selectedServiceType()?.id === type.id) {
               <input aria-label="Price" 
                      type="number" 
                      [(ngModel)]="type.basePrice"
@@ -230,7 +230,7 @@
               }
             </td>
             <td>
-              @if (!isEditingServiceType || selectedServiceType?.id !== type.id) {
+              @if (!isEditingServiceType() || selectedServiceType()?.id !== type.id) {
                 @if (type.minimumPrice) {
                 <span>{{type.minimumPrice | currency}}</span>
                 }
@@ -238,7 +238,7 @@
                 <span class="muted-cell">none</span>
                 }
               }
-              @if (isEditingServiceType && selectedServiceType?.id === type.id) {
+              @if (isEditingServiceType() && selectedServiceType()?.id === type.id) {
               <input aria-label="Min price"
                      type="number"
                      step="0.01"
@@ -249,7 +249,7 @@
             </td>
             <td>
               <!-- Marketing text only (never a quote): the website shows it for types it can't price. -->
-              @if (!isEditingServiceType || selectedServiceType?.id !== type.id) {
+              @if (!isEditingServiceType() || selectedServiceType()?.id !== type.id) {
                 @if (type.displayPrice) {
                 <span>{{type.displayPrice | currency}} {{ displayPriceUnitLabel(type.displayPriceUnit) }}</span>
                 }
@@ -257,7 +257,7 @@
                 <span class="muted-cell">none</span>
                 }
               }
-              @if (isEditingServiceType && selectedServiceType?.id === type.id) {
+              @if (isEditingServiceType() && selectedServiceType()?.id === type.id) {
                 <input type="number"
                        step="0.01"
                        min="0"
@@ -273,10 +273,10 @@
               }
             </td>
             <td>
-              @if (!isEditingServiceType || selectedServiceType?.id !== type.id) {
+              @if (!isEditingServiceType() || selectedServiceType()?.id !== type.id) {
                 {{type.timeDuration}} min
               }
-              @if (isEditingServiceType && selectedServiceType?.id === type.id) {
+              @if (isEditingServiceType() && selectedServiceType()?.id === type.id) {
               <input aria-label="Time (minutes)"
                      type="number"
                      [(ngModel)]="type.timeDuration"
@@ -284,7 +284,7 @@
               }
             </td>
             <td>
-              @if (!isEditingServiceType || !selectedServiceType || selectedServiceType.id !== type.id) {
+              @if (!isEditingServiceType() || !selectedServiceType() || selectedServiceType()!.id !== type.id) {
                 @if (type.isCustom) {
                 <span class="badge badge-warning">Custom</span>
                 }
@@ -295,26 +295,26 @@
                 <span class="badge badge-secondary">Regular</span>
                 }
               }
-              @if (isEditingServiceType && selectedServiceType && selectedServiceType.id === type.id) {
+              @if (isEditingServiceType() && selectedServiceType() && selectedServiceType()!.id === type.id) {
               <div class="service-type-options">
                 <label>
                   <input type="radio" 
                          name="serviceTypeMode"
-                         [checked]="!selectedServiceType.hasPoll && !selectedServiceType.isCustom"
+                         [checked]="!selectedServiceType()!.hasPoll && !selectedServiceType()!.isCustom"
                          (change)="setServiceTypeMode('regular')">
                   Regular
                 </label>
                 <label>
                   <input type="radio" 
                          name="serviceTypeMode"
-                         [checked]="selectedServiceType.hasPoll"
+                         [checked]="selectedServiceType()!.hasPoll"
                          (change)="setServiceTypeMode('poll')">
                   Poll
                 </label>
                 <label>
                   <input type="radio" 
                          name="serviceTypeMode"
-                         [checked]="selectedServiceType.isCustom"
+                         [checked]="selectedServiceType()!.isCustom"
                          (change)="setServiceTypeMode('custom')">
                   Custom
                 </label>
@@ -323,7 +323,7 @@
                      an hourly commercial type (Office) opts out without a deploy. -->
                 <label class="service-type-flag">
                   <input type="checkbox"
-                         [checked]="selectedServiceType.collectsPropertyType !== false"
+                         [checked]="selectedServiceType()!.collectsPropertyType !== false"
                          (change)="setCollectsPropertyType($any($event.target).checked)">
                   Ask apartment / house
                 </label>
@@ -331,20 +331,20 @@
               }
             </td>
             <td>
-              @if (!isEditingServiceType || selectedServiceType?.id !== type.id) {
+              @if (!isEditingServiceType() || selectedServiceType()?.id !== type.id) {
                 {{type.description}}
               }
-              @if (isEditingServiceType && selectedServiceType?.id === type.id) {
+              @if (isEditingServiceType() && selectedServiceType()?.id === type.id) {
               <textarea aria-label="Description" 
                         [(ngModel)]="type.description"
                         class="edit-textarea"></textarea>
               }
             </td>
             <td>
-              @if (!isEditingServiceType || selectedServiceType?.id !== type.id) {
+              @if (!isEditingServiceType() || selectedServiceType()?.id !== type.id) {
                 {{type.displayOrder || 0}}
               }
-              @if (isEditingServiceType && selectedServiceType?.id === type.id) {
+              @if (isEditingServiceType() && selectedServiceType()?.id === type.id) {
               <input aria-label="Order" 
                      type="number" 
                      [(ngModel)]="type.displayOrder"
@@ -357,31 +357,31 @@
                 {{type.isActive ? 'Active' : 'Inactive'}}
               </span>
             </td>
-            @if (userRole !== 'Moderator') {
+            @if (userRole() !== 'Moderator') {
             <td class="actions">
-              @if (!isEditingServiceType || selectedServiceType?.id !== type.id) {
-                @if (userPermissions.permissions.canUpdate) {
+              @if (!isEditingServiceType() || selectedServiceType()?.id !== type.id) {
+                @if (userPermissions().permissions.canUpdate) {
                 <button 
                         class="action-btn edit" 
                         (click)="editServiceType(); selectServiceType(type); $event.stopPropagation()">
                   Edit
                 </button>
                 }
-                @if (userPermissions.permissions.canActivate && !type.isActive) {
+                @if (userPermissions().permissions.canActivate && !type.isActive) {
                 <button 
                         class="action-btn activate" 
                         (click)="activateServiceType(type); $event.stopPropagation()">
                   Enable
                 </button>
                 }
-                @if (userPermissions.permissions.canDeactivate && type.isActive) {
+                @if (userPermissions().permissions.canDeactivate && type.isActive) {
                 <button 
                         class="action-btn deactivate" 
                         (click)="deactivateServiceType(type); $event.stopPropagation()">
                   Disable
                 </button>
                 }
-                @if (userPermissions.permissions.canDelete) {
+                @if (userPermissions().permissions.canDelete) {
                 <button 
                         class="action-btn delete" 
                         (click)="deleteServiceType(type); $event.stopPropagation()">
@@ -389,7 +389,7 @@
                 </button>
                 }
               }
-              @if (isEditingServiceType && selectedServiceType?.id === type.id) {
+              @if (isEditingServiceType() && selectedServiceType()?.id === type.id) {
                 <button class="action-btn save" (click)="saveServiceType(); $event.stopPropagation()">Save</button>
                 <button class="action-btn cancel" (click)="cancelEditServiceType(); $event.stopPropagation()">Cancel</button>
               }
@@ -405,7 +405,7 @@
   </div>
 
   <!-- Service Details Section -->
-  @if (selectedServiceType) {
+  @if (selectedServiceType(); as selectedServiceType) {
   <div class="section">
     
     <!-- Show Poll Questions if service type has poll -->
@@ -414,7 +414,7 @@
       <div class="subsection">
         <div class="subsection-header">
           <h3>Poll Questions for {{ selectedServiceType.name }}</h3>
-          @if (userPermissions.permissions.canCreate) {
+          @if (userPermissions().permissions.canCreate) {
           <button 
                   class="action-btn add" 
                   (click)="startAddingPollQuestion()">
@@ -424,31 +424,31 @@
         </div>
 
         <!-- Poll Questions Messages -->
-        @if (pollQuestionMessage.error) {
+        @if (pollQuestionMessage().error) {
         <div class="alert alert-danger">
-          {{ pollQuestionMessage.error }}
+          {{ pollQuestionMessage().error }}
         </div>
         }
-        @if (pollQuestionMessage.success) {
+        @if (pollQuestionMessage().success) {
         <div class="alert alert-success">
-          {{ pollQuestionMessage.success }}
+          {{ pollQuestionMessage().success }}
         </div>
         }
 
         <!-- Add Poll Question Form -->
-        @if (isAddingPollQuestion) {
+        @if (isAddingPollQuestion()) {
         <div class="service-form">
           <h4>Add New Poll Question</h4>
           
           <div class="form-grid">
             <div class="form-group full-width">
               <label>Question *</label>
-              <input type="text" [(ngModel)]="newPollQuestion.question" placeholder="Enter your question">
+              <input type="text" [(ngModel)]="newPollQuestion().question" placeholder="Enter your question">
             </div>
             
             <div class="form-group">
               <label>Question Type</label>
-              <select aria-label="Question Type" [(ngModel)]="newPollQuestion.questionType">
+              <select aria-label="Question Type" [(ngModel)]="newPollQuestion().questionType">
                 @for (type of questionTypes; track type.value) {
                 <option [value]="type.value">
                   {{ type.label }}
@@ -459,20 +459,20 @@
             
             <div class="form-group">
               <label>Display Order</label>
-              <input aria-label="Display Order" type="number" [(ngModel)]="newPollQuestion.displayOrder" min="1">
+              <input aria-label="Display Order" type="number" [(ngModel)]="newPollQuestion().displayOrder" min="1">
             </div>
             
-            @if (newPollQuestion.questionType === 'dropdown' || newPollQuestion.questionType === 'radio' || newPollQuestion.questionType === 'checkbox') {
+            @if (newPollQuestion().questionType === 'dropdown' || newPollQuestion().questionType === 'radio' || newPollQuestion().questionType === 'checkbox') {
             <div class="form-group full-width">
               <label>Options (comma-separated)</label>
-              <input type="text" [(ngModel)]="newPollQuestion.options" placeholder="Option 1, Option 2, Option 3">
+              <input type="text" [(ngModel)]="newPollQuestion().options" placeholder="Option 1, Option 2, Option 3">
               <small class="form-note">Enter options separated by commas</small>
             </div>
             }
             
             <div class="form-group checkbox-group">
               <label>
-                <input type="checkbox" [(ngModel)]="newPollQuestion.isRequired">
+                <input type="checkbox" [(ngModel)]="newPollQuestion().isRequired">
                 Required Question
               </label>
             </div>
@@ -487,7 +487,7 @@
 
         <!-- Poll Questions List -->
         <div class="poll-questions-list">
-          @if (pollQuestions.length > 0) {
+          @if (pollQuestions().length > 0) {
           <div class="data-table">
             <div class="table-container">
               <div class="table-wrapper" #pollTableWrapper>
@@ -500,29 +500,29 @@
                 <th>Options</th>
                 <th>Required</th>
                 <th>Status</th>
-                @if (userRole !== 'Moderator') {
+                @if (userRole() !== 'Moderator') {
                 <th>Actions</th>
                 }
               </tr>
             </thead>
             <tbody>
-              @for (question of pollQuestions; track question.id) {
+              @for (question of pollQuestions(); track question.id) {
               <tr>
                 <!-- Display Mode -->
-                @if (editingPollQuestionId !== question.id) {
+                @if (editingPollQuestionId() !== question.id) {
                 <td>{{ getPollQuestionDisplayPosition(question) }}</td>
                 }
-                @if (editingPollQuestionId !== question.id) {
+                @if (editingPollQuestionId() !== question.id) {
                 <td>{{ question.question }}</td>
                 }
-                @if (editingPollQuestionId !== question.id) {
+                @if (editingPollQuestionId() !== question.id) {
                 <td>
                   <span class="question-type-badge" [class]="'type-' + question.questionType">
                     {{ getQuestionTypeLabel(question.questionType) }}
                   </span>
                 </td>
                 }
-                @if (editingPollQuestionId !== question.id) {
+                @if (editingPollQuestionId() !== question.id) {
                 <td>
                   @if (question.options) {
                   <span class="options-preview">{{ question.options }}</span>
@@ -532,14 +532,14 @@
                   }
                 </td>
                 }
-                @if (editingPollQuestionId !== question.id) {
+                @if (editingPollQuestionId() !== question.id) {
                 <td>
                   <span class="required-badge" [class.required]="question.isRequired" [class.optional]="!question.isRequired">
                     {{ question.isRequired ? 'Required' : 'Optional' }}
                   </span>
                 </td>
                 }
-                @if (editingPollQuestionId !== question.id) {
+                @if (editingPollQuestionId() !== question.id) {
                 <td>
                   <span class="status-badge" [class.active]="question.isActive" [class.inactive]="!question.isActive">
                     {{ question.isActive ? 'Active' : 'Inactive' }}
@@ -548,17 +548,17 @@
                 }
 
                 <!-- Edit Mode -->
-                @if (editingPollQuestionId === question.id) {
+                @if (editingPollQuestionId() === question.id) {
                 <td>
                   {{ getPollQuestionDisplayPosition(question) }}
                 </td>
                 }
-                @if (editingPollQuestionId === question.id) {
+                @if (editingPollQuestionId() === question.id) {
                 <td>
                   <input aria-label="Question" type="text" [(ngModel)]="question.question" class="edit-input">
                 </td>
                 }
-                @if (editingPollQuestionId === question.id) {
+                @if (editingPollQuestionId() === question.id) {
                 <td>
                   <select aria-label="Question type" [(ngModel)]="question.questionType" class="edit-select">
                     @for (type of questionTypes; track type.value) {
@@ -569,7 +569,7 @@
                   </select>
                 </td>
                 }
-                @if (editingPollQuestionId === question.id) {
+                @if (editingPollQuestionId() === question.id) {
                 <td>
                   <input aria-label="Options" type="text" 
                          [(ngModel)]="question.options" 
@@ -579,7 +579,7 @@
                          placeholder="Option 1, Option 2, Option 3">
                 </td>
                 }
-                @if (editingPollQuestionId === question.id) {
+                @if (editingPollQuestionId() === question.id) {
                 <td>
                   <label class="checkbox-label">
                     <input type="checkbox" [(ngModel)]="question.isRequired">
@@ -587,7 +587,7 @@
                   </label>
                 </td>
                 }
-                @if (editingPollQuestionId === question.id) {
+                @if (editingPollQuestionId() === question.id) {
                 <td>
                   <label class="checkbox-label">
                     <input type="checkbox" [(ngModel)]="question.isActive">
@@ -597,18 +597,18 @@
                 }
 
                 <!-- Actions -->
-                @if (userRole !== 'Moderator') {
+                @if (userRole() !== 'Moderator') {
                 <td>
-                  @if (editingPollQuestionId !== question.id) {
+                  @if (editingPollQuestionId() !== question.id) {
                   <div class="action-buttons">
-                    @if (userPermissions.permissions.canUpdate) {
+                    @if (userPermissions().permissions.canUpdate) {
                     <button 
                             class="action-btn edit" 
                             (click)="editPollQuestion(question)">
                       Edit
                     </button>
                     }
-                    @if (userPermissions.permissions.canDelete) {
+                    @if (userPermissions().permissions.canDelete) {
                     <button 
                             class="action-btn delete" 
                             (click)="deletePollQuestion(question.id)">
@@ -618,7 +618,7 @@
                   </div>
                   }
                   
-                  @if (editingPollQuestionId === question.id) {
+                  @if (editingPollQuestionId() === question.id) {
                   <div class="action-buttons">
                     <button class="action-btn save" (click)="savePollQuestion(question)">Save</button>
                     <button class="action-btn cancel" (click)="cancelEditPollQuestion()">Cancel</button>
@@ -635,7 +635,7 @@
             </div>
           }
 
-          @if (pollQuestions.length === 0) {
+          @if (pollQuestions().length === 0) {
           <div class="no-questions">
             <p>No poll questions added yet. Click "Add Question" to create your first question.</p>
           </div>
@@ -673,7 +673,7 @@
             Services
             <span class="subsection-context">— {{ selectedServiceType.name }}</span>
           </h3>
-          @if (userPermissions.permissions.canCreate) {
+          @if (userPermissions().permissions.canCreate) {
           <button
                   class="action-btn add"
                   (click)="startAddingService()">
@@ -683,19 +683,19 @@
         </div>
 
         <!-- Services Messages -->
-        @if (serviceMessage.error) {
+        @if (serviceMessage().error) {
         <div class="alert alert-danger">
-          {{serviceMessage.error}}
+          {{serviceMessage().error}}
         </div>
         }
-        @if (serviceMessage.success) {
+        @if (serviceMessage().success) {
         <div class="alert alert-success">
-          {{serviceMessage.success}}
+          {{serviceMessage().success}}
         </div>
         }
 
         <!-- Add Service Form -->
-        @if (isAddingService) {
+        @if (isAddingService()) {
         <div class="service-form">
           <h4>Add New Service</h4>
           
@@ -706,48 +706,48 @@
               Copy from existing service
             </label>
             
-            @if (showExistingServices) {
+            @if (showExistingServices()) {
             <div class="existing-services-select">
               <select aria-label="Copy from existing service" [(ngModel)]="selectedExistingServiceId" (change)="onServiceSelectionChange($event)">
                 <option value="">Select a service to copy</option>
-                @for (service of allServices; track service.id) {
+                @for (service of allServices(); track service.id) {
                 <option [value]="service.id">
                   {{ service.name }} ({{ getServiceTypeNameById(service.serviceTypeId) }})
                 </option>
                 }
               </select>
-              <button class="copy-btn" (click)="copyExistingService()" [disabled]="!selectedExistingServiceId">
+              <button class="copy-btn" (click)="copyExistingService()" [disabled]="!selectedExistingServiceId()">
                 Copy Service
               </button>
             </div>
             }
           </div>
           
-          @if (!showExistingServices) {
+          @if (!showExistingServices()) {
           <div class="form-grid">
             <div class="form-group">
               <label>Name</label>
-              <input type="text" [(ngModel)]="newService.name" placeholder="e.g., Bedrooms">
+              <input type="text" [(ngModel)]="newService().name" placeholder="e.g., Bedrooms">
             </div>
             <div class="form-group">
               <label>Service Key</label>
-              <input type="text" [(ngModel)]="newService.serviceKey" placeholder="e.g., bedrooms">
+              <input type="text" [(ngModel)]="newService().serviceKey" placeholder="e.g., bedrooms">
             </div>
             <div class="form-group">
               <label>Cost</label>
-              <input aria-label="Cost" type="number" [(ngModel)]="newService.cost" step="0.01">
+              <input aria-label="Cost" type="number" [(ngModel)]="newService().cost" step="0.01">
             </div>
             <div class="form-group">
               <label>Duration (minutes)</label>
-              <input aria-label="Duration (minutes)" type="number" [(ngModel)]="newService.timeDuration">
+              <input aria-label="Duration (minutes)" type="number" [(ngModel)]="newService().timeDuration">
             </div>
             <div class="form-group">
               <label>Display Order</label>
-              <input aria-label="Display Order" type="number" [(ngModel)]="newService.displayOrder" min="1">
+              <input aria-label="Display Order" type="number" [(ngModel)]="newService().displayOrder" min="1">
             </div>
             <div class="form-group">
               <label>Input Type</label>
-              <select aria-label="Input Type" [(ngModel)]="newService.inputType">
+              <select aria-label="Input Type" [(ngModel)]="newService().inputType">
                 <option value="dropdown">Dropdown</option>
                 <option value="slider">Slider</option>
                 <option value="number">Number</option>
@@ -755,23 +755,23 @@
             </div>
             <div class="form-group">
               <label>Min Value</label>
-              <input aria-label="Min Value" type="number" [(ngModel)]="newService.minValue">
+              <input aria-label="Min Value" type="number" [(ngModel)]="newService().minValue">
             </div>
             <div class="form-group">
               <label>Max Value</label>
-              <input aria-label="Max Value" type="number" [(ngModel)]="newService.maxValue">
+              <input aria-label="Max Value" type="number" [(ngModel)]="newService().maxValue">
             </div>
             <div class="form-group">
               <label>Step Value</label>
-              <input aria-label="Step Value" type="number" [(ngModel)]="newService.stepValue">
+              <input aria-label="Step Value" type="number" [(ngModel)]="newService().stepValue">
             </div>
             <div class="form-group">
               <label>Unit</label>
-              <input type="text" [(ngModel)]="newService.unit" placeholder="e.g., per hour">
+              <input type="text" [(ngModel)]="newService().unit" placeholder="e.g., per hour">
             </div>
             <div class="form-group">
               <label>Service Type</label>
-              <select aria-label="Service Type" [(ngModel)]="newService.serviceRelationType">
+              <select aria-label="Service Type" [(ngModel)]="newService().serviceRelationType">
                 <option value="">Regular Service</option>
                 <option value="cleaner">Cleaner Service</option>
                 <option value="hours">Hours for Cleaners</option>
@@ -779,30 +779,30 @@
             </div>
             <div class="form-group">
               <label>
-                <input type="checkbox" [(ngModel)]="newService.isRangeInput">
+                <input type="checkbox" [(ngModel)]="newService().isRangeInput">
                 Is Range Input
               </label>
             </div>
             <div class="form-group">
               <label>
-                <input type="checkbox" [(ngModel)]="newService.chargeAboveThreshold">
+                <input type="checkbox" [(ngModel)]="newService().chargeAboveThreshold">
                 Charge only above included amount
               </label>
               <small class="form-note">Add the included amounts after creating the service.</small>
             </div>
             <div class="form-group">
               <label>Cost when quantity is 0</label>
-              <input type="number" step="0.01" [(ngModel)]="newService.zeroQuantityCost" placeholder="leave blank">
+              <input type="number" step="0.01" [(ngModel)]="newService().zeroQuantityCost" placeholder="leave blank">
               <small class="form-note">Used for Studio (0 bedrooms). Leave blank if not applicable.</small>
             </div>
             <div class="form-group">
               <label>Minutes when quantity is 0</label>
-              <input type="number" step="0.01" [(ngModel)]="newService.zeroQuantityDuration" placeholder="leave blank">
+              <input type="number" step="0.01" [(ngModel)]="newService().zeroQuantityDuration" placeholder="leave blank">
             </div>
           </div>
           }
           <div class="form-actions">
-            @if (!showExistingServices) {
+            @if (!showExistingServices()) {
             <button class="save-btn" (click)="addService()">Create</button>
             }
             <button class="cancel-btn" (click)="cancelAddService()">Cancel</button>
@@ -827,7 +827,7 @@
                 <th>Type</th>
                 <th>Order</th>
                 <th>Status</th>
-                @if (userRole !== 'Moderator') {
+                @if (userRole() !== 'Moderator') {
                 <th>Actions</th>
                 }
               </tr>
@@ -835,66 +835,66 @@
             <tbody>
               @for (service of selectedServiceType.services; track service.id) {
               <tr>
-                @if (editingServiceId !== service.id) {
+                @if (editingServiceId() !== service.id) {
                 <td>{{ service.id }}</td>
                 }
-                @if (editingServiceId !== service.id) {
+                @if (editingServiceId() !== service.id) {
                 <td>{{ service.name }}</td>
                 }
-                @if (editingServiceId !== service.id) {
+                @if (editingServiceId() !== service.id) {
                 <td>{{ service.serviceKey }}</td>
                 }
-                @if (editingServiceId !== service.id) {
+                @if (editingServiceId() !== service.id) {
                 <td class="service-type-cell">
                   {{ getServiceTypeNameById(service.serviceTypeId) }}
                 </td>
                 }
-                @if (editingServiceId !== service.id) {
+                @if (editingServiceId() !== service.id) {
                 <td>${{ service.cost }}</td>
                 }
-                @if (editingServiceId !== service.id) {
+                @if (editingServiceId() !== service.id) {
                 <td>{{ service.timeDuration }}min</td>
                 }
-                @if (editingServiceId !== service.id) {
+                @if (editingServiceId() !== service.id) {
                 <td>{{ service.inputType }}</td>
                 }
-                @if (editingServiceId !== service.id) {
+                @if (editingServiceId() !== service.id) {
                 <td>{{ service.displayOrder || 0 }}</td>
                 }
-                @if (editingServiceId !== service.id) {
+                @if (editingServiceId() !== service.id) {
                 <td>
                   <span class="status-badge" [class.active]="service.isActive" [class.inactive]="!service.isActive">
                     {{ service.isActive ? 'Active' : 'Inactive' }}
                   </span>
                 </td>
                 }
-                @if (editingServiceId !== service.id && userRole !== 'Moderator') {
+                @if (editingServiceId() !== service.id && userRole() !== 'Moderator') {
                 <td>
                   <button class="action-btn pricing"
-                          [class.expanded]="expandedPricingServiceId === service.id"
+                          [class.expanded]="expandedPricingServiceId() === service.id"
                           (click)="togglePricingRow(service); $event.stopPropagation()">
-                    {{ expandedPricingServiceId === service.id ? 'Hide pricing' : 'Pricing' }}
+                    {{ expandedPricingServiceId() === service.id ? 'Hide pricing' : 'Pricing' }}
                     @if (hasThresholdWarning(service)) {
                     <span class="pricing-warning-dot" title="Charges above an included amount, but none are configured">!</span>
                     }
                   </button>
-                  @if (userPermissions.permissions.canUpdate) {
+                  @if (userPermissions().permissions.canUpdate) {
                   <button class="action-btn edit" (click)="editService(service); $event.stopPropagation()">Edit</button>
                   }
-                  @if (userPermissions.permissions.canActivate && !service.isActive) {
+                  @if (userPermissions().permissions.canActivate && !service.isActive) {
                   <button class="action-btn activate" (click)="activateService(service); $event.stopPropagation()">Enable</button>
                   }
-                  @if (userPermissions.permissions.canDeactivate && service.isActive) {
+                  @if (userPermissions().permissions.canDeactivate && service.isActive) {
                   <button class="action-btn deactivate" (click)="deactivateService(service); $event.stopPropagation()">Disable</button>
                   }
-                  @if (userPermissions.permissions.canDelete) {
+                  @if (userPermissions().permissions.canDelete) {
                   <button class="action-btn delete" (click)="deleteService(service); $event.stopPropagation()">Delete</button>
                   }
                 </td>
                 }
 
                 <!-- Edit mode -->
-                @if (editingServiceId === service.id) {
+                @if (editingServiceId() === service.id) {
                 <td class="edit-mode-td" colspan="10">
                   <div class="inline-edit-form">
                     <div class="form-row">
@@ -993,16 +993,16 @@
               </tr>
 
               <!-- Included amounts + rate tiers, expanded per service -->
-              @if (expandedPricingServiceId === service.id) {
+              @if (expandedPricingServiceId() === service.id) {
               <tr class="pricing-config-row">
-                <td [attr.colspan]="userRole !== 'Moderator' ? 10 : 9">
+                <td [attr.colspan]="userRole() !== 'Moderator' ? 10 : 9">
                   <div class="pricing-config">
 
-                    @if (pricingRowMessage.error) {
-                    <div class="alert alert-danger">{{ pricingRowMessage.error }}</div>
+                    @if (pricingRowMessage().error) {
+                    <div class="alert alert-danger">{{ pricingRowMessage().error }}</div>
                     }
-                    @if (pricingRowMessage.success) {
-                    <div class="alert alert-success">{{ pricingRowMessage.success }}</div>
+                    @if (pricingRowMessage().success) {
+                    <div class="alert alert-success">{{ pricingRowMessage().success }}</div>
                     }
                     @if (hasThresholdWarning(service)) {
                     <div class="alert alert-warning">
@@ -1015,7 +1015,7 @@
                     <div class="pricing-block">
                       <div class="pricing-block-header">
                         <h4>Included amounts</h4>
-                        @if (userPermissions.permissions.canCreate && !isAddingThreshold) {
+                        @if (userPermissions().permissions.canCreate && !isAddingThreshold()) {
                         <button class="action-btn add"
                                 (click)="startAddingThreshold(service)">Add</button>
                         }
@@ -1031,36 +1031,36 @@
                             <th>Based on</th>
                             <th>When quantity is</th>
                             <th>Included amount</th>
-                            @if (userRole !== 'Moderator') {
+                            @if (userRole() !== 'Moderator') {
                             <th>Actions</th>
                             }
                           </tr>
                         </thead>
                         <tbody>
-                          @if (getSortedThresholds(service).length === 0 && !isAddingThreshold) {
+                          @if (getSortedThresholds(service).length === 0 && !isAddingThreshold()) {
                           <tr>
                             <td colspan="4" class="empty-row">No included amounts — this service bills from the first unit.</td>
                           </tr>
                           }
                           @for (row of getSortedThresholds(service); track $index) {
                           <tr>
-                            @if (editingThresholdId !== row.id) {
+                            @if (editingThresholdId() !== row.id) {
 
                               <td>{{ row.sourceServiceName || row.sourceServiceKey }}</td>
                               <td>{{ row.sourceQuantity }}</td>
                               <td>{{ row.includedQuantity }}</td>
-                              @if (userRole !== 'Moderator') {
+                              @if (userRole() !== 'Moderator') {
                               <td>
-                                @if (userPermissions.permissions.canUpdate) {
+                                @if (userPermissions().permissions.canUpdate) {
                                 <button class="action-btn edit" (click)="startEditingThreshold(row)">Edit</button>
                                 }
-                                @if (userPermissions.permissions.canDelete) {
+                                @if (userPermissions().permissions.canDelete) {
                                 <button class="action-btn delete" (click)="deleteThreshold(service, row)">Delete</button>
                                 }
                               </td>
                               }
                             }
-                            @if (editingThresholdId === row.id) {
+                            @if (editingThresholdId() === row.id) {
                               <td>
                                 <select aria-label="Based on" [(ngModel)]="row.sourceServiceId">
                                   @for (candidate of getThresholdSourceCandidates(service); track candidate.id) {
@@ -1080,10 +1080,10 @@
                           </tr>
                           }
 
-                          @if (isAddingThreshold) {
+                          @if (isAddingThreshold()) {
                           <tr class="new-row">
                             <td>
-                              <select aria-label="Based on" [(ngModel)]="newThreshold.sourceServiceId">
+                              <select aria-label="Based on" [(ngModel)]="newThreshold().sourceServiceId">
                                 <option [ngValue]="0" disabled>Choose a service…</option>
                                 @for (candidate of getThresholdSourceCandidates(service); track candidate.id) {
                                 <option [ngValue]="candidate.id">
@@ -1092,8 +1092,8 @@
                                 }
                               </select>
                             </td>
-                            <td><input aria-label="When quantity is" type="number" [(ngModel)]="newThreshold.sourceQuantity" min="0"></td>
-                            <td><input aria-label="Included amount" type="number" [(ngModel)]="newThreshold.includedQuantity" min="0" step="0.01"></td>
+                            <td><input aria-label="When quantity is" type="number" [(ngModel)]="newThreshold().sourceQuantity" min="0"></td>
+                            <td><input aria-label="Included amount" type="number" [(ngModel)]="newThreshold().includedQuantity" min="0" step="0.01"></td>
                             <td>
                               <button class="save-btn" (click)="addThreshold(service)">Add</button>
                               <button class="cancel-btn" (click)="cancelAddingThreshold()">Cancel</button>
@@ -1108,7 +1108,7 @@
                     <div class="pricing-block">
                       <div class="pricing-block-header">
                         <h4>Rate tiers</h4>
-                        @if (userPermissions.permissions.canCreate && !isAddingRateTier) {
+                        @if (userPermissions().permissions.canCreate && !isAddingRateTier()) {
                         <button class="action-btn add"
                                 (click)="startAddingRateTier(service)">Add</button>
                         }
@@ -1131,13 +1131,13 @@
                             <th>Applies to</th>
                             <th>Cost per unit</th>
                             <th>Minutes per unit</th>
-                            @if (userRole !== 'Moderator') {
+                            @if (userRole() !== 'Moderator') {
                             <th>Actions</th>
                             }
                           </tr>
                         </thead>
                         <tbody>
-                          @if (getSortedRateTiers(service).length === 0 && !isAddingRateTier) {
+                          @if (getSortedRateTiers(service).length === 0 && !isAddingRateTier()) {
                           <tr>
                             <td colspan="5" class="empty-row">
                               No tiers — this service charges {{ service.cost }} and {{ service.timeDuration }} minutes per unit.
@@ -1146,24 +1146,24 @@
                           }
                           @for (tier of getSortedRateTiers(service); track $index) {
                           <tr>
-                            @if (editingRateTierId !== tier.id) {
+                            @if (editingRateTierId() !== tier.id) {
 
                               <td>{{ tier.fromQuantity }}</td>
                               <td class="applies-to">{{ getRateTierAppliesTo(service, tier) }}</td>
                               <td>${{ tier.cost }}</td>
                               <td>{{ tier.timeDuration }}</td>
-                              @if (userRole !== 'Moderator') {
+                              @if (userRole() !== 'Moderator') {
                               <td>
-                                @if (userPermissions.permissions.canUpdate) {
+                                @if (userPermissions().permissions.canUpdate) {
                                 <button class="action-btn edit" (click)="startEditingRateTier(tier)">Edit</button>
                                 }
-                                @if (userPermissions.permissions.canDelete) {
+                                @if (userPermissions().permissions.canDelete) {
                                 <button class="action-btn delete" (click)="deleteRateTier(service, tier)">Delete</button>
                                 }
                               </td>
                               }
                             }
-                            @if (editingRateTierId === tier.id) {
+                            @if (editingRateTierId() === tier.id) {
                               <td><input aria-label="Starts at (above included)" type="number" [(ngModel)]="tier.fromQuantity" min="0" step="0.01"></td>
                               <td class="applies-to">{{ getRateTierAppliesTo(service, tier) }}</td>
                               <td><input aria-label="Cost per unit" type="number" [(ngModel)]="tier.cost" min="0" step="0.0001"></td>
@@ -1176,12 +1176,12 @@
                           </tr>
                           }
 
-                          @if (isAddingRateTier) {
+                          @if (isAddingRateTier()) {
                           <tr class="new-row">
-                            <td><input aria-label="Starts at (above included)" type="number" [(ngModel)]="newRateTier.fromQuantity" min="0" step="0.01"></td>
+                            <td><input aria-label="Starts at (above included)" type="number" [(ngModel)]="newRateTier().fromQuantity" min="0" step="0.01"></td>
                             <td class="applies-to">—</td>
-                            <td><input aria-label="Cost per unit" type="number" [(ngModel)]="newRateTier.cost" min="0" step="0.0001"></td>
-                            <td><input aria-label="Minutes per unit" type="number" [(ngModel)]="newRateTier.timeDuration" min="0" step="0.0001"></td>
+                            <td><input aria-label="Cost per unit" type="number" [(ngModel)]="newRateTier().cost" min="0" step="0.0001"></td>
+                            <td><input aria-label="Minutes per unit" type="number" [(ngModel)]="newRateTier().timeDuration" min="0" step="0.0001"></td>
                             <td>
                               <button class="save-btn" (click)="addRateTier(service)">Add</button>
                               <button class="cancel-btn" (click)="cancelAddingRateTier()">Cancel</button>
@@ -1210,11 +1210,11 @@
         <div class="subsection-header">
           <h3>Pricing configuration</h3>
           <button class="action-btn add" (click)="togglePricingConfigPanel()">
-            {{ showPricingConfigPanel ? 'Close' : 'Export / Import' }}
+            {{ showPricingConfigPanel() ? 'Close' : 'Export / Import' }}
           </button>
         </div>
 
-        @if (showPricingConfigPanel) {
+        @if (showPricingConfigPanel()) {
         <div class="pricing-config-panel">
           <p class="pricing-hint">
             Move a pricing setup between environments. Services are matched by
@@ -1222,25 +1222,25 @@
             applies correctly even though the IDs differ elsewhere.
           </p>
 
-          @if (pricingConfigMessage.error) {
-          <div class="alert alert-danger">{{ pricingConfigMessage.error }}</div>
+          @if (pricingConfigMessage().error) {
+          <div class="alert alert-danger">{{ pricingConfigMessage().error }}</div>
           }
-          @if (pricingConfigMessage.success) {
-          <div class="alert alert-success">{{ pricingConfigMessage.success }}</div>
+          @if (pricingConfigMessage().success) {
+          <div class="alert alert-success">{{ pricingConfigMessage().success }}</div>
           }
 
           <div class="pricing-config-actions">
             <!-- selectedServiceType is non-null here: this whole panel sits inside the
                  *ngIf="selectedServiceType" section, so no optional chain or guard is needed. -->
-            <button class="action-btn" [disabled]="pricingConfigBusy"
+            <button class="action-btn" [disabled]="pricingConfigBusy()"
                     (click)="exportPricingConfiguration(false)">
               Export "{{ selectedServiceType.name }}"
             </button>
-            <button class="action-btn" [disabled]="pricingConfigBusy"
+            <button class="action-btn" [disabled]="pricingConfigBusy()"
                     (click)="exportPricingConfiguration(true)">
               Export all service types
             </button>
-            <button class="action-btn" [disabled]="!pricingConfigJson" (click)="downloadPricingConfiguration()">
+            <button class="action-btn" [disabled]="!pricingConfigJson()" (click)="downloadPricingConfiguration()">
               Download as file
             </button>
             <label class="action-btn file-btn">
@@ -1255,27 +1255,27 @@
                     placeholder="Paste an exported configuration here, or use Export above."
                     [(ngModel)]="pricingConfigJson"></textarea>
 
-          @if (isSuperAdmin) {
+          @if (isSuperAdmin()) {
           <div class="pricing-config-actions">
-            <button class="action-btn" [disabled]="pricingConfigBusy || !pricingConfigJson"
+            <button class="action-btn" [disabled]="pricingConfigBusy() || !pricingConfigJson()"
                     (click)="previewPricingConfiguration()">
               Preview changes
             </button>
             <button class="save-btn"
-                    [disabled]="pricingConfigBusy || !pricingConfigDiff?.canApply || pricingConfigDiff?.isNoOp"
+                    [disabled]="pricingConfigBusy() || !pricingConfigDiff()?.canApply || pricingConfigDiff()?.isNoOp"
                     (click)="applyPricingConfiguration()">
               Apply
             </button>
           </div>
           }
-          @if (!isSuperAdmin) {
+          @if (!isSuperAdmin()) {
           <p class="pricing-hint">
             Importing a configuration is restricted to SuperAdmin. You can still export.
           </p>
           }
 
           <!-- ===== Diff preview ===== -->
-          @if (pricingConfigDiff) {
+          @if (pricingConfigDiff(); as pricingConfigDiff) {
           <div class="pricing-diff">
             @if (pricingConfigDiff.errors.length) {
             <div class="alert alert-danger">
@@ -1389,7 +1389,7 @@
       <div class="subsection">
         <div class="subsection-header">
           <h3>Extra Services</h3>
-          @if (userPermissions.permissions.canCreate) {
+          @if (userPermissions().permissions.canCreate) {
           <button 
                   class="action-btn add" 
                   (click)="startAddingExtraService()">
@@ -1399,19 +1399,19 @@
         </div>
 
         <!-- Extra Services Messages -->
-        @if (extraServiceMessage.error) {
+        @if (extraServiceMessage().error) {
         <div class="alert alert-danger">
-          {{extraServiceMessage.error}}
+          {{extraServiceMessage().error}}
         </div>
         }
-        @if (extraServiceMessage.success) {
+        @if (extraServiceMessage().success) {
         <div class="alert alert-success">
-          {{extraServiceMessage.success}}
+          {{extraServiceMessage().success}}
         </div>
         }
 
         <!-- Add Extra Service Form -->
-        @if (isAddingExtraService) {
+        @if (isAddingExtraService()) {
         <div class="service-form">
           <h4>Add New Extra Service</h4>
           
@@ -1422,7 +1422,7 @@
               Copy from existing extra service
             </label>
             
-            @if (showExistingExtraServices) {
+            @if (showExistingExtraServices()) {
             <div class="existing-services-select">
               <select aria-label="Copy from existing extra service" [(ngModel)]="selectedExistingExtraServiceId" (change)="onExtraServiceSelectionChange($event)">
                 <option value="">Select an extra service to copy</option>
@@ -1432,22 +1432,22 @@
                 </option>
                 }
               </select>
-              <button class="copy-btn" (click)="copyExistingExtraService()" [disabled]="!selectedExistingExtraServiceId">
+              <button class="copy-btn" (click)="copyExistingExtraService()" [disabled]="!selectedExistingExtraServiceId()">
                 Copy Extra Service
               </button>
             </div>
             }
           </div>
           
-          @if (!showExistingExtraServices) {
+          @if (!showExistingExtraServices()) {
           <div class="form-grid">
             <div class="form-group">
               <label>Name</label>
-              <input aria-label="Name" type="text" [(ngModel)]="newExtraService.name">
+              <input aria-label="Name" type="text" [(ngModel)]="newExtraService().name">
             </div>
             <div class="form-group">
               <label>Key</label>
-              <input type="text" [(ngModel)]="newExtraService.extraServiceKey" placeholder="e.g. cleaning-supplies"
+              <input type="text" [(ngModel)]="newExtraService().extraServiceKey" placeholder="e.g. cleaning-supplies"
                      maxlength="50" autocomplete="off">
               <small class="form-note">
                 Optional. A fixed name the website uses to find this extra (prices, checklists), because
@@ -1457,27 +1457,27 @@
             </div>
             <div class="form-group">
               <label>Description</label>
-              <input aria-label="Description" type="text" [(ngModel)]="newExtraService.description">
+              <input aria-label="Description" type="text" [(ngModel)]="newExtraService().description">
             </div>
             <div class="form-group">
               <label>Price</label>
-              <input aria-label="Price" type="number" [(ngModel)]="newExtraService.price" step="0.01">
+              <input aria-label="Price" type="number" [(ngModel)]="newExtraService().price" step="0.01">
             </div>
             <div class="form-group">
               <label>Duration (minutes)</label>
-              <input aria-label="Duration (minutes)" type="number" [(ngModel)]="newExtraService.duration">
+              <input aria-label="Duration (minutes)" type="number" [(ngModel)]="newExtraService().duration">
             </div>
             <div class="form-group">
               <label>Display Order</label>
-              <input aria-label="Display Order" type="number" [(ngModel)]="newExtraService.displayOrder" min="1">
+              <input aria-label="Display Order" type="number" [(ngModel)]="newExtraService().displayOrder" min="1">
             </div>
             <div class="form-group">
               <label>Price Multiplier</label>
-              <input aria-label="Price Multiplier" type="number" [(ngModel)]="newExtraService.priceMultiplier" step="0.1">
+              <input aria-label="Price Multiplier" type="number" [(ngModel)]="newExtraService().priceMultiplier" step="0.1">
             </div>
             <div class="form-group">
               <label>Icon</label>
-              <input aria-label="Icon" type="text" [(ngModel)]="newExtraService.icon">
+              <input aria-label="Icon" type="text" [(ngModel)]="newExtraService().icon">
             </div>
           </div>
           }
@@ -1485,38 +1485,38 @@
             <label>Options</label>
             <div class="checkbox-group">
               <label>
-                <input type="checkbox" [(ngModel)]="newExtraService.hasQuantity">
+                <input type="checkbox" [(ngModel)]="newExtraService().hasQuantity">
                 Has Quantity
               </label>
               <label>
-                <input type="checkbox" [(ngModel)]="newExtraService.hasHours">
+                <input type="checkbox" [(ngModel)]="newExtraService().hasHours">
                 Has Hours
               </label>
               <label>
-                <input type="checkbox" [(ngModel)]="newExtraService.isDeepCleaning">
+                <input type="checkbox" [(ngModel)]="newExtraService().isDeepCleaning">
                 Is Deep Cleaning
               </label>
               <label>
-                <input type="checkbox" [(ngModel)]="newExtraService.isSuperDeepCleaning">
+                <input type="checkbox" [(ngModel)]="newExtraService().isSuperDeepCleaning">
                 Is Super Deep Cleaning
               </label>
               <label>
-                <input type="checkbox" [(ngModel)]="newExtraService.isSameDayService">
+                <input type="checkbox" [(ngModel)]="newExtraService().isSameDayService">
                 Is Same Day Service
               </label>
               <label>
-                <input type="checkbox" [(ngModel)]="newExtraService.isAvailableForAll">
+                <input type="checkbox" [(ngModel)]="newExtraService().isAvailableForAll">
                 Available for All Service Types
               </label>
             </div>
-            @if (newExtraService.isAvailableForAll) {
+            @if (newExtraService().isAvailableForAll) {
             <p class="form-note">
               <strong>Note:</strong> When checked, this extra service will be available for all service types.
             </p>
             }
           </div>
           <div class="form-actions">
-            @if (!showExistingExtraServices) {
+            @if (!showExistingExtraServices()) {
             <button class="save-btn" (click)="addExtraService()">Create</button>
             }
             <button class="cancel-btn" (click)="cancelAddExtraService()">Cancel</button>
@@ -1541,7 +1541,7 @@
                 <th>Type</th>
                 <th>Order</th>
                 <th>Status</th>
-                @if (userRole !== 'Moderator') {
+                @if (userRole() !== 'Moderator') {
                 <th>Actions</th>
                 }
               </tr>
@@ -1549,13 +1549,13 @@
             <tbody>
               @for (extra of selectedServiceType.extraServices; track extra.id) {
               <tr>
-                @if (editingExtraServiceId !== extra.id) {
+                @if (editingExtraServiceId() !== extra.id) {
                 <td>{{ extra.id }}</td>
                 }
-                @if (editingExtraServiceId !== extra.id) {
+                @if (editingExtraServiceId() !== extra.id) {
                 <td>{{ extra.name }}</td>
                 }
-                @if (editingExtraServiceId !== extra.id) {
+                @if (editingExtraServiceId() !== extra.id) {
                 <td>
                   @if (extra.extraServiceKey) {
                   <code>{{ extra.extraServiceKey }}</code>
@@ -1565,16 +1565,16 @@
                   }
                 </td>
                 }
-                @if (editingExtraServiceId !== extra.id) {
+                @if (editingExtraServiceId() !== extra.id) {
                 <td>{{ extra.description || 'No description' }}</td>
                 }
-                @if (editingExtraServiceId !== extra.id) {
+                @if (editingExtraServiceId() !== extra.id) {
                 <td>${{ extra.price }}</td>
                 }
-                @if (editingExtraServiceId !== extra.id) {
+                @if (editingExtraServiceId() !== extra.id) {
                 <td>{{ extra.duration }}min</td>
                 }
-                @if (editingExtraServiceId !== extra.id) {
+                @if (editingExtraServiceId() !== extra.id) {
                 <td>
                   @if (extra.isAvailableForAll) {
                   <span class="universal-badge">Universal</span>
@@ -1584,35 +1584,35 @@
                   }
                 </td>
                 }
-                @if (editingExtraServiceId !== extra.id) {
+                @if (editingExtraServiceId() !== extra.id) {
                 <td>{{ extra.displayOrder || 0 }}</td>
                 }
-                @if (editingExtraServiceId !== extra.id) {
+                @if (editingExtraServiceId() !== extra.id) {
                 <td>
                   <span class="status-badge" [class.active]="extra.isActive" [class.inactive]="!extra.isActive">
                     {{ extra.isActive ? 'Active' : 'Inactive' }}
                   </span>
                 </td>
                 }
-                @if (editingExtraServiceId !== extra.id && userRole !== 'Moderator') {
+                @if (editingExtraServiceId() !== extra.id && userRole() !== 'Moderator') {
                 <td>
-                  @if (userPermissions.permissions.canUpdate) {
+                  @if (userPermissions().permissions.canUpdate) {
                   <button class="action-btn edit" (click)="editExtraService(extra); $event.stopPropagation()">Edit</button>
                   }
-                  @if (userPermissions.permissions.canActivate && !extra.isActive) {
+                  @if (userPermissions().permissions.canActivate && !extra.isActive) {
                   <button class="action-btn activate" (click)="activateExtraService(extra); $event.stopPropagation()">Enable</button>
                   }
-                  @if (userPermissions.permissions.canDeactivate && extra.isActive) {
+                  @if (userPermissions().permissions.canDeactivate && extra.isActive) {
                   <button class="action-btn deactivate" (click)="deactivateExtraService(extra); $event.stopPropagation()">Disable</button>
                   }
-                  @if (userPermissions.permissions.canDelete) {
+                  @if (userPermissions().permissions.canDelete) {
                   <button class="action-btn delete" (click)="deleteExtraService(extra); $event.stopPropagation()">Delete</button>
                   }
                 </td>
                 }
                 
                 <!-- Edit mode -->
-                @if (editingExtraServiceId === extra.id) {
+                @if (editingExtraServiceId() === extra.id) {
                 <td class="edit-mode-td" colspan="10">
                   <div class="inline-edit-form">
                     <div class="form-row">

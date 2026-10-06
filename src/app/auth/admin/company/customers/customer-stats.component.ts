@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ViewChild, ElementRef, PLATFORM_ID, ChangeDetectorRef, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, ElementRef, PLATFORM_ID, ChangeDetectorRef, ChangeDetectionStrategy, inject, viewChild, signal, computed } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { forkJoin, from, of, Subject } from 'rxjs';
@@ -230,7 +230,7 @@ const VIEW_STORAGE_PREFIX = 'dreamcleaning-customers-view';
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './customer-stats.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./customer-stats.component.scss']
 })
 export class CustomerStatsComponent implements OnInit, OnDestroy {
@@ -240,35 +240,35 @@ export class CustomerStatsComponent implements OnInit, OnDestroy {
   private cdr = inject(ChangeDetectorRef);
   private platformId = inject<Object>(PLATFORM_ID);
 
-  @ViewChild('trendCanvas') trendCanvas!: ElementRef<HTMLCanvasElement>;
+  readonly trendCanvas = viewChild<ElementRef<HTMLCanvasElement>>('trendCanvas');
 
-  stats: CustomerStatistics | null = null;
+  readonly stats = signal<CustomerStatistics | null>(null);
   prevStats: CustomerStatistics | null = null;
-  trend: CustomerTrendPoint[] = [];
-  isLoading = false;
-  error = '';
+  readonly trend = signal<CustomerTrendPoint[]>([]);
+  readonly isLoading = signal(false);
+  readonly error = signal('');
   isBrowser: boolean;
 
-  viewMode: ViewMode = 'simple';
-  activeQuickFilter: QuickFilter = 'month';
-  customFrom = '';
-  customTo = '';
-  compareLabel = '';
+  readonly viewMode = signal<ViewMode>('simple');
+  readonly activeQuickFilter = signal<QuickFilter>('month');
+  readonly customFrom = signal('');
+  readonly customTo = signal('');
+  readonly compareLabel = signal('');
   /** The plain-English answer, rebuilt on every load. Empty while loading or in compare mode. */
-  summary = '';
+  readonly summary = signal('');
 
   /** Touch-friendly explanation of a suppressed value; hover alone would be unreadable on a phone. */
   readonly tooltips = new MobileTooltipManager(() => this.isCurrentlyMobile(), 5000);
 
   // ── Compare mode state ─────────────────────────────────────────────────────
-  showCompareModal = false;
-  compareMode = false;
-  isComparing = false;
-  compareError = '';
-  compareUnit: CompareUnit = 'month';
-  comparePicks: ComparePick[] = [];
-  compareResults: ComparePeriod[] = [];
-  compareRows: CompareRow[] = [];
+  readonly showCompareModal = signal(false);
+  readonly compareMode = signal(false);
+  readonly isComparing = signal(false);
+  readonly compareError = signal('');
+  readonly compareUnit = signal<CompareUnit>('month');
+  readonly comparePicks = signal<ComparePick[]>([], { equal: () => false });
+  readonly compareResults = signal<ComparePeriod[]>([]);
+  readonly compareRows = signal<CompareRow[]>([]);
 
   readonly compareUnits: { key: CompareUnit; label: string }[] = [
     { key: 'day', label: 'Days' },
@@ -565,14 +565,15 @@ export class CustomerStatsComponent implements OnInit, OnDestroy {
   private trendChart: Chart | null = null;
   private destroy$ = new Subject<void>();
   /** Stable tooltip id per metric, so the same row owns the same id in every view. */
-  private readonly tooltipIds = new Map<string, number>();
+  private readonly tooltipIds = signal(new Map<string, number>(), { equal: () => false });
 
   constructor() {
     this.isBrowser = isPlatformBrowser(this.platformId);
     const thisYear = new Date().getFullYear();
     this.yearOptions = Array.from({ length: 6 }, (_, i) => thisYear - i);
-    this.metrics.forEach((m, i) => this.tooltipIds.set(m.key, i));
-    this.viewMode = this.readStoredView();
+    this.metrics.forEach((m, i) => this.tooltipIds().set(m.key, i));
+    this.tooltipIds.set(this.tooltipIds());
+    this.viewMode.set(this.readStoredView());
   }
 
   ngOnInit(): void {
@@ -596,10 +597,10 @@ export class CustomerStatsComponent implements OnInit, OnDestroy {
   // ── View toggle ──────────────────────────────────────────────────────────
 
   setViewMode(mode: ViewMode): void {
-    if (this.viewMode === mode) return;
-    this.viewMode = mode;
+    if (this.viewMode() === mode) return;
+    this.viewMode.set(mode);
     this.storeView(mode);
-    if (this.compareMode) {
+    if (this.compareMode()) {
       // The comparison table shows a different row set per view; no refetch, the payload is one
       // and the same. Simple and Full differ only in what they render.
       this.buildCompareView();
@@ -629,24 +630,24 @@ export class CustomerStatsComponent implements OnInit, OnDestroy {
   // ── Filters ──────────────────────────────────────────────────────────────
 
   onQuickFilterChange(filter: QuickFilter): void {
-    this.activeQuickFilter = filter;
-    this.customFrom = '';
-    this.customTo = '';
+    this.activeQuickFilter.set(filter);
+    this.customFrom.set('');
+    this.customTo.set('');
     this.exitCompare();
     this.loadData();
   }
 
   applyCustomRange(): void {
-    if (this.customFrom && this.customTo) {
+    if (this.customFrom() && this.customTo()) {
       this.exitCompare();
       this.loadData();
     }
   }
 
   clearCustomRange(): void {
-    this.customFrom = '';
-    this.customTo = '';
-    this.activeQuickFilter = 'month';
+    this.customFrom.set('');
+    this.customTo.set('');
+    this.activeQuickFilter.set('month');
     this.exitCompare();
     this.loadData();
   }
@@ -658,30 +659,30 @@ export class CustomerStatsComponent implements OnInit, OnDestroy {
    * a getter would hand *ngFor a brand-new array on every change-detection pass and re-render the
    * whole page each time.
    */
-  headlineCards: MetricCard[] = [];
+  readonly headlineCards = signal<MetricCard[]>([]);
   /** The Full view's detail sections, in metric declaration order. */
-  groupedCards: MetricGroup[] = [];
+  readonly groupedCards = signal<MetricGroup[]>([]);
   /** The Simple view's four cards, each with its optional subline resolved. */
-  simpleCards: SimpleCard[] = [];
+  readonly simpleCards = signal<SimpleCard[]>([]);
   /** The Simple view's three follow-up rows. */
-  simpleFollowUpCards: MetricCard[] = [];
+  readonly simpleFollowUpCards = signal<MetricCard[]>([]);
   /**
    * The two percentages beside the split bars. They are the number the reader actually uses —
    * counts alone leave him doing the division — so they are worth carrying, but they obey the
    * same suppression rule as every other rate rather than printing regardless.
    */
-  splitLegend: { returning: LegendPercent; first: LegendPercent } | null = null;
+  readonly splitLegend = signal<{ returning: LegendPercent; first: LegendPercent } | null>(null);
 
   private cardByKey = new Map<string, MetricCard>();
 
   private buildCards(): void {
-    const s = this.stats;
+    const s = this.stats();
     if (!s) {
-      this.headlineCards = [];
-      this.groupedCards = [];
-      this.simpleCards = [];
-      this.simpleFollowUpCards = [];
-      this.splitLegend = null;
+      this.headlineCards.set([]);
+      this.groupedCards.set([]);
+      this.simpleCards.set([]);
+      this.simpleFollowUpCards.set([]);
+      this.splitLegend.set(null);
       this.cardByKey.clear();
       return;
     }
@@ -697,8 +698,8 @@ export class CustomerStatsComponent implements OnInit, OnDestroy {
       || c.value !== 0
       || (prev !== null && c.def.get(prev) !== 0));
 
-    this.headlineCards = visible.filter(c => c.def.headline);
-    this.groupedCards = visible.reduce<MetricGroup[]>(
+    this.headlineCards.set(visible.filter(c => c.def.headline));
+    this.groupedCards.set(visible.reduce<MetricGroup[]>(
       (acc, card) => {
         const bucket = acc.find(g => g.group === card.def.group);
         if (bucket) bucket.cards.push(card);
@@ -709,9 +710,9 @@ export class CustomerStatsComponent implements OnInit, OnDestroy {
           cards: [card]
         });
         return acc;
-      }, []);
+      }, []));
 
-    this.simpleCards = this.simpleCardDefs
+    this.simpleCards.set(this.simpleCardDefs
       .map(def => {
         const card = this.cardByKey.get(def.key);
         if (!card) return null;
@@ -725,11 +726,11 @@ export class CustomerStatsComponent implements OnInit, OnDestroy {
           sublineLabel: def.sublineLabel ?? ''
         };
       })
-      .filter((c): c is SimpleCard => c !== null);
+      .filter((c): c is SimpleCard => c !== null));
 
-    this.simpleFollowUpCards = this.simpleFollowUpKeys
+    this.simpleFollowUpCards.set(this.simpleFollowUpKeys
       .map(key => this.cardByKey.get(key))
-      .filter((c): c is MetricCard => !!c);
+      .filter((c): c is MetricCard => !!c));
   }
 
   private resolveCard(
@@ -776,10 +777,10 @@ export class CustomerStatsComponent implements OnInit, OnDestroy {
     // Ids start above the last metric's, so the legend can never share a tooltip with a row.
     const base = this.metrics.length;
 
-    this.splitLegend = {
+    this.splitLegend.set({
       returning: { value: s.returningRate, suppressed, sample, tooltipId: base, reason },
       first: { value: s.newRate, suppressed, sample, tooltipId: base + 1, reason }
-    };
+    });
   }
 
   /** Plain-English reason a value is a dash, naming the actual denominator. */
@@ -795,7 +796,7 @@ export class CustomerStatsComponent implements OnInit, OnDestroy {
   // ── Tooltips ─────────────────────────────────────────────────────────────
 
   tooltipId(def: MetricDef): number {
-    return this.tooltipIds.get(def.key) ?? 0;
+    return this.tooltipIds().get(def.key) ?? 0;
   }
 
   /**
@@ -870,18 +871,18 @@ export class CustomerStatsComponent implements OnInit, OnDestroy {
    * people either way, and a two-customer spend split is no more meaningful for being large.
    */
   get splitSampleTooThin(): boolean {
-    return (this.stats?.activeCustomers ?? 0) < MIN_SAMPLE;
+    return (this.stats()?.activeCustomers ?? 0) < MIN_SAMPLE;
   }
 
   /** Frequency bar width, scaled to the busiest bucket rather than to the total. */
   frequencyWidth(customers: number): number {
-    const max = Math.max(1, ...(this.stats?.frequency ?? []).map(f => f.customers));
+    const max = Math.max(1, ...(this.stats()?.frequency ?? []).map(f => f.customers));
     return (customers / max) * 100;
   }
 
   /** "12 months to Aug 2026" — states the anchoring so a historical view is not misread as today's. */
   get medianWindowLabel(): string {
-    const to = this.stats?.medianWindowTo;
+    const to = this.stats()?.medianWindowTo;
     if (!to) return '12 months';
     const d = new Date(to);
     return `12 months to ${d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}`;
@@ -895,13 +896,13 @@ export class CustomerStatsComponent implements OnInit, OnDestroy {
    * sitting underneath it.
    */
   private buildSummary(): void {
-    const s = this.stats;
-    if (!s) { this.summary = ''; return; }
+    const s = this.stats();
+    if (!s) { this.summary.set(''); return; }
 
     const p = this.describePeriod();
 
     if (s.activeCustomers === 0) {
-      this.summary = `Nobody has booked a cleaning ${p.zeroPhrase}.`;
+      this.summary.set(`Nobody has booked a cleaning ${p.zeroPhrase}.`);
       return;
     }
 
@@ -927,7 +928,7 @@ export class CustomerStatsComponent implements OnInit, OnDestroy {
         : ` — ${diff > 0 ? 'up' : 'down'} from ${prevValue} ${p.comparison}`;
     }
 
-    this.summary = `${first} ${returned}${clause}.`;
+    this.summary.set(`${first} ${returned}${clause}.`);
   }
 
   private plural(n: number, noun: string): string {
@@ -945,9 +946,9 @@ export class CustomerStatsComponent implements OnInit, OnDestroy {
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const monthName = (d: Date) => this.monthNames[d.getMonth()];
 
-    if (this.customFrom && this.customTo) {
-      const a = new Date(this.customFrom + 'T00:00:00');
-      const b = new Date(this.customTo + 'T00:00:00');
+    if (this.customFrom() && this.customTo()) {
+      const a = new Date(this.customFrom() + 'T00:00:00');
+      const b = new Date(this.customTo() + 'T00:00:00');
       const days = Math.round((b.getTime() - a.getTime()) / 86400000) + 1;
       return {
         opener: `Between ${this.shortDate(a)} and ${this.shortDateYear(b)}`,
@@ -956,7 +957,7 @@ export class CustomerStatsComponent implements OnInit, OnDestroy {
       };
     }
 
-    switch (this.activeQuickFilter) {
+    switch (this.activeQuickFilter()) {
       case 'today':
         return { opener: 'Today', zeroPhrase: 'today', comparison: 'yesterday' };
       case 'week':
@@ -1002,11 +1003,11 @@ export class CustomerStatsComponent implements OnInit, OnDestroy {
   // ── Data loading ─────────────────────────────────────────────────────────
 
   private loadData(): void {
-    this.isLoading = true;
-    this.error = '';
+    this.isLoading.set(true);
+    this.error.set('');
 
     const win = this.getDateWindow();
-    this.compareLabel = win.compareLabel;
+    this.compareLabel.set(win.compareLabel);
 
     forkJoin({
       current: this.customerStats.getStatistics(win.from, win.to),
@@ -1015,16 +1016,16 @@ export class CustomerStatsComponent implements OnInit, OnDestroy {
         : of(null as CustomerStatistics | null)
     }).subscribe({
       next: ({ current, previous }) => {
-        this.stats = current;
+        this.stats.set(current);
         this.prevStats = previous;
         this.buildCards();
         this.buildSummary();
-        this.isLoading = false;
+        this.isLoading.set(false);
         this.cdr.detectChanges();
       },
       error: (err) => {
-        this.error = err?.error?.message || 'Failed to load the customer numbers. Please try again.';
-        this.isLoading = false;
+        this.error.set(err?.error?.message || 'Failed to load the customer numbers. Please try again.');
+        this.isLoading.set(false);
       }
     });
   }
@@ -1036,7 +1037,7 @@ export class CustomerStatsComponent implements OnInit, OnDestroy {
   private loadTrend(): void {
     this.customerStats.getTrend(TREND_MONTHS).subscribe({
       next: points => {
-        this.trend = points;
+        this.trend.set(points);
         this.cdr.detectChanges();
         this.buildTrendChart();
       },
@@ -1045,7 +1046,8 @@ export class CustomerStatsComponent implements OnInit, OnDestroy {
   }
 
   private buildTrendChart(): void {
-    if (!this.isBrowser || !this.trendCanvas?.nativeElement || this.trend.length === 0) return;
+    const trendCanvas = this.trendCanvas();
+    if (!this.isBrowser || !trendCanvas?.nativeElement || this.trend().length === 0) return;
 
     this.trendChart?.destroy();
     this.trendChart = null;
@@ -1060,11 +1062,11 @@ export class CustomerStatsComponent implements OnInit, OnDestroy {
     const config: any = {
       type: 'bar',
       data: {
-        labels: this.trend.map(p => p.label),
+        labels: this.trend().map(p => p.label),
         datasets: [
           {
             label: 'Returning',
-            data: this.trend.map(p => p.returningCustomers),
+            data: this.trend().map(p => p.returningCustomers),
             backgroundColor: token('--chart-cat-1'),
             stack: 'customers',
             borderRadius: 3,
@@ -1072,7 +1074,7 @@ export class CustomerStatsComponent implements OnInit, OnDestroy {
           },
           {
             label: 'First-time',
-            data: this.trend.map(p => p.newCustomers),
+            data: this.trend().map(p => p.newCustomers),
             backgroundColor: token('--chart-cat-2'),
             stack: 'customers',
             borderRadius: 3,
@@ -1084,7 +1086,7 @@ export class CustomerStatsComponent implements OnInit, OnDestroy {
             // null BREAKS the line for months too thin to report (spanGaps defaults to false).
             // A three-customer month used to spike the line to 45% and dominate the chart with
             // what was arithmetically one customer. The bars stay — counts are always valid.
-            data: this.trend.map(p =>
+            data: this.trend().map(p =>
               p.activeCustomers >= MIN_SAMPLE ? p.returningRate : null),
             borderColor: token('--chart-cat-8'),
             backgroundColor: token('--chart-cat-8'),
@@ -1109,7 +1111,7 @@ export class CustomerStatsComponent implements OnInit, OnDestroy {
                 if (ctx.dataset.label !== 'Returning rate') {
                   return ` ${ctx.dataset.label}: ${ctx.parsed.y}`;
                 }
-                const point = this.trend[ctx.dataIndex];
+                const point = this.trend()[ctx.dataIndex];
                 return point && point.activeCustomers >= MIN_SAMPLE
                   ? ` Returning rate: ${Number(ctx.parsed.y).toFixed(1)}%`
                   : ` Returning rate: too few customers to report`;
@@ -1133,7 +1135,7 @@ export class CustomerStatsComponent implements OnInit, OnDestroy {
       }
     };
 
-    this.trendChart = new Chart(this.trendCanvas.nativeElement, config);
+    this.trendChart = new Chart(trendCanvas.nativeElement, config);
   }
 
   // ── Date windows ─────────────────────────────────────────────────────────
@@ -1156,18 +1158,18 @@ export class CustomerStatsComponent implements OnInit, OnDestroy {
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-    if (this.customFrom && this.customTo) {
-      const from = new Date(this.customFrom + 'T00:00:00');
-      const to = new Date(this.customTo + 'T00:00:00');
+    if (this.customFrom() && this.customTo()) {
+      const from = new Date(this.customFrom() + 'T00:00:00');
+      const to = new Date(this.customTo() + 'T00:00:00');
       const lengthDays = Math.round((to.getTime() - from.getTime()) / 86400000) + 1;
       return {
-        from: this.customFrom, to: this.customTo,
+        from: this.customFrom(), to: this.customTo(),
         prevFrom: fmt(this.addDays(from, -lengthDays)), prevTo: fmt(this.addDays(from, -1)),
         compareLabel: `vs the ${lengthDays} days before`
       };
     }
 
-    switch (this.activeQuickFilter) {
+    switch (this.activeQuickFilter()) {
       case 'today': {
         const yesterday = this.addDays(today, -1);
         return {
@@ -1234,40 +1236,40 @@ export class CustomerStatsComponent implements OnInit, OnDestroy {
   // ── Compare mode (side-by-side whole days / weeks / months / years) ──────
 
   openCompareModal(): void {
-    if (this.comparePicks.length === 0) {
-      this.comparePicks = this.defaultPicks(this.compareUnit);
+    if (this.comparePicks().length === 0) {
+      this.comparePicks.set(this.defaultPicks(this.compareUnit()));
     }
-    this.compareError = '';
-    this.showCompareModal = true;
+    this.compareError.set('');
+    this.showCompareModal.set(true);
   }
 
   closeCompareModal(): void {
-    this.showCompareModal = false;
+    this.showCompareModal.set(false);
   }
 
   setCompareUnit(unit: CompareUnit): void {
-    if (this.compareUnit === unit) return;
-    this.compareUnit = unit;
-    this.comparePicks = this.defaultPicks(unit);
-    this.compareError = '';
+    if (this.compareUnit() === unit) return;
+    this.compareUnit.set(unit);
+    this.comparePicks.set(this.defaultPicks(unit));
+    this.compareError.set('');
   }
 
   addPick(): void {
     // The next period back from the last one, so adding is one click per period.
-    const last = this.comparePicks[this.comparePicks.length - 1];
-    this.comparePicks.push(last ? this.stepBack(last) : this.mkPick(new Date()));
+    const last = this.comparePicks()[this.comparePicks().length - 1];
+    this.comparePicks().push(last ? this.stepBack(last) : this.mkPick(new Date()));
+    this.comparePicks.set(this.comparePicks());
   }
 
   removePick(index: number): void {
-    if (this.comparePicks.length > 2) {
-      this.comparePicks.splice(index, 1);
+    if (this.comparePicks().length > 2) {
+      this.comparePicks().splice(index, 1);
+      this.comparePicks.set(this.comparePicks());
     }
   }
 
   /** Quick-fill sizes offered for the active unit. */
-  get quickFillCounts(): number[] {
-    return this.compareUnit === 'year' ? [3, 5] : [6, 12];
-  }
+  readonly quickFillCounts = computed<number[]>(() => this.compareUnit() === 'year' ? [3, 5] : [6, 12]);
 
   /** Fills the list with the last N whole units, oldest first. */
   quickFill(count: number): void {
@@ -1275,7 +1277,7 @@ export class CustomerStatsComponent implements OnInit, OnDestroy {
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const picks: ComparePick[] = [];
     for (let back = count - 1; back >= 0; back--) {
-      switch (this.compareUnit) {
+      switch (this.compareUnit()) {
         case 'day': picks.push(this.mkPick(this.addDays(today, -back))); break;
         case 'week': picks.push(this.mkPick(this.addDays(today, -back * 7))); break;
         case 'month':
@@ -1287,18 +1289,16 @@ export class CustomerStatsComponent implements OnInit, OnDestroy {
           break;
       }
     }
-    this.comparePicks = picks;
-    this.compareError = '';
+    this.comparePicks.set(picks);
+    this.compareError.set('');
   }
 
-  get unitNoun(): string {
-    return this.compareUnit;
-  }
+  readonly unitNoun = computed<string>(() => this.compareUnit());
 
   get picksValid(): boolean {
-    if (this.comparePicks.length < 2) return false;
-    if (this.compareUnit === 'day' || this.compareUnit === 'week') {
-      return this.comparePicks.every(p => !!p.date);
+    if (this.comparePicks().length < 2) return false;
+    if (this.compareUnit() === 'day' || this.compareUnit() === 'week') {
+      return this.comparePicks().every(p => !!p.date);
     }
     return true;
   }
@@ -1311,21 +1311,21 @@ export class CustomerStatsComponent implements OnInit, OnDestroy {
   }
 
   runCompare(): void {
-    if (!this.picksValid || this.isComparing) return;
+    if (!this.picksValid || this.isComparing()) return;
 
-    const resolved = this.comparePicks.map(p => this.resolvePick(p));
+    const resolved = this.comparePicks().map(p => this.resolvePick(p));
     const seen = new Set<string>();
     for (const r of resolved) {
       const key = `${r.from}|${r.to}`;
       if (seen.has(key)) {
-        this.compareError = `You picked the same ${this.unitNoun} twice (${r.label}). Change one of them.`;
+        this.compareError.set(`You picked the same ${this.unitNoun()} twice (${r.label}). Change one of them.`);
         return;
       }
       seen.add(key);
     }
 
-    this.compareError = '';
-    this.isComparing = true;
+    this.compareError.set('');
+    this.isComparing.set(true);
     from(resolved.map((r, i) => ({ r, i })))
       .pipe(
         mergeMap(({ r, i }) => this.customerStats.getStatistics(r.from, r.to)
@@ -1337,24 +1337,24 @@ export class CustomerStatsComponent implements OnInit, OnDestroy {
           // mergeMap completes out of order, so results carry their index home.
           const statsList: CustomerStatistics[] = [];
           loaded.forEach(({ i, stats }) => (statsList[i] = stats));
-          this.compareResults = resolved.map((r, i) => ({ ...r, stats: statsList[i] }));
+          this.compareResults.set(resolved.map((r, i) => ({ ...r, stats: statsList[i] })));
           this.buildCompareView();
-          this.isComparing = false;
-          this.showCompareModal = false;
-          this.compareMode = true;
+          this.isComparing.set(false);
+          this.showCompareModal.set(false);
+          this.compareMode.set(true);
           this.cdr.detectChanges();
         },
         error: (err) => {
-          this.isComparing = false;
-          this.compareError = err?.error?.message
-            || 'Could not load the numbers for those periods. Please try again.';
+          this.isComparing.set(false);
+          this.compareError.set(err?.error?.message
+            || 'Could not load the numbers for those periods. Please try again.');
         }
       });
   }
 
   exitCompare(): void {
-    if (!this.compareMode) return;
-    this.compareMode = false;
+    if (!this.compareMode()) return;
+    this.compareMode.set(false);
     // The trend canvas leaves the DOM while comparing, taking the chart's element with it —
     // rebuild once Angular has put it back.
     setTimeout(() => this.buildTrendChart(), 0);
@@ -1371,7 +1371,7 @@ export class CustomerStatsComponent implements OnInit, OnDestroy {
    * Simple narrows the row list, Full takes every metric. There is no second compare component.
    */
   private buildCompareView(): void {
-    const defs = this.viewMode === 'simple'
+    const defs = this.viewMode() === 'simple'
       // Ordered by the Simple key list, not by metric declaration order, so the compare table reads
       // top-to-bottom in the same order as the Simple cards above it.
       ? this.simpleCompareKeys
@@ -1380,11 +1380,11 @@ export class CustomerStatsComponent implements OnInit, OnDestroy {
       : this.metrics;
 
     const visible = defs.filter(def => !def.hideWhenAllZero
-      || this.compareResults.some(r => def.get(r.stats) !== 0));
+      || this.compareResults().some(r => def.get(r.stats) !== 0));
 
     let lastGroup = '';
-    this.compareRows = visible.map(def => {
-      const cells: CompareCell[] = this.compareResults.map(r => {
+    this.compareRows.set(visible.map(def => {
+      const cells: CompareCell[] = this.compareResults().map(r => {
         const sample = def.denominator ? def.denominator(r.stats) : Number.MAX_SAFE_INTEGER;
         return {
           value: def.get(r.stats),
@@ -1406,11 +1406,11 @@ export class CustomerStatsComponent implements OnInit, OnDestroy {
         : (def.betterWhen === 'high' ? Math.max(...live) : Math.min(...live));
 
       // Simple's row list is curated, so its section headers would be noise on a nine-row table.
-      const groupStart = this.viewMode === 'full' && def.group !== lastGroup;
+      const groupStart = this.viewMode() === 'full' && def.group !== lastGroup;
       lastGroup = def.group;
-      const label = this.viewMode === 'simple' ? this.simpleLabel(def) : def.label;
+      const label = this.viewMode() === 'simple' ? this.simpleLabel(def) : def.label;
       return { def, label, groupStart, cells, bestValue };
-    });
+    }));
   }
 
   private mkPick(d: Date): ComparePick {
@@ -1419,7 +1419,7 @@ export class CustomerStatsComponent implements OnInit, OnDestroy {
 
   /** One whole unit earlier than the given pick. */
   private stepBack(pick: ComparePick): ComparePick {
-    switch (this.compareUnit) {
+    switch (this.compareUnit()) {
       case 'day':
         return this.mkPick(this.addDays(new Date(pick.date + 'T00:00:00'), -1));
       case 'week':
@@ -1459,7 +1459,7 @@ export class CustomerStatsComponent implements OnInit, OnDestroy {
   }
 
   private resolvePickRange(pick: ComparePick): Omit<ComparePeriod, 'stats' | 'unfinished'> {
-    switch (this.compareUnit) {
+    switch (this.compareUnit()) {
       case 'day': {
         const d = new Date(pick.date + 'T00:00:00');
         return { from: pick.date, to: pick.date, label: this.shortDateYear(d), rangeLabel: '' };

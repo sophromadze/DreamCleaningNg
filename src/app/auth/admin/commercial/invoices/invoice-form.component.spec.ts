@@ -135,62 +135,62 @@ describe('InvoiceFormComponent', () => {
         originalOrderTotal: o.total, allocatedAmount: amounts[i], isProposal: true, orderStatus: o.status })) };
   }
   function prepareLinkedDraft(prices?: number[]): void {
-    component.clientId = 7;
-    component.eligibleOrders = linkedRows(prices);
-    component.lines = [{ description: 'Cloned old single line', quantity: 1, unitPrice: 925.43 }];
-    component.serviceDates = ['2026-09-13']; component.serviceStartDate = '2026-09-13'; component.serviceEndDate = '2026-09-13';
-    component.taxType = InvoiceTaxType.Included; component.taxRate = 8.875;
+    component.clientId.set(7);
+    component.eligibleOrders.set(linkedRows(prices));
+    component.lines.set([{ description: 'Cloned old single line', quantity: 1, unitPrice: 925.43 }]);
+    component.serviceDates.set(['2026-09-13']); component.serviceStartDate.set('2026-09-13'); component.serviceEndDate.set('2026-09-13');
+    component.taxType.set(InvoiceTaxType.Included); component.taxRate.set(8.875);
   }
 
   it('derives all selected lines and dates immediately on an unsaved cloned draft', async () => {
     prepareLinkedDraft(); component.selectAllEligible();
-    expect(component.lines.length).toBe(3); expect(component.totals.total).toBe(2776.29);
-    expect(component.serviceDates).toEqual(['2026-09-13', '2026-09-27', '2026-10-04']);
-    expect(component.serviceStartDate).toBe('2026-09-13'); expect(component.serviceEndDate).toBe('2026-10-04');
+    expect(component.lines().length).toBe(3); expect(component.totals.total).toBe(2776.29);
+    expect(component.serviceDates()).toEqual(['2026-09-13', '2026-09-27', '2026-10-04']);
+    expect(component.serviceStartDate()).toBe('2026-09-13'); expect(component.serviceEndDate()).toBe('2026-10-04');
     const request = httpMock.expectOne(PREVIEW_URL);
     expect(request.request.body.orderIds).toEqual([1, 2, 3]);
-    request.flush(previewResponse(component.eligibleOrders)); fixture.detectChanges(); await fixture.whenStable(); fixture.detectChanges();
+    request.flush(previewResponse(component.eligibleOrders())); fixture.detectChanges(); await fixture.whenStable(); fixture.detectChanges();
     expect(component.totals.preTaxTotal).toBe(2549.98); expect(component.totals.taxAmount).toBe(226.31);
     expect(component.balanceDue).toBe(2776.29);
     expect(fixture.nativeElement.querySelector('.service-dates')).toBeNull();
     expect(fixture.nativeElement.querySelector('#serviceStart').disabled).toBe(true);
     expect(fixture.nativeElement.querySelector('#serviceEnd').disabled).toBe(true);
     expect(fixture.nativeElement.querySelector('.totals').textContent).toContain('$2,549.98');
-    component.toggleOrder(component.eligibleOrders[2]);
-    expect(component.serviceEndDate).toBe('2026-09-27'); expect(component.totals.total).toBe(1850.86);
-    httpMock.expectOne(PREVIEW_URL).flush(previewResponse(component.eligibleOrders.slice(0, 2)));
+    component.toggleOrder(component.eligibleOrders()[2]);
+    expect(component.serviceEndDate()).toBe('2026-09-27'); expect(component.totals.total).toBe(1850.86);
+    httpMock.expectOne(PREVIEW_URL).flush(previewResponse(component.eligibleOrders().slice(0, 2)));
     component.clearOrderSelection(); fixture.detectChanges(); await fixture.whenStable(); fixture.detectChanges();
     expect(fixture.nativeElement.querySelector('.service-dates')).not.toBeNull();
     expect(fixture.nativeElement.querySelector('#serviceStart').disabled).toBe(false);
-    expect(component.lines[0].description).toBe('Cloned old single line');
-    expect(component.serviceDates).toEqual(['2026-09-13']);
+    expect(component.lines()[0].description).toBe('Cloned old single line');
+    expect(component.serviceDates()).toEqual(['2026-09-13']);
   });
 
   it('sums unequal current prices and lets the server allocate an agreed total before first save', () => {
     prepareLinkedDraft([900, 950, 1000]); component.selectAllEligible();
     expect(component.totals.total).toBe(2850);
-    httpMock.expectOne(PREVIEW_URL).flush(previewResponse(component.eligibleOrders));
-    component.negotiatingTotal = true; component.negotiatedGroupTotal = 2500; component.previewAllocation();
+    httpMock.expectOne(PREVIEW_URL).flush(previewResponse(component.eligibleOrders()));
+    component.negotiatingTotal.set(true); component.negotiatedGroupTotal.set(2500); component.previewAllocation();
     const request = httpMock.expectOne(PREVIEW_URL); expect(request.request.body.negotiatedGroupTotal).toBe(2500);
-    request.flush(previewResponse(component.eligibleOrders, [833.34, 833.33, 833.33]));
+    request.flush(previewResponse(component.eligibleOrders(), [833.34, 833.33, 833.33]));
     expect(component.totals.total).toBe(2500); expect(component.balanceDue).toBe(2500);
     component.cancelNegotiatedTotal();
-    httpMock.expectOne(PREVIEW_URL).flush(previewResponse(component.eligibleOrders));
+    httpMock.expectOne(PREVIEW_URL).flush(previewResponse(component.eligibleOrders()));
     expect(component.totals.total).toBe(2850);
   });
 
   it('ignores an older preview after the selected dates have changed', () => {
     prepareLinkedDraft(); component.selectAllEligible(); const old = httpMock.expectOne(PREVIEW_URL);
-    component.toggleOrder(component.eligibleOrders[2]); const fresh = httpMock.expectOne(PREVIEW_URL);
-    fresh.flush(previewResponse(component.eligibleOrders.slice(0, 2)));
-    old.flush(previewResponse(component.eligibleOrders));
-    expect(component.lines.length).toBe(2); expect(component.totals.total).toBe(1850.86);
-    expect(component.serviceEndDate).toBe('2026-09-27');
+    component.toggleOrder(component.eligibleOrders()[2]); const fresh = httpMock.expectOne(PREVIEW_URL);
+    fresh.flush(previewResponse(component.eligibleOrders().slice(0, 2)));
+    old.flush(previewResponse(component.eligibleOrders()));
+    expect(component.lines().length).toBe(2); expect(component.totals.total).toBe(1850.86);
+    expect(component.serviceEndDate()).toBe('2026-09-27');
   });
 
   it('saves the selection and invoice together without a second mutating selection request', () => {
     prepareLinkedDraft(); component.selectAllEligible();
-    httpMock.expectOne(PREVIEW_URL).flush(previewResponse(component.eligibleOrders));
+    httpMock.expectOne(PREVIEW_URL).flush(previewResponse(component.eligibleOrders()));
     vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
     component.saveDraft();
     const request = httpMock.expectOne(`${environment.apiUrl}/admin/commercial/invoices`);
@@ -204,16 +204,16 @@ describe('InvoiceFormComponent', () => {
   });
 
   it('keeps finalized snapshots intact even when their underlying order prices differ', () => {
-    prepareLinkedDraft(); component.selectedOrderIds = [1, 2, 3];
-    component.existing = { status: InvoiceStatus.Sent } as any;
-    component.previewAllocation(); component.toggleOrder(component.eligibleOrders[2]);
+    prepareLinkedDraft(); component.selectedOrderIds.set([1, 2, 3]);
+    component.existing.set({ status: InvoiceStatus.Sent } as any);
+    component.previewAllocation(); component.toggleOrder(component.eligibleOrders()[2]);
     httpMock.expectNone(PREVIEW_URL);
-    expect(component.lines.length).toBe(1); expect(component.selectedOrderIds).toEqual([1, 2, 3]);
+    expect(component.lines().length).toBe(1); expect(component.selectedOrderIds()).toEqual([1, 2, 3]);
   });
 
   describe('a client created from this page is usable immediately', () => {
     it('refreshes the roster, selects the new client and loads its details — no reload', () => {
-      expect(component.clientId).toBeNull();
+      expect(component.clientId()).toBeNull();
 
       component.onClientCreated(createdClient);
 
@@ -221,15 +221,15 @@ describe('InvoiceFormComponent', () => {
       // option shape this form renders.
       httpMock.expectOne(CLIENTS_URL).flush([CLIENT_A, CLIENT_NEW]);
 
-      expect(component.clientId).toBe(91);
+      expect(component.clientId()).toBe(91);
       expect(component.selectedClient?.legalEntityName).toBe('Chick Tastic LLC');
       expect(component.selectedClient?.billingEmail).toBe('casey@chicktastic.invalid');
 
       // Its single location is picked up and drives the service address, exactly as a manual
       // pick would.
       expect(component.availableLocations.length).toBe(1);
-      expect(component.locationId).toBe(910);
-      expect(component.serviceAddress).toBe('1569 Flatbush Ave., Brooklyn, NY 11210');
+      expect(component.locationId()).toBe(910);
+      expect(component.serviceAddress()).toBe('1569 Flatbush Ave., Brooklyn, NY 11210');
     });
 
     it('leaves Related Contract on "no contract"', () => {
@@ -238,7 +238,7 @@ describe('InvoiceFormComponent', () => {
 
       // A brand new client has none, and an invoice does not need one. This must not block
       // anything downstream.
-      expect(component.contractId).toBeNull();
+      expect(component.contractId()).toBeNull();
       expect(component.availableContracts).toEqual([]);
     });
 
@@ -248,46 +248,46 @@ describe('InvoiceFormComponent', () => {
       httpMock.expectOne(CLIENTS_URL).flush(
         { message: 'nope' }, { status: 500, statusText: 'Server Error' });
 
-      expect(component.clientId).toBe(91);
+      expect(component.clientId()).toBe(91);
     });
 
     it('clears a previous client\'s contract and location on switching', () => {
-      component.clientId = 7;
+      component.clientId.set(7);
       component.onClientChange();
-      expect(component.locationId).toBe(70);
+      expect(component.locationId()).toBe(70);
 
       component.onClientCreated(createdClient);
       httpMock.expectOne(CLIENTS_URL).flush([CLIENT_A, CLIENT_NEW]);
 
       // Both belonged to the previous client; the server refuses another client's contract anyway.
-      expect(component.contractId).toBeNull();
-      expect(component.locationId).toBe(910);
+      expect(component.contractId()).toBeNull();
+      expect(component.locationId()).toBe(910);
     });
   });
 
   describe('the "New client" button', () => {
     it('is offered to an admin who holds Create', () => {
-      expect(component.canCreateClient).toBe(true);
+      expect(component.canCreateClient()).toBe(true);
 
       component.openClientModal();
-      expect(component.showClientModal).toBe(true);
+      expect(component.showClientModal()).toBe(true);
     });
 
     it('does nothing for a view-only admin', () => {
-      component.canCreateClient = false;
+      component.canCreateClient.set(false);
 
       component.openClientModal();
 
-      expect(component.showClientModal).toBe(false);
+      expect(component.showClientModal()).toBe(false);
     });
 
     it('does nothing once the invoice is monetarily locked', () => {
       // A paid invoice's client cannot change, so neither can the shortcut that would change it.
-      component.monetaryLocked = true;
+      component.monetaryLocked.set(true);
 
       component.openClientModal();
 
-      expect(component.showClientModal).toBe(false);
+      expect(component.showClientModal()).toBe(false);
     });
   });
 });

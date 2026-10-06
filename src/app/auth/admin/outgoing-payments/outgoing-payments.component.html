@@ -16,13 +16,13 @@
       <h2>Outgoing Payments</h2>
       <!-- Per tab: the two describe genuinely different work, and one sentence covering both
            ended up describing neither. -->
-      @if (activeTab === 'cleaners') {
+      @if (activeTab() === 'cleaners') {
       <p class="page-subtitle">
         What we owe cleaners for finished jobs. Every figure is worked out from the order itself —
         the hours, the rate and the tip split — so there is nothing to add up by hand.
       </p>
       }
-      @if (activeTab === 'employees') {
+      @if (activeTab() === 'employees') {
       <p class="page-subtitle">
         Monthly salaries for office staff, taken from the Salaries category on the Expenses page
         and halved into the two payments a month they are paid in.
@@ -33,8 +33,8 @@
     <div class="header-actions">
       <!-- Same control the Orders tab carries: orders finish and cleaners get assigned while
            this page is open, so a reload without losing the filters is worth a button. -->
-      <button class="action-btn refresh" (click)="reloadAll()" [disabled]="loading || salariesLoading">
-        {{ loading ? 'Loading...' : 'Refresh' }}
+      <button class="action-btn refresh" (click)="reloadAll()" [disabled]="loading() || salariesLoading()">
+        {{ loading() ? 'Loading...' : 'Refresh' }}
       </button>
     </div>
   </div>
@@ -49,8 +49,8 @@
   -->
   <div class="payee-tabs" role="tablist">
     <button type="button" role="tab" class="payee-tab"
-            [class.active]="activeTab === 'cleaners'"
-            [attr.aria-selected]="activeTab === 'cleaners'"
+            [class.active]="activeTab() === 'cleaners'"
+            [attr.aria-selected]="activeTab() === 'cleaners'"
             (click)="setTab('cleaners')">
       Cleaner wages
       @if (unpaidForTab.cleaners > 0) {
@@ -61,8 +61,8 @@
     </button>
 
     <button type="button" role="tab" class="payee-tab"
-            [class.active]="activeTab === 'employees'"
-            [attr.aria-selected]="activeTab === 'employees'"
+            [class.active]="activeTab() === 'employees'"
+            [attr.aria-selected]="activeTab() === 'employees'"
             (click)="setTab('employees')">
       Employees
       @if (unpaidForTab.employees > 0) {
@@ -86,7 +86,7 @@
       }
     </div>
 
-    @if (data || salaries) {
+    @if (data() || salaries()) {
     <div class="month-total">
       <span class="month-total-label">Still to pay</span>
       <span class="month-total-value">$ {{ activeTabUnpaid | number:'1.2-2' }}</span>
@@ -95,51 +95,51 @@
   </div>
 
   <!-- Shared by both tabs: a write on either reports through the same two lines. -->
-  @if (successMessage) {
-  <div class="message success">{{ successMessage }}</div>
+  @if (successMessage()) {
+  <div class="message success">{{ successMessage() }}</div>
   }
-  @if (error) {
-  <div class="message error">{{ error }}</div>
+  @if (error()) {
+  <div class="message error">{{ error() }}</div>
   }
 
   <!-- ══ Employees tab ══════════════════════════════════════════════════════ -->
-  @if (activeTab === 'employees') {
+  @if (activeTab() === 'employees') {
 
-  @if (salariesLoading && !salaries) {
+  @if (salariesLoading() && !salaries()) {
   <div class="salary-loading">Loading salaries…</div>
   }
 
   <!-- Nothing on salary this month is a normal state, not an error — so it says where salaries
        come from rather than just reporting an absence. -->
-  @if (!salariesLoading && salaries && salaries.payees.length === 0) {
+  @if (!salariesLoading() && salaries() && salaries()!.payees.length === 0) {
   <div class="empty-state">
     No employee salaries for {{ monthLabel }}.
     Add them on the Expenses page under the Salaries category, and they appear here.
   </div>
   }
 
-  @if (salaries && salaries.payees.length) {
+  @if (salaries() && salaries()!.payees.length) {
   <div class="salary-block">
     <div class="salary-head">
-      <h3>{{ salaries.payees.length }} on salary</h3>
+      <h3>{{ salaries()!.payees.length }} on salary</h3>
 
       <span class="salary-head-totals">
-        @if (salaries.unpaidUsd > 0) {
+        @if (salaries()!.unpaidUsd > 0) {
         <span class="salary-outstanding">
-          $ {{ salaries.unpaidUsd | number:'1.2-2' }} still to pay
+          $ {{ salaries()!.unpaidUsd | number:'1.2-2' }} still to pay
         </span>
         }
-        @if (salaries.unpaidUsd <= 0 && salaries.totalUsd > 0) {
+        @if (salaries()!.unpaidUsd <= 0 && salaries()!.totalUsd > 0) {
         <span class="salary-settled">
           All paid
         </span>
         }
-        <span class="salary-month-total">$ {{ salaries.totalUsd | number:'1.2-2' }}</span>
+        <span class="salary-month-total">$ {{ salaries()!.totalUsd | number:'1.2-2' }}</span>
       </span>
     </div>
 
     <div class="salary-list">
-      @for (payee of salaries.payees; track $index) {
+      @for (payee of salaries()!.payees; track $index) {
       <div class="salary-payee">
         <div class="salary-payee-head">
           <span class="salary-name">{{ payee.name }}</span>
@@ -206,11 +206,11 @@
                  [(ngModel)]="detailsInput"
                  (keyup.enter)="saveDetails(payee)"
                  (keyup.escape)="cancelEditDetails()">
-          <button type="button" class="action-btn small" [disabled]="savingDetails"
+          <button type="button" class="action-btn small" [disabled]="savingDetails()"
                   (click)="cancelEditDetails()">Cancel</button>
-          <button type="button" class="action-btn small pay" [disabled]="savingDetails"
+          <button type="button" class="action-btn small pay" [disabled]="savingDetails()"
                   (click)="saveDetails(payee)">
-            {{ savingDetails ? 'Saving…' : 'Save' }}
+            {{ savingDetails() ? 'Saving…' : 'Save' }}
           </button>
           <!-- Says what an empty box does, because "clear it" and "leave it" look identical. -->
           <span class="dest-hint">Leave empty to remove.</span>
@@ -265,12 +265,12 @@
             <span class="inst-actions">
               @if (!inst.isPaid) {
               <button type="button" class="action-btn small pay"
-                      [disabled]="salarySaving"
+                      [disabled]="salarySaving()"
                       (click)="startPayInstalment(payee, inst)">Mark paid</button>
               }
               @if (inst.isPaid) {
               <button type="button" class="action-btn small"
-                      [disabled]="salarySaving"
+                      [disabled]="salarySaving()"
                       (click)="undoInstalment(payee, inst)">Undo</button>
               }
             </span>
@@ -280,11 +280,11 @@
             <span class="inst-confirm">
               <input type="text" class="inst-note" placeholder="Note (optional)"
                      [(ngModel)]="salaryPaymentNote" (keyup.enter)="confirmPayInstalment(payee, inst)">
-              <button type="button" class="action-btn small" [disabled]="salarySaving"
+              <button type="button" class="action-btn small" [disabled]="salarySaving()"
                       (click)="cancelPayInstalment()">Cancel</button>
-              <button type="button" class="action-btn small pay" [disabled]="salarySaving"
+              <button type="button" class="action-btn small pay" [disabled]="salarySaving()"
                       (click)="confirmPayInstalment(payee, inst)">
-                {{ salarySaving ? 'Saving…' : 'Confirm' }}
+                {{ salarySaving() ? 'Saving…' : 'Confirm' }}
               </button>
             </span>
             }
@@ -300,32 +300,32 @@
   }
 
   <!-- ══ Cleaner wages tab ══════════════════════════════════════════════════ -->
-  @if (activeTab === 'cleaners') {
+  @if (activeTab() === 'cleaners') {
 
   <!-- Filters -->
   <div class="filter-bar">
     <div class="segmented" role="group" aria-label="Payment status">
-      <button type="button" [class.active]="paidStatus === 'all'" (click)="setPaidStatus('all')">All</button>
-      <button type="button" [class.active]="paidStatus === 'unpaid'" (click)="setPaidStatus('unpaid')">Unpaid</button>
-      <button type="button" [class.active]="paidStatus === 'paid'" (click)="setPaidStatus('paid')">Paid</button>
+      <button type="button" [class.active]="paidStatus() === 'all'" (click)="setPaidStatus('all')">All</button>
+      <button type="button" [class.active]="paidStatus() === 'unpaid'" (click)="setPaidStatus('unpaid')">Unpaid</button>
+      <button type="button" [class.active]="paidStatus() === 'paid'" (click)="setPaidStatus('paid')">Paid</button>
     </div>
 
-    <button type="button" class="chip-toggle" [class.active]="warningsOnly" (click)="toggleWarningsOnly()">
+    <button type="button" class="chip-toggle" [class.active]="warningsOnly()" (click)="toggleWarningsOnly()">
       ⚠ Needs a look
-      @if (data?.summary?.ordersWithWarnings) {
-      <span class="chip-count">{{ data?.summary?.ordersWithWarnings }}</span>
+      @if (data()?.summary?.ordersWithWarnings) {
+      <span class="chip-count">{{ data()?.summary?.ordersWithWarnings }}</span>
       }
     </button>
 
     <input class="search-input"
            type="text"
-           [ngModel]="searchTerm"
+           [ngModel]="searchTerm()"
            (ngModelChange)="onSearchChange($event)"
            placeholder="Order number, customer or cleaner" />
   </div>
 
   <!-- Totals across the whole filtered range, not just this page -->
-  @if (data) {
+  @if (data(); as data) {
   <div class="summary-cards">
     <div class="summary-card">
       <span class="summary-label">Finished jobs</span>
@@ -362,18 +362,18 @@
   </div>
   }
 
-  @if (loading) {
+  @if (loading()) {
   <div class="loading-state">Loading…</div>
   }
 
-  @if (!loading && data && data.orders.length === 0) {
+  @if (!loading() && data() && data()!.orders.length === 0) {
   <div class="empty-state">
     No finished jobs match this filter for {{ monthLabel }}.
   </div>
   }
 
   <!-- Compact list. One row per finished order; everything else lives in the panel. -->
-  @if (!loading && data && data.orders.length > 0) {
+  @if (!loading() && data() && data()!.orders.length > 0) {
   <div class="orders-list">
     <div class="table-container">
       <div class="table-wrapper">
@@ -392,9 +392,9 @@
             </tr>
           </thead>
           <tbody>
-            @for (order of data.orders; track trackByOrder($index, order)) {
+            @for (order of data()!.orders; track trackByOrder($index, order)) {
             <tr
-                [class.expanded]="selectedOrderId === order.orderId"
+                [class.expanded]="selectedOrderId() === order.orderId"
                 (click)="openPanel(order)"
                 style="cursor: pointer;">
 
@@ -502,11 +502,11 @@
 
     @if (totalPages > 1) {
     <div class="pagination">
-      <button class="page-btn" (click)="goToPage(page - 1)" [disabled]="page === 1">‹ Prev</button>
+      <button class="page-btn" (click)="goToPage(page() - 1)" [disabled]="page() === 1">‹ Prev</button>
       @for (p of pageWindow; track p) {
-      <button class="page-btn" (click)="goToPage(p)" [class.active]="p === page">{{ p }}</button>
+      <button class="page-btn" (click)="goToPage(p)" [class.active]="p === page()">{{ p }}</button>
       }
-      <button class="page-btn" (click)="goToPage(page + 1)" [disabled]="page === totalPages">Next ›</button>
+      <button class="page-btn" (click)="goToPage(page() + 1)" [disabled]="page() === totalPages">Next ›</button>
     </div>
     }
   </div>
@@ -517,11 +517,11 @@
 </div>
 
 <!-- Slide-in payout sheet (mirrors the orders and users tabs) -->
-@if (selectedOrder) {
+@if (selectedOrder()) {
 <div class="detail-overlay" (click)="closePanel()"></div>
 }
-<aside class="detail-panel order-detail-panel" [class.open]="selectedOrder !== null">
-  @if (selectedOrder; as order) {
+<aside class="detail-panel order-detail-panel" [class.open]="selectedOrder() !== null">
+  @if (selectedOrder(); as order) {
     <div class="order-panel-header">
       <h3>Order #{{ order.orderId }} — payout</h3>
       <div class="order-panel-header__actions">
@@ -584,7 +584,7 @@
         <div class="order-rate-head">
           <span class="field-label">Defaults for this order</span>
 
-          @if (!editingOrderDefaults) {
+          @if (!editingOrderDefaults()) {
           <div class="order-rate-value">
             <strong>$ {{ order.orderHourlyRate | number:'1.0-2' }}</strong> / hour
             @if (order.orderHourlyRate !== order.expectedHourlyRate) {
@@ -606,7 +606,7 @@
           </div>
           }
 
-          @if (editingOrderDefaults) {
+          @if (editingOrderDefaults()) {
           <div class="order-rate-edit">
             <label>
               <span>$ / hour</span>
@@ -618,13 +618,13 @@
               <input type="number" min="0" step="0.25" [(ngModel)]="orderHoursInput" name="orderHoursInput" />
             </label>
             }
-            <button class="action-btn small save" type="button" [disabled]="savingOrderDefaults" (click)="saveOrderDefaults(order)">
-              {{ savingOrderDefaults ? 'Saving…' : 'Save' }}
+            <button class="action-btn small save" type="button" [disabled]="savingOrderDefaults()" (click)="saveOrderDefaults(order)">
+              {{ savingOrderDefaults() ? 'Saving…' : 'Save' }}
             </button>
-            <button class="action-btn small discard" type="button" [disabled]="savingOrderDefaults" (click)="cancelOrderDefaultsEdit()">Cancel</button>
+            <button class="action-btn small discard" type="button" [disabled]="savingOrderDefaults()" (click)="cancelOrderDefaultsEdit()">Cancel</button>
             @if (cleanersWithOwnHours(order) > 0) {
             <button class="btn-link" type="button"
-                    [disabled]="savingOrderDefaults"
+                    [disabled]="savingOrderDefaults()"
                     (click)="resetOrderHoursToAutomatic(order)"
                     title="Drop every manual hours figure and go back to the even split">
               Reset hours to automatic
@@ -762,13 +762,13 @@
                 <input type="number" min="0" step="0.25" [(ngModel)]="editHours" name="editHours" />
               </label>
               <div class="edit-actions">
-                <button class="action-btn small save" type="button" [disabled]="savingEdit" (click)="saveEdit(order, cleaner)">
-                  {{ savingEdit ? 'Saving…' : 'Save' }}
+                <button class="action-btn small save" type="button" [disabled]="savingEdit()" (click)="saveEdit(order, cleaner)">
+                  {{ savingEdit() ? 'Saving…' : 'Save' }}
                 </button>
-                <button class="action-btn small discard" type="button" [disabled]="savingEdit" (click)="cancelEdit()">Cancel</button>
+                <button class="action-btn small discard" type="button" [disabled]="savingEdit()" (click)="cancelEdit()">Cancel</button>
                 @if (cleaner.rateOverridden || cleaner.hoursOverridden) {
                 <button class="btn-link" type="button"
-                        [disabled]="savingEdit"
+                        [disabled]="savingEdit()"
                         (click)="resetToAutomatic(order, cleaner)"
                         title="Drop the manual values and follow the order again">
                   Reset to automatic
@@ -994,15 +994,15 @@
 </aside>
 
 <!-- Pay confirmation: names what is being recorded before it is recorded -->
-@if (payOrder) {
+@if (payOrder(); as payOrder) {
 <div class="modal-backdrop" (click)="closePayModal()">
   <div class="modal" (click)="$event.stopPropagation()">
-    @if (payCleaner) {
+    @if (payCleaner(); as payCleaner) {
     <h2>
       {{ payCleaner.isTopUp ? 'Pay ' + cleanerName(payCleaner) + ' the difference' : 'Mark ' + cleanerName(payCleaner) + ' as paid' }}
     </h2>
     }
-    @if (!payCleaner) {
+    @if (!payCleaner()) {
     <h2>Mark everyone on order #{{ payOrder.orderId }} as paid</h2>
     }
 
@@ -1015,13 +1015,13 @@
     </p>
     }
 
-    @if (payCleaner) {
+    @if (payCleaner()) {
     <p class="modal-lead">
       Order #{{ payOrder.orderId }} · {{ payOrder.serviceTypeName }} · {{ payOrder.serviceDate | date:'MM/dd/yy' }}
     </p>
     }
 
-    @if (!payCleaner) {
+    @if (!payCleaner()) {
     <ul class="modal-lines">
       @for (c of unpaidInPayOrder; track $index) {
       <li>
@@ -1047,7 +1047,7 @@
       <strong>$ {{ payModalTotal | number:'1.2-2' }}</strong>
     </div>
 
-    @if (payCleaner) {
+    @if (payCleaner()) {
     <label class="modal-field">
       <span>Sent via</span>
       <select [(ngModel)]="payVia" name="payVia">
@@ -1058,7 +1058,7 @@
     </label>
     }
 
-    @if (!payCleaner) {
+    @if (!payCleaner()) {
     <p class="modal-hint">
       Each cleaner is recorded against their own saved payment method.
     </p>
@@ -1070,9 +1070,9 @@
     </label>
 
     <div class="modal-actions">
-      <button class="action-btn small discard" type="button" [disabled]="paying" (click)="closePayModal()">Cancel</button>
-      <button class="action-btn small save" type="button" [disabled]="paying" (click)="confirmPay()">
-        {{ paying ? 'Recording…' : 'Confirm payment' }}
+      <button class="action-btn small discard" type="button" [disabled]="paying()" (click)="closePayModal()">Cancel</button>
+      <button class="action-btn small save" type="button" [disabled]="paying()" (click)="confirmPay()">
+        {{ paying() ? 'Recording…' : 'Confirm payment' }}
       </button>
     </div>
   </div>

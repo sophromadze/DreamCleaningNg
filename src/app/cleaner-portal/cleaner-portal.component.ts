@@ -1,4 +1,4 @@
-import { Component, Input, OnDestroy, OnInit, PLATFORM_ID, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, OnDestroy, OnInit, PLATFORM_ID, ChangeDetectionStrategy, inject, input, signal, computed } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subject, debounceTime, distinctUntilChanged, takeUntil } from 'rxjs';
@@ -74,7 +74,7 @@ export interface CleanerCalendarCell {
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './cleaner-portal.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./cleaner-portal.component.scss']
 })
 export class CleanerPortalComponent implements OnInit, OnDestroy {
@@ -87,9 +87,9 @@ export class CleanerPortalComponent implements OnInit, OnDestroy {
    * provides both — nothing about WHICH view is rendered depends on it. That stays the server's
    * answer, so the tab cannot claim a mode the API will not serve.
    */
-  @Input() embedded = false;
+  readonly embedded = input(false);
 
-  context: CleanerPortalContext | null = null;
+  readonly context = signal<CleanerPortalContext | null>(null);
 
   // Cleaner view
   currentJobs: CleanerPortalJob[] = [];
@@ -101,9 +101,9 @@ export class CleanerPortalComponent implements OnInit, OnDestroy {
   // cleaner's explicit choice and is null while they are following their nationality. The two are
   // separate on purpose - collapsing them would turn "Automatic" into a pinned language the first
   // time anybody saved, and a corrected nationality would then never reach them.
-  language: PortalLanguage = 'en';
-  preferredLanguage: string | null = null;
-  savingLanguage = false;
+  readonly language = signal<PortalLanguage>('en');
+  readonly preferredLanguage = signal<string | null>(null);
+  readonly savingLanguage = signal(false);
 
   /**
    * Where the admin's language choice is remembered. The Portal tab is created and destroyed with
@@ -127,12 +127,12 @@ export class CleanerPortalComponent implements OnInit, OnDestroy {
   // The calendar is BUILT, never derived in a template getter: rebuilding 42 cells on every change
   // detection pass would churn the *ngFor and is the shape that produces NG0100 the moment anyone
   // adds a write to it.
-  calendarCells: CleanerCalendarCell[] = [];
-  calendarMonthLabel = '';
+  readonly calendarCells = signal<CleanerCalendarCell[]>([]);
+  readonly calendarMonthLabel = signal('');
   /** "yyyy-MM-dd" of the day whose jobs are listed. Defaults to today in New York. */
-  selectedDateKey = '';
+  readonly selectedDateKey = signal('');
   /** The job whose briefing fills the side card. Never a completed one - see selectJob. */
-  selectedJob: CleanerPortalJob | null = null;
+  readonly selectedJob = signal<CleanerPortalJob | null>(null);
 
   // SuperAdmin view.
   //
@@ -141,17 +141,17 @@ export class CleanerPortalComponent implements OnInit, OnDestroy {
   // flat list of every match across all time. A search scoped to whichever month happened to be on
   // screen would be worse than the table it replaced - an admin looking somebody up does not know
   // which month to be standing in.
-  allJobs: CleanerPortalAdminJob[] = [];
-  searchTerm = '';
-  selectedAdminJob: CleanerPortalAdminJob | null = null;
+  readonly allJobs = signal<CleanerPortalAdminJob[]>([]);
+  readonly searchTerm = signal('');
+  readonly selectedAdminJob = signal<CleanerPortalAdminJob | null>(null);
 
   // Detail panel (SuperAdmin only)
-  selectedDetail: CleanerPortalOrderDetail | null = null;
-  detailLoading = false;
-  detailError = '';
+  readonly selectedDetail = signal<CleanerPortalOrderDetail | null>(null);
+  readonly detailLoading = signal(false);
+  readonly detailError = signal('');
 
-  loading = true;
-  errorMessage = '';
+  readonly loading = signal(true);
+  readonly errorMessage = signal('');
 
   private calendarYear = 0;
   /** 0-based, as JS months are. */
@@ -163,8 +163,8 @@ export class CleanerPortalComponent implements OnInit, OnDestroy {
   // One index per view rather than one of a union type: the SuperAdmin's rows carry a status and
   // a cleaner list the cleaner's rows do not, and widening them into a shared type is how a
   // template ends up reading a field that is only sometimes there.
-  private jobsByDate = new Map<string, CleanerPortalJob[]>();
-  private adminJobsByDate = new Map<string, CleanerPortalAdminJob[]>();
+  private readonly jobsByDate = signal(new Map<string, CleanerPortalJob[]>());
+  private readonly adminJobsByDate = signal(new Map<string, CleanerPortalAdminJob[]>());
   /** Shared empty arrays so an empty day hands the template the SAME reference every pass. */
   private readonly noJobs: CleanerPortalJob[] = [];
   private readonly noAdminJobs: CleanerPortalAdminJob[] = [];
@@ -179,7 +179,7 @@ export class CleanerPortalComponent implements OnInit, OnDestroy {
       .subscribe(() => this.loadAllJobs());
 
     this.todayKey = this.nyTodayKey();
-    this.selectedDateKey = this.todayKey;
+    this.selectedDateKey.set(this.todayKey);
     this.timeOfDay = this.resolveTimeOfDay();
     const [ty, tm] = this.todayKey.split('-').map(n => parseInt(n, 10));
     this.calendarYear = ty;
@@ -197,13 +197,9 @@ export class CleanerPortalComponent implements OnInit, OnDestroy {
   // ── Language ────────────────────────────────────────────────────────────────────────────
 
   /** Every visible string on the page. Swapping this swaps the page. */
-  get t(): PortalStrings {
-    return portalStrings(this.language);
-  }
+  readonly t = computed<PortalStrings>(() => portalStrings(this.language()));
 
-  get locale(): string {
-    return PORTAL_LOCALES[this.language];
-  }
+  readonly locale = computed<string>(() => PORTAL_LOCALES[this.language()]);
 
   /**
    * The name in the greeting is the cleaner's FIRST name only (owner's call, 2026-09).
@@ -213,13 +209,13 @@ export class CleanerPortalComponent implements OnInit, OnDestroy {
    * component and the detail panel both want all of it.
    */
   get greetingName(): string {
-    return (this.context?.cleanerName || '').trim().split(/\s+/)[0] || '';
+    return (this.context()?.cleanerName || '').trim().split(/\s+/)[0] || '';
   }
 
   get greeting(): string {
-    if (this.timeOfDay === 'morning') return this.t.greetingMorning;
-    if (this.timeOfDay === 'afternoon') return this.t.greetingAfternoon;
-    return this.t.greetingEvening;
+    if (this.timeOfDay === 'morning') return this.t().greetingMorning;
+    if (this.timeOfDay === 'afternoon') return this.t().greetingAfternoon;
+    return this.t().greetingEvening;
   }
 
   /**
@@ -231,7 +227,7 @@ export class CleanerPortalComponent implements OnInit, OnDestroy {
    * for them to be in - their picker is bound to the language actually being rendered.
    */
   get languageChoice(): string {
-    return this.isLanguagePreview ? this.language : (this.preferredLanguage || '');
+    return this.isLanguagePreview ? this.language() : (this.preferredLanguage() || '');
   }
 
   /**
@@ -245,15 +241,15 @@ export class CleanerPortalComponent implements OnInit, OnDestroy {
    * the CALLER'S OWN cleaner row and 400s for an account that has none.
    */
   get isLanguagePreview(): boolean {
-    return !!this.context && !this.context.isCleanerView;
+    return !!this.context() && !this.context()!.isCleanerView;
   }
 
   onLanguageChange(value: string): void {
     // The admin's preview changes what THIS page renders and nothing else - no request, and
     // above all no write onto somebody's record from a screen about somebody else's schedule.
     if (this.isLanguagePreview) {
-      this.language = resolvePortalLanguage(value);
-      this.rememberPreviewLanguage(this.language);
+      this.language.set(resolvePortalLanguage(value));
+      this.rememberPreviewLanguage(this.language());
       return;
     }
 
@@ -261,21 +257,21 @@ export class CleanerPortalComponent implements OnInit, OnDestroy {
 
     // Applied optimistically: the page is already translated client-side, so waiting on the round
     // trip would leave somebody staring at a language they just said they could not read.
-    this.preferredLanguage = choice;
-    if (choice) this.language = resolvePortalLanguage(choice);
+    this.preferredLanguage.set(choice);
+    if (choice) this.language.set(resolvePortalLanguage(choice));
 
-    this.savingLanguage = true;
+    this.savingLanguage.set(true);
     this.portal.setLanguage(choice).subscribe({
       next: result => {
         // The server has the last word on the fallback: clearing to Automatic resolves back
         // through the nationality, which only it knows.
-        this.language = resolvePortalLanguage(result.language);
-        this.preferredLanguage = result.preferredLanguage ?? null;
-        this.savingLanguage = false;
+        this.language.set(resolvePortalLanguage(result.language));
+        this.preferredLanguage.set(result.preferredLanguage ?? null);
+        this.savingLanguage.set(false);
       },
       error: err => {
-        this.errorMessage = extractApiErrorMessage(err, this.t.loadError);
-        this.savingLanguage = false;
+        this.errorMessage.set(extractApiErrorMessage(err, this.t().loadError));
+        this.savingLanguage.set(false);
       }
     });
   }
@@ -309,19 +305,19 @@ export class CleanerPortalComponent implements OnInit, OnDestroy {
   // ── Loading ─────────────────────────────────────────────────────────────────────────────
 
   private loadContext(): void {
-    this.loading = true;
+    this.loading.set(true);
     this.portal.getContext().subscribe({
       next: ctx => {
-        this.context = ctx;
-        this.language = resolvePortalLanguage(ctx.language);
-        this.preferredLanguage = ctx.preferredLanguage ?? null;
+        this.context.set(ctx);
+        this.language.set(resolvePortalLanguage(ctx.language));
+        this.preferredLanguage.set(ctx.preferredLanguage ?? null);
 
         // A cleaner's language is the server's answer and is never overridden from storage: it is
         // their record, and the page must show what their mail is sent in. Only the admin's
         // preview is restored, and only after the context says that is who is looking.
         if (!ctx.isCleanerView) {
           const remembered = this.readPreviewLanguage();
-          if (remembered) this.language = remembered;
+          if (remembered) this.language.set(remembered);
         }
 
         if (ctx.isCleanerView) {
@@ -329,28 +325,28 @@ export class CleanerPortalComponent implements OnInit, OnDestroy {
         } else if (ctx.isSystemWideView) {
           this.loadAllJobs();
         } else {
-          this.loading = false;
+          this.loading.set(false);
         }
       },
       error: err => {
-        this.errorMessage = extractApiErrorMessage(err, this.t.loadError);
-        this.loading = false;
+        this.errorMessage.set(extractApiErrorMessage(err, this.t().loadError));
+        this.loading.set(false);
       }
     });
   }
 
   private loadMyJobs(): void {
-    this.loading = true;
+    this.loading.set(true);
     this.portal.getMyJobs().subscribe({
       next: jobs => {
         this.currentJobs = jobs.current || [];
         this.pastJobs = jobs.past || [];
         this.indexJobsByDate();
-        this.loading = false;
+        this.loading.set(false);
       },
       error: err => {
-        this.errorMessage = extractApiErrorMessage(err, this.t.loadError);
-        this.loading = false;
+        this.errorMessage.set(extractApiErrorMessage(err, this.t().loadError));
+        this.loading.set(false);
       }
     });
   }
@@ -361,40 +357,38 @@ export class CleanerPortalComponent implements OnInit, OnDestroy {
    * Search mode drops the bounds entirely - that is the point of it.
    */
   loadAllJobs(): void {
-    this.loading = true;
-    const searching = this.isSearchMode;
+    this.loading.set(true);
+    const searching = this.isSearchMode();
 
     this.portal
       .getAllJobs(
         searching ? null : this.monthStartKey(),
         searching ? null : this.monthEndKey(),
-        searching ? this.searchTerm.trim() : null
+        searching ? this.searchTerm().trim() : null
       )
       .subscribe({
         next: jobs => {
-          this.allJobs = jobs || [];
+          this.allJobs.set(jobs || []);
           this.indexAdminJobsByDate();
-          this.loading = false;
+          this.loading.set(false);
         },
         error: err => {
-          this.errorMessage = extractApiErrorMessage(err, this.t.loadError);
-          this.loading = false;
+          this.errorMessage.set(extractApiErrorMessage(err, this.t().loadError));
+          this.loading.set(false);
         }
       });
   }
 
   /** A typed term switches the page to the search list; an empty one puts the month back. */
-  get isSearchMode(): boolean {
-    return this.searchTerm.trim().length > 0;
-  }
+  readonly isSearchMode = computed<boolean>(() => this.searchTerm().trim().length > 0);
 
   onSearchChanged(value: string): void {
-    this.searchTerm = value;
+    this.searchTerm.set(value);
     this.searchInput$.next(value);
   }
 
   clearSearch(): void {
-    this.searchTerm = '';
+    this.searchTerm.set('');
     this.loadAllJobs();
   }
 
@@ -403,27 +397,27 @@ export class CleanerPortalComponent implements OnInit, OnDestroy {
    * everything they are entitled to on the page itself, so there is nothing to open into.
    */
   openDetail(orderId: number): void {
-    if (!this.context?.isSystemWideView) return;
+    if (!this.context()?.isSystemWideView) return;
 
-    this.detailLoading = true;
-    this.detailError = '';
-    this.selectedDetail = null;
+    this.detailLoading.set(true);
+    this.detailError.set('');
+    this.selectedDetail.set(null);
 
     this.portal.getOrderDetail(orderId).subscribe({
       next: detail => {
-        this.selectedDetail = detail;
-        this.detailLoading = false;
+        this.selectedDetail.set(detail);
+        this.detailLoading.set(false);
       },
       error: err => {
-        this.detailError = extractApiErrorMessage(err, 'Could not load that order.');
-        this.detailLoading = false;
+        this.detailError.set(extractApiErrorMessage(err, 'Could not load that order.'));
+        this.detailLoading.set(false);
       }
     });
   }
 
   closeDetail(): void {
-    this.selectedDetail = null;
-    this.detailError = '';
+    this.selectedDetail.set(null);
+    this.detailError.set('');
   }
 
   // ── The month calendar ──────────────────────────────────────────────────────────────────
@@ -483,17 +477,17 @@ export class CleanerPortalComponent implements OnInit, OnDestroy {
    * whether the card opens: a finished job is a record, not a briefing.
    */
   private indexJobsByDate(): void {
-    this.jobsByDate = this.groupByDate([...this.currentJobs, ...this.pastJobs]);
+    this.jobsByDate.set(this.groupByDate([...this.currentJobs, ...this.pastJobs]));
     this.buildCalendar();
-    this.selectedJob = this.firstOpenableJob(this.selectedDayJobs);
+    this.selectedJob.set(this.firstOpenableJob(this.selectedDayJobs));
   }
 
   private indexAdminJobsByDate(): void {
     // In search mode there is no month on screen to put dots on, and indexing the results would
     // leave a calendar describing a set the page is not showing.
-    this.adminJobsByDate = this.isSearchMode
+    this.adminJobsByDate.set(this.isSearchMode()
       ? new Map<string, CleanerPortalAdminJob[]>()
-      : this.groupByDate(this.allJobs);
+      : this.groupByDate(this.allJobs()));
 
     this.buildCalendar();
     this.selectAdminJob(this.selectedDayAdminJobs[0] ?? null);
@@ -509,8 +503,8 @@ export class CleanerPortalComponent implements OnInit, OnDestroy {
       const day = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
       const key = this.keyOfDate(day);
       const jobs: { isCompleted: boolean }[] = [
-        ...(this.jobsByDate.get(key) ?? []),
-        ...(this.adminJobsByDate.get(key) ?? [])
+        ...(this.jobsByDate().get(key) ?? []),
+        ...(this.adminJobsByDate().get(key) ?? [])
       ];
 
       cells.push({
@@ -527,8 +521,8 @@ export class CleanerPortalComponent implements OnInit, OnDestroy {
     // six rows of height.
     if (cells.slice(35).every(cell => !cell.inMonth)) cells.length = 35;
 
-    this.calendarCells = cells;
-    this.calendarMonthLabel = first.toLocaleDateString(this.locale, { month: 'long', year: 'numeric' });
+    this.calendarCells.set(cells);
+    this.calendarMonthLabel.set(first.toLocaleDateString(this.locale(), { month: 'long', year: 'numeric' }));
   }
 
   /**
@@ -603,14 +597,14 @@ export class CleanerPortalComponent implements OnInit, OnDestroy {
       this.calendarMonthIndex = m - 1;
       this.onMonthChanged();
     }
-    this.selectedDateKey = key;
+    this.selectedDateKey.set(key);
 
     // One view owns the selection at a time. Running both would have the SuperAdmin branch clear
     // the cleaner's freshly-chosen job to null, since the admin index is empty in that mode.
-    if (this.context?.isSystemWideView) {
+    if (this.context()?.isSystemWideView) {
       this.selectAdminJob(this.selectedDayAdminJobs[0] ?? null);
     } else {
-      this.selectedJob = this.firstOpenableJob(this.selectedDayJobs);
+      this.selectedJob.set(this.firstOpenableJob(this.selectedDayJobs));
     }
   }
 
@@ -621,7 +615,7 @@ export class CleanerPortalComponent implements OnInit, OnDestroy {
    */
   selectJob(job: CleanerPortalJob): void {
     if (job.isCompleted) return;
-    this.selectedJob = job;
+    this.selectedJob.set(job);
   }
 
   private firstOpenableJob(jobs: CleanerPortalJob[]): CleanerPortalJob | null {
@@ -641,8 +635,8 @@ export class CleanerPortalComponent implements OnInit, OnDestroy {
    * nothing left to suppress and is gone.
    */
   selectAdminJob(job: CleanerPortalAdminJob | null): void {
-    this.selectedAdminJob = job;
-    this.selectedJob = job;
+    this.selectedAdminJob.set(job);
+    this.selectedJob.set(job);
   }
 
   /**
@@ -651,7 +645,7 @@ export class CleanerPortalComponent implements OnInit, OnDestroy {
    */
   private onMonthChanged(): void {
     this.buildCalendar();
-    if (this.context?.isSystemWideView && !this.isSearchMode) this.loadAllJobs();
+    if (this.context()?.isSystemWideView && !this.isSearchMode()) this.loadAllJobs();
   }
 
   /** "yyyy-MM-01" of the visible month. */
@@ -666,11 +660,11 @@ export class CleanerPortalComponent implements OnInit, OnDestroy {
 
   /** The SAME array reference on every pass for an empty day - a fresh [] would churn the view. */
   get selectedDayJobs(): CleanerPortalJob[] {
-    return this.jobsByDate.get(this.selectedDateKey) ?? this.noJobs;
+    return this.jobsByDate().get(this.selectedDateKey()) ?? this.noJobs;
   }
 
   get selectedDayAdminJobs(): CleanerPortalAdminJob[] {
-    return this.adminJobsByDate.get(this.selectedDateKey) ?? this.noAdminJobs;
+    return this.adminJobsByDate().get(this.selectedDateKey()) ?? this.noAdminJobs;
   }
 
   /** How many cleanings the chosen day holds, whichever view is asking. */
@@ -684,28 +678,28 @@ export class CleanerPortalComponent implements OnInit, OnDestroy {
    * the navigation, and taking it away mid-fetch is what makes a page feel like it lost its place.
    */
   get showSchedule(): boolean {
-    if (this.context?.isCleanerView) return !this.loading && !!this.context?.cleanerId;
-    if (this.context?.isSystemWideView) return !this.isSearchMode;
+    if (this.context()?.isCleanerView) return !this.loading() && !!this.context()?.cleanerId;
+    if (this.context()?.isSystemWideView) return !this.isSearchMode();
     return false;
   }
 
   get isSelectedDayToday(): boolean {
-    return this.selectedDateKey === this.todayKey;
+    return this.selectedDateKey() === this.todayKey;
   }
 
   get selectedDayLongLabel(): string {
-    return this.formatKey(this.selectedDateKey, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+    return this.formatKey(this.selectedDateKey(), { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
   }
 
   get selectedDayShortLabel(): string {
-    return this.formatKey(this.selectedDateKey, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+    return this.formatKey(this.selectedDateKey(), { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
   }
 
   private formatKey(key: string, options: Intl.DateTimeFormatOptions): string {
     if (!key) return '';
     const [y, m, d] = key.split('-').map(n => parseInt(n, 10));
     if (!y || !m || !d) return '';
-    return new Date(y, m - 1, d).toLocaleDateString(this.locale, options);
+    return new Date(y, m - 1, d).toLocaleDateString(this.locale(), options);
   }
 
   /** The address is already on screen; this just saves retyping it into a phone's map app. */
@@ -725,7 +719,7 @@ export class CleanerPortalComponent implements OnInit, OnDestroy {
     const iso = typeof value === 'string' ? value : value.toISOString();
     const [y, m, d] = iso.split('T')[0].split('-').map(n => parseInt(n, 10));
     if (!y || !m || !d) return '';
-    return new Date(y, m - 1, d).toLocaleDateString(this.locale, {
+    return new Date(y, m - 1, d).toLocaleDateString(this.locale(), {
       weekday: 'short', month: 'short', day: 'numeric', year: 'numeric'
     });
   }
@@ -736,17 +730,17 @@ export class CleanerPortalComponent implements OnInit, OnDestroy {
 
   /** "2 Bedrooms" / "2 спальни" / "Studio" - the counted noun in the reader's own language. */
   formatServiceLine(line: { name: string; quantity: number; serviceKey?: string | null }): string {
-    return formatServiceLine(line, this.language);
+    return formatServiceLine(line, this.language());
   }
 
   /** The hours this cleaner works, in their own units. */
   formatDuration(minutes: number | null | undefined): string {
-    return formatPortalDuration(minutes ?? 0, this.language);
+    return formatPortalDuration(minutes ?? 0, this.language());
   }
 
   /** "Cleaning" / "Cleanings" / "уборки" - correct for the count AND the language. */
   cleaningsWord(count: number): string {
-    return plural(this.language, count, this.t.cleanings);
+    return plural(this.language(), count, this.t().cleanings);
   }
 
   /**
@@ -758,19 +752,19 @@ export class CleanerPortalComponent implements OnInit, OnDestroy {
    * has to look like a missing translation, not like one less thing to bring.
    */
   supplyItemNames(keys: string[] | null | undefined): string[] {
-    return (keys || []).map(key => this.t.supplyItems[key] || key);
+    return (keys || []).map(key => this.t().supplyItems[key] || key);
   }
 
   /** Localised "Apartment" / "House", or empty when the order never recorded one. */
   propertyTypeLabel(propertyType: string | null | undefined): string {
     const value = (propertyType || '').trim().toLowerCase();
     if (!value) return '';
-    return value === 'house' ? this.t.house : this.t.apartment;
+    return value === 'house' ? this.t().house : this.t().apartment;
   }
 
   levelsLabel(levels: number | null | undefined): string {
     if (!levels) return '';
-    return `${levels} ${plural(this.language, levels, this.t.levels)}`;
+    return `${levels} ${plural(this.language(), levels, this.t().levels)}`;
   }
 
   statusClass(status: string): string {

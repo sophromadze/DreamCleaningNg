@@ -69,15 +69,15 @@ describe('HomeHeroComponent', () => {
     } as any;
 
     beforeEach(() => {
-      component.selectedServiceType = residential;
+      component.selectedServiceType.set(residential);
       component.cleaningTypeControl.setValue('normal');
     });
 
     const withLevels = (quantity: number) => {
-      component.selectedServices = [
+      component.selectedServices.set([
         { service: bedrooms, quantity: 2 },
         { service: levels, quantity }
-      ] as any;
+      ] as any);
     };
 
     it('prices a restored 3-level draft exactly like a 1-level one', () => {
@@ -104,7 +104,7 @@ describe('HomeHeroComponent', () => {
       withLevels(3);
       component.getEstimatedPrice();
 
-      const entry = component.selectedServices.find(s => s.service.serviceKey === 'levels');
+      const entry = component.selectedServices().find(s => s.service.serviceKey === 'levels');
       expect(entry?.quantity).toBe(3);
     });
 
@@ -149,26 +149,26 @@ describe('HomeHeroComponent', () => {
     } as any;
 
     beforeEach(() => {
-      component.isLoadingServiceTypes = false;
-      component.propertyType = null;
+      component.isLoadingServiceTypes.set(false);
+      component.propertyType.set(null);
     });
 
     it('does not take the slot on Residential, which still shows Regular / Deep', () => {
-      component.selectedServiceType = residential;
+      component.selectedServiceType.set(residential);
 
       expect(component.canSelectDeepCleaning).toBe(true);
       expect(component.showPropertyTypeSelector()).toBe(false);
     });
 
     it('fills the otherwise-empty slot on a non-Residential type', () => {
-      component.selectedServiceType = moveInOut;
+      component.selectedServiceType.set(moveInOut);
 
       expect(component.canSelectDeepCleaning).toBe(false);
       expect(component.showPropertyTypeSelector()).toBe(true);
     });
 
     it('stays hidden on a quote-request type, via the shared exclusion rule', () => {
-      component.selectedServiceType = pollType;
+      component.selectedServiceType.set(pollType);
 
       expect(component.showPropertyTypeSelector()).toBe(false);
     });
@@ -176,7 +176,7 @@ describe('HomeHeroComponent', () => {
     it('stays hidden on a type an admin switched off', () => {
       // Office Cleaning is the shipped example. The flag exists because Office and Heavy
       // Conditional are structurally identical, so nothing else can tell them apart.
-      component.selectedServiceType = { ...moveInOut, collectsPropertyType: false } as any;
+      component.selectedServiceType.set({ ...moveInOut, collectsPropertyType: false } as any);
 
       expect(component.showPropertyTypeSelector()).toBe(false);
     });
@@ -184,26 +184,26 @@ describe('HomeHeroComponent', () => {
     it('treats an ABSENT flag as true, so a stale payload never hides it everywhere', () => {
       const noFlag = { ...moveInOut } as any;
       delete noFlag.collectsPropertyType;
-      component.selectedServiceType = noFlag;
+      component.selectedServiceType.set(noFlag);
 
       expect(component.showPropertyTypeSelector()).toBe(true);
     });
 
     it('never collects a level count, so House changes nothing about the estimate', () => {
-      component.selectedServiceType = moveInOut;
-      component.selectedServices = [];
+      component.selectedServiceType.set(moveInOut);
+      component.selectedServices.set([]);
       const before = component.getEstimatedPrice();
 
       component.selectPropertyType('House');
 
-      expect(component.propertyType).toBe('House');
+      expect(component.propertyType()).toBe('House');
       // No levels field exists on this component at all, and the price is untouched.
       expect((component as any).levelsQuantity).toBeUndefined();
       expect(component.getEstimatedPrice()).toBe(before);
     });
 
     it('persists the choice under the key the booking page reads', () => {
-      component.selectedServiceType = moveInOut;
+      component.selectedServiceType.set(moveInOut);
 
       component.selectPropertyType('Apartment');
 
@@ -228,13 +228,13 @@ describe('HomeHeroComponent', () => {
     it('draws a re-created hero from the list this tab already loaded', () => {
       const http = TestBed.inject(HttpTestingController);
       http.expectOne(r => r.url.endsWith('/booking/service-types')).flush(TYPES);
-      expect(component.isLoadingServiceTypes).toBe(false);
+      expect(component.isLoadingServiceTypes()).toBe(false);
 
       const again = TestBed.createComponent(HomeHeroComponent);
       again.detectChanges();
 
-      expect(again.componentInstance.isLoadingServiceTypes).toBe(false);
-      expect(again.componentInstance.serviceTypes.map(t => t.id)).toEqual([1]);
+      expect(again.componentInstance.isLoadingServiceTypes()).toBe(false);
+      expect(again.componentInstance.serviceTypes().map(t => t.id)).toEqual([1]);
       // Still refreshed from the API.
       http.expectOne(r => r.url.endsWith('/booking/service-types')).flush(TYPES);
     });
@@ -311,7 +311,7 @@ describe('HomeHeroComponent server-rendered form', () => {
     sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ ...data, savedAt: Date.now() }));
   const heroCookie = () => readCookie(document.cookie, HERO_CHOICE_COOKIE);
   const quantity = (hero: HomeHeroComponent, key: string) =>
-    hero.selectedServices.find(s => s.service.serviceKey === key)?.quantity;
+    hero.selectedServices().find(s => s.service.serviceKey === key)?.quantity;
   const typeLabel = (fixture: ComponentFixture<HomeHeroComponent>) =>
     (fixture.nativeElement as HTMLElement).querySelector('.dropdown-toggle__label span')?.textContent?.trim();
   const OFFICE_CHOICE: HeroChoice = {
@@ -334,8 +334,8 @@ describe('HomeHeroComponent server-rendered form', () => {
       serviceTypesRequest(http).flush(TYPES);
       fixture.detectChanges();
 
-      expect(hero.isLoadingServiceTypes).toBe(false);
-      expect(hero.selectedServiceType?.id).toBe(1);
+      expect(hero.isLoadingServiceTypes()).toBe(false);
+      expect(hero.selectedServiceType()?.id).toBe(1);
       const el = fixture.nativeElement as HTMLElement;
       expect(el.querySelectorAll('.service-item:not(.hero-skeleton)').length).toBe(2);
       expect(el.querySelector('.hero-skeleton')).toBeNull();
@@ -359,7 +359,7 @@ describe('HomeHeroComponent server-rendered form', () => {
       serviceTypesRequest(http).flush(TYPES);
       fixture.detectChanges();
 
-      expect(hero.selectedServiceType?.id).toBe(2);
+      expect(hero.selectedServiceType()?.id).toBe(2);
       expect(quantity(hero, 'hours')).toBe(5);
       expect(typeLabel(fixture)).toBe('Office Cleaning');
       expect(TestBed.inject(TransferState).get(HERO_CHOICE_KEY, null)).toEqual(OFFICE_CHOICE);
@@ -371,7 +371,7 @@ describe('HomeHeroComponent server-rendered form', () => {
         const { hero, http, ssrContext } = create('server', { requestCookies: `dc_hero_choice=${value}` });
         serviceTypesRequest(http).flush(TYPES);
 
-        expect(hero.selectedServiceType?.id).toBe(1);
+        expect(hero.selectedServiceType()?.id).toBe(1);
         expect(quantity(hero, 'bedrooms')).toBe(0);
         expect(ssrContext.renderedFromCookie).toBeFalsy();
         expect(TestBed.inject(TransferState).hasKey(HERO_CHOICE_KEY)).toBe(false);
@@ -391,7 +391,7 @@ describe('HomeHeroComponent server-rendered form', () => {
       serviceTypesRequest(http).flush('down', { status: 503, statusText: 'Unavailable' });
       fixture.detectChanges();
 
-      expect(hero.isLoadingServiceTypes).toBe(true);
+      expect(hero.isLoadingServiceTypes()).toBe(true);
       expect((fixture.nativeElement as HTMLElement).querySelectorAll('.hero-skeleton').length).toBeGreaterThan(0);
     });
 
@@ -403,7 +403,7 @@ describe('HomeHeroComponent server-rendered form', () => {
       await vi.advanceTimersByTimeAsync(SSR_SERVICE_TYPES_TIMEOUT_MS);
 
       expect(request.cancelled).toBe(true);
-      expect(hero.isLoadingServiceTypes).toBe(true);
+      expect(hero.isLoadingServiceTypes()).toBe(true);
     });
   });
 
@@ -411,8 +411,8 @@ describe('HomeHeroComponent server-rendered form', () => {
     it('uses the server\'s trimmed copy from TransferState without a request', () => {
       const { hero, http } = create('browser', { transfer: true });
 
-      expect(hero.isLoadingServiceTypes).toBe(false);
-      expect(hero.selectedServiceType?.id).toBe(1);
+      expect(hero.isLoadingServiceTypes()).toBe(false);
+      expect(hero.selectedServiceType()?.id).toBe(1);
       http.expectNone(r => r.url.endsWith('/booking/service-types'));
       expect(TestBed.inject(TransferState).hasKey(HERO_SERVICE_TYPES_KEY)).toBe(false);
     });
@@ -422,14 +422,14 @@ describe('HomeHeroComponent server-rendered form', () => {
       writeHeroChoiceCookie(document, { selectedServiceTypeId: '1', selectedServices: [], cleaningType: 'normal' });
       const { fixture, hero } = create('browser', { transfer: true, serverChoice: OFFICE_CHOICE });
 
-      expect(hero.selectedServiceType?.id).toBe(2);
+      expect(hero.selectedServiceType()?.id).toBe(2);
       expect(quantity(hero, 'hours')).toBe(5);
       expect(typeLabel(fixture)).toBe('Office Cleaning');
       expect(stored()).toBeNull(); // nothing written during the hydration pass
 
       afterHydration(fixture);
 
-      expect(hero.selectedServiceType?.id).toBe(2);
+      expect(hero.selectedServiceType()?.id).toBe(2);
       expect(quantity(hero, 'hours')).toBe(5);
       // This tab's (empty) storage and the cookie now match the form on screen.
       expect(stored()?.selectedServiceTypeId).toBe('2');
@@ -449,11 +449,11 @@ describe('HomeHeroComponent server-rendered form', () => {
 
     it('no cookie, first-time visitor: draws the default form and saves it after hydration', () => {
       const { fixture, hero } = create('browser', { transfer: true });
-      expect(hero.selectedServiceType?.id).toBe(1);
+      expect(hero.selectedServiceType()?.id).toBe(1);
 
       afterHydration(fixture);
 
-      expect(hero.selectedServiceType?.id).toBe(1);
+      expect(hero.selectedServiceType()?.id).toBe(1);
       expect(stored()?.selectedServiceTypeId).toBe('1');
       expect(heroCookie()).toMatch(/^1\.1\.n\./);
     });
@@ -478,11 +478,11 @@ describe('HomeHeroComponent server-rendered form', () => {
       saveStorage({ selectedServiceTypeId: '2', selectedServices: [{ serviceId: '21', quantity: 5 }] });
       writeHeroChoiceCookie(document, null);
       const { fixture, hero } = create('browser', { transfer: true });
-      expect(hero.selectedServiceType?.id).toBe(1);
+      expect(hero.selectedServiceType()?.id).toBe(1);
 
       afterHydration(fixture);
 
-      expect(hero.selectedServiceType?.id).toBe(2);
+      expect(hero.selectedServiceType()?.id).toBe(2);
       expect(quantity(hero, 'hours')).toBe(5);
     });
 
@@ -492,7 +492,7 @@ describe('HomeHeroComponent server-rendered form', () => {
 
       afterHydration(fixture);
 
-      expect(hero.selectedServiceType?.id).toBe(1);
+      expect(hero.selectedServiceType()?.id).toBe(1);
       // The quantities belonged to the missing type and are not applied.
       expect(quantity(hero, 'bedrooms')).toBe(0);
       expect(stored()?.selectedServiceTypeId).toBe('1');
@@ -505,7 +505,7 @@ describe('HomeHeroComponent server-rendered form', () => {
       const { hero, http } = create('browser');
       serviceTypesRequest(http).flush(TYPES);
 
-      expect(hero.selectedServiceType?.id).toBe(2);
+      expect(hero.selectedServiceType()?.id).toBe(2);
       expect(quantity(hero, 'hours')).toBe(5);
     });
 
@@ -514,7 +514,7 @@ describe('HomeHeroComponent server-rendered form', () => {
       const { hero, http } = create('browser');
       serviceTypesRequest(http).flush(TYPES);
 
-      expect(hero.selectedServiceType?.id).toBe(2);
+      expect(hero.selectedServiceType()?.id).toBe(2);
       expect(quantity(hero, 'hours')).toBe(5);
       expect(stored()?.selectedServiceTypeId).toBe('2');
     });
@@ -568,8 +568,8 @@ describe('trimServiceTypesForHero', () => {
       TestBed.resetTestingModule();
       TestBed.configureTestingModule({ providers: [...testProviders], imports: [HomeHeroComponent] });
       const hero = TestBed.createComponent(HomeHeroComponent).componentInstance;
-      hero.selectedServiceType = types[0];
-      hero.selectedServices = [{ service: types[0].services[0], quantity: bedroomsQty }, { service: types[0].services[1], quantity: sqftQty }];
+      hero.selectedServiceType.set(types[0]);
+      hero.selectedServices.set([{ service: types[0].services[0], quantity: bedroomsQty }, { service: types[0].services[1], quantity: sqftQty }]);
       hero.cleaningTypeControl.setValue(cleaningType);
       return [(hero as any).buildEstimateQuoteInput(cleaningType, true), (hero as any).buildEstimateQuoteInput(cleaningType, false)]
         .map((input: any) => JSON.stringify(input));

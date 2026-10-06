@@ -33,8 +33,8 @@ describe('ProfileComponent', () => {
     ...over
   } as OrderList);
 
-  /** A bare instance with no constructor dependencies resolved. */
-  const bare = () => Object.create(ProfileComponent.prototype) as ProfileComponent;
+  /** An instance that is never rendered (no detectChanges, so ngOnInit's loads never fire). */
+  const bare = () => TestBed.createComponent(ProfileComponent).componentInstance;
 
   // ── The tab set ────────────────────────────────────────────────────────────────────────
 
@@ -57,15 +57,15 @@ describe('ProfileComponent', () => {
 
   it('counts only real orders in "Your cleanings (N)"; the list still holds them all', () => {
     const c = bare();
-    c.orders = [
+    c.orders.set([
       order(1),
       order(2, { status: 'Cancelled' }),
       order(3, { status: 'Refunded' }),
       order(4, { status: 'Active', totalRefundedAmount: 20 } as any),   // a part refund keeps its status and counts
       order(5, { status: 'Pending' })
-    ];
+    ]);
     expect(c.realOrderCount).toBe(3);
-    expect(c.orders.length).toBe(5);
+    expect(c.orders()!.length).toBe(5);
   });
 
   // ── Paging the cleanings ───────────────────────────────────────────────────────────────
@@ -74,8 +74,8 @@ describe('ProfileComponent', () => {
     const withOrders = (count: number) => {
       const c = bare();
       (c as any).ordersPerPage = ORDERS_PER_PAGE;
-      c.orders = Array.from({ length: count }, (_, i) => order(i + 1));
-      c.ordersPage = 1;
+      c.orders.set(Array.from({ length: count }, (_, i) => order(i + 1)));
+      c.ordersPage.set(1);
       return c;
     };
 
@@ -88,7 +88,7 @@ describe('ProfileComponent', () => {
 
     it('puts the remainder on the last page', () => {
       const c = withOrders(14);
-      c.ordersPage = 2;
+      c.ordersPage.set(2);
       expect(c.pagedOrders.length).toBe(4);
       expect(c.pagedOrders[0].id).toBe(11);
     });
@@ -109,8 +109,8 @@ describe('ProfileComponent', () => {
     it('leaves the list alone while it is still loading', () => {
       const c = bare();
       (c as any).ordersPerPage = ORDERS_PER_PAGE;
-      c.orders = null;
-      c.ordersPage = 1;
+      c.orders.set(null);
+      c.ordersPage.set(1);
       expect(c.pagedOrders).toEqual([]);
     });
 
@@ -118,34 +118,34 @@ describe('ProfileComponent', () => {
       // 11 orders is 2 pages; cancel one from the second page and it holds nothing. Staying put
       // would show an empty list under a pager claiming there is a page 2.
       const c = withOrders(11);
-      c.ordersPage = 2;
+      c.ordersPage.set(2);
       const remaining = Array.from({ length: 10 }, (_, i) => order(i + 1));
       (c as any).orderService = { getUserOrders: () => of(remaining) };
       c.loadOrders();
-      expect(c.orders!.length).toBe(10);
-      expect(c.ordersPage).toBe(1);
+      expect(c.orders()!.length).toBe(10);
+      expect(c.ordersPage()).toBe(1);
     });
 
     it('keeps the current page when the reload still fills it', () => {
       const c = withOrders(20);
-      c.ordersPage = 2;
+      c.ordersPage.set(2);
       (c as any).orderService = { getUserOrders: () => of(Array.from({ length: 20 }, (_, i) => order(i + 1))) };
       c.loadOrders();
-      expect(c.ordersPage).toBe(2);
+      expect(c.ordersPage()).toBe(2);
     });
 
     it('clamps a page number typed past either end', () => {
       const c = withOrders(14);
       (c as any).platformId = 'server';   // no document to scroll
       c.goToOrderPage(99);
-      expect(c.ordersPage).toBe(2);
+      expect(c.ordersPage()).toBe(2);
       c.goToOrderPage(-4);
-      expect(c.ordersPage).toBe(1);
+      expect(c.ordersPage()).toBe(1);
     });
 
     it('windows the page numbers instead of drawing every one', () => {
       const c = withOrders(10 * 40);       // 40 pages
-      c.ordersPage = 20;
+      c.ordersPage.set(20);
       expect(c.orderPageNumbers.length).toBe(5);
       expect(c.orderPageNumbers).toContain(20);
       expect(c.orderPageNumbers[0]).toBeGreaterThan(1);
@@ -156,8 +156,8 @@ describe('ProfileComponent', () => {
       (c as any).ordersPerPage = ORDERS_PER_PAGE;
       (c as any).orderService = { getUserOrders: () => throwError(() => ({ error: { message: 'Nope' } })) };
       c.loadOrders();
-      expect(c.ordersError).toBe('Nope');
-      expect(c.orders).toEqual([]);
+      expect(c.ordersError()).toBe('Nope');
+      expect(c.orders()).toEqual([]);
     });
   });
 
@@ -219,11 +219,11 @@ describe('ProfileComponent', () => {
     // A residential customer has neither. A link to a page that can only say "nothing here"
     // reads as something broken.
     const c = bare();
-    expect(c.hasInvoices).toBeUndefined();
-    c.hasInvoices = false;
-    c.hasContracts = false;
-    expect(c.hasInvoices).toBe(false);
-    expect(c.hasContracts).toBe(false);
+    expect(c.hasInvoices()).toBe(false); // a real instance starts hidden (the bare prototype read undefined)
+    c.hasInvoices.set(false);
+    c.hasContracts.set(false);
+    expect(c.hasInvoices()).toBe(false);
+    expect(c.hasContracts()).toBe(false);
   });
 
   // ── Changing the email address ─────────────────────────────────────────────────────────
@@ -260,7 +260,7 @@ describe('ProfileComponent', () => {
     const withPlanService = (spy: Mock) => {
       const c = bare();
       (c as any).profileService = { selectPlan: spy, getPlan: () => of({ plans: [], nextCleaningIsFirstOnPlan: true }) };
-      c.planSavingId = undefined;
+      c.planSavingId.set(undefined);
       return c;
     };
 
@@ -269,7 +269,7 @@ describe('ProfileComponent', () => {
       const c = withPlanService(spy);
       c.choosePlan(plan() as any);
       expect(spy).toHaveBeenCalledWith(2);
-      expect(c.plan!.preferredSubscriptionId).toBe(2);
+      expect(c.plan()!.preferredSubscriptionId).toBe(2);
     });
 
     it('clears the preference when the chosen tier is tapped again', () => {
@@ -285,13 +285,13 @@ describe('ProfileComponent', () => {
       const spy = vi.fn().mockName('selectPlan').mockReturnValue(of({ plans: [plan({ isPreferred: true })], preferredSubscriptionId: 2, nextCleaningIsFirstOnPlan: true }));
       const c = withPlanService(spy);
       c.choosePlan(plan() as any);
-      expect(c.successMessage).toContain('nothing has been charged');
+      expect(c.successMessage()).toContain('nothing has been charged');
     });
 
     it('ignores a second tap while one is already saving', () => {
       const spy = vi.fn().mockName('selectPlan');
       const c = withPlanService(spy);
-      c.planSavingId = 3;
+      c.planSavingId.set(3);
       c.choosePlan(plan() as any);
       expect(spy).not.toHaveBeenCalled();
     });
@@ -300,8 +300,8 @@ describe('ProfileComponent', () => {
       const spy = vi.fn().mockName('selectPlan').mockReturnValue(throwError(() => ({ error: { message: 'Plan unavailable.' } })));
       const c = withPlanService(spy);
       c.choosePlan(plan() as any);
-      expect(c.planSavingId).toBeUndefined();
-      expect(c.planError).toBe('Plan unavailable.');
+      expect(c.planSavingId()).toBeUndefined();
+      expect(c.planError()).toBe('Plan unavailable.');
     });
 
     it('describes each cadence from the configured day count', () => {
@@ -329,18 +329,18 @@ describe('ProfileComponent', () => {
         getMyReferralCode: () => of({ code: 'ABC123', shareUrl: 'https://dreamcleaningnyc.com/?ref=ABC123' })
       });
       (c as any).loadReferralCode();
-      expect(c.referralCode).toBe('ABC123');
-      expect(c.referralShareUrl).toBe('https://dreamcleaningnyc.com/?ref=ABC123');
+      expect(c.referralCode()).toBe('ABC123');
+      expect(c.referralShareUrl()).toBe('https://dreamcleaningnyc.com/?ref=ABC123');
     });
 
     it('leaves the card with nothing to draw when the read fails', () => {
       // Best-effort, like the invoices/contracts probes: no code means the shared card renders
       // nothing, which is better than an empty referral box on an otherwise working page.
       const c = withReferralService({ getMyReferralCode: () => throwError(() => new Error('nope')) });
-      c.referralCode = 'STALE';
+      c.referralCode.set('STALE');
       (c as any).loadReferralCode();
-      expect(c.referralCode).toBe('');
-      expect(c.referralShareUrl).toBe('');
+      expect(c.referralCode()).toBe('');
+      expect(c.referralShareUrl()).toBe('');
     });
 
     it('does not reach for it during server-side rendering', () => {

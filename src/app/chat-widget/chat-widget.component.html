@@ -1,28 +1,28 @@
-@if (visible) {
+@if (visible()) {
   <!-- Floating chat button -->
   <button
     type="button"
     class="chat-fab"
-    [class.no-sticky-cta]="!stickyCtaVisible"
-    [class.chat-fab--open]="isOpen"
+    [class.no-sticky-cta]="!stickyCtaVisible()"
+    [class.chat-fab--open]="isOpen()"
     (click)="toggleOpen()"
-    [attr.aria-label]="isOpen ? 'Close chat' : 'Chat with us'"
-    [attr.aria-expanded]="isOpen">
-    <i [appIcon]="isOpen ? icons.faXmark : icons.faComments" aria-hidden="true"></i>
+    [attr.aria-label]="isOpen() ? 'Close chat' : 'Chat with us'"
+    [attr.aria-expanded]="isOpen()">
+    <i [appIcon]="isOpen() ? icons.faXmark : icons.faComments" aria-hidden="true"></i>
     <!-- Unread replies badge (closed panel only) -->
-    @if (unreadCount > 0 && !isOpen) {
+    @if (unreadCount() > 0 && !isOpen()) {
     <span class="chat-fab__badge" aria-label="Unread messages">
-      {{ unreadCount > 9 ? '9+' : unreadCount }}
+      {{ unreadCount() > 9 ? '9+' : unreadCount() }}
     </span>
     }
   </button>
 
   <!-- Slide-up panel. Panel-level click/keydown feed the idle-timeout keep-alive so an
        actively-used chat never pauses (events bubble up from inner controls + input). -->
-  @if (isOpen) {
+  @if (isOpen()) {
   <section
     class="chat-panel"
-    [class.no-sticky-cta]="!stickyCtaVisible"
+    [class.no-sticky-cta]="!stickyCtaVisible()"
     aria-label="Chat with Dream Cleaning"
     (click)="registerActivity()"
     (keydown)="registerActivity()">
@@ -31,11 +31,11 @@
         <span class="chat-panel__avatar"><i [appIcon]="icons.faBroom" aria-hidden="true"></i></span>
         <div class="chat-panel__titles">
           <strong>Dream Cleaning</strong>
-          <small>{{ conversationEnded ? 'Conversation ended' : escalated ? "You're chatting with our team" : 'Virtual assistant' }}</small>
+          <small>{{ conversationEnded() ? 'Conversation ended' : escalated() ? "You're chatting with our team" : 'Virtual assistant' }}</small>
         </div>
       </div>
       <div class="chat-panel__header-actions">
-        @if (messages.length > 0 && !conversationEnded) {
+        @if (messages().length > 0 && !conversationEnded()) {
         <button
           type="button"
           class="chat-panel__close"
@@ -52,7 +52,7 @@
     </header>
 
     <div class="chat-panel__messages" #messageList>
-      @if (messages.length === 0 && !sending) {
+      @if (messages().length === 0 && !sending()) {
       <div class="chat-msg chat-msg--assistant">
         <div class="chat-msg__bubble">
           Hi! 👋 I can help with our cleaning services, price estimates, what's included, and discounts. What can I do for you?
@@ -65,7 +65,7 @@
           <button
             type="button"
             class="chat-quick-reply"
-            [disabled]="sending"
+            [disabled]="sending()"
             (click)="sendOpener(opener)">
             <i [appIcon]="opener.icon" aria-hidden="true"></i> {{ opener.label }}
           </button>
@@ -74,7 +74,7 @@
       </div>
       }
 
-      @for (m of messages; track $index) {
+      @for (m of messages(); track $index) {
       <div
         class="chat-msg"
         [class.chat-msg--user]="m.role === 'user'"
@@ -105,7 +105,7 @@
           <button
             type="button"
             class="chat-quick-reply"
-            [disabled]="sending"
+            [disabled]="sending()"
             (click)="onQuickReply(option)">
             {{ option }}
           </button>
@@ -116,7 +116,7 @@
       }
 
       <!-- Typing indicator while waiting for a reply -->
-      @if (sending) {
+      @if (sending()) {
       <div class="chat-msg chat-msg--assistant">
         <div class="chat-msg__bubble chat-msg__bubble--typing" aria-label="Assistant is typing">
           <span></span><span></span><span></span>
@@ -125,14 +125,14 @@
       }
     </div>
 
-    @if (error) {
+    @if (error()) {
     <div class="chat-panel__error" role="alert">
-      <i [appIcon]="icons.faCircleExclamation" aria-hidden="true"></i> {{ error }}
+      <i [appIcon]="icons.faCircleExclamation" aria-hidden="true"></i> {{ error() }}
     </div>
     }
 
     <!-- Pending image preview (attached, not yet sent) -->
-    @if (pendingImage) {
+    @if (pendingImage(); as pendingImage) {
     <div class="chat-panel__attachment">
       <img [src]="pendingImage.previewUrl" alt="Image ready to send" />
       <span>Image attached</span>
@@ -143,7 +143,7 @@
     }
 
     <!-- Ended state — replaces the input row once the session is Resolved -->
-    @if (conversationEnded) {
+    @if (conversationEnded()) {
     <footer class="chat-panel__ended">
       <p>This conversation has ended.</p>
       <button type="button" (click)="startNewChat()">Start new chat</button>
@@ -152,7 +152,7 @@
 
     <!-- Idle-pause banner — polling was suspended after inactivity. The input stays
          usable below, so a plain send resumes too; Continue is the explicit path. -->
-    @if (paused && !conversationEnded) {
+    @if (paused() && !conversationEnded()) {
     <div class="chat-panel__paused" role="status">
       <span><i [appIcon]="icons.faCirclePause" aria-hidden="true"></i> Paused due to inactivity</span>
       <button type="button" class="chat-panel__continue" (click)="continueChat()">Continue chat</button>
@@ -162,31 +162,31 @@
     <!-- Talk to a real person. Always one tap away while the AI still has the conversation,
          so a visitor it is misreading never has to argue their way to a human. Two-step so a
          stray tap doesn't page the team. -->
-    @if (showHumanHandoff) {
+    @if (showHumanHandoff()) {
     <div class="chat-panel__handoff">
-      @if (!confirmingHumanRequest) {
+      @if (!confirmingHumanRequest()) {
       <button
         type="button"
         class="chat-panel__handoff-btn"
-        [disabled]="requestingHuman"
+        [disabled]="requestingHuman()"
         (click)="askForHuman()">
         <i [appIcon]="icons.faHeadset" aria-hidden="true"></i> Talk to a real person
       </button>
       }
-      @if (confirmingHumanRequest) {
+      @if (confirmingHumanRequest()) {
 
         <span class="chat-panel__handoff-ask">Connect you with our team?</span>
         <button
           type="button"
           class="chat-panel__handoff-yes"
-          [disabled]="requestingHuman"
+          [disabled]="requestingHuman()"
           (click)="confirmHumanRequest()">
-          {{ requestingHuman ? 'Connecting…' : 'Yes, connect me' }}
+          {{ requestingHuman() ? 'Connecting…' : 'Yes, connect me' }}
         </button>
         <button
           type="button"
           class="chat-panel__handoff-no"
-          [disabled]="requestingHuman"
+          [disabled]="requestingHuman()"
           (click)="cancelHumanRequest()">
           Not now
         </button>
@@ -197,28 +197,28 @@
     <!-- Optional guest contact email. It used to disappear the instant the first message was
          sent — before anyone had a chance to fill it in — so it now stays put until the
          visitor either submits an address (✓) or dismisses the row (✕). -->
-    @if (showEmailField) {
+    @if (showEmailField()) {
     <div class="chat-panel__email">
       <div class="chat-panel__email-row">
         <input
           type="email"
           class="chat-panel__email-field"
-          [class.chat-panel__email-field--invalid]="guestEmailError"
+          [class.chat-panel__email-field--invalid]="guestEmailError()"
           [(ngModel)]="guestEmailInput"
-          (input)="guestEmailError = null"
+          (input)="guestEmailError.set(null)"
           (keyup.enter)="submitGuestEmail()"
           placeholder="Email (optional)"
           maxlength="255"
           autocomplete="email"
-          [disabled]="savingGuestEmail"
+          [disabled]="savingGuestEmail()"
           aria-label="Email (optional)" />
         <button
           type="button"
           class="chat-panel__email-submit"
-          [disabled]="savingGuestEmail"
+          [disabled]="savingGuestEmail()"
           (click)="submitGuestEmail()"
           aria-label="Save email">
-          <i [appIcon]="savingGuestEmail ? icons.faSpinner : icons.faCheck" [class.fa-spin]="savingGuestEmail" aria-hidden="true"></i>
+          <i [appIcon]="savingGuestEmail() ? icons.faSpinner : icons.faCheck" [class.fa-spin]="savingGuestEmail()" aria-hidden="true"></i>
         </button>
         <!-- Dismiss. The field is optional and no longer hides itself on the first message,
              so without this a visitor who doesn't want to leave an address has no way to
@@ -226,36 +226,36 @@
         <button
           type="button"
           class="chat-panel__email-dismiss"
-          [disabled]="savingGuestEmail"
+          [disabled]="savingGuestEmail()"
           (click)="dismissGuestEmail()"
           title="No thanks"
           aria-label="Dismiss the email field">
           <i [appIcon]="icons.faXmark" aria-hidden="true"></i>
         </button>
       </div>
-      @if (guestEmailError) {
-      <small class="chat-panel__email-error" role="alert">{{ guestEmailError }}</small>
+      @if (guestEmailError()) {
+      <small class="chat-panel__email-error" role="alert">{{ guestEmailError() }}</small>
       }
     </div>
     }
 
     <!-- Short confirmation in place of the field, so it doesn't just silently vanish. -->
-    @if (guestEmailNoteVisible) {
+    @if (guestEmailNoteVisible()) {
     <div class="chat-panel__email-note" role="status">
       <i [appIcon]="icons.faCircleCheck" aria-hidden="true"></i> Thanks — we'll use that if we need to reach you.
     </div>
     }
 
-    @if (!conversationEnded) {
+    @if (!conversationEnded()) {
     <footer class="chat-panel__input">
-      <label class="chat-panel__attach" [class.chat-panel__attach--busy]="uploadingImage">
-        <i [appIcon]="uploadingImage ? icons.faSpinner : icons.faPaperclip" [class.fa-spin]="uploadingImage" aria-hidden="true"></i>
+      <label class="chat-panel__attach" [class.chat-panel__attach--busy]="uploadingImage()">
+        <i [appIcon]="uploadingImage() ? icons.faSpinner : icons.faPaperclip" [class.fa-spin]="uploadingImage()" aria-hidden="true"></i>
         <input
           type="file"
           aria-label="Attach an image"
           accept="image/jpeg,image/png,image/webp"
           (change)="onFileSelected($event)"
-          [disabled]="uploadingImage || sending" />
+          [disabled]="uploadingImage() || sending()" />
       </label>
       <input
         #messageInput
@@ -265,7 +265,7 @@
         (keyup.enter)="send()"
         placeholder="Type a message…"
         maxlength="4000"
-        [disabled]="sending" />
+        [disabled]="sending()" />
       <button type="button" class="chat-panel__send" (click)="send()" [disabled]="!canSend" aria-label="Send message">
         <i [appIcon]="icons.faPaperPlane" aria-hidden="true"></i>
       </button>

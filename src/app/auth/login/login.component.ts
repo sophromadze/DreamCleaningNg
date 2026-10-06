@@ -7,6 +7,7 @@ import { passwordValidator } from '../../utils/password-validator';
 import { normalizePhone10, sanitizePhoneInput } from '../../utils/phone.utils';
 import { GoogleSigninWrapperComponent } from './google-signin-wrapper.component';
 import { AppleSigninButtonComponent } from './apple-signin-button.component';
+import { formViewRefresher } from '../../shared/forms/form-view-refresher';
 
 type LoginStep = 'email' | 'password' | 'otp';
 
@@ -19,6 +20,8 @@ type LoginStep = 'email' | 'password' | 'otp';
   styleUrl: './login.component.scss'
 })
 export class LoginComponent implements OnInit {
+  /** Re-renders when a form changes outside a template event (see form-view-refresher). */
+  private readonly watchForm = formViewRefresher();
   private fb = inject(FormBuilder);
   private authService = inject(AuthService);
   private router = inject(Router);
@@ -54,14 +57,17 @@ export class LoginComponent implements OnInit {
     this.emailForm = this.fb.group({
       email: ['', [Validators.required, Validators.email]]
     });
+    this.watchForm(this.emailForm);
 
     this.passwordForm = this.fb.group({
       password: ['', [Validators.required, Validators.minLength(8)]]
     });
+    this.watchForm(this.passwordForm);
 
     this.otpForm = this.fb.group({
       code: ['', [Validators.required, Validators.minLength(6), Validators.maxLength(6), Validators.pattern(/^\d{6}$/)]]
     });
+    this.watchForm(this.otpForm);
 
     this.registerForm = this.fb.group({
       firstName: ['', [Validators.required]],
@@ -72,6 +78,7 @@ export class LoginComponent implements OnInit {
       confirmPassword: ['', [Validators.required]],
       referralCode: ['']
     });
+    this.watchForm(this.registerForm);
 
     this.registerForm.get('confirmPassword')?.setValidators([
       Validators.required,

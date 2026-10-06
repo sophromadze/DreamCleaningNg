@@ -1,4 +1,4 @@
-import { Component, OnInit, ChangeDetectorRef, AfterViewInit, OnDestroy, ViewChild, ElementRef, HostListener, Input, ChangeDetectionStrategy, ApplicationRef, inject } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef, AfterViewInit, OnDestroy, ElementRef, HostListener, input, ChangeDetectionStrategy, ApplicationRef, inject, viewChild, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AdminService, OrderUpdateHistory, UserPermissions, SuperAdminUpdateOrderDto, PendingOrderEditListDto, PendingOrderEditDetailDto, AssignedCleanerAdmin, UserCleaningPhoto, OrderAdminNote, OrderTransferInfo, UserAdmin, OrderRefundSummary, OrderRefundInfo, OrderCleanerPayroll, OrderCleanerPayrollLine, OrderStaffingWarningsMap } from '../../../services/admin.service';
@@ -155,7 +155,7 @@ export interface PaymentTimelineRow {
   standalone: true,
   imports: [CommonModule, FormsModule, RecurringSeriesPanelComponent],
   templateUrl: './orders.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./orders.component.scss']
 })
 export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
@@ -173,41 +173,41 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   private customerInvoiceService = inject(CustomerInvoiceService);
 
   private readonly appRef = inject(ApplicationRef);
-  @ViewChild('tableWrapper', { static: false }) tableWrapper!: ElementRef<HTMLDivElement>;
-  @ViewChild('tableHeader', { static: false }) tableHeader!: ElementRef<HTMLTableSectionElement>;
+  readonly tableWrapper = viewChild<ElementRef<HTMLDivElement>>('tableWrapper');
+  readonly tableHeader = viewChild<ElementRef<HTMLTableSectionElement>>('tableHeader');
 
-  @Input() openOrderId: number | null = null;
+  readonly openOrderId = input<number | null>(null);
 
-  orders: AdminOrderList[] = [];
-  selectedOrder: Order | null = null;
+  readonly orders = signal<AdminOrderList[]>([], { equal: () => false });
+  readonly selectedOrder = signal<Order | null>(null, { equal: () => false });
   /** User id whose flag is mid-update (disables the panel flag buttons). */
-  flaggingOrderUserId: number | null = null;
-  viewingOrderId: number | null = null;
+  readonly flaggingOrderUserId = signal<number | null>(null);
+  readonly viewingOrderId = signal<number | null>(null);
 
   // ── Internal order note (admin-only free text, above Assigned Cleaners) ──
   readonly orderNoteMaxLength = 2000;
   /** What the textarea is bound to. Never null, so the counter and length checks stay simple. */
-  orderNoteDraft = '';
+  readonly orderNoteDraft = signal('');
   /** Last saved text, used to tell an unchanged draft from an edited one. */
-  private orderNoteSaved = '';
-  orderNoteUpdatedAt: string | null = null;
-  orderNoteUpdatedByName: string | null = null;
-  loadingOrderNote = false;
-  savingOrderNote = false;
-  orderNoteError = '';
-  orderNoteSuccess = '';
+  private readonly orderNoteSaved = signal('');
+  readonly orderNoteUpdatedAt = signal<string | null>(null);
+  readonly orderNoteUpdatedByName = signal<string | null>(null);
+  readonly loadingOrderNote = signal(false);
+  readonly savingOrderNote = signal(false);
+  readonly orderNoteError = signal('');
+  readonly orderNoteSuccess = signal('');
 
   // ── Order cleaning photos (shared with the per-user photo library) ──
-  orderPhotos: UserCleaningPhoto[] = [];
-  loadingOrderPhotos = false;
-  uploadingOrderPhoto = false;
-  orderPhotoProgress = '';
-  orderPhotoError = '';
-  orderPhotoSuccess = '';
-  lightboxOrderPhoto: UserCleaningPhoto | null = null;
+  readonly orderPhotos = signal<UserCleaningPhoto[]>([]);
+  readonly loadingOrderPhotos = signal(false);
+  readonly uploadingOrderPhoto = signal(false);
+  readonly orderPhotoProgress = signal('');
+  readonly orderPhotoError = signal('');
+  readonly orderPhotoSuccess = signal('');
+  readonly lightboxOrderPhoto = signal<UserCleaningPhoto | null>(null);
 
   // SuperAdmin order deletion
-  deletingOrder = false;
+  readonly deletingOrder = signal(false);
 
   Math = Math;
   readonly specialInstructionsMaxLength = 2000;
@@ -228,24 +228,24 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   }
   
   // Filtering and search
-  searchTerm: string = '';
-  statusFilter: string = 'all';
-  dateFilter: string = 'all';
+  readonly searchTerm = signal<string>('');
+  readonly statusFilter = signal<string>('all');
+  readonly dateFilter = signal<string>('all');
   // Specific-days window, active when dateFilter === 'custom'. yyyy-MM-dd strings from the
   // date inputs; both bounds inclusive. Same date in both = a single specific day.
-  customDateFrom: string = '';
-  customDateTo: string = '';
+  readonly customDateFrom = signal<string>('');
+  readonly customDateTo = signal<string>('');
   // Service-type filter. Values are the canonical category keys produced by
   // getServiceTypeFilterKey() — residential splits into 'deep'/'regular'.
-  serviceTypeFilter: string = 'all';
+  readonly serviceTypeFilter = signal<string>('all');
   // Who created the order: 'admin' = created via the admin create-for-user flow,
   // 'user' = the customer booked it themselves.
-  bookedByFilter: string = 'all';
+  readonly bookedByFilter = signal<string>('all');
 
   // ── Export (SuperAdmin-only), mirrors the users-tab export ──
-  showExportModal = false;
-  exporting = false;
-  exportError = '';
+  readonly showExportModal = signal(false);
+  readonly exporting = signal(false);
+  readonly exportError = signal('');
   /** Column keys must match the backend ExportOrders endpoint. */
   exportColumns: Array<{ key: string; label: string; selected: boolean }> = [
     { key: 'orderId',       label: 'ID',             selected: true },
@@ -270,12 +270,12 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   ];
 
   // Table sort (default: latest service date first)
-  sortColumn: string = 'serviceDate';
-  sortDirection: 'asc' | 'desc' = 'desc';
+  readonly sortColumn = signal<string>('serviceDate');
+  readonly sortDirection = signal<'asc' | 'desc'>('desc');
   
   // Permissions
-  userRole: string = '';
-  userPermissions: UserPermissions = {
+  readonly userRole = signal<string>('');
+  readonly userPermissions = signal<UserPermissions>({
     role: '',
     permissions: {
       canView: false,
@@ -285,18 +285,18 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
       canActivate: false,
       canDeactivate: false
     }
-  };
+  }, { equal: () => false });
 
   // UI State
-  errorMessage = '';
-  successMessage = '';
+  readonly errorMessage = signal('');
+  readonly successMessage = signal('');
   
   // Store customer names and details
   customerNames: Map<number, string> = new Map();
   customerDetails: Map<number, {id: number, email: string}> = new Map();
   
   // Pagination
-  currentPage = 1;
+  readonly currentPage = signal(1);
   // Derived from the filtered list (pure getter; replaces the old field that was
   // assigned inside the filteredOrders getter and triggered NG0100).
   get totalPages(): number {
@@ -309,8 +309,8 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   itemsPerPage = 20;
 
   // Mark as Done modal
-  showDoneModal = false;
-  doneModalOrder: AdminOrderList | null = null;
+  readonly showDoneModal = signal(false);
+  readonly doneModalOrder = signal<AdminOrderList | null>(null);
   sendingReview = false;
 
   // Phase 1 manual payment tracking — Done modal payment method block.
@@ -318,40 +318,40 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   // either accept it (e.g. Pending Zelle order with reference already recorded) or change
   // if the customer ended up paying differently.
   paymentMethodOptions = PAYMENT_METHOD_OPTIONS;
-  donePaymentMethod: PaymentMethodValue = 'Normal';
-  donePaymentReference = '';
-  donePaymentNotes = '';
+  readonly donePaymentMethod = signal<PaymentMethodValue>('Normal');
+  readonly donePaymentReference = signal('');
+  readonly donePaymentNotes = signal('');
 
   // Payment Method filter dropdown (Phase 1)
-  paymentMethodFilter: string = 'all';
+  readonly paymentMethodFilter = signal<string>('all');
 
   // Cancel order modal
-  showAdminCancelModal = false;
-  adminCancelOrderId: number | null = null;
-  adminCancelReason = '';
+  readonly showAdminCancelModal = signal(false);
+  readonly adminCancelOrderId = signal<number | null>(null);
+  readonly adminCancelReason = signal('');
 
   // New properties for cleaner assignment
-  showCleanerModal = false;
-  availableCleaners: AvailableCleaner[] = [];
+  readonly showCleanerModal = signal(false);
+  readonly availableCleaners = signal<AvailableCleaner[]>([]);
   /** Filters the assign-cleaners modal list by name or email (client-side). */
-  cleanerAssignmentSearchQuery = '';
+  readonly cleanerAssignmentSearchQuery = signal('');
   /** When true, the assign list also shows cleaners marked busy that day (still assignable). */
-  showBusyCleaners = false;
+  readonly showBusyCleaners = signal(false);
   /** The admin has read the same-day conflict warning on the cleaners they picked and wants
    *  them anyway. Reset every time the modal opens or closes — an acknowledgement belongs to
    *  the selection it was given for, never to the next one. */
-  acknowledgeScheduleConflicts = false;
-  selectedCleaners: number[] = [];
-  tipsForCleaner = '';
-  assigningOrderId: number | null = null;
-  assignedCleanersCache: Map<number, AssignedCleanerAdmin[]> = new Map();
+  readonly acknowledgeScheduleConflicts = signal(false);
+  readonly selectedCleaners = signal<number[]>([], { equal: () => false });
+  readonly tipsForCleaner = signal('');
+  readonly assigningOrderId = signal<number | null>(null);
+  readonly assignedCleanersCache = signal<Map<number, AssignedCleanerAdmin[]>>(new Map(), { equal: () => false });
   /** Tracks which orders have had their cleaners loaded (to distinguish "loading" from "not assigned") */
-  cleanersLoadedSet: Set<number> = new Set();
+  readonly cleanersLoadedSet = signal<Set<number>>(new Set(), { equal: () => false });
   /** Cached resolved residential variant for list rows (without opening details). */
-  residentialVariantCache: Map<number, 'Deep' | 'Regular'> = new Map();
+  readonly residentialVariantCache = signal<Map<number, 'Deep' | 'Regular'>>(new Map(), { equal: () => false });
   /** The per-cleaner wage breakdown for the order whose detail panel is open. */
-  selectedOrderPayroll: OrderCleanerPayroll | null = null;
-  loadingOrderPayroll = false;
+  readonly selectedOrderPayroll = signal<OrderCleanerPayroll | null>(null, { equal: () => false });
+  readonly loadingOrderPayroll = signal(false);
 
   // ── Editing the wage breakdown, mirroring the Outgoing Payments panel ──────────────
   //
@@ -366,15 +366,15 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   // screen invite saving the wrong one.
 
   /** `orderCleanerId` of the line being edited, or null. Unassigned slots are never editable. */
-  payrollEditingCleanerId: number | null = null;
-  payrollEditRate: number | null = null;
+  readonly payrollEditingCleanerId = signal<number | null>(null);
+  readonly payrollEditRate = signal<number | null>(null);
   /** Decimal hours, matching the "$21 × 4.25" working the row prints. Converted to minutes on save. */
-  payrollEditHours: number | null = null;
+  readonly payrollEditHours = signal<number | null>(null);
 
   /** The order-level editor: hours for every assigned cleaner, plus the order's default rate. */
-  editingPayrollForAll = false;
-  payrollAllHoursInput: number | null = null;
-  payrollAllRateInput: number | null = null;
+  readonly editingPayrollForAll = signal(false);
+  readonly payrollAllHoursInput = signal<number | null>(null);
+  readonly payrollAllRateInput = signal<number | null>(null);
   /**
    * What the for-all editor was SEEDED with, so the save can send only what actually moved.
    *
@@ -385,9 +385,9 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
    */
   private payrollAllSeed: { hours: number | null; rate: number | null } = { hours: null, rate: null };
 
-  savingPayroll = false;
+  readonly savingPayroll = signal(false);
   /** Kept out of `errorMessage`: it belongs beside the block that failed, not in the page banner. */
-  payrollError = '';
+  readonly payrollError = signal('');
   /**
    * Staffing warnings by order id, for the table's ⚠ tooltip and the detail panel's warning
    * block. Loaded in one bulk request alongside the orders (Admin + SuperAdmin — unlike the wage
@@ -397,12 +397,12 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
    * `staffingWarningsLoaded` is what separates "checked, all clear" from "not asked yet" — the
    * same distinction the panel already draws for the payroll block.
    */
-  staffingWarningsByOrderId: Map<number, string[]> = new Map();
+  readonly staffingWarningsByOrderId = signal<Map<number, string[]>>(new Map(), { equal: () => false });
   private staffingWarningsLoaded = false;
   // Hourly rate shown in the assign modal; set per order from getDefaultHourlyRate() on open.
-  cleanerHourlySalary: number = REGULAR_CLEANER_HOURLY_RATE;
+  readonly cleanerHourlySalary = signal<number>(REGULAR_CLEANER_HOURLY_RATE);
 
-  loadingStates = {
+  readonly loadingStates = signal({
     orders: false,
     orderDetails: false,
     assignedCleaners: false,
@@ -413,43 +413,43 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     chargingSavedCard: false,
     resendingConfirmation: false,
     partialPayment: false
-  };
+  }, { equal: () => false });
 
   // Card on file for the open order's owner (Charge button). Loaded when the details
   // panel opens; null until then / when the owner has no saved card.
-  orderSavedCardInfo: AdminOrderSavedCardInfo | null = null;
-  private resendingCleanerEmailKeys = new Set<string>();
+  readonly orderSavedCardInfo = signal<AdminOrderSavedCardInfo | null>(null);
+  private readonly resendingCleanerEmailKeys = signal(new Set<string>(), { equal: () => false });
 
   // "Send Payment Link" modal — re-sends the original payment-link email/SMS to the
   // customer's current account contact (after an admin fixes a mistyped email/phone).
-  showSendPaymentLinkModal = false;
-  sendPaymentLinkChannels = { email: true, sms: true };
+  readonly showSendPaymentLinkModal = signal(false);
+  readonly sendPaymentLinkChannels = signal({ email: true, sms: true });
 
-  orderUpdateHistory: OrderUpdateHistory[] = [];
-  loadingUpdateHistory = false;
+  readonly orderUpdateHistory = signal<OrderUpdateHistory[]>([]);
+  readonly loadingUpdateHistory = signal(false);
 
   // Pending order edits. Reviewed by anyone who may apply an order edit directly (SuperAdmin, or
   // an Admin granted it); every other Admin only submits them.
-  pendingOrderEdits: PendingOrderEditListDto[] = [];
+  readonly pendingOrderEdits = signal<PendingOrderEditListDto[]>([]);
   loadingPendingEdits = false;
-  selectedPendingEdit: PendingOrderEditDetailDto | null = null;
-  loadingPendingEditDetail = false;
-  approvingPendingId: number | null = null;
-  rejectingPendingId: number | null = null;
+  readonly selectedPendingEdit = signal<PendingOrderEditDetailDto | null>(null);
+  readonly loadingPendingEditDetail = signal(false);
+  readonly approvingPendingId = signal<number | null>(null);
+  readonly rejectingPendingId = signal<number | null>(null);
   /** Map extraServiceId -> name for showing "Extra (new)" label in pending edit diff. */
-  extraServiceNamesMap: Map<number, string> = new Map();
+  readonly extraServiceNamesMap = signal<Map<number, string>>(new Map());
   /** Map extraServiceId -> true if extra uses hours (for "(hours/cost)" vs "(qty/cost)" label). */
-  extraServiceHasHoursMap: Map<number, boolean> = new Map();
+  readonly extraServiceHasHoursMap = signal<Map<number, boolean>>(new Map());
 
   // Save-confirmation modal — shown to whoever saves an order edit DIRECTLY (SuperAdmin, or an
   // Admin granted it). It lists the same change rows a SuperAdmin sees when approving another
   // admin's edit, so nobody applies an order change without reading it first. Admins who still
   // need approval skip this: their submission is reviewed on the other side.
-  showSaveConfirm = false;
+  readonly showSaveConfirm = signal(false);
   /** The DTO built from the open edit form, held until the confirmation is accepted. */
   pendingSaveDto: SuperAdminUpdateOrderDto | null = null;
   /** Diff rows computed once when the modal opens, not re-derived per change-detection pass. */
-  saveConfirmChanges: OrderEditChange[] = [];
+  readonly saveConfirmChanges = signal<OrderEditChange[]>([]);
 
   // ── Editable Total (tax-inclusive, discount-aware) ──
   //
@@ -458,7 +458,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   // included, this order's discounts applied, bubble points / reward balance already deducted,
   // tips excluded. Only a gift card takes the field read-only — see canEditTotalDirectly.
   /** What the Total input shows and edits: the tip-free total. Kept in sync by recalculateEditPricing. */
-  editOrderTotalInput: number | null = null;
+  readonly editOrderTotalInput = signal<number | null>(null);
   /**
    * The exact tax this order is priced with, plus the discounted subtotal it was split out of.
    * Both travel to the server, which honours the tax only if the base still matches — so a stale
@@ -476,17 +476,17 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   editOrderPriceTyped = false;
 
   // SuperAdmin full order edit
-  editingOrder = false;
-  editOrderForm: Partial<SuperAdminUpdateOrderDto> = {};
+  readonly editingOrder = signal(false);
+  readonly editOrderForm = signal<Partial<SuperAdminUpdateOrderDto>>({}, { equal: () => false });
   // Service time is edited as 12-hour + AM/PM (admins misread a 24-hour field and booked
   // 08:00 jobs at 20:00). `editOrderForm.serviceTime` stays the 24-hour "HH:mm" the API
   // expects - these three are only the picker, recomposed by onEditServiceTimeChange().
-  editTimeHour12: number | null = null;
-  editTimeMinute = 0;
-  editTimeMeridiem: 'AM' | 'PM' = 'AM';
+  readonly editTimeHour12 = signal<number | null>(null);
+  readonly editTimeMinute = signal(0);
+  readonly editTimeMeridiem = signal<'AM' | 'PM'>('AM');
   readonly editTimeHourOptions = [12, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
-  editTimeMinuteOptions: number[] = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55];
-  savingOrder = false;
+  readonly editTimeMinuteOptions = signal<number[]>([0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55]);
+  readonly savingOrder = signal(false);
   editOrderFormOriginalSubTotal = 0;
   editOrderFormOriginalDiscount = 0;
   editOrderFormOriginalSubscriptionDiscount = 0;
@@ -494,14 +494,14 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   // multiplier we re-apply on subtotal edits (subscription/promo use a ratio because they
   // can be flat-dollar; loyalty is always %-based per spec section 4.5).
   editOrderFormOriginalLoyaltyDiscount = 0;
-  editOrderFormOriginalLoyaltyPercentage = 0;
+  readonly editOrderFormOriginalLoyaltyPercentage = signal(0);
   // Gift card on edit: available balance (current remaining + what this order already used) so a
   // price increase can be re-drawn from leftover funds before charging the customer. Mirrors the
   // user order-edit page; matches the backend ApplyEditGiftCardAsync re-resolution.
-  editGiftCardCode: string | null = null;
-  editGiftCardOriginalUsed = 0;
-  editGiftCardAvailableBalance = 0;
-  editGiftCardAmountToUse = 0;
+  readonly editGiftCardCode = signal<string | null>(null);
+  readonly editGiftCardOriginalUsed = signal(0);
+  readonly editGiftCardAvailableBalance = signal(0);
+  readonly editGiftCardAmountToUse = signal(0);
   editOrderFormPrevServiceQuantities: number[] = [];
   editOrderFormPrevExtraQuantities: number[] = [];
   editOrderFormPrevExtraHours: number[] = [];
@@ -517,22 +517,22 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   private editOrderFormSqftBaseline: { bedrooms: number; sqft: number } | null = null;
 
   // Floor type edit state for admin edit form
-  editFloorTypes: string[] = [];
-  editFloorTypeOther: string = '';
+  readonly editFloorTypes = signal<string[]>([]);
+  readonly editFloorTypeOther = signal<string>('');
   /** Extras available for the order's service type (for Add extra service dropdown). */
-  editOrderAvailableExtras: ExtraService[] = [];
-  serviceTypesCache: ServiceType[] = [];
+  readonly editOrderAvailableExtras = signal<ExtraService[]>([]);
+  readonly serviceTypesCache = signal<ServiceType[]>([]);
 
   // Booking-consistent tax rate from the shared calculator
   private readonly salesTaxRate = SALES_TAX_RATE;
 
   // Bubble Points settings (for estimated pts display in edit form)
   pointsPerDollar = 0;
-  pointsEnabled = false;
-  editEstimatedPoints = 0;
+  readonly pointsEnabled = signal(false);
+  readonly editEstimatedPoints = signal(0);
 
   // Statistics for SuperAdmin
-  isSuperAdmin = false;
+  readonly isSuperAdmin = signal(false);
   /**
    * True when this user's order edits are applied on save instead of being sent to a SuperAdmin
    * for approval — always for SuperAdmins, and for Admins a SuperAdmin has granted it. Resolved
@@ -540,16 +540,14 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
    * mid-session takes effect on the next page load; shared/order-edit-approval.policy.ts is the
    * client-side mirror used when only a user object is at hand.
    */
-  canSaveOrderEditsDirectly = false;
+  readonly canSaveOrderEditsDirectly = signal(false);
   /** True if user can edit orders: direct save, or Admin submitting for approval. */
   get canEditOrder(): boolean {
-    return this.isSuperAdmin || (this.userRole === 'Admin' && this.userPermissions.permissions.canUpdate);
+    return this.isSuperAdmin() || (this.userRole() === 'Admin' && this.userPermissions().permissions.canUpdate);
   }
   /** True if user may re-label a custom ("Pre-Arranged") order: SuperAdmin or any Admin (direct
    *  save) — independent of the canUpdate permission, matching the backend's role-only gate. */
-  get canEditCustomServiceName(): boolean {
-    return this.isSuperAdmin || this.userRole === 'Admin';
-  }
+  readonly canEditCustomServiceName = computed<boolean>(() => this.isSuperAdmin() || this.userRole() === 'Admin');
   // Statistics are DERIVED from the filtered orders via memoized getters (see `stats`
   // below) — never assigned during change detection, which previously caused NG0100
   // when searching (the filteredOrders getter mutated them mid-pass).
@@ -561,65 +559,65 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   get totalDuration(): number { return this.stats.totalDuration; }
 
   // Assigned-admin pill state for the inline order-details expand.
-  availableAdmins: ShiftAdmin[] = [];
-  showAssignedAdminEditor = false;
-  isSavingAssignedAdmin = false;
+  readonly availableAdmins = signal<ShiftAdmin[]>([]);
+  readonly showAssignedAdminEditor = signal(false);
+  readonly isSavingAssignedAdmin = signal(false);
 
   // Booked-by pill: SuperAdmin toggle to backfill orders that predate BookedByAdminUserId.
-  isSavingBookedBy = false;
+  readonly isSavingBookedBy = signal(false);
 
   // SuperAdmin-only editor for an existing custom ("Pre-Arranged") order's display name.
   showCustomServiceNameEditor = false;
-  isSavingCustomServiceName = false;
+  readonly isSavingCustomServiceName = signal(false);
 
   // ── SuperAdmin order transfer (move order to another customer, undoable) ──
-  showTransferPanel = false;
-  transferSearchTerm = '';
+  readonly showTransferPanel = signal(false);
+  readonly transferSearchTerm = signal('');
   transferCandidates: UserAdmin[] = [];      // all active customers (lazy-loaded on first open)
-  transferSearchResults: UserAdmin[] = [];
-  transferTargetUser: UserAdmin | null = null;
-  transferNotes = '';
-  isTransferring = false;
-  loadingTransferCandidates = false;
-  orderTransfers: OrderTransferInfo[] = [];
-  undoingTransferId: number | null = null;
-  transferError = '';
+  readonly transferSearchResults = signal<UserAdmin[]>([]);
+  readonly transferTargetUser = signal<UserAdmin | null>(null);
+  readonly transferNotes = signal('');
+  readonly isTransferring = signal(false);
+  readonly loadingTransferCandidates = signal(false);
+  readonly orderTransfers = signal<OrderTransferInfo[]>([]);
+  readonly undoingTransferId = signal<number | null>(null);
+  readonly transferError = signal('');
 
   // ── SuperAdmin refunds (money back to the customer's card) ──
   // refundSummary.remainingRefundable comes live from the payment provider, so it already
   // reflects refunds issued outside this panel — it is the only cap the UI trusts.
-  refundSummary: OrderRefundSummary | null = null;
-  loadingRefunds = false;
-  showRefundModal = false;
-  refundMode: 'full' | 'partial' = 'full';
-  refundAmountInput: number | null = null;
-  refundReason = '';
-  refundSendEmail = true;
+  readonly refundSummary = signal<OrderRefundSummary | null>(null);
+  readonly loadingRefunds = signal(false);
+  readonly showRefundModal = signal(false);
+  readonly refundMode = signal<'full' | 'partial'>('full');
+  readonly refundAmountInput = signal<number | null>(null);
+  readonly refundReason = signal('');
+  readonly refundSendEmail = signal(true);
   /** Second step of the modal — the admin has to confirm before any money moves. */
-  refundConfirming = false;
-  isRefunding = false;
-  refundError = '';
+  readonly refundConfirming = signal(false);
+  readonly isRefunding = signal(false);
+  readonly refundError = signal('');
   /** Set when the modal was opened from a table row rather than the detail panel, so the
    *  modal has an order to name and submit against without the panel being open. */
-  refundTargetOrder: AdminOrderList | null = null;
+  readonly refundTargetOrder = signal<AdminOrderList | null>(null);
   /** "Sync from Stripe" — imports refunds issued in the Stripe Dashboard. */
-  isSyncingRefunds = false;
+  readonly isSyncingRefunds = signal(false);
   /** Per-refund-row manual email send; holds the row id in flight. */
-  sendingRefundEmailId: number | null = null;
+  readonly sendingRefundEmailId = signal<number | null>(null);
 
   // ── SuperAdmin soft-hide (view filter only; never touches order data or revenue) ──
   /** "Show hidden orders" filter. Visible to every admin role — all roles can VIEW hidden
    *  orders, only SuperAdmin can hide/unhide. Toggling reloads from the server. */
-  showHiddenOrders = false;
-  hideConfirmOrder: AdminOrderList | null = null;
-  isHidingOrder = false;
+  readonly showHiddenOrders = signal(false);
+  readonly hideConfirmOrder = signal<AdminOrderList | null>(null);
+  readonly isHidingOrder = signal(false);
 
   ngOnInit() {
     this.loadUserPermissions();
     this.bubbleRewardsService.getSummary().subscribe({
       next: (s) => {
         this.pointsPerDollar = s.guide?.pointsPerDollar ?? 0;
-        this.pointsEnabled = s.pointsSystemEnabled ?? false;
+        this.pointsEnabled.set(s.pointsSystemEnabled ?? false);
       },
       error: () => {}
     });
@@ -628,73 +626,73 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   // ── SuperAdmin order transfer ──
 
   resetTransferPanel(): void {
-    this.showTransferPanel = false;
-    this.transferSearchTerm = '';
-    this.transferSearchResults = [];
-    this.transferTargetUser = null;
-    this.transferNotes = '';
-    this.transferError = '';
-    this.orderTransfers = [];
+    this.showTransferPanel.set(false);
+    this.transferSearchTerm.set('');
+    this.transferSearchResults.set([]);
+    this.transferTargetUser.set(null);
+    this.transferNotes.set('');
+    this.transferError.set('');
+    this.orderTransfers.set([]);
   }
 
   loadOrderTransfers(orderId: number): void {
     this.adminService.getOrderTransfers(orderId).subscribe({
       next: (transfers) => {
         // Ignore late responses after the admin switched to a different order.
-        if (this.viewingOrderId === orderId) this.orderTransfers = transfers;
+        if (this.viewingOrderId() === orderId) this.orderTransfers.set(transfers);
       },
       error: () => { /* non-fatal: panel simply shows no history */ }
     });
   }
 
   toggleTransferPanel(): void {
-    if (!this.isSuperAdmin) return;
-    this.showTransferPanel = !this.showTransferPanel;
-    this.transferError = '';
-    if (this.showTransferPanel && this.transferCandidates.length === 0 && !this.loadingTransferCandidates) {
-      this.loadingTransferCandidates = true;
+    if (!this.isSuperAdmin()) return;
+    this.showTransferPanel.set(!this.showTransferPanel());
+    this.transferError.set('');
+    if (this.showTransferPanel() && this.transferCandidates.length === 0 && !this.loadingTransferCandidates()) {
+      this.loadingTransferCandidates.set(true);
       this.adminService.getUsers().subscribe({
         next: (response: any) => {
           const list: UserAdmin[] = Array.isArray(response) ? response : (response?.users ?? []);
           this.transferCandidates = list.filter(u => u.role === 'Customer' && u.isActive);
-          this.loadingTransferCandidates = false;
+          this.loadingTransferCandidates.set(false);
           this.filterTransferCandidates();
         },
-        error: () => { this.loadingTransferCandidates = false; }
+        error: () => { this.loadingTransferCandidates.set(false); }
       });
     }
   }
 
   onTransferSearchInput(value: string): void {
-    this.transferSearchTerm = value;
-    this.transferTargetUser = null;
+    this.transferSearchTerm.set(value);
+    this.transferTargetUser.set(null);
     this.filterTransferCandidates();
   }
 
   private filterTransferCandidates(): void {
-    const search = this.transferSearchTerm.toLowerCase().trim();
-    const currentOwnerId = this.selectedOrder?.userId;
+    const search = this.transferSearchTerm().toLowerCase().trim();
+    const currentOwnerId = this.selectedOrder()?.userId;
     const pool = this.transferCandidates.filter(u => u.id !== currentOwnerId);
     if (!search) {
-      this.transferSearchResults = pool.slice(0, 8);
+      this.transferSearchResults.set(pool.slice(0, 8));
       return;
     }
-    this.transferSearchResults = pool.filter(u =>
+    this.transferSearchResults.set(pool.filter(u =>
       (u.email || '').toLowerCase().includes(search) ||
       u.firstName.toLowerCase().includes(search) ||
       u.lastName.toLowerCase().includes(search) ||
       u.id.toString().includes(search)
-    ).slice(0, 8);
+    ).slice(0, 8));
   }
 
   selectTransferTarget(user: UserAdmin): void {
-    this.transferTargetUser = user;
-    this.transferSearchResults = [];
+    this.transferTargetUser.set(user);
+    this.transferSearchResults.set([]);
   }
 
   clearTransferTarget(): void {
-    this.transferTargetUser = null;
-    this.transferSearchTerm = '';
+    this.transferTargetUser.set(null);
+    this.transferSearchTerm.set('');
     this.filterTransferCandidates();
   }
 
@@ -704,51 +702,51 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   submitTransfer(): void {
-    if (!this.selectedOrder || !this.transferTargetUser || this.isTransferring) return;
-    const target = this.transferTargetUser;
-    if (!confirm(`Transfer order #${this.selectedOrder.id} and everything it earned (points, spent amount, photos, address) to ${target.firstName} ${target.lastName}? This is recorded in Audit logs and can be undone.`)) {
+    const target = this.transferTargetUser();
+    if (!this.selectedOrder() || !target || this.isTransferring()) return;
+    if (!confirm(`Transfer order #${this.selectedOrder()!.id} and everything it earned (points, spent amount, photos, address) to ${target.firstName} ${target.lastName}? This is recorded in Audit logs and can be undone.`)) {
       return;
     }
-    this.isTransferring = true;
-    this.transferError = '';
-    const orderId = this.selectedOrder.id;
-    this.adminService.transferOrder(orderId, target.id, this.transferNotes.trim() || undefined).subscribe({
+    this.isTransferring.set(true);
+    this.transferError.set('');
+    const orderId = this.selectedOrder()!.id;
+    this.adminService.transferOrder(orderId, target.id, this.transferNotes().trim() || undefined).subscribe({
       next: () => {
-        this.isTransferring = false;
-        this.successMessage = `Order #${orderId} transferred to ${target.firstName} ${target.lastName}.`;
-        setTimeout(() => { this.successMessage = ''; }, 5000);
-        this.showTransferPanel = false;
-        this.transferTargetUser = null;
-        this.transferNotes = '';
+        this.isTransferring.set(false);
+        this.successMessage.set(`Order #${orderId} transferred to ${target.firstName} ${target.lastName}.`);
+        setTimeout(() => { this.successMessage.set(''); }, 5000);
+        this.showTransferPanel.set(false);
+        this.transferTargetUser.set(null);
+        this.transferNotes.set('');
         // Refresh the details panel + list so the new owner shows everywhere.
         this.loadOrderTransfers(orderId);
         this.refreshSelectedOrderAfterTransfer(orderId);
       },
       error: (err) => {
-        this.isTransferring = false;
-        this.transferError = err.error?.message || 'Transfer failed.';
+        this.isTransferring.set(false);
+        this.transferError.set(err.error?.message || 'Transfer failed.');
       }
     });
   }
 
   undoTransfer(transfer: OrderTransferInfo): void {
-    if (this.undoingTransferId !== null) return;
+    if (this.undoingTransferId() !== null) return;
     if (!confirm(`Undo the transfer of order #${transfer.orderId} to ${transfer.toUserName}? Everything moves back to ${transfer.fromUserName}.`)) {
       return;
     }
-    this.undoingTransferId = transfer.id;
-    this.transferError = '';
+    this.undoingTransferId.set(transfer.id);
+    this.transferError.set('');
     this.adminService.undoOrderTransfer(transfer.id).subscribe({
       next: () => {
-        this.undoingTransferId = null;
-        this.successMessage = `Transfer undone — order #${transfer.orderId} is back with ${transfer.fromUserName}.`;
-        setTimeout(() => { this.successMessage = ''; }, 5000);
+        this.undoingTransferId.set(null);
+        this.successMessage.set(`Transfer undone — order #${transfer.orderId} is back with ${transfer.fromUserName}.`);
+        setTimeout(() => { this.successMessage.set(''); }, 5000);
         this.loadOrderTransfers(transfer.orderId);
         this.refreshSelectedOrderAfterTransfer(transfer.orderId);
       },
       error: (err) => {
-        this.undoingTransferId = null;
-        this.transferError = err.error?.message || 'Undo failed.';
+        this.undoingTransferId.set(null);
+        this.transferError.set(err.error?.message || 'Undo failed.');
       }
     });
   }
@@ -761,90 +759,90 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
    * webhook. Safe to run repeatedly: a second run imports nothing.
    */
   syncRefundsFromStripe(): void {
-    const orderId = this.selectedOrder?.id;
-    if (!this.isSuperAdmin || orderId == null || this.isSyncingRefunds) return;
+    const orderId = this.selectedOrder()?.id;
+    if (!this.isSuperAdmin() || orderId == null || this.isSyncingRefunds()) return;
 
-    this.isSyncingRefunds = true;
-    this.refundError = '';
+    this.isSyncingRefunds.set(true);
+    this.refundError.set('');
 
     this.adminService.syncOrderRefunds(orderId).subscribe({
       next: (result) => {
-        this.isSyncingRefunds = false;
+        this.isSyncingRefunds.set(false);
 
-        if (result.summary && this.viewingOrderId === orderId) {
-          this.refundSummary = result.summary;
+        if (result.summary && this.viewingOrderId() === orderId) {
+          this.refundSummary.set(result.summary);
         }
 
         if (result.success) {
-          this.successMessage = result.message;
+          this.successMessage.set(result.message);
           // Longer than usual: the dispute warning is appended to this message and is worth reading.
-          setTimeout(() => { this.successMessage = ''; }, result.hasDispute ? 15000 : 8000);
+          setTimeout(() => { this.successMessage.set(''); }, result.hasDispute ? 15000 : 8000);
           // An import can flip the order to Refunded and move the revenue totals.
           if (result.refundsImported > 0) this.loadOrders();
-          if (result.refundsImported > 0 && this.selectedOrder?.id === orderId) this.refreshOrderAfterSave();
+          if (result.refundsImported > 0 && this.selectedOrder()?.id === orderId) this.refreshOrderAfterSave();
         } else {
-          this.refundError = result.message;
+          this.refundError.set(result.message);
         }
       },
       error: (err) => {
-        this.isSyncingRefunds = false;
-        this.refundError = err.error?.message || 'Could not reach Stripe. Please try again.';
+        this.isSyncingRefunds.set(false);
+        this.refundError.set(err.error?.message || 'Could not reach Stripe. Please try again.');
       }
     });
   }
 
   /** Send the customer's refund confirmation for one history row, on explicit request. */
   sendRefundEmail(refund: OrderRefundInfo): void {
-    const orderId = this.selectedOrder?.id;
-    if (!this.isSuperAdmin || orderId == null || this.sendingRefundEmailId !== null) return;
+    const orderId = this.selectedOrder()?.id;
+    if (!this.isSuperAdmin() || orderId == null || this.sendingRefundEmailId() !== null) return;
 
-    this.sendingRefundEmailId = refund.id;
-    this.refundError = '';
+    this.sendingRefundEmailId.set(refund.id);
+    this.refundError.set('');
 
     this.adminService.sendRefundEmail(orderId, refund.id).subscribe({
       next: (result) => {
-        this.sendingRefundEmailId = null;
-        if (result.summary && this.viewingOrderId === orderId) this.refundSummary = result.summary;
+        this.sendingRefundEmailId.set(null);
+        if (result.summary && this.viewingOrderId() === orderId) this.refundSummary.set(result.summary);
         if (result.success) {
-          this.successMessage = result.message;
-          setTimeout(() => { this.successMessage = ''; }, 6000);
+          this.successMessage.set(result.message);
+          setTimeout(() => { this.successMessage.set(''); }, 6000);
         } else {
-          this.refundError = result.message;
+          this.refundError.set(result.message);
         }
       },
       error: (err) => {
-        this.sendingRefundEmailId = null;
-        this.refundError = err.error?.message || 'The email could not be sent.';
+        this.sendingRefundEmailId.set(null);
+        this.refundError.set(err.error?.message || 'The email could not be sent.');
       }
     });
   }
 
   resetRefundState(): void {
-    this.refundSummary = null;
-    this.isSyncingRefunds = false;
-    this.sendingRefundEmailId = null;
-    this.showRefundModal = false;
-    this.refundMode = 'full';
-    this.refundAmountInput = null;
-    this.refundReason = '';
-    this.refundSendEmail = true;
-    this.refundConfirming = false;
-    this.isRefunding = false;
-    this.refundError = '';
-    this.refundTargetOrder = null;
+    this.refundSummary.set(null);
+    this.isSyncingRefunds.set(false);
+    this.sendingRefundEmailId.set(null);
+    this.showRefundModal.set(false);
+    this.refundMode.set('full');
+    this.refundAmountInput.set(null);
+    this.refundReason.set('');
+    this.refundSendEmail.set(true);
+    this.refundConfirming.set(false);
+    this.isRefunding.set(false);
+    this.refundError.set('');
+    this.refundTargetOrder.set(null);
   }
 
   loadOrderRefunds(orderId: number): void {
-    this.loadingRefunds = true;
+    this.loadingRefunds.set(true);
     this.adminService.getOrderRefunds(orderId).subscribe({
       next: (summary) => {
         // Ignore late responses after the admin switched to a different order.
-        if (this.viewingOrderId === orderId) this.refundSummary = summary;
-        this.loadingRefunds = false;
+        if (this.viewingOrderId() === orderId) this.refundSummary.set(summary);
+        this.loadingRefunds.set(false);
       },
       error: () => {
         // Non-fatal: the refund section simply stays hidden rather than breaking the panel.
-        this.loadingRefunds = false;
+        this.loadingRefunds.set(false);
       }
     });
   }
@@ -853,46 +851,46 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
    *  Refunding from a table row overwrites refundSummary, so without this check the open panel
    *  could briefly render another order's refund figures. */
   get refundSummaryMatchesPanel(): boolean {
-    return !!this.refundSummary && !!this.selectedOrder
-      && this.refundSummary.orderId === this.selectedOrder.id;
+    return !!this.refundSummary() && !!this.selectedOrder()
+      && this.refundSummary()!.orderId === this.selectedOrder()!.id;
   }
 
   /** Refund button shows only when the provider says there is money left to give back. */
   get canRefundSelectedOrder(): boolean {
-    return this.isSuperAdmin && this.refundSummaryMatchesPanel && !!this.refundSummary?.canRefund;
+    return this.isSuperAdmin() && this.refundSummaryMatchesPanel && !!this.refundSummary()?.canRefund;
   }
 
   get maxRefundable(): number {
-    return this.refundSummary?.remainingRefundable ?? 0;
+    return this.refundSummary()?.remainingRefundable ?? 0;
   }
 
   /** The order the open refund modal acts on — a table row when launched from the list,
    *  otherwise the order in the detail panel. */
   get refundOrderId(): number | null {
-    return this.refundTargetOrder?.id ?? this.selectedOrder?.id ?? null;
+    return this.refundTargetOrder()?.id ?? this.selectedOrder()?.id ?? null;
   }
 
   get refundOrderCustomerName(): string {
-    const target = this.refundTargetOrder;
+    const target = this.refundTargetOrder();
     if (target) return `${target.contactFirstName} ${target.contactLastName}`.trim();
-    if (this.selectedOrder) return `${this.selectedOrder.contactFirstName} ${this.selectedOrder.contactLastName}`.trim();
+    if (this.selectedOrder()) return `${this.selectedOrder()!.contactFirstName} ${this.selectedOrder()!.contactLastName}`.trim();
     return 'the customer';
   }
 
   get refundOrderCustomerEmail(): string {
-    return this.refundTargetOrder?.contactEmail || this.selectedOrder?.contactEmail || 'the customer';
+    return this.refundTargetOrder()?.contactEmail || this.selectedOrder()?.contactEmail || 'the customer';
   }
 
   openRefundModal(): void {
     if (!this.canRefundSelectedOrder) return;
-    this.refundTargetOrder = null;   // detail-panel path: submit against selectedOrder
-    this.showRefundModal = true;
-    this.refundMode = 'full';
-    this.refundAmountInput = this.maxRefundable;
-    this.refundReason = '';
-    this.refundSendEmail = true;
-    this.refundConfirming = false;
-    this.refundError = '';
+    this.refundTargetOrder.set(null);   // detail-panel path: submit against selectedOrder
+    this.showRefundModal.set(true);
+    this.refundMode.set('full');
+    this.refundAmountInput.set(this.maxRefundable);
+    this.refundReason.set('');
+    this.refundSendEmail.set(true);
+    this.refundConfirming.set(false);
+    this.refundError.set('');
   }
 
   /**
@@ -901,40 +899,40 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
    * and the modal only opens once we know there is something to refund.
    */
   openRefundModalForOrder(order: AdminOrderList): void {
-    if (!this.isSuperAdmin || this.loadingRefunds) return;
+    if (!this.isSuperAdmin() || this.loadingRefunds()) return;
 
-    this.refundTargetOrder = order;
-    this.refundSummary = null;
-    this.refundError = '';
-    this.loadingRefunds = true;
+    this.refundTargetOrder.set(order);
+    this.refundSummary.set(null);
+    this.refundError.set('');
+    this.loadingRefunds.set(true);
 
     this.adminService.getOrderRefunds(order.id).subscribe({
       next: (summary) => {
-        this.loadingRefunds = false;
+        this.loadingRefunds.set(false);
         // The admin may have clicked another row while this was in flight.
-        if (this.refundTargetOrder?.id !== order.id) return;
+        if (this.refundTargetOrder()?.id !== order.id) return;
 
-        this.refundSummary = summary;
+        this.refundSummary.set(summary);
 
         if (!summary.canRefund) {
-          this.refundTargetOrder = null;
-          this.errorMessage = summary.unavailableReason || 'There is nothing to refund on this order.';
-          setTimeout(() => { this.errorMessage = ''; }, 6000);
+          this.refundTargetOrder.set(null);
+          this.errorMessage.set(summary.unavailableReason || 'There is nothing to refund on this order.');
+          setTimeout(() => { this.errorMessage.set(''); }, 6000);
           return;
         }
 
-        this.showRefundModal = true;
-        this.refundMode = 'full';
-        this.refundAmountInput = summary.remainingRefundable;
-        this.refundReason = '';
-        this.refundSendEmail = true;
-        this.refundConfirming = false;
+        this.showRefundModal.set(true);
+        this.refundMode.set('full');
+        this.refundAmountInput.set(summary.remainingRefundable);
+        this.refundReason.set('');
+        this.refundSendEmail.set(true);
+        this.refundConfirming.set(false);
       },
       error: () => {
-        this.loadingRefunds = false;
-        this.refundTargetOrder = null;
-        this.errorMessage = 'Could not check what is refundable on this order. Please try again.';
-        setTimeout(() => { this.errorMessage = ''; }, 6000);
+        this.loadingRefunds.set(false);
+        this.refundTargetOrder.set(null);
+        this.errorMessage.set('Could not check what is refundable on this order. Please try again.');
+        setTimeout(() => { this.errorMessage.set(''); }, 6000);
       }
     });
   }
@@ -942,24 +940,24 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   closeRefundModal(): void {
     // A request is in flight and the money may already be moving — closing now would hide the
     // outcome from the admin.
-    if (this.isRefunding) return;
-    this.showRefundModal = false;
-    this.refundConfirming = false;
-    this.refundError = '';
-    this.refundTargetOrder = null;
+    if (this.isRefunding()) return;
+    this.showRefundModal.set(false);
+    this.refundConfirming.set(false);
+    this.refundError.set('');
+    this.refundTargetOrder.set(null);
   }
 
   onRefundModeChange(mode: 'full' | 'partial'): void {
-    this.refundMode = mode;
-    this.refundError = '';
+    this.refundMode.set(mode);
+    this.refundError.set('');
     // Pre-fill partial with the max so the admin edits down rather than typing from scratch.
-    this.refundAmountInput = this.maxRefundable;
+    this.refundAmountInput.set(this.maxRefundable);
   }
 
   /** Dollars this submission will refund. Full mode always means the whole remaining balance. */
   get effectiveRefundAmount(): number {
-    if (this.refundMode === 'full') return this.maxRefundable;
-    return Number(this.refundAmountInput ?? 0);
+    if (this.refundMode() === 'full') return this.maxRefundable;
+    return Number(this.refundAmountInput() ?? 0);
   }
 
   get refundAmountIsValid(): boolean {
@@ -971,59 +969,59 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   /** Step 1 → step 2. Nothing is sent until the admin confirms on the second step. */
   proceedToRefundConfirm(): void {
     if (!this.refundAmountIsValid) {
-      this.refundError = `Enter an amount between $0.01 and $${this.maxRefundable.toFixed(2)}.`;
+      this.refundError.set(`Enter an amount between $0.01 and $${this.maxRefundable.toFixed(2)}.`);
       return;
     }
-    this.refundError = '';
-    this.refundConfirming = true;
+    this.refundError.set('');
+    this.refundConfirming.set(true);
   }
 
   cancelRefundConfirm(): void {
-    if (this.isRefunding) return;
-    this.refundConfirming = false;
+    if (this.isRefunding()) return;
+    this.refundConfirming.set(false);
   }
 
   submitRefund(): void {
     // Guarded rather than merely disabled: a double-click can land before change detection
     // repaints the button, and a duplicate submit here means refunding real money twice.
     const orderId = this.refundOrderId;
-    if (this.isRefunding || orderId === null || !this.refundAmountIsValid) return;
+    if (this.isRefunding() || orderId === null || !this.refundAmountIsValid) return;
     // Full mode sends null so the server refunds whatever is still refundable at that instant,
     // rather than a stale number this screen read earlier.
-    const amount = this.refundMode === 'full' ? null : Number(this.refundAmountInput);
+    const amount = this.refundMode() === 'full' ? null : Number(this.refundAmountInput());
 
-    this.isRefunding = true;
-    this.refundError = '';
+    this.isRefunding.set(true);
+    this.refundError.set('');
 
-    this.adminService.refundOrder(orderId, amount, this.refundReason.trim() || null, this.refundSendEmail).subscribe({
+    this.adminService.refundOrder(orderId, amount, this.refundReason().trim() || null, this.refundSendEmail()).subscribe({
       next: (result) => {
-        this.isRefunding = false;
+        this.isRefunding.set(false);
 
-        if (result.summary && this.viewingOrderId === orderId) {
-          this.refundSummary = result.summary;
+        if (result.summary && this.viewingOrderId() === orderId) {
+          this.refundSummary.set(result.summary);
         }
 
         if (result.success) {
-          this.showRefundModal = false;
-          this.refundConfirming = false;
-          this.refundTargetOrder = null;
-          this.successMessage = result.message;
-          setTimeout(() => { this.successMessage = ''; }, 8000);
+          this.showRefundModal.set(false);
+          this.refundConfirming.set(false);
+          this.refundTargetOrder.set(null);
+          this.successMessage.set(result.message);
+          setTimeout(() => { this.successMessage.set(''); }, 8000);
           // A full refund flips the order to Refunded and changes the revenue totals, so the
           // list and its header cards have to come back from the server.
           this.loadOrders();
-          if (this.selectedOrder?.id === orderId) this.refreshOrderAfterSave();
+          if (this.selectedOrder()?.id === orderId) this.refreshOrderAfterSave();
         } else {
           // Covers the partial case too: some money may already have moved, so the modal stays
           // open showing exactly what happened instead of inviting a blind full retry.
-          this.refundConfirming = false;
-          this.refundError = result.message;
+          this.refundConfirming.set(false);
+          this.refundError.set(result.message);
         }
       },
       error: (err) => {
-        this.isRefunding = false;
-        this.refundConfirming = false;
-        this.refundError = err.error?.message || 'The refund could not be completed. Please try again.';
+        this.isRefunding.set(false);
+        this.refundConfirming.set(false);
+        this.refundError.set(err.error?.message || 'The refund could not be completed. Please try again.');
         // The request may have reached the server before failing — re-read the authoritative
         // state so the admin never retries against a stale balance.
         this.loadOrderRefunds(orderId);
@@ -1035,7 +1033,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
 
   /** Reloads from the server — the hidden/visible split is decided by the API, not client-side. */
   toggleShowHiddenOrders(): void {
-    this.showHiddenOrders = !this.showHiddenOrders;
+    this.showHiddenOrders.set(!this.showHiddenOrders());
     this.loadOrders();
   }
 
@@ -1048,52 +1046,52 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   openHideConfirm(order: AdminOrderList): void {
-    if (!this.isSuperAdmin || !this.canHideOrder(order)) return;
-    this.hideConfirmOrder = order;
+    if (!this.isSuperAdmin() || !this.canHideOrder(order)) return;
+    this.hideConfirmOrder.set(order);
   }
 
   closeHideConfirm(): void {
-    if (this.isHidingOrder) return;
-    this.hideConfirmOrder = null;
+    if (this.isHidingOrder()) return;
+    this.hideConfirmOrder.set(null);
   }
 
   confirmHideOrder(): void {
-    if (!this.hideConfirmOrder || this.isHidingOrder) return;
+    const order = this.hideConfirmOrder();
+    if (!order || this.isHidingOrder()) return;
 
-    const order = this.hideConfirmOrder;
-    this.isHidingOrder = true;
+    this.isHidingOrder.set(true);
 
     this.adminService.hideOrder(order.id).subscribe({
       next: (res) => {
-        this.isHidingOrder = false;
-        this.hideConfirmOrder = null;
-        this.successMessage = res.message;
-        setTimeout(() => { this.successMessage = ''; }, 5000);
+        this.isHidingOrder.set(false);
+        this.hideConfirmOrder.set(null);
+        this.successMessage.set(res.message);
+        setTimeout(() => { this.successMessage.set(''); }, 5000);
         this.loadOrders();
       },
       error: (err) => {
-        this.isHidingOrder = false;
-        this.hideConfirmOrder = null;
-        this.errorMessage = err.error?.message || 'Could not hide the order.';
+        this.isHidingOrder.set(false);
+        this.hideConfirmOrder.set(null);
+        this.errorMessage.set(err.error?.message || 'Could not hide the order.');
       }
     });
   }
 
   /** Unhide needs no confirmation — it only makes a row visible again. */
   unhideOrder(order: AdminOrderList): void {
-    if (!this.isSuperAdmin || this.isHidingOrder) return;
+    if (!this.isSuperAdmin() || this.isHidingOrder()) return;
 
-    this.isHidingOrder = true;
+    this.isHidingOrder.set(true);
     this.adminService.unhideOrder(order.id).subscribe({
       next: (res) => {
-        this.isHidingOrder = false;
-        this.successMessage = res.message;
-        setTimeout(() => { this.successMessage = ''; }, 5000);
+        this.isHidingOrder.set(false);
+        this.successMessage.set(res.message);
+        setTimeout(() => { this.successMessage.set(''); }, 5000);
         this.loadOrders();
       },
       error: (err) => {
-        this.isHidingOrder = false;
-        this.errorMessage = err.error?.message || 'Could not restore the order.';
+        this.isHidingOrder.set(false);
+        this.errorMessage.set(err.error?.message || 'Could not restore the order.');
       }
     });
   }
@@ -1101,8 +1099,8 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   private refreshSelectedOrderAfterTransfer(orderId: number): void {
     this.adminService.getOrderDetails(orderId).subscribe({
       next: (order) => {
-        if (this.viewingOrderId === orderId) {
-          this.selectedOrder = order;
+        if (this.viewingOrderId() === orderId) {
+          this.selectedOrder.set(order);
           this.customerNames.set(orderId, `${order.contactFirstName} ${order.contactLastName}`);
           this.customerDetails.set(orderId, { id: order.userId, email: order.contactEmail });
         }
@@ -1115,13 +1113,13 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   // ── Card on file: explicit admin charge (never automatic) ──
 
   private loadOrderSavedCardInfo(orderId: number): void {
-    this.orderSavedCardInfo = null;
-    const order = this.selectedOrder;
+    this.orderSavedCardInfo.set(null);
+    const order = this.selectedOrder();
     // Nothing to ask about for a settled or non-card order.
     if (order && (order.isPaid || (order.paymentMethod && order.paymentMethod !== 'Normal'))) return;
     this.billingService.getAdminOrderSavedCardInfo(orderId).subscribe({
       next: (info) => {
-        if (this.viewingOrderId === orderId) this.orderSavedCardInfo = info;
+        if (this.viewingOrderId() === orderId) this.orderSavedCardInfo.set(info);
       },
       error: () => { /* no Charge button — everything else still works */ }
     });
@@ -1134,53 +1132,56 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
    * answer is the existing "Send payment link".
    */
   canChargeSavedCard(): boolean {
-    const order = this.selectedOrder;
-    const info = this.orderSavedCardInfo;
+    const order = this.selectedOrder();
+    const info = this.orderSavedCardInfo();
     return !!order && !order.isPaid && !!info && info.featureEnabled && info.hasCard
       && info.hasOfficeAuthorization && !info.unavailableReason;
   }
 
   /** Why the Charge button is absent, when the customer has a card but it can't be used here. */
   savedCardUnavailableReason(): string | null {
-    const info = this.orderSavedCardInfo;
-    if (!info || !info.featureEnabled || !info.hasCard || this.selectedOrder?.isPaid) return null;
+    const info = this.orderSavedCardInfo();
+    if (!info || !info.featureEnabled || !info.hasCard || this.selectedOrder()?.isPaid) return null;
     return info.unavailableReason;
   }
 
   chargeSavedCard(): void {
-    const order = this.selectedOrder;
-    const info = this.orderSavedCardInfo;
-    if (!order || !info || this.loadingStates.chargingSavedCard || !this.canChargeSavedCard()) return;
+    const order = this.selectedOrder();
+    const info = this.orderSavedCardInfo();
+    if (!order || !info || this.loadingStates().chargingSavedCard || !this.canChargeSavedCard()) return;
 
     const cardLabel = info.last4 ? `card ending ${info.last4}` : 'saved card';
     // The BALANCE DUE — never the order total, which would re-take a deposit already paid.
     const backup = info.backupAllowed ? ' If it is declined, their authorised Backup card will be tried once.' : '';
     if (!confirm(`Charge $${info.amountDue.toFixed(2)} (balance due) to the customer's ${cardLabel} now?${backup}`)) return;
 
-    this.loadingStates.chargingSavedCard = true;
-    this.successMessage = '';
-    this.errorMessage = '';
+    this.loadingStates().chargingSavedCard = true;
+    this.loadingStates.set(this.loadingStates());
+    this.successMessage.set('');
+    this.errorMessage.set('');
 
     this.billingService.adminChargeOrder(order.id).subscribe({
       next: (res) => {
-        this.loadingStates.chargingSavedCard = false;
+        this.loadingStates().chargingSavedCard = false;
+        this.loadingStates.set(this.loadingStates());
         // charged=false is a clean outcome (declined / needs the customer present) —
         // the backend message says exactly what happened and the order stays unpaid.
         if (res.charged) {
-          this.successMessage = res.message;
-          setTimeout(() => { this.successMessage = ''; }, 8000);
+          this.successMessage.set(res.message);
+          setTimeout(() => { this.successMessage.set(''); }, 8000);
         } else {
-          this.errorMessage = res.message;
+          this.errorMessage.set(res.message);
         }
         this.refreshSelectedOrderAfterTransfer(order.id);
         this.refreshOrderAfterSave();
       },
       error: (err) => {
-        this.loadingStates.chargingSavedCard = false;
+        this.loadingStates().chargingSavedCard = false;
+        this.loadingStates.set(this.loadingStates());
         // No answer is not a "no": the charge may have gone through with only the response lost.
         // The server's lock refuses a second charge while it finds out, but say so plainly.
-        this.errorMessage = err.error?.message
-          || 'We could not confirm the result of this charge. Do NOT charge again — refresh the order in a minute to see whether it was paid.';
+        this.errorMessage.set(err.error?.message
+          || 'We could not confirm the result of this charge. Do NOT charge again — refresh the order in a minute to see whether it was paid.');
         this.refreshSelectedOrderAfterTransfer(order.id);
       }
     });
@@ -1188,7 +1189,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
 
   // Assigned-admin pill helpers (mirror order-details.component but local to this view).
   assignedAdminLabel(): string {
-    return this.selectedOrder?.assignedAdminDisplayName?.trim() || 'Unassigned';
+    return this.selectedOrder()?.assignedAdminDisplayName?.trim() || 'Unassigned';
   }
 
   // ── Marketing origin (attribution) ──
@@ -1224,31 +1225,35 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
 
   toggleAssignedAdminEditor(): void {
     // Only SuperAdmin may reassign; Admins/Moderators get the read-only pill.
-    if (!this.isSuperAdmin) return;
-    this.showAssignedAdminEditor = !this.showAssignedAdminEditor;
+    if (!this.isSuperAdmin()) return;
+    this.showAssignedAdminEditor.set(!this.showAssignedAdminEditor());
   }
 
   selectAssignedAdminForOrder(adminId: number | null): void {
-    if (!this.selectedOrder || this.isSavingAssignedAdmin) return;
-    if ((this.selectedOrder.assignedAdminId ?? null) === adminId) {
-      this.showAssignedAdminEditor = false;
+    if (!this.selectedOrder() || this.isSavingAssignedAdmin()) return;
+    if ((this.selectedOrder()!.assignedAdminId ?? null) === adminId) {
+      this.showAssignedAdminEditor.set(false);
       return;
     }
-    this.isSavingAssignedAdmin = true;
-    const orderId = this.selectedOrder.id;
+    this.isSavingAssignedAdmin.set(true);
+    const orderId = this.selectedOrder()!.id;
     this.orderService.setAssignedAdmin(orderId, adminId).subscribe({
       next: (result) => {
-        if (this.selectedOrder && this.selectedOrder.id === orderId) {
-          this.selectedOrder.assignedAdminId = result.adminId ?? null;
-          this.selectedOrder.assignedAdminFirstName = result.firstName ?? null;
-          this.selectedOrder.assignedAdminLastName = result.lastName ?? null;
-          this.selectedOrder.assignedAdminDisplayName = result.displayName ?? null;
+        if (this.selectedOrder() && this.selectedOrder()!.id === orderId) {
+          this.selectedOrder()!.assignedAdminId = result.adminId ?? null;
+          this.selectedOrder.set(this.selectedOrder());
+          this.selectedOrder()!.assignedAdminFirstName = result.firstName ?? null;
+          this.selectedOrder.set(this.selectedOrder());
+          this.selectedOrder()!.assignedAdminLastName = result.lastName ?? null;
+          this.selectedOrder.set(this.selectedOrder());
+          this.selectedOrder()!.assignedAdminDisplayName = result.displayName ?? null;
+          this.selectedOrder.set(this.selectedOrder());
         }
-        this.isSavingAssignedAdmin = false;
-        this.showAssignedAdminEditor = false;
+        this.isSavingAssignedAdmin.set(false);
+        this.showAssignedAdminEditor.set(false);
       },
       error: () => {
-        this.isSavingAssignedAdmin = false;
+        this.isSavingAssignedAdmin.set(false);
       }
     });
   }
@@ -1256,7 +1261,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   // Booked-by pill helpers. The value lives on the LIST row (the details DTO doesn't
   // carry it), so read/write the row in `orders` — the filter reacts immediately.
   private get viewedOrderListRow(): AdminOrderList | null {
-    return this.orders.find(o => o.id === this.viewingOrderId) ?? null;
+    return this.orders().find(o => o.id === this.viewingOrderId()) ?? null;
   }
 
   bookedByAdminLabel(): string {
@@ -1269,90 +1274,96 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
    * same user, so the whole table re-tints at once. level: 'None' | 'Yellow' | 'Red'.
    */
   setOrderFlag(level: string): void {
-    if (!this.userPermissions.permissions.canUpdate || !this.selectedOrder) return;
-    const userId = this.selectedOrder.userId;
+    if (!this.userPermissions().permissions.canUpdate || !this.selectedOrder()) return;
+    const userId = this.selectedOrder()!.userId;
     if (!userId) return;
 
-    const reason = level === 'None' ? null : (this.selectedOrder.flagReason ?? null);
-    this.flaggingOrderUserId = userId;
+    const reason = level === 'None' ? null : (this.selectedOrder()!.flagReason ?? null);
+    this.flaggingOrderUserId.set(userId);
     this.adminService.setUserFlag(userId, level, reason).subscribe({
       next: () => {
-        if (this.selectedOrder && this.selectedOrder.userId === userId) {
-          this.selectedOrder.flag = level;
-          this.selectedOrder.flagReason = level === 'None' ? null : reason;
+        if (this.selectedOrder() && this.selectedOrder()!.userId === userId) {
+          this.selectedOrder()!.flag = level;
+          this.selectedOrder.set(this.selectedOrder());
+          this.selectedOrder()!.flagReason = level === 'None' ? null : reason;
+          this.selectedOrder.set(this.selectedOrder());
         }
-        this.orders.forEach(o => {
+        this.orders().forEach(o => {
           if (o.userId === userId) { o.flag = level; o.flagReason = level === 'None' ? null : reason; }
         });
       },
-      complete: () => { this.flaggingOrderUserId = null; },
-      error: () => { this.flaggingOrderUserId = null; }
+      complete: () => { this.flaggingOrderUserId.set(null); },
+      error: () => { this.flaggingOrderUserId.set(null); }
     });
   }
 
   toggleBookedByAdmin(): void {
-    if (!this.isSuperAdmin || this.isSavingBookedBy) return;
+    if (!this.isSuperAdmin() || this.isSavingBookedBy()) return;
     const row = this.viewedOrderListRow;
     if (!row) return;
-    this.isSavingBookedBy = true;
+    this.isSavingBookedBy.set(true);
     this.orderService.setBookedByAdmin(row.id, !row.bookedByAdmin).subscribe({
       next: (result) => {
         // Effective value from the backend — legacy orders with a creation-time
         // manual-payment stamp stay admin-booked even after clearing.
         row.bookedByAdmin = result.bookedByAdmin;
         this.calculateStatistics();
-        this.isSavingBookedBy = false;
+        this.isSavingBookedBy.set(false);
       },
       error: () => {
-        this.isSavingBookedBy = false;
+        this.isSavingBookedBy.set(false);
       }
     });
   }
 
   /** Whether the open detail order is a custom ("Pre-Arranged") order whose name can be re-labeled. */
   get selectedOrderIsCustomServiceType(): boolean {
-    return !!(this.selectedOrder && (this.selectedOrder as any).isCustomServiceType);
+    return !!(this.selectedOrder() && (this.selectedOrder() as any).isCustomServiceType);
   }
 
   /** Display-name options for the custom-service-type editor (Residential -> Regular/Deep). */
   get customServiceNameOptions(): string[] {
-    return buildCustomServiceTypeNameOptions(this.serviceTypesCache);
+    return buildCustomServiceTypeNameOptions(this.serviceTypesCache());
   }
 
   toggleCustomServiceNameEditor(): void {
     // SuperAdmin and Admins (with update permission) may re-label; others just see the value.
-    if (!this.canEditCustomServiceName) return;
+    if (!this.canEditCustomServiceName()) return;
     this.showCustomServiceNameEditor = !this.showCustomServiceNameEditor;
   }
 
   selectCustomServiceNameForOrder(name: string | null): void {
-    if (!this.selectedOrder || this.isSavingCustomServiceName) return;
-    const current = (this.selectedOrder as any).customServiceDisplayName ?? null;
+    if (!this.selectedOrder() || this.isSavingCustomServiceName()) return;
+    const current = (this.selectedOrder() as any).customServiceDisplayName ?? null;
     if ((current || null) === (name || null)) {
       this.showCustomServiceNameEditor = false;
       return;
     }
-    this.isSavingCustomServiceName = true;
-    const orderId = this.selectedOrder.id;
+    this.isSavingCustomServiceName.set(true);
+    const orderId = this.selectedOrder()!.id;
     this.orderService.setCustomServiceName(orderId, name || null).subscribe({
       next: (result) => {
-        if (this.selectedOrder && this.selectedOrder.id === orderId) {
-          (this.selectedOrder as any).customServiceDisplayName = result.customServiceDisplayName;
-          this.selectedOrder.serviceTypeName = result.serviceTypeName;
+        if (this.selectedOrder() && this.selectedOrder()!.id === orderId) {
+          (this.selectedOrder() as any).customServiceDisplayName = result.customServiceDisplayName;
+          this.selectedOrder()!.serviceTypeName = result.serviceTypeName;
+          this.selectedOrder.set(this.selectedOrder());
         }
         // Keep the table row in sync so the Service Type column updates without a reload.
-        const row = this.orders.find(o => o.id === orderId);
+        const row = this.orders().find(o => o.id === orderId);
         if (row) {
           row.customServiceDisplayName = result.customServiceDisplayName;
+          this.orders.set(this.orders());
           row.serviceTypeName = result.serviceTypeName;
+          this.orders.set(this.orders());
         }
-        this.residentialVariantCache.delete(orderId);
-        this.isSavingCustomServiceName = false;
+        this.residentialVariantCache().delete(orderId);
+        this.residentialVariantCache.set(this.residentialVariantCache());
+        this.isSavingCustomServiceName.set(false);
         this.showCustomServiceNameEditor = false;
         this.cdr.markForCheck();
       },
       error: () => {
-        this.isSavingCustomServiceName = false;
+        this.isSavingCustomServiceName.set(false);
         this.cdr.markForCheck();
       }
     });
@@ -1366,7 +1377,9 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private initializeStickyHeader() {
     // Check if elements exist, if not retry
-    if (!this.tableWrapper || !this.tableHeader) {
+    const tableWrapper = this.tableWrapper();
+    const tableHeader = this.tableHeader();
+    if (!tableWrapper || !tableHeader) {
       setTimeout(() => {
         this.initializeStickyHeader();
       }, 50);
@@ -1374,7 +1387,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     }
     
     // Double check elements are in DOM
-    if (!this.tableWrapper.nativeElement || !this.tableHeader.nativeElement) {
+    if (!tableWrapper.nativeElement || !tableHeader.nativeElement) {
       setTimeout(() => {
         this.initializeStickyHeader();
       }, 50);
@@ -1390,8 +1403,9 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this.scrollListener) {
       window.removeEventListener('scroll', this.scrollListener, true);
     }
-    if (this.horizontalScrollListener && this.tableWrapper) {
-      const wrapperEl = this.tableWrapper.nativeElement;
+    const tableWrapper = this.tableWrapper();
+    if (this.horizontalScrollListener && tableWrapper) {
+      const wrapperEl = tableWrapper.nativeElement;
       wrapperEl.removeEventListener('scroll', this.horizontalScrollListener);
       wrapperEl.removeEventListener('touchmove', this.horizontalScrollListener);
       wrapperEl.removeEventListener('wheel', this.horizontalScrollListener);
@@ -1407,10 +1421,11 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     setTimeout(() => {
       this.updateStickyHeader();
       // Also sync horizontal scroll after resize in case wrapper position changed
-      if (this.tableHeader && this.tableHeader.nativeElement.style.position === 'fixed') {
+      const tableHeader = this.tableHeader();
+      if (tableHeader && tableHeader.nativeElement.style.position === 'fixed') {
         // Update left position on resize since wrapper position may have changed
-        const wrapper = this.tableWrapper?.nativeElement;
-        const header = this.tableHeader.nativeElement;
+        const wrapper = this.tableWrapper()?.nativeElement;
+        const header = tableHeader.nativeElement;
         if (wrapper) {
           const wrapperRect = wrapper.getBoundingClientRect();
           header.style.left = `${wrapperRect.left}px`;
@@ -1421,18 +1436,20 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private setupStickyHeader() {
-    if (!this.tableWrapper || !this.tableHeader) {
+    const tableWrapper = this.tableWrapper();
+    if (!tableWrapper || !this.tableHeader()) {
       return;
     }
 
-    const wrapperEl = this.tableWrapper.nativeElement;
+    const wrapperEl = tableWrapper.nativeElement;
 
     // Set up vertical scroll listener for sticky positioning (only once)
     if (!this.scrollListener) {
       this.scrollListener = () => {
         this.updateStickyHeader();
         // Also sync horizontal scroll when vertical scrolling (in case wrapper moved)
-        if (this.tableHeader && this.tableHeader.nativeElement.style.position === 'fixed') {
+        const tableHeader = this.tableHeader();
+        if (tableHeader && tableHeader.nativeElement.style.position === 'fixed') {
           this.syncHorizontalScroll();
         }
       };
@@ -1460,12 +1477,14 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private updateStickyHeader() {
-    if (!this.tableWrapper || !this.tableHeader) {
+    const tableWrapper = this.tableWrapper();
+    const tableHeader = this.tableHeader();
+    if (!tableWrapper || !tableHeader) {
       return;
     }
 
-    const wrapper = this.tableWrapper.nativeElement;
-    const header = this.tableHeader.nativeElement;
+    const wrapper = tableWrapper.nativeElement;
+    const header = tableHeader.nativeElement;
     const rect = wrapper.getBoundingClientRect();
     const offset = this.headerStickyOffset;
     
@@ -1625,12 +1644,14 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private syncHorizontalScroll() {
-    if (!this.tableWrapper || !this.tableHeader) {
+    const tableWrapper = this.tableWrapper();
+    const tableHeader = this.tableHeader();
+    if (!tableWrapper || !tableHeader) {
       return;
     }
 
-    const wrapper = this.tableWrapper.nativeElement;
-    const header = this.tableHeader.nativeElement;
+    const wrapper = tableWrapper.nativeElement;
+    const header = tableHeader.nativeElement;
     
     // Sync horizontal scroll position by translating the header
     // Only sync if header is currently fixed/sticky
@@ -1661,19 +1682,19 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   loadUserPermissions() {
     this.adminService.getUserPermissions().subscribe({
       next: (response) => {
-        this.userRole = response.role;
-        this.userPermissions = response;
-        this.isSuperAdmin = response.role === 'SuperAdmin';
+        this.userRole.set(response.role);
+        this.userPermissions.set(response);
+        this.isSuperAdmin.set(response.role === 'SuperAdmin');
         // Prefer the server's answer; fall back to the shared rule for an older API response that
         // predates the flag (SuperAdmins still save directly, Admins still submit for approval).
-        this.canSaveOrderEditsDirectly = response.canSaveOrderEditsDirectly
-          ?? canSaveOrderEditsDirectlyFor({ role: response.role });
+        this.canSaveOrderEditsDirectly.set(response.canSaveOrderEditsDirectly
+          ?? canSaveOrderEditsDirectlyFor({ role: response.role }));
         // Admins-list for the assigned-admin pill dropdown. Same source the shifts page uses.
         // Endpoint is Admin/SuperAdmin-only — skip for Moderators (avoids a 403) since they
         // can't reassign anyway.
-        if (this.userRole === 'Admin' || this.isSuperAdmin) {
+        if (this.userRole() === 'Admin' || this.isSuperAdmin()) {
           this.shiftService.getShiftAdmins().subscribe({
-            next: a => this.availableAdmins = a,
+            next: a => this.availableAdmins.set(a),
             error: () => {}
           });
         }
@@ -1681,7 +1702,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
       },
       error: (error) => {
         console.error('Error loading permissions:', error);
-        this.errorMessage = 'Failed to load permissions. Please try again.';
+        this.errorMessage.set('Failed to load permissions. Please try again.');
       }
     });
   }
@@ -1704,15 +1725,15 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
    * decides which one opens first.
    */
   viewOrderCustomer(): void {
-    const clientId = this.orderInvoices?.contractClientId
-                  ?? this.orderInvoices?.suggestedContractClientId
+    const clientId = this.orderInvoices()?.contractClientId
+                  ?? this.orderInvoices()?.suggestedContractClientId
                   ?? null;
 
     if (clientId) {
       window.open('/admin?clientId=' + clientId, '_blank');
       return;
     }
-    if (this.selectedOrder?.userId) this.openUserInAdmin(this.selectedOrder.userId);
+    if (this.selectedOrder()?.userId) this.openUserInAdmin(this.selectedOrder()!.userId);
   }
 
   // ── "Send Invoice" — the commercial replacement for Send Payment Link ──────────────────────
@@ -1727,33 +1748,33 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   // existing invoice send endpoint, and creating opens the invoice form as a DRAFT.
 
   /** Which invoices cover the open order, and which client a new one would bill. */
-  orderInvoices: OrderInvoices | null = null;
-  loadingOrderInvoices = false;
-  showSendInvoiceModal = false;
-  sendingInvoiceId: number | null = null;
+  readonly orderInvoices = signal<OrderInvoices | null>(null);
+  readonly loadingOrderInvoices = signal(false);
+  readonly showSendInvoiceModal = signal(false);
+  readonly sendingInvoiceId = signal<number | null>(null);
 
   private loadOrderInvoices(orderId: number): void {
-    this.orderInvoices = null;
-    this.invoiceClientForOrder = null;
-    this.showSendInvoiceModal = false;
-    this.sendingInvoiceId = null;
-    this.loadingOrderInvoices = true;
+    this.orderInvoices.set(null);
+    this.invoiceClientForOrder.set(null);
+    this.showSendInvoiceModal.set(false);
+    this.sendingInvoiceId.set(null);
+    this.loadingOrderInvoices.set(true);
 
     this.invoiceService.invoicesForOrder(orderId)
-      .pipe(finalize(() => this.loadingOrderInvoices = false))
+      .pipe(finalize(() => this.loadingOrderInvoices.set(false)))
       .subscribe({
         next: res => {
           // The panel may have moved on to another order while this was in flight.
-          if (this.viewingOrderId !== orderId) return;
-          this.orderInvoices = res;
+          if (this.viewingOrderId() !== orderId) return;
+          this.orderInvoices.set(res);
           this.resolveInvoiceClientForOrder(res);
         },
         // Non-fatal: without it the panel simply keeps offering the payment link, which is the
         // behaviour every order had before this existed.
         error: () => {
-          if (this.viewingOrderId !== orderId) return;
-          this.orderInvoices = null;
-          this.invoiceClientForOrder = null;
+          if (this.viewingOrderId() !== orderId) return;
+          this.orderInvoices.set(null);
+          this.invoiceClientForOrder.set(null);
         }
       });
   }
@@ -1766,8 +1787,8 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
    * method has not been re-read into the panel yet.
    */
   get isInvoiceBilledOrder(): boolean {
-    return this.selectedOrder?.paymentMethod === 'Invoice'
-        || (this.orderInvoices?.invoices?.length ?? 0) > 0;
+    return this.selectedOrder()?.paymentMethod === 'Invoice'
+        || (this.orderInvoices()?.invoices?.length ?? 0) > 0;
   }
 
   /**
@@ -1778,13 +1799,13 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
    * Invoice is deliberately NOT in this list: it is outside Stripe but still unpaid.
    */
   get isSettledOffline(): boolean {
-    const m = this.selectedOrder?.paymentMethod;
+    const m = this.selectedOrder()?.paymentMethod;
     return m === 'Cash' || m === 'Zelle' || m === 'Check' || m === 'BankTransfer' || m === 'Other';
   }
 
   /** The invoices covering the open order, newest first. */
   get coveringInvoices(): LinkedInvoiceSummary[] {
-    return this.orderInvoices?.invoices ?? [];
+    return this.orderInvoices()?.invoices ?? [];
   }
 
   /**
@@ -1794,22 +1815,22 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
    * returning a fresh object literal each time would allocate one per pass for a value that only
    * changes when a different order is opened.
    */
-  invoiceClientForOrder: { id: number; name: string } | null = null;
+  readonly invoiceClientForOrder = signal<{ id: number; name: string } | null>(null);
 
   private resolveInvoiceClientForOrder(res: OrderInvoices | null): void {
     const id = res?.contractClientId ?? res?.suggestedContractClientId;
-    this.invoiceClientForOrder = id
+    this.invoiceClientForOrder.set(id
       ? { id, name: res?.clientName || res?.suggestedClientName || 'this client' }
-      : null;
+      : null);
   }
 
   openSendInvoiceModal(): void {
-    if (!this.selectedOrder) return;
-    this.showSendInvoiceModal = true;
+    if (!this.selectedOrder()) return;
+    this.showSendInvoiceModal.set(true);
   }
 
   closeSendInvoiceModal(): void {
-    this.showSendInvoiceModal = false;
+    this.showSendInvoiceModal.set(false);
   }
 
   /**
@@ -1818,30 +1839,30 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
    * sending it from the invoice page does. There is deliberately no second send path.
    */
   sendInvoiceForOrder(invoice: LinkedInvoiceSummary): void {
-    if (this.sendingInvoiceId) return;
+    if (this.sendingInvoiceId()) return;
 
-    this.sendingInvoiceId = invoice.id;
-    this.errorMessage = '';
+    this.sendingInvoiceId.set(invoice.id);
+    this.errorMessage.set('');
 
     // attachPdf: the client's own copy of the bill travels with the mail, same as sending from
     // the invoice page. An invoice email with no invoice attached is the thing clients reply to.
     this.invoiceService.send(invoice.id, { attachPdf: true })
-      .pipe(finalize(() => this.sendingInvoiceId = null))
+      .pipe(finalize(() => this.sendingInvoiceId.set(null)))
       .subscribe({
         next: () => {
-          this.successMessage = `Invoice ${invoice.invoiceNumber} was emailed to ${invoice.clientName}.`;
-          this.showSendInvoiceModal = false;
+          this.successMessage.set(`Invoice ${invoice.invoiceNumber} was emailed to ${invoice.clientName}.`);
+          this.showSendInvoiceModal.set(false);
           this.clearMessagesAfterDelay();
           // Sending ADOPTS the cleaning — its price, payment method and billing client can all
           // have moved — so both the panel's copy and this list are re-read rather than patched.
-          if (this.viewingOrderId) {
-            this.loadOrderInvoices(this.viewingOrderId);
-            this.refreshSelectedOrderFromServer(this.viewingOrderId);
+          if (this.viewingOrderId()) {
+            this.loadOrderInvoices(this.viewingOrderId()!);
+            this.refreshSelectedOrderFromServer(this.viewingOrderId()!);
           }
         },
         error: err => {
-          this.errorMessage = extractApiErrorMessage(
-            err, `Invoice ${invoice.invoiceNumber} could not be emailed.`);
+          this.errorMessage.set(extractApiErrorMessage(
+            err, `Invoice ${invoice.invoiceNumber} could not be emailed.`));
         }
       });
   }
@@ -1853,18 +1874,18 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
    * reviewed is the failure this flow exists to avoid.
    */
   createInvoiceForOrder(): void {
-    const client = this.invoiceClientForOrder;
-    if (!client || !this.selectedOrder) return;
+    const client = this.invoiceClientForOrder();
+    if (!client || !this.selectedOrder()) return;
 
     window.open(
-      `/admin/commercial/invoices/create?clientId=${client.id}&orderId=${this.selectedOrder.id}`,
+      `/admin/commercial/invoices/create?clientId=${client.id}&orderId=${this.selectedOrder()!.id}`,
       '_blank');
   }
 
   /** Re-reads the open order after an action that can have changed it server-side. */
   private refreshSelectedOrderFromServer(orderId: number): void {
     this.adminService.getOrderDetails(orderId).subscribe({
-      next: order => { if (this.viewingOrderId === orderId) this.selectedOrder = order; },
+      next: order => { if (this.viewingOrderId() === orderId) this.selectedOrder.set(order); },
       error: () => { /* the panel keeps what it has; the list reload below is the safety net */ }
     });
   }
@@ -1884,39 +1905,44 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
 
   loadOrders() {
     const version = ++this.ordersLoadVersion;
-    this.loadingStates.orders = true;
-    this.assignedCleanersCache.clear();
-    this.cleanersLoadedSet.clear();
-    this.residentialVariantCache.clear();
+    this.loadingStates().orders = true;
+    this.loadingStates.set(this.loadingStates());
+    this.assignedCleanersCache().clear();
+    this.assignedCleanersCache.set(this.assignedCleanersCache());
+    this.cleanersLoadedSet().clear();
+    this.cleanersLoadedSet.set(this.cleanersLoadedSet());
+    this.residentialVariantCache().clear();
+    this.residentialVariantCache.set(this.residentialVariantCache());
     this.clearMessages();
 
-    if (this.userRole && this.userRole !== 'Customer') {
-      this.adminService.getAllOrders(this.showHiddenOrders).subscribe({
+    if (this.userRole() && this.userRole() !== 'Customer') {
+      this.adminService.getAllOrders(this.showHiddenOrders()).subscribe({
         next: (orders) => {
           if (version !== this.ordersLoadVersion) return;
-          this.orders = orders as AdminOrderList[];
+          this.orders.set(orders as AdminOrderList[]);
           this.preloadResidentialVariants();
           this.preloadAssignedCleaners();
           this.preloadStaffingWarnings();
-          this.orderReminderService.initialize(this.orders);
-          if (this.isSuperAdmin) {
+          this.orderReminderService.initialize(this.orders());
+          if (this.isSuperAdmin()) {
             this.calculateStatistics();
           }
           // The review queue follows the direct-save grant, not the role: a granted Admin
           // reviews colleagues' submissions, but the header statistics stay SuperAdmin-only.
           this.loadPendingOrderEdits();
-          if (this.openOrderId) {
-            setTimeout(() => this.viewOrderDetails(this.openOrderId!), 100);
+          if (this.openOrderId()) {
+            setTimeout(() => this.viewOrderDetails(this.openOrderId()!), 100);
           }
         },
         error: (error) => {
           if (version !== this.ordersLoadVersion) return;
           console.error('Error loading orders:', error);
-          this.errorMessage = 'Failed to load orders. Please try again.';
+          this.errorMessage.set('Failed to load orders. Please try again.');
         },
         complete: () => {
           if (version !== this.ordersLoadVersion) return;
-          this.loadingStates.orders = false;
+          this.loadingStates().orders = false;
+          this.loadingStates.set(this.loadingStates());
           // Re-initialize sticky header after data loads (in case view changed)
           setTimeout(() => {
             if (!this.stickyHeaderInitialized) {
@@ -1931,17 +1957,18 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
       this.orderService.getUserOrders().subscribe({
         next: (orders) => {
           if (version !== this.ordersLoadVersion) return;
-          this.orders = orders as AdminOrderList[];
+          this.orders.set(orders as AdminOrderList[]);
           this.preloadResidentialVariants();
         },
         error: (error) => {
           if (version !== this.ordersLoadVersion) return;
           console.error('Error loading orders:', error);
-          this.errorMessage = 'Failed to load orders. Please try again.';
+          this.errorMessage.set('Failed to load orders. Please try again.');
         },
         complete: () => {
           if (version !== this.ordersLoadVersion) return;
-          this.loadingStates.orders = false;
+          this.loadingStates().orders = false;
+          this.loadingStates.set(this.loadingStates());
           // Re-initialize sticky header after data loads (in case view changed)
           setTimeout(() => {
             if (!this.stickyHeaderInitialized) {
@@ -1956,38 +1983,41 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private preloadAssignedCleaners() {
-    if (this.orders.length === 0) return;
+    if (this.orders().length === 0) return;
 
-    this.loadingStates.assignedCleaners = true;
+    this.loadingStates().assignedCleaners = true;
+    this.loadingStates.set(this.loadingStates());
 
     // Single bulk request for ALL orders' cleaners. This used to be an N+1 — one request per
     // order, batched 15 at a time but run sequentially — which took several seconds with many
     // orders. One round-trip now resolves every row's cleaners.
     this.adminService.getAssignedCleanersWithIdsBulk().subscribe({
       next: (cleanersByOrderId) => {
-        this.orders.forEach(order => {
+        this.orders().forEach(order => {
           const cleaners = cleanersByOrderId[order.id] ?? cleanersByOrderId[String(order.id)] ?? [];
-          this.assignedCleanersCache.set(order.id, cleaners);
-          this.cleanersLoadedSet.add(order.id);
+          this.assignedCleanersCache().set(order.id, cleaners);
+          this.cleanersLoadedSet().add(order.id);
         });
+        this.assignedCleanersCache.set(this.assignedCleanersCache());
+        this.cleanersLoadedSet.set(this.cleanersLoadedSet());
         this.cdr.detectChanges();
       },
       error: (error) => {
         console.error('Error preloading assigned cleaners:', error);
         // Mark all orders as loaded (with empty) so they don't stay stuck in the loading state.
-        this.orders.forEach(order => this.cleanersLoadedSet.add(order.id));
+        this.orders().forEach(order => this.cleanersLoadedSet().add(order.id));
+        this.cleanersLoadedSet.set(this.cleanersLoadedSet());
       },
       complete: () => {
-        this.loadingStates.assignedCleaners = false;
+        this.loadingStates().assignedCleaners = false;
+        this.loadingStates.set(this.loadingStates());
       }
     });
   }
 
   /** Admin or SuperAdmin — the two roles the staffing-warnings endpoint accepts. Checked at the
    *  call site so a Moderator never fires a request that can only 403. */
-  private get canSeeStaffingWarnings(): boolean {
-    return this.isSuperAdmin || this.userRole === 'Admin';
-  }
+  private readonly canSeeStaffingWarnings = computed<boolean>(() => this.isSuperAdmin() || this.userRole() === 'Admin');
 
   /**
    * One bulk request for the whole list's staffing warnings, alongside the cleaners preload.
@@ -1999,10 +2029,10 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
    * order's row would be the one with no warnings behind it.
    */
   private preloadStaffingWarnings(orderIds?: number[]) {
-    if (!this.canSeeStaffingWarnings || this.orders.length === 0) return;
+    if (!this.canSeeStaffingWarnings() || this.orders().length === 0) return;
 
     this.adminService
-      .getOrdersStaffingWarnings(orderIds, this.showHiddenOrders, !!orderIds)
+      .getOrdersStaffingWarnings(orderIds, this.showHiddenOrders(), !!orderIds)
       .subscribe({
         next: (warningsByOrderId) => this.applyStaffingWarnings(warningsByOrderId, orderIds),
         // Non-fatal and silent, like the payroll breakdown: a failed fetch costs the tooltip its
@@ -2017,14 +2047,17 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
    *  and a plain merge would leave its stale entry in place. */
   private applyStaffingWarnings(warningsByOrderId: OrderStaffingWarningsMap, refreshedIds?: number[]) {
     if (refreshedIds) {
-      refreshedIds.forEach(id => this.staffingWarningsByOrderId.delete(id));
+      refreshedIds.forEach(id => this.staffingWarningsByOrderId().delete(id));
+      this.staffingWarningsByOrderId.set(this.staffingWarningsByOrderId());
     } else {
-      this.staffingWarningsByOrderId.clear();
+      this.staffingWarningsByOrderId().clear();
+      this.staffingWarningsByOrderId.set(this.staffingWarningsByOrderId());
     }
 
     Object.entries(warningsByOrderId ?? {}).forEach(([orderId, warnings]) => {
-      if (warnings?.length) this.staffingWarningsByOrderId.set(Number(orderId), warnings);
+      if (warnings?.length) this.staffingWarningsByOrderId().set(Number(orderId), warnings);
     });
+    this.staffingWarningsByOrderId.set(this.staffingWarningsByOrderId());
 
     this.staffingWarningsLoaded = true;
     this.cdr.detectChanges();
@@ -2032,7 +2065,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
 
   /** Preload Deep/Regular variant for residential rows from order details API. */
   private preloadResidentialVariants() {
-    const residentialOrders = this.orders.filter(order => this.isResidentialServiceType(order));
+    const residentialOrders = this.orders().filter(order => this.isResidentialServiceType(order));
     if (residentialOrders.length === 0) return;
 
     const batchSize = 10;
@@ -2050,8 +2083,9 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
           detailsList.forEach((details, index) => {
             const orderId = batch[index].id;
             const isDeep = this.resolveIsDeepResidential(batch[index] as any, details as any);
-            this.residentialVariantCache.set(orderId, isDeep ? 'Deep' : 'Regular');
+            this.residentialVariantCache().set(orderId, isDeep ? 'Deep' : 'Regular');
           });
+          this.residentialVariantCache.set(this.residentialVariantCache());
           this.cdr.detectChanges();
         },
         complete: () => {
@@ -2072,7 +2106,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
 
   // Bumped whenever order DATA changes (load, status update, edit save) so the
   // memoized stats recompute. Filter-input changes are part of the cache key directly.
-  private statsVersion = 0;
+  private readonly statsVersion = signal(0);
   private statsCacheKey: string | null = null;
   private statsCache = {
     totalOrders: 0, totalAmount: 0, totalTaxes: 0,
@@ -2081,17 +2115,17 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
 
   /** Existing call sites signal "order data changed" — invalidates the memoized stats. */
   private calculateStatistics() {
-    this.statsVersion++;
+    this.statsVersion.update(v => v + 1);
   }
 
   /** Memoized statistics over the CURRENT filtered orders. Stable within a change-detection
    *  pass (no template-bound state is mutated), which fixes NG0100 on search. */
   private get stats() {
     const key = [
-      this.statsVersion, this.orders.length, this.searchTerm,
-      this.statusFilter, this.paymentMethodFilter, this.dateFilter,
-      this.customDateFrom, this.customDateTo,
-      this.serviceTypeFilter, this.bookedByFilter
+      this.statsVersion(), this.orders().length, this.searchTerm(),
+      this.statusFilter(), this.paymentMethodFilter(), this.dateFilter(),
+      this.customDateFrom(), this.customDateTo(),
+      this.serviceTypeFilter(), this.bookedByFilter()
     ].join('|');
     if (key !== this.statsCacheKey) {
       this.statsCacheKey = key;
@@ -2147,13 +2181,17 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   private refreshOrderCleaners(orderId: number): void {
     this.adminService.getAssignedCleanersWithIds(orderId).subscribe({
       next: (cleaners) => {
-        this.assignedCleanersCache.set(orderId, cleaners);
-        this.cleanersLoadedSet.add(orderId);
+        this.assignedCleanersCache().set(orderId, cleaners);
+        this.assignedCleanersCache.set(this.assignedCleanersCache());
+        this.cleanersLoadedSet().add(orderId);
+        this.cleanersLoadedSet.set(this.cleanersLoadedSet());
       },
       error: (error) => {
         console.error(`Error refreshing cleaners for order ${orderId}:`, error);
-        this.assignedCleanersCache.set(orderId, []);
-        this.cleanersLoadedSet.add(orderId);
+        this.assignedCleanersCache().set(orderId, []);
+        this.assignedCleanersCache.set(this.assignedCleanersCache());
+        this.cleanersLoadedSet().add(orderId);
+        this.cleanersLoadedSet.set(this.cleanersLoadedSet());
       }
     });
   }
@@ -2169,25 +2207,25 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   // the one that drifts from the figure the payment page actually charges.
 
   /** The open order's balance, live request and history. Null while loading or unavailable. */
-  partialBalance: OrderPaymentBalance | null = null;
+  readonly partialBalance = signal<OrderPaymentBalance | null>(null);
   loadingPartialBalance = false;
 
   /** The "ask for an amount" form. Reset every time the panel opens another order. */
-  partialAmountInput: number | null = null;
-  partialNoteInput = '';
-  partialChannels = { email: true, sms: true };
-  partialPaymentMessage = '';
-  partialPaymentError = '';
+  readonly partialAmountInput = signal<number | null>(null);
+  readonly partialNoteInput = signal('');
+  readonly partialChannels = signal({ email: true, sms: true });
+  readonly partialPaymentMessage = signal('');
+  readonly partialPaymentError = signal('');
 
   private resetPartialPaymentState(): void {
-    this.partialBalance = null;
+    this.partialBalance.set(null);
     this.loadingPartialBalance = false;
-    this.partialAmountInput = null;
-    this.partialNoteInput = '';
-    this.partialChannels = { email: true, sms: true };
-    this.partialPaymentMessage = '';
-    this.partialPaymentError = '';
-    this.recordingManualPartialPaymentForId = null;
+    this.partialAmountInput.set(null);
+    this.partialNoteInput.set('');
+    this.partialChannels.set({ email: true, sms: true });
+    this.partialPaymentMessage.set('');
+    this.partialPaymentError.set('');
+    this.recordingManualPartialPaymentForId.set(null);
   }
 
   private loadPartialPayments(orderId: number): void {
@@ -2195,9 +2233,9 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     this.loadingPartialBalance = true;
     // Invoice statuses are derived from the same balance, so they are refreshed with it.
     this.loadCustomerInvoices(orderId);
-    this.receiptPaymentKeys = new Set();
+    this.receiptPaymentKeys.set(new Set());
     this.receiptDefaultEmail = '';
-    this.sendingReceiptKey = null;
+    this.sendingReceiptKey.set(null);
     this.loadReceiptPayments(orderId);
 
     this.adminService.getOrderPartialPayments(orderId)
@@ -2205,36 +2243,36 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
       .subscribe({
         next: balance => {
           // The panel may have moved on to another order while this was in flight.
-          if (this.viewingOrderId !== orderId) return;
-          this.partialBalance = balance;
+          if (this.viewingOrderId() !== orderId) return;
+          this.partialBalance.set(balance);
         },
         // Non-fatal: without it the panel simply doesn't offer part-payments, which is how
         // every order behaved before this existed.
         error: () => {
-          if (this.viewingOrderId !== orderId) return;
-          this.partialBalance = null;
+          if (this.viewingOrderId() !== orderId) return;
+          this.partialBalance.set(null);
         }
       });
   }
 
   /** Whether the Payments card has anything to say about this order. */
   get showPartialPaymentsCard(): boolean {
-    if (!this.selectedOrder || !this.partialBalance) return false;
+    if (!this.selectedOrder() || !this.partialBalance()) return false;
     // Money has been taken in slices, or slices can still be asked for. A settled order with no
     // part-payment history has nothing here that the existing payment rows don't already say.
     // Also shown when an edit added money AFTER payment, and whenever the order has a regular
     // invoice. (amountPaid is reported for a fully paid order too since 2026-09, so it only
     // counts here while the order is unpaid — otherwise every settled order would grow a card.)
-    return this.partialBalance.history.length > 0
-      || this.partialBalance.canRequestPartialPayment
-      || (this.partialBalance.amountPaid > 0 && !this.selectedOrder.isPaid)
+    return this.partialBalance()!.history.length > 0
+      || this.partialBalance()!.canRequestPartialPayment
+      || (this.partialBalance()!.amountPaid > 0 && !this.selectedOrder()!.isPaid)
       || this.additionalAmountDue > 0
-      || this.orderCustomerInvoices.length > 0;
+      || this.orderCustomerInvoices().length > 0;
   }
 
   /** Owed on top of a PAID order because an edit raised its price afterwards. */
   get additionalAmountDue(): number {
-    return this.partialBalance?.additionalAmountDue ?? 0;
+    return this.partialBalance()?.additionalAmountDue ?? 0;
   }
 
   // ── Regular customer invoices from the order panel (2026-09) ──────────────────────────
@@ -2244,18 +2282,18 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   // several invoices on request, and an amount added after payment can be billed by its own
   // invoice. Every rule (what may be billed, split or combined) is the server's.
 
-  orderCustomerInvoices: CustomerInvoice[] = [];
+  readonly orderCustomerInvoices = signal<CustomerInvoice[]>([]);
   readonly customerInvoiceStatusLabels = CUSTOMER_INVOICE_STATUS_LABELS;
-  showCustomerInvoiceModal = false;
-  customerInvoiceSplitMode = false;
-  customerInvoiceSplitAmounts: (number | null)[] = [null, null];
-  customerInvoiceNote = '';
-  customerInvoiceChannels = { email: true, sms: true };
-  customerInvoiceBusy = false;
-  customerInvoiceActionId: number | null = null;
-  customerInvoiceMessage = '';
-  customerInvoiceError = '';
-  customerInvoiceCopiedId: number | null = null;
+  readonly showCustomerInvoiceModal = signal(false);
+  readonly customerInvoiceSplitMode = signal(false);
+  readonly customerInvoiceSplitAmounts = signal<(number | null)[]>([null, null], { equal: () => false });
+  readonly customerInvoiceNote = signal('');
+  readonly customerInvoiceChannels = signal({ email: true, sms: true });
+  readonly customerInvoiceBusy = signal(false);
+  readonly customerInvoiceActionId = signal<number | null>(null);
+  readonly customerInvoiceMessage = signal('');
+  readonly customerInvoiceError = signal('');
+  readonly customerInvoiceCopiedId = signal<number | null>(null);
 
   /** Re-reads the balance and invoices WITHOUT resetting the Payments card's form or messages —
    *  the refresh every action ends with, as against loadPartialPayments on opening an order. */
@@ -2263,7 +2301,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     this.loadCustomerInvoices(orderId);
     this.loadReceiptPayments(orderId);
     this.adminService.getOrderPartialPayments(orderId).subscribe({
-      next: balance => { if (this.viewingOrderId === orderId) this.partialBalance = balance; },
+      next: balance => { if (this.viewingOrderId() === orderId) this.partialBalance.set(balance); },
       error: () => { /* keep what is on screen */ }
     });
   }
@@ -2283,24 +2321,24 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
    * The server decides the amount — it is the outstanding top-up — so nothing is typed here.
    */
   createAdditionalInvoiceNow(): void {
-    const order = this.selectedOrder;
-    if (!order || this.customerInvoiceBusy || !this.canCreateAdditionalInvoice) return;
+    const order = this.selectedOrder();
+    if (!order || this.customerInvoiceBusy() || !this.canCreateAdditionalInvoice) return;
     const amount = this.additionalAmountDue;
     if (!confirm(`Create and send an invoice for $${amount.toFixed(2)} (the amount added after payment)?`)) return;
 
-    this.customerInvoiceBusy = true;
-    this.errorMessage = '';
-    this.successMessage = '';
+    this.customerInvoiceBusy.set(true);
+    this.errorMessage.set('');
+    this.successMessage.set('');
     this.customerInvoiceService.create({ orderId: order.id, sendEmail: true, sendSms: true })
-      .pipe(finalize(() => this.customerInvoiceBusy = false))
+      .pipe(finalize(() => this.customerInvoiceBusy.set(false)))
       .subscribe({
         next: res => {
-          this.successMessage = res.message;
+          this.successMessage.set(res.message);
           this.clearMessagesAfterDelay();
           this.refreshOrderAfterSave();
         },
         error: err => {
-          this.errorMessage = extractApiErrorMessage(err, 'The invoice could not be created.');
+          this.errorMessage.set(extractApiErrorMessage(err, 'The invoice could not be created.'));
           this.clearMessagesAfterDelay();
         }
       });
@@ -2308,16 +2346,16 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
 
   /** The assigned cleaner behind a wage row, so the row can carry Send email / Remove. */
   getAssignedCleanerForLine(line: OrderCleanerPayrollLine): AssignedCleanerAdmin | undefined {
-    if (line.isUnassignedSlot || !this.selectedOrder) return undefined;
-    return this.getAssignedCleanersWithIds(this.selectedOrder.id).find(c => c.id === line.cleanerId);
+    if (line.isUnassignedSlot || !this.selectedOrder()) return undefined;
+    return this.getAssignedCleanersWithIds(this.selectedOrder()!.id).find(c => c.id === line.cleanerId);
   }
 
   /** Assigned cleaners with no wage row on screen (breakdown hidden, not loaded, or not yet
    *  refreshed after an assignment) — listed separately so each keeps their actions. */
   get cleanersWithoutPayrollRow(): AssignedCleanerAdmin[] {
-    if (!this.selectedOrder) return [];
-    const assigned = this.getAssignedCleanersWithIds(this.selectedOrder.id);
-    if (!this.canViewCleanerPayroll || !this.selectedOrderPayroll) return assigned;
+    if (!this.selectedOrder()) return [];
+    const assigned = this.getAssignedCleanersWithIds(this.selectedOrder()!.id);
+    if (!this.canViewCleanerPayroll() || !this.selectedOrderPayroll()) return assigned;
     const onRows = new Set(this.getOrderPayrollLines().filter(l => !l.isUnassignedSlot).map(l => l.cleanerId));
     return assigned.filter(c => !onRows.has(c.id));
   }
@@ -2335,10 +2373,10 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
    * Actions (record a manual payment, send the updated-payment link) sit on the row they act on.
    */
   get paymentTimeline(): PaymentTimelineRow[] {
-    const order = this.selectedOrder;
+    const order = this.selectedOrder();
     if (!order) return [];
-    const invoices = this.orderCustomerInvoices;
-    const slices = this.partialBalance?.history ?? [];
+    const invoices = this.orderCustomerInvoices();
+    const slices = this.partialBalance()?.history ?? [];
     const invoiceFor = (requestId: number) => invoices.find(i => i.partialPaymentId === requestId) ?? null;
     const paidBy = (method?: string | null, reference?: string | null) =>
       `Paid by ${!method || method === 'Normal' ? 'card' : method}${reference ? ` · ${reference}` : ''}`;
@@ -2366,7 +2404,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     if (!slices.some(p => p.status === 'Paid' || p.status === 'Pending')) {
       const base = order.initialTotal > 0
         ? order.initialTotal
-        : (this.orderUpdateHistory?.[0]?.originalTotal ?? order.total);
+        : (this.orderUpdateHistory()?.[0]?.originalTotal ?? order.total);
       const method = order.paymentMethod || 'Normal';
       const settledOutside = method !== 'Normal' && method !== 'Invoice';
       if (order.isPaid || settledOutside || !!order.invoicePaidAt) {
@@ -2374,7 +2412,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
           amount: base, sign: '', status: 'paid',
           statusText: method === 'Invoice' ? 'Paid by invoice' : paidBy(method, order.paymentReference), invoice: null });
       } else if (order.status !== 'Cancelled') {
-        rows.push({ key: 'booking', when: null, label: 'Booking payment', amount: this.partialBalance?.amountDue ?? order.total,
+        rows.push({ key: 'booking', when: null, label: 'Booking payment', amount: this.partialBalance()?.amountDue ?? order.total,
           sign: '', status: 'due', statusText: 'Not paid yet', invoice: null });
       }
     }
@@ -2424,7 +2462,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
    * one, or waiting on one while the order is unpaid.
    */
   get headerPaymentLabel(): string {
-    const order = this.selectedOrder;
+    const order = this.selectedOrder();
     if (!order) return '';
     const method = order.paymentMethod || 'Normal';
     if (method === 'Invoice') return 'Invoice';
@@ -2444,51 +2482,51 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   // "Pay all upcoming" charge) — the row's method label cannot tell a website bank payment from
   // one an admin typed in. The send itself re-checks the payment live.
 
-  receiptPaymentKeys = new Set<string>();
+  readonly receiptPaymentKeys = signal(new Set<string>());
   receiptDefaultEmail = '';
-  sendingReceiptKey: string | null = null;
-  receiptEmailInput = '';
-  savingReceipt = false;
+  readonly sendingReceiptKey = signal<string | null>(null);
+  readonly receiptEmailInput = signal('');
+  readonly savingReceipt = signal(false);
 
   private loadReceiptPayments(orderId: number): void {
     this.adminService.getReceiptPayments(orderId).subscribe({
       next: res => {
-        if (this.viewingOrderId !== orderId) return;
-        this.receiptPaymentKeys = new Set(res.paymentKeys ?? []);
+        if (this.viewingOrderId() !== orderId) return;
+        this.receiptPaymentKeys.set(new Set(res.paymentKeys ?? []));
         this.receiptDefaultEmail = res.defaultEmail ?? '';
       },
       // Non-fatal: without it the rows simply carry no Send Receipt button.
-      error: () => { if (this.viewingOrderId === orderId) this.receiptPaymentKeys = new Set(); }
+      error: () => { if (this.viewingOrderId() === orderId) this.receiptPaymentKeys.set(new Set()); }
     });
   }
 
   canSendReceipt(row: PaymentTimelineRow): boolean {
-    const canUpdate = this.isSuperAdmin || !!this.userPermissions?.permissions?.canUpdate;
-    return canUpdate && row.status === 'paid' && this.receiptPaymentKeys.has(row.key);
+    const canUpdate = this.isSuperAdmin() || !!this.userPermissions()?.permissions?.canUpdate;
+    return canUpdate && row.status === 'paid' && this.receiptPaymentKeys().has(row.key);
   }
 
   startSendReceipt(row: PaymentTimelineRow): void {
-    this.sendingReceiptKey = row.key;
-    this.receiptEmailInput = this.receiptDefaultEmail;
+    this.sendingReceiptKey.set(row.key);
+    this.receiptEmailInput.set(this.receiptDefaultEmail);
   }
 
   confirmSendReceipt(row: PaymentTimelineRow): void {
-    const order = this.selectedOrder;
-    const email = this.receiptEmailInput.trim();
-    if (!order || this.savingReceipt || !email) return;
-    this.savingReceipt = true;
-    this.errorMessage = '';
-    this.successMessage = '';
+    const order = this.selectedOrder();
+    const email = this.receiptEmailInput().trim();
+    if (!order || this.savingReceipt() || !email) return;
+    this.savingReceipt.set(true);
+    this.errorMessage.set('');
+    this.successMessage.set('');
     this.adminService.sendPaymentReceipt(order.id, row.key, email)
-      .pipe(finalize(() => this.savingReceipt = false))
+      .pipe(finalize(() => this.savingReceipt.set(false)))
       .subscribe({
         next: res => {
-          this.sendingReceiptKey = null;
-          this.successMessage = res?.message || `Receipt sent to ${email}.`;
+          this.sendingReceiptKey.set(null);
+          this.successMessage.set(res?.message || `Receipt sent to ${email}.`);
           this.clearMessagesAfterDelay();
         },
         error: err => {
-          this.errorMessage = extractApiErrorMessage(err, 'The receipt could not be sent.');
+          this.errorMessage.set(extractApiErrorMessage(err, 'The receipt could not be sent.'));
           this.clearMessagesAfterDelay();
         }
       });
@@ -2496,61 +2534,61 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
 
   // ── Correcting a manually recorded payment (a stray Confirm had no way back, 2026-09) ──
 
-  editingManualPaymentKey: string | null = null;
-  manualEditMethod = 'Zelle';
-  manualEditReference = '';
-  manualEditNotes = '';
-  savingManualEdit = false;
+  readonly editingManualPaymentKey = signal<string | null>(null);
+  readonly manualEditMethod = signal('Zelle');
+  readonly manualEditReference = signal('');
+  readonly manualEditNotes = signal('');
+  readonly savingManualEdit = signal(false);
 
   // ── Marking an open regular invoice paid outside the website (2026-09-29) ──
-  markingInvoicePaidKey: string | null = null;
-  markInvoicePaidMethod = 'BankTransfer';
-  markInvoicePaidReference = '';
-  markInvoicePaidNotes = '';
-  savingMarkInvoicePaid = false;
+  readonly markingInvoicePaidKey = signal<string | null>(null);
+  readonly markInvoicePaidMethod = signal('BankTransfer');
+  readonly markInvoicePaidReference = signal('');
+  readonly markInvoicePaidNotes = signal('');
+  readonly savingMarkInvoicePaid = signal(false);
 
   /** An unpaid Full/Split invoice row (it has its own part-payment request to settle). */
   canMarkInvoicePaid(row: PaymentTimelineRow): boolean {
-    const canUpdate = this.isSuperAdmin || !!this.userPermissions?.permissions?.canUpdate;
+    const canUpdate = this.isSuperAdmin() || !!this.userPermissions()?.permissions?.canUpdate;
     return canUpdate && row.status === 'due' && !row.update
       && !!row.invoice && row.invoice.partialPaymentId != null && row.invoice.kind !== 'Additional';
   }
 
   startMarkInvoicePaid(row: PaymentTimelineRow): void {
-    this.markingInvoicePaidKey = row.key;
-    this.markInvoicePaidMethod = 'BankTransfer';
-    this.markInvoicePaidReference = '';
-    this.markInvoicePaidNotes = '';
+    this.markingInvoicePaidKey.set(row.key);
+    this.markInvoicePaidMethod.set('BankTransfer');
+    this.markInvoicePaidReference.set('');
+    this.markInvoicePaidNotes.set('');
   }
 
   /** Records it against the invoice's own request — the endpoint that completes the order
    *  (Active, confirmation) when this was the last amount owed. */
   confirmMarkInvoicePaid(row: PaymentTimelineRow): void {
-    const order = this.selectedOrder;
-    if (!order || !row.invoice || this.savingMarkInvoicePaid) return;
-    this.savingMarkInvoicePaid = true;
-    this.errorMessage = '';
-    this.successMessage = '';
-    this.customerInvoiceService.recordPayment(row.invoice, this.markInvoicePaidMethod,
-        this.markInvoicePaidReference.trim() || null, this.markInvoicePaidNotes.trim() || null)
-      .pipe(finalize(() => this.savingMarkInvoicePaid = false))
+    const order = this.selectedOrder();
+    if (!order || !row.invoice || this.savingMarkInvoicePaid()) return;
+    this.savingMarkInvoicePaid.set(true);
+    this.errorMessage.set('');
+    this.successMessage.set('');
+    this.customerInvoiceService.recordPayment(row.invoice, this.markInvoicePaidMethod(),
+        this.markInvoicePaidReference().trim() || null, this.markInvoicePaidNotes().trim() || null)
+      .pipe(finalize(() => this.savingMarkInvoicePaid.set(false)))
       .subscribe({
         next: res => {
-          this.markingInvoicePaidKey = null;
-          this.successMessage = res?.message || `Invoice ${row.invoice!.invoiceNumber} marked paid.`;
+          this.markingInvoicePaidKey.set(null);
+          this.successMessage.set(res?.message || `Invoice ${row.invoice!.invoiceNumber} marked paid.`);
           this.clearMessagesAfterDelay();
           this.refreshOrderAfterSave();
           this.refreshPartialBalanceQuietly(order.id);
         },
         error: err => {
-          this.errorMessage = extractApiErrorMessage(err, 'The payment could not be recorded.');
+          this.errorMessage.set(extractApiErrorMessage(err, 'The payment could not be recorded.'));
           this.clearMessagesAfterDelay();
         }
       });
   }
 
   canEditManualPayment(row: PaymentTimelineRow): boolean {
-    const canUpdate = this.isSuperAdmin || !!this.userPermissions?.permissions?.canUpdate;
+    const canUpdate = this.isSuperAdmin() || !!this.userPermissions()?.permissions?.canUpdate;
     if (!canUpdate || row.status !== 'paid') return false;
     if (row.update) return !!row.update.manualPaymentRecordedAt;
     return !!row.slice && !!row.slice.paymentMethod && row.slice.paymentMethod !== 'Normal';
@@ -2558,25 +2596,25 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
 
   startEditManualPayment(row: PaymentTimelineRow): void {
     const source = row.update ?? row.slice;
-    this.editingManualPaymentKey = row.key;
-    this.manualEditMethod = this.manualPaymentMethods.includes(source?.paymentMethod ?? '') ? source!.paymentMethod! : 'Zelle';
-    this.manualEditReference = source?.paymentReference ?? '';
-    this.manualEditNotes = source?.paymentNotes ?? '';
+    this.editingManualPaymentKey.set(row.key);
+    this.manualEditMethod.set(this.manualPaymentMethods.includes(source?.paymentMethod ?? '') ? source!.paymentMethod! : 'Zelle');
+    this.manualEditReference.set(source?.paymentReference ?? '');
+    this.manualEditNotes.set(source?.paymentNotes ?? '');
   }
 
   cancelManualPaymentEdit(): void {
-    this.editingManualPaymentKey = null;
+    this.editingManualPaymentKey.set(null);
   }
 
   saveManualPaymentEdit(row: PaymentTimelineRow): void {
-    const order = this.selectedOrder;
-    if (!order || this.savingManualEdit) return;
-    const reference = this.manualEditReference.trim() || null;
-    const notes = this.manualEditNotes.trim() || null;
+    const order = this.selectedOrder();
+    if (!order || this.savingManualEdit()) return;
+    const reference = this.manualEditReference().trim() || null;
+    const notes = this.manualEditNotes().trim() || null;
     const request = row.update
-      ? this.adminService.editManualAdditionalPayment(order.id, row.update.id, this.manualEditMethod, reference, notes)
+      ? this.adminService.editManualAdditionalPayment(order.id, row.update.id, this.manualEditMethod(), reference, notes)
       : row.slice
-        ? this.adminService.editPartialManualPayment(order.id, row.slice.id, this.manualEditMethod, reference, notes)
+        ? this.adminService.editPartialManualPayment(order.id, row.slice.id, this.manualEditMethod(), reference, notes)
         : null;
     if (!request) return;
     this.runManualEdit(request, 'The payment could not be updated.');
@@ -2584,26 +2622,26 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
 
   /** Only an edit (top-up) payment can be taken back — a part payment completes the order. */
   revertManualPayment(row: PaymentTimelineRow): void {
-    const order = this.selectedOrder;
-    if (!order || !row.update || this.savingManualEdit) return;
+    const order = this.selectedOrder();
+    if (!order || !row.update || this.savingManualEdit()) return;
     if (!confirm(`Mark $${this.formatCurrency(row.amount)} as NOT paid? It will be owed again.`)) return;
     this.runManualEdit(this.adminService.revertManualAdditionalPayment(order.id, row.update.id),
       'The payment could not be marked unpaid.');
   }
 
   private runManualEdit(request: Observable<{ message: string }>, fallback: string): void {
-    this.savingManualEdit = true;
-    this.errorMessage = '';
-    this.successMessage = '';
-    request.pipe(finalize(() => this.savingManualEdit = false)).subscribe({
+    this.savingManualEdit.set(true);
+    this.errorMessage.set('');
+    this.successMessage.set('');
+    request.pipe(finalize(() => this.savingManualEdit.set(false))).subscribe({
       next: res => {
-        this.successMessage = res?.message || 'Payment updated.';
+        this.successMessage.set(res?.message || 'Payment updated.');
         this.clearMessagesAfterDelay();
-        this.editingManualPaymentKey = null;
+        this.editingManualPaymentKey.set(null);
         this.refreshOrderAfterSave();
       },
       error: err => {
-        this.errorMessage = extractApiErrorMessage(err, fallback);
+        this.errorMessage.set(extractApiErrorMessage(err, fallback));
         this.clearMessagesAfterDelay();
       }
     });
@@ -2613,14 +2651,14 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   get panelAmountOwed(): number {
     // A cash / Zelle order was paid in person: only an amount an edit added afterwards is owed.
     if (this.isSettledOffline) return this.additionalAmountDue;
-    return Math.round(((this.partialBalance?.amountDue ?? 0) + this.additionalAmountDue) * 100) / 100;
+    return Math.round(((this.partialBalance()?.amountDue ?? 0) + this.additionalAmountDue) * 100) / 100;
   }
 
   /** The live part-payment request, unless it is the one behind an invoice (listed there). */
   get pendingRequestNotInvoiced(): OrderPartialPayment | null {
-    const pending = this.partialBalance?.pendingRequest ?? null;
+    const pending = this.partialBalance()?.pendingRequest ?? null;
     if (!pending) return null;
-    return this.orderCustomerInvoices.some(i => i.partialPaymentId === pending.id) ? null : pending;
+    return this.orderCustomerInvoices().some(i => i.partialPaymentId === pending.id) ? null : pending;
   }
 
   /**
@@ -2629,9 +2667,9 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
    * listed right above, and "already paid" is the Paid figure itself.
    */
   get paymentsRefusal(): string | null {
-    const b = this.partialBalance;
+    const b = this.partialBalance();
     if (!b || b.canRequestPartialPayment || !b.cannotRequestReason) return null;
-    if (this.selectedOrder?.isPaid) return null;
+    if (this.selectedOrder()?.isPaid) return null;
     if (b.pendingRequest && !this.pendingRequestNotInvoiced) return null;
     return b.cannotRequestReason;
   }
@@ -2639,37 +2677,37 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   /** Partial-payment history rows that are NOT the request behind an invoice — those are
    *  already listed under Invoices, and showing them twice was the duplicate on the card. */
   get partialPaymentHistoryWithoutInvoices(): OrderPartialPayment[] {
-    const invoiced = new Set(this.orderCustomerInvoices.map(i => i.partialPaymentId).filter(id => id != null));
+    const invoiced = new Set(this.orderCustomerInvoices().map(i => i.partialPaymentId).filter(id => id != null));
     return this.partialPaymentHistory.filter(p => !invoiced.has(p.id));
   }
 
   // ── Panel tabs (2026-09): Details / Payments / Cleaners / Changes ─────────────────────────
 
-  orderPanelTab: 'details' | 'payments' | 'cleaners' | 'changes' = 'details';
+  readonly orderPanelTab = signal<'details' | 'payments' | 'cleaners' | 'changes'>('details');
 
   setOrderPanelTab(tab: 'details' | 'payments' | 'cleaners' | 'changes'): void {
-    this.orderPanelTab = tab;
-    if (tab === 'changes' && this.selectedOrder && this.orderChangesLoadedFor !== this.selectedOrder.id)
-      this.loadOrderChanges(this.selectedOrder.id);
+    this.orderPanelTab.set(tab);
+    if (tab === 'changes' && this.selectedOrder() && this.orderChangesLoadedFor !== this.selectedOrder()!.id)
+      this.loadOrderChanges(this.selectedOrder()!.id);
   }
 
   // ── Changes tab: what changed on this order after it was created ──
 
-  orderChanges: OrderChangeEntry[] = [];
-  loadingOrderChanges = false;
+  readonly orderChanges = signal<OrderChangeEntry[]>([]);
+  readonly loadingOrderChanges = signal(false);
   orderChangesLoadedFor: number | null = null;
 
   loadOrderChanges(orderId: number): void {
-    this.loadingOrderChanges = true;
+    this.loadingOrderChanges.set(true);
     this.orderChangesLoadedFor = orderId;
     this.adminService.getOrderChanges(orderId)
-      .pipe(finalize(() => this.loadingOrderChanges = false))
+      .pipe(finalize(() => this.loadingOrderChanges.set(false)))
       .subscribe({
         next: rows => {
-          if (this.viewingOrderId !== orderId) return;
-          this.orderChanges = buildOrderChangeEntries(rows);
+          if (this.viewingOrderId() !== orderId) return;
+          this.orderChanges.set(buildOrderChangeEntries(rows));
         },
-        error: () => { if (this.viewingOrderId === orderId) this.orderChanges = []; }
+        error: () => { if (this.viewingOrderId() === orderId) this.orderChanges.set([]); }
       });
   }
 
@@ -2684,7 +2722,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
 
   /** Update-history rows that actually moved the price — a $0.00 row is noise (owner's call). */
   get visibleOrderUpdateHistory(): OrderUpdateHistory[] {
-    return (this.orderUpdateHistory ?? []).filter(u => Math.abs(this.getUpdateRowDelta(u)) >= 0.01);
+    return (this.orderUpdateHistory() ?? []).filter(u => Math.abs(this.getUpdateRowDelta(u)) >= 0.01);
   }
 
   trackUpdate(_: number, update: OrderUpdateHistory): number {
@@ -2697,22 +2735,22 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     // Cleared only when the panel moved to another order — a refresh of the same order keeps
     // the list on screen instead of blinking the Payments card away and back.
     if (this.customerInvoicesOrderId !== orderId) {
-      this.orderCustomerInvoices = [];
+      this.orderCustomerInvoices.set([]);
       this.customerInvoicesOrderId = orderId;
     }
     this.customerInvoiceService.list({ orderId }).subscribe({
       next: invoices => {
-        if (this.viewingOrderId !== orderId) return;
-        this.orderCustomerInvoices = invoices;
+        if (this.viewingOrderId() !== orderId) return;
+        this.orderCustomerInvoices.set(invoices);
       },
       // Non-fatal: Moderators are refused (Admin+SuperAdmin endpoint) and simply see no invoices.
-      error: () => { if (this.viewingOrderId === orderId) this.orderCustomerInvoices = []; }
+      error: () => { if (this.viewingOrderId() === orderId) this.orderCustomerInvoices.set([]); }
     });
   }
 
   /** Regular invoices still waiting for money. */
   get openCustomerInvoices(): CustomerInvoice[] {
-    return this.orderCustomerInvoices.filter(i => i.status === 'Sent' || i.status === 'NotSent');
+    return this.orderCustomerInvoices().filter(i => i.status === 'Sent' || i.status === 'NotSent');
   }
 
   /** Paid invoices for the order's OWN total — what makes the pricing line read "Paid by Invoice".
@@ -2720,7 +2758,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   get paidCustomerInvoices(): CustomerInvoice[] {
     // paidVia is set only when THIS invoice's own request took the money — an invoice that reads
     // Paid because the order was settled some other way must not claim the payment.
-    return this.orderCustomerInvoices.filter(i => i.status === 'Paid' && i.kind !== 'Additional' && !!i.paidVia);
+    return this.orderCustomerInvoices().filter(i => i.status === 'Paid' && i.kind !== 'Additional' && !!i.paidVia);
   }
 
   /**
@@ -2728,23 +2766,23 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
    * actually be billed right now is answered inside the modal, from the server's figures.
    */
   get canOfferCustomerInvoice(): boolean {
-    const o = this.selectedOrder;
-    if (!o || this.isInvoiceBilledOrder || this.invoiceClientForOrder || this.isSettledOffline) return false;
+    const o = this.selectedOrder();
+    if (!o || this.isInvoiceBilledOrder || this.invoiceClientForOrder() || this.isSettledOffline) return false;
     if (o.status === 'Cancelled' || o.status === 'Refunded') return false;
-    return this.isSuperAdmin || this.userRole === 'Admin';
+    return this.isSuperAdmin() || this.userRole() === 'Admin';
   }
 
   /** What a new invoice would bill: the extra added after payment, the unpaid balance, or nothing. */
   get customerInvoiceBillingMode(): 'additional' | 'balance' | 'none' {
     if (this.additionalAmountDue >= 0.5) return 'additional';
-    const b = this.partialBalance;
-    if (b && !this.selectedOrder?.isPaid && b.amountDue >= 0.5 && this.customerInvoiceAvailable >= 0.5) return 'balance';
+    const b = this.partialBalance();
+    if (b && !this.selectedOrder()?.isPaid && b.amountDue >= 0.5 && this.customerInvoiceAvailable >= 0.5) return 'balance';
     return 'none';
   }
 
   /** Owed on the order's own total and not already on an open request or invoice. */
   get customerInvoiceAvailable(): number {
-    const b = this.partialBalance;
+    const b = this.partialBalance();
     if (!b) return 0;
     const open = (b.history ?? []).filter(p => p.status === 'Pending').reduce((s, p) => s + p.requestedAmount, 0);
     return Math.max(0, Math.round((b.amountDue - open) * 100) / 100);
@@ -2756,30 +2794,30 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   get customerInvoiceSplitTotal(): number {
-    return Math.round(this.customerInvoiceSplitAmounts.reduce<number>((s, a) => s + (Number(a) || 0), 0) * 100) / 100;
+    return Math.round(this.customerInvoiceSplitAmounts().reduce<number>((s, a) => s + (Number(a) || 0), 0) * 100) / 100;
   }
 
   openCustomerInvoiceModal(): void {
-    this.customerInvoiceSplitMode = this.customerInvoiceMustSplit;
-    this.customerInvoiceSplitAmounts = [null, null];
-    this.customerInvoiceNote = '';
-    this.customerInvoiceChannels = { email: true, sms: true };
-    this.customerInvoiceMessage = '';
-    this.customerInvoiceError = '';
-    this.showCustomerInvoiceModal = true;
+    this.customerInvoiceSplitMode.set(this.customerInvoiceMustSplit);
+    this.customerInvoiceSplitAmounts.set([null, null]);
+    this.customerInvoiceNote.set('');
+    this.customerInvoiceChannels.set({ email: true, sms: true });
+    this.customerInvoiceMessage.set('');
+    this.customerInvoiceError.set('');
+    this.showCustomerInvoiceModal.set(true);
   }
 
   closeCustomerInvoiceModal(): void {
-    if (this.customerInvoiceBusy) return;
-    this.showCustomerInvoiceModal = false;
+    if (this.customerInvoiceBusy()) return;
+    this.showCustomerInvoiceModal.set(false);
   }
 
   addCustomerInvoiceSplitRow(): void {
-    if (this.customerInvoiceSplitAmounts.length < 12) this.customerInvoiceSplitAmounts.push(null);
+    if (this.customerInvoiceSplitAmounts().length < 12) { this.customerInvoiceSplitAmounts().push(null); this.customerInvoiceSplitAmounts.set(this.customerInvoiceSplitAmounts()); }
   }
 
   removeCustomerInvoiceSplitRow(index: number): void {
-    if (this.customerInvoiceSplitAmounts.length > 1) this.customerInvoiceSplitAmounts.splice(index, 1);
+    if (this.customerInvoiceSplitAmounts().length > 1) { this.customerInvoiceSplitAmounts().splice(index, 1); this.customerInvoiceSplitAmounts.set(this.customerInvoiceSplitAmounts()); }
   }
 
   trackByIndex(index: number): number {
@@ -2787,101 +2825,101 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   createCustomerInvoice(): void {
-    const order = this.selectedOrder;
-    if (!order || this.customerInvoiceBusy) return;
+    const order = this.selectedOrder();
+    if (!order || this.customerInvoiceBusy()) return;
     const mode = this.customerInvoiceBillingMode;
     if (mode === 'none') return;
 
-    const split = mode === 'balance' && (this.customerInvoiceSplitMode || this.customerInvoiceMustSplit);
-    const amounts = split ? this.customerInvoiceSplitAmounts.map(a => Number(a) || 0) : undefined;
+    const split = mode === 'balance' && (this.customerInvoiceSplitMode() || this.customerInvoiceMustSplit);
+    const amounts = split ? this.customerInvoiceSplitAmounts().map(a => Number(a) || 0) : undefined;
     if (amounts && (amounts.length === 0 || amounts.some(a => a < 0.5))) {
-      this.customerInvoiceError = 'Every split invoice needs an amount of at least $0.50.';
+      this.customerInvoiceError.set('Every split invoice needs an amount of at least $0.50.');
       return;
     }
 
-    this.customerInvoiceBusy = true;
-    this.customerInvoiceError = '';
-    this.customerInvoiceMessage = '';
+    this.customerInvoiceBusy.set(true);
+    this.customerInvoiceError.set('');
+    this.customerInvoiceMessage.set('');
     const orderId = order.id;
     this.customerInvoiceService.create({
       orderId,
       splitAmounts: amounts,
-      note: this.customerInvoiceNote.trim() || null,
-      sendEmail: this.customerInvoiceChannels.email,
-      sendSms: this.customerInvoiceChannels.sms
-    }).pipe(finalize(() => this.customerInvoiceBusy = false))
+      note: this.customerInvoiceNote().trim() || null,
+      sendEmail: this.customerInvoiceChannels().email,
+      sendSms: this.customerInvoiceChannels().sms
+    }).pipe(finalize(() => this.customerInvoiceBusy.set(false)))
       .subscribe({
         next: res => {
-          this.customerInvoiceMessage = res.message;
-          this.customerInvoiceSplitAmounts = [null, null];
-          this.customerInvoiceNote = '';
+          this.customerInvoiceMessage.set(res.message);
+          this.customerInvoiceSplitAmounts.set([null, null]);
+          this.customerInvoiceNote.set('');
           this.refreshOrderAfterSave();
         },
-        error: err => this.customerInvoiceError = extractApiErrorMessage(err, 'The invoice could not be created.')
+        error: err => this.customerInvoiceError.set(extractApiErrorMessage(err, 'The invoice could not be created.'))
       });
   }
 
   /** The Payments card's "Send Invoice Reminder": the invoice for the added amount, sent again by
    *  email and text — the same send endpoint, so the invoice stamps another send. */
-  sendingInvoiceReminder = false;
+  readonly sendingInvoiceReminder = signal(false);
   sendAdditionalInvoiceReminder(invoice: CustomerInvoice): void {
-    if (this.sendingInvoiceReminder) return;
-    this.sendingInvoiceReminder = true;
-    this.errorMessage = '';
-    this.successMessage = '';
+    if (this.sendingInvoiceReminder()) return;
+    this.sendingInvoiceReminder.set(true);
+    this.errorMessage.set('');
+    this.successMessage.set('');
     this.customerInvoiceService.send(invoice.id, true, true)
-      .pipe(finalize(() => this.sendingInvoiceReminder = false))
+      .pipe(finalize(() => this.sendingInvoiceReminder.set(false)))
       .subscribe({
         next: res => {
-          this.successMessage = res.message || `Invoice ${invoice.invoiceNumber} sent again.`;
+          this.successMessage.set(res.message || `Invoice ${invoice.invoiceNumber} sent again.`);
           this.clearMessagesAfterDelay();
-          if (this.selectedOrder) this.refreshPartialBalanceQuietly(this.selectedOrder.id);
+          if (this.selectedOrder()) this.refreshPartialBalanceQuietly(this.selectedOrder()!.id);
         },
         error: err => {
-          this.errorMessage = extractApiErrorMessage(err, 'The invoice reminder could not be sent.');
+          this.errorMessage.set(extractApiErrorMessage(err, 'The invoice reminder could not be sent.'));
           this.clearMessagesAfterDelay();
         }
       });
   }
 
   resendCustomerInvoice(invoice: CustomerInvoice): void {
-    if (this.customerInvoiceActionId !== null) return;
-    this.customerInvoiceActionId = invoice.id;
-    this.customerInvoiceError = '';
-    this.customerInvoiceMessage = '';
-    this.customerInvoiceService.send(invoice.id, this.customerInvoiceChannels.email, this.customerInvoiceChannels.sms)
-      .pipe(finalize(() => this.customerInvoiceActionId = null))
+    if (this.customerInvoiceActionId() !== null) return;
+    this.customerInvoiceActionId.set(invoice.id);
+    this.customerInvoiceError.set('');
+    this.customerInvoiceMessage.set('');
+    this.customerInvoiceService.send(invoice.id, this.customerInvoiceChannels().email, this.customerInvoiceChannels().sms)
+      .pipe(finalize(() => this.customerInvoiceActionId.set(null)))
       .subscribe({
         next: res => {
-          this.customerInvoiceMessage = res.message;
+          this.customerInvoiceMessage.set(res.message);
           this.refreshOrderAfterSave();
         },
-        error: err => this.customerInvoiceError = extractApiErrorMessage(err, 'The invoice could not be sent.')
+        error: err => this.customerInvoiceError.set(extractApiErrorMessage(err, 'The invoice could not be sent.'))
       });
   }
 
   voidCustomerInvoice(invoice: CustomerInvoice): void {
-    if (this.customerInvoiceActionId !== null) return;
+    if (this.customerInvoiceActionId() !== null) return;
     if (!confirm(`Void invoice ${invoice.invoiceNumber}? The customer will no longer be able to pay it.`)) return;
-    this.customerInvoiceActionId = invoice.id;
-    this.customerInvoiceError = '';
-    this.customerInvoiceMessage = '';
+    this.customerInvoiceActionId.set(invoice.id);
+    this.customerInvoiceError.set('');
+    this.customerInvoiceMessage.set('');
     this.customerInvoiceService.void(invoice.id, null)
-      .pipe(finalize(() => this.customerInvoiceActionId = null))
+      .pipe(finalize(() => this.customerInvoiceActionId.set(null)))
       .subscribe({
         next: res => {
-          this.customerInvoiceMessage = res.message;
+          this.customerInvoiceMessage.set(res.message);
           this.refreshOrderAfterSave();
         },
-        error: err => this.customerInvoiceError = extractApiErrorMessage(err, 'The invoice could not be voided.')
+        error: err => this.customerInvoiceError.set(extractApiErrorMessage(err, 'The invoice could not be voided.'))
       });
   }
 
   copyCustomerInvoiceLink(invoice: CustomerInvoice): void {
     if (typeof navigator === 'undefined' || !navigator.clipboard) return;
     navigator.clipboard.writeText(invoice.publicUrl).then(() => {
-      this.customerInvoiceCopiedId = invoice.id;
-      setTimeout(() => { if (this.customerInvoiceCopiedId === invoice.id) this.customerInvoiceCopiedId = null; }, 2000);
+      this.customerInvoiceCopiedId.set(invoice.id);
+      setTimeout(() => { if (this.customerInvoiceCopiedId() === invoice.id) this.customerInvoiceCopiedId.set(null); }, 2000);
     });
   }
 
@@ -2891,100 +2929,106 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
    * listing it twice makes one waiting request look like two.
    */
   get partialPaymentHistory(): OrderPartialPayment[] {
-    return [...(this.partialBalance?.history ?? [])]
+    return [...(this.partialBalance()?.history ?? [])]
       .filter(p => p.status !== 'Pending')
       .reverse();
   }
 
   requestPartialPayment(): void {
-    if (!this.selectedOrder || this.loadingStates.partialPayment) return;
+    if (!this.selectedOrder() || this.loadingStates().partialPayment) return;
 
-    const amount = Number(this.partialAmountInput);
-    this.partialPaymentError = '';
-    this.partialPaymentMessage = '';
+    const amount = Number(this.partialAmountInput());
+    this.partialPaymentError.set('');
+    this.partialPaymentMessage.set('');
 
     // A local sanity check only, so the admin isn't round-tripped for an empty box. Everything
     // that actually protects the money — the balance, the minimum, the uncollectable-remainder
     // rule — is decided server-side.
     if (!Number.isFinite(amount) || amount <= 0) {
-      this.partialPaymentError = 'Enter the amount to ask the customer for.';
+      this.partialPaymentError.set('Enter the amount to ask the customer for.');
       return;
     }
 
-    const orderId = this.selectedOrder.id;
-    this.loadingStates.partialPayment = true;
+    const orderId = this.selectedOrder()!.id;
+    this.loadingStates().partialPayment = true;
+    this.loadingStates.set(this.loadingStates());
 
     this.adminService.requestPartialPayment(orderId, amount, {
-      note: this.partialNoteInput?.trim() || undefined,
-      sendEmail: this.partialChannels.email,
-      sendSms: this.partialChannels.sms
+      note: this.partialNoteInput()?.trim() || undefined,
+      sendEmail: this.partialChannels().email,
+      sendSms: this.partialChannels().sms
     })
-      .pipe(finalize(() => this.loadingStates.partialPayment = false))
+      .pipe(finalize(() => this.loadingStates().partialPayment = false))
       .subscribe({
         next: res => {
-          if (this.viewingOrderId !== orderId) return;
-          this.partialBalance = res.balance;
+          if (this.viewingOrderId() !== orderId) return;
+          this.partialBalance.set(res.balance);
           // The order itself may have moved (Pending → Active on the last slice), so re-read it.
           this.refreshOrderAfterSave();
-          this.partialAmountInput = null;
-          this.partialNoteInput = '';
-          this.partialPaymentMessage = res.message;
+          this.partialAmountInput.set(null);
+          this.partialNoteInput.set('');
+          this.partialPaymentMessage.set(res.message);
           // The order row and panel show a balance now, so re-read the order rather than
           // patching amountPaid here — the server is what decides it.
           this.refreshOrderAfterPartialPayment(orderId);
         },
         error: err => {
-          this.partialPaymentError = extractApiErrorMessage(err, 'Could not create the payment request.');
+          this.partialPaymentError.set(extractApiErrorMessage(err, 'Could not create the payment request.'));
         }
       });
+    this.loadingStates.set(this.loadingStates());
   }
 
   resendPartialPaymentLink(request: OrderPartialPayment): void {
-    if (!this.selectedOrder || this.loadingStates.partialPayment) return;
+    if (!this.selectedOrder() || this.loadingStates().partialPayment) return;
 
-    const orderId = this.selectedOrder.id;
-    this.partialPaymentError = '';
-    this.partialPaymentMessage = '';
-    this.loadingStates.partialPayment = true;
+    const orderId = this.selectedOrder()!.id;
+    this.partialPaymentError.set('');
+    this.partialPaymentMessage.set('');
+    this.loadingStates().partialPayment = true;
+    this.loadingStates.set(this.loadingStates());
 
     this.adminService.resendPartialPaymentLink(
-      orderId, request.id, this.partialChannels.email, this.partialChannels.sms)
-      .pipe(finalize(() => this.loadingStates.partialPayment = false))
+      orderId, request.id, this.partialChannels().email, this.partialChannels().sms)
+      .pipe(finalize(() => this.loadingStates().partialPayment = false))
       .subscribe({
         next: res => {
-          if (this.viewingOrderId !== orderId) return;
-          this.partialPaymentMessage = res.message;
+          if (this.viewingOrderId() !== orderId) return;
+          this.partialPaymentMessage.set(res.message);
           this.loadPartialPayments(orderId);
         },
         error: err => {
-          this.partialPaymentError = extractApiErrorMessage(err, 'Could not send the payment link.');
+          this.partialPaymentError.set(extractApiErrorMessage(err, 'Could not send the payment link.'));
         }
       });
+    this.loadingStates.set(this.loadingStates());
   }
 
   cancelPartialPaymentRequest(request: OrderPartialPayment): void {
-    if (!this.selectedOrder || this.loadingStates.partialPayment) return;
+    if (!this.selectedOrder() || this.loadingStates().partialPayment) return;
     if (!confirm(`Cancel the $${request.requestedAmount.toFixed(2)} payment request? The customer's link stops working.`)) return;
 
-    const orderId = this.selectedOrder.id;
-    this.partialPaymentError = '';
-    this.partialPaymentMessage = '';
-    this.loadingStates.partialPayment = true;
+    const orderId = this.selectedOrder()!.id;
+    this.partialPaymentError.set('');
+    this.partialPaymentMessage.set('');
+    this.loadingStates().partialPayment = true;
+    this.loadingStates.set(this.loadingStates());
 
     this.adminService.cancelPartialPaymentRequest(orderId, request.id)
-      .pipe(finalize(() => this.loadingStates.partialPayment = false))
+      .pipe(finalize(() => this.loadingStates().partialPayment = false))
       .subscribe({
         next: res => {
-          if (this.viewingOrderId !== orderId) return;
-          this.partialBalance = res.balance;
+          if (this.viewingOrderId() !== orderId) return;
+          this.partialBalance.set(res.balance);
           // The order itself may have moved (Pending → Active on the last slice), so re-read it.
           this.refreshOrderAfterSave();
-          this.partialPaymentMessage = res.message;
+          this.partialPaymentMessage.set(res.message);
         },
         error: err => {
-          this.partialPaymentError = extractApiErrorMessage(err, 'Could not cancel the payment request.');
+          this.partialPaymentError.set(extractApiErrorMessage(err, 'Could not cancel the payment request.'));
         }
       });
+    this.loadingStates.set(this.loadingStates());
   }
 
   // ── Record a live part-payment request as paid outside Stripe (Cash/Zelle/Check/Other/Invoice) ──
@@ -2992,58 +3036,58 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   // slice (above), then instead of sending the Stripe link, record it here. Mirrors the
   // order-edit top-up's manual-payment form (recordingManualPaymentForId etc.) — same shape,
   // different target row.
-  recordingManualPartialPaymentForId: number | null = null;
-  partialManualPaymentMethod = 'Zelle';
-  partialManualPaymentReference = '';
-  partialManualPaymentNotes = '';
-  savingPartialManualPayment = false;
+  readonly recordingManualPartialPaymentForId = signal<number | null>(null);
+  readonly partialManualPaymentMethod = signal('Zelle');
+  readonly partialManualPaymentReference = signal('');
+  readonly partialManualPaymentNotes = signal('');
+  readonly savingPartialManualPayment = signal(false);
   readonly partialManualPaymentMethods = ['Zelle', 'Cash', 'Check', 'BankTransfer', 'Invoice', 'Other'];
 
   /** Admins with update rights (and SuperAdmin) — same gate as the order-edit manual payment. */
   canRecordPartialManualPayment(): boolean {
-    return this.isSuperAdmin || !!this.userPermissions?.permissions?.canUpdate;
+    return this.isSuperAdmin() || !!this.userPermissions()?.permissions?.canUpdate;
   }
 
   openPartialManualPaymentForm(request: OrderPartialPayment): void {
-    this.recordingManualPartialPaymentForId = request.id;
-    this.partialManualPaymentMethod = 'Zelle';
-    this.partialManualPaymentReference = '';
-    this.partialManualPaymentNotes = '';
+    this.recordingManualPartialPaymentForId.set(request.id);
+    this.partialManualPaymentMethod.set('Zelle');
+    this.partialManualPaymentReference.set('');
+    this.partialManualPaymentNotes.set('');
   }
 
   cancelPartialManualPayment(): void {
-    this.recordingManualPartialPaymentForId = null;
+    this.recordingManualPartialPaymentForId.set(null);
   }
 
   confirmPartialManualPayment(request: OrderPartialPayment): void {
-    if (!this.selectedOrder || this.savingPartialManualPayment) return;
-    const orderId = this.selectedOrder.id;
-    this.savingPartialManualPayment = true;
-    this.partialPaymentError = '';
-    this.partialPaymentMessage = '';
+    if (!this.selectedOrder() || this.savingPartialManualPayment()) return;
+    const orderId = this.selectedOrder()!.id;
+    this.savingPartialManualPayment.set(true);
+    this.partialPaymentError.set('');
+    this.partialPaymentMessage.set('');
 
     this.adminService.recordPartialPaymentManually(
       orderId,
       request.id,
-      this.partialManualPaymentMethod,
-      this.partialManualPaymentReference?.trim() || null,
-      this.partialManualPaymentNotes?.trim() || null
+      this.partialManualPaymentMethod(),
+      this.partialManualPaymentReference()?.trim() || null,
+      this.partialManualPaymentNotes()?.trim() || null
     )
-      .pipe(finalize(() => this.savingPartialManualPayment = false))
+      .pipe(finalize(() => this.savingPartialManualPayment.set(false)))
       .subscribe({
         next: res => {
-          if (this.viewingOrderId !== orderId) return;
-          this.partialBalance = res.balance;
+          if (this.viewingOrderId() !== orderId) return;
+          this.partialBalance.set(res.balance);
           // The order itself may have moved (Pending → Active on the last slice), so re-read it.
           this.refreshOrderAfterSave();
-          this.partialPaymentMessage = res.message;
-          this.recordingManualPartialPaymentForId = null;
+          this.partialPaymentMessage.set(res.message);
+          this.recordingManualPartialPaymentForId.set(null);
           // Settling the last slice flips the order Pending -> Active and marks it paid;
           // re-read the order so the panel and its list row show that without a reload.
           this.refreshOrderAfterPartialPayment(orderId);
         },
         error: err => {
-          this.partialPaymentError = extractApiErrorMessage(err, 'Could not record the manual payment.');
+          this.partialPaymentError.set(extractApiErrorMessage(err, 'Could not record the manual payment.'));
         }
       });
   }
@@ -3056,12 +3100,15 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   private refreshOrderAfterPartialPayment(orderId: number): void {
     this.adminService.getOrderDetails(orderId).subscribe({
       next: order => {
-        if (this.viewingOrderId === orderId) this.selectedOrder = order;
-        const row = this.orders.find(o => o.id === orderId);
+        if (this.viewingOrderId() === orderId) this.selectedOrder.set(order);
+        const row = this.orders().find(o => o.id === orderId);
         if (row) {
           row.amountPaid = order.amountPaid;
+          this.orders.set(this.orders());
           row.amountDue = order.amountDue;
+          this.orders.set(this.orders());
           row.isPartiallyPaid = order.isPartiallyPaid;
+          this.orders.set(this.orders());
         }
       },
       error: () => { /* non-fatal: the panel already shows the balance it just got back */ }
@@ -3074,19 +3121,20 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   viewOrderDetails(orderId: number) {
-    if (this.viewingOrderId === orderId) {
+    if (this.viewingOrderId() === orderId) {
       this.closeOrderDetails();
       return;
     }
 
-    this.viewingOrderId = orderId;
+    this.viewingOrderId.set(orderId);
     // Every order opens on Details, with its own (not yet loaded) Changes feed.
-    this.orderPanelTab = 'details';
-    this.orderChanges = [];
+    this.orderPanelTab.set('details');
+    this.orderChanges.set([]);
     this.orderChangesLoadedFor = null;
-    this.editingOrder = false;
-    this.editingPaymentMethod = false;
-    this.loadingStates.orderDetails = true;
+    this.editingOrder.set(false);
+    this.editingPaymentMethod.set(false);
+    this.loadingStates().orderDetails = true;
+    this.loadingStates.set(this.loadingStates());
     this.resetOrderPhotoState();
     this.loadOrderPhotos(orderId);
     this.resetOrderNoteState();
@@ -3100,8 +3148,8 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     // The breakdown under "Cleaners Total Salary". Admin and SuperAdmin since 2026-09 — the
     // people who staff the job are the ones told it ran long. Moderators are View-only and the
     // server answers them 403, so the call is gated on the same test as the block that shows it.
-    if (this.canViewCleanerPayroll) this.loadOrderCleanerPayroll(orderId);
-    if (this.isSuperAdmin) {
+    if (this.canViewCleanerPayroll()) this.loadOrderCleanerPayroll(orderId);
+    if (this.isSuperAdmin()) {
       this.loadOrderTransfers(orderId);
       this.loadOrderRefunds(orderId);
     }
@@ -3113,17 +3161,17 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     this.newOrderNotificationService.markViewed(orderId);
     
     // Clear previous update history
-    this.orderUpdateHistory = [];
+    this.orderUpdateHistory.set([]);
     
-    if (this.userRole && this.userRole !== 'Customer') {
+    if (this.userRole() && this.userRole() !== 'Customer') {
       this.adminService.getOrderDetails(orderId).subscribe({
         next: (order) => {
-          this.selectedOrder = order;
+          this.selectedOrder.set(order);
           // Make sure the service-type catalog is loaded so isCustomModeOrder() works
           // for the on-the-fly Cleaners Total Salary display.
-          if (this.serviceTypesCache.length === 0) {
+          if (this.serviceTypesCache().length === 0) {
             this.bookingService.getServiceTypes().subscribe({
-              next: (list) => { this.serviceTypesCache = list; },
+              next: (list) => { this.serviceTypesCache.set(list); },
               error: () => { /* non-fatal: details view falls back to stored value */ }
             });
           }
@@ -3134,7 +3182,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
           });
           
           // Only load assigned cleaners if not already cached
-          if (!this.assignedCleanersCache.has(orderId)) {
+          if (!this.assignedCleanersCache().has(orderId)) {
             this.loadSingleOrderCleaners(orderId);
           }
           
@@ -3143,26 +3191,28 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
         },
         error: (error) => {
           console.error('Error loading order details:', error);
-          this.errorMessage = 'Failed to load order details.';
+          this.errorMessage.set('Failed to load order details.');
         },
         complete: () => {
-          this.loadingStates.orderDetails = false;
+          this.loadingStates().orderDetails = false;
+          this.loadingStates.set(this.loadingStates());
         }
       });
     } else {
       this.orderService.getOrderById(orderId).subscribe({
         next: (order) => {
-          this.selectedOrder = order;
+          this.selectedOrder.set(order);
           
           // ADD THIS - Load update history for regular users too if needed
           // this.loadUpdateHistory(orderId);
         },
         error: (error) => {
           console.error('Error loading order details:', error);
-          this.errorMessage = 'Failed to load order details.';
+          this.errorMessage.set('Failed to load order details.');
         },
         complete: () => {
-          this.loadingStates.orderDetails = false;
+          this.loadingStates().orderDetails = false;
+          this.loadingStates.set(this.loadingStates());
         }
       });
     }
@@ -3170,114 +3220,112 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
 
   /** Close the slide-in order detail panel. */
   closeOrderDetails(): void {
-    this.viewingOrderId = null;
-    this.selectedOrder = null;
-    this.selectedOrderPayroll = null;
-    this.loadingOrderPayroll = false;
+    this.viewingOrderId.set(null);
+    this.selectedOrder.set(null);
+    this.selectedOrderPayroll.set(null);
+    this.loadingOrderPayroll.set(false);
     this.resetPayrollEditState();
-    this.editingOrder = false;
-    this.editingPaymentMethod = false;
+    this.editingOrder.set(false);
+    this.editingPaymentMethod.set(false);
     this.resetSaveConfirmState();
     this.resetOrderPhotoState();
     this.resetOrderNoteState();
     this.resetRefundState();
     this.resetPartialPaymentState();
-    this.orderInvoices = null;
-    this.invoiceClientForOrder = null;
-    this.showSendInvoiceModal = false;
-    this.sendingInvoiceId = null;
+    this.orderInvoices.set(null);
+    this.invoiceClientForOrder.set(null);
+    this.showSendInvoiceModal.set(false);
+    this.sendingInvoiceId.set(null);
   }
 
   /** Drop an unconfirmed save so it can never be applied to a different order. */
   private resetSaveConfirmState(): void {
-    this.showSaveConfirm = false;
+    this.showSaveConfirm.set(false);
     this.pendingSaveDto = null;
-    this.saveConfirmChanges = [];
+    this.saveConfirmChanges.set([]);
   }
 
   // ── Internal order note (admin-only free text, above Assigned Cleaners) ──
 
   /** Mirrors the backend's [RequirePermission(Update)] on the notes endpoint. */
   get canEditOrderNote(): boolean {
-    return this.isSuperAdmin || !!this.userPermissions?.permissions?.canUpdate;
+    return this.isSuperAdmin() || !!this.userPermissions()?.permissions?.canUpdate;
   }
 
   /** True when the textarea differs from what is stored, i.e. there is something to save. */
-  get orderNoteDirty(): boolean {
-    return this.orderNoteDraft.trim() !== this.orderNoteSaved;
-  }
+  readonly orderNoteDirty = computed<boolean>(() => this.orderNoteDraft().trim() !== this.orderNoteSaved());
 
   private resetOrderNoteState(): void {
-    this.orderNoteDraft = '';
-    this.orderNoteSaved = '';
-    this.orderNoteUpdatedAt = null;
-    this.orderNoteUpdatedByName = null;
-    this.loadingOrderNote = false;
-    this.savingOrderNote = false;
-    this.orderNoteError = '';
-    this.orderNoteSuccess = '';
+    this.orderNoteDraft.set('');
+    this.orderNoteSaved.set('');
+    this.orderNoteUpdatedAt.set(null);
+    this.orderNoteUpdatedByName.set(null);
+    this.loadingOrderNote.set(false);
+    this.savingOrderNote.set(false);
+    this.orderNoteError.set('');
+    this.orderNoteSuccess.set('');
   }
 
   private loadOrderNote(orderId: number): void {
-    this.loadingOrderNote = true;
+    this.loadingOrderNote.set(true);
     this.adminService.getOrderAdminNotes(orderId).subscribe({
       next: (note) => {
         // The panel may have moved on to another order while this was in flight.
-        if (this.viewingOrderId !== orderId) return;
+        if (this.viewingOrderId() !== orderId) return;
         this.applyLoadedOrderNote(note);
-        this.loadingOrderNote = false;
+        this.loadingOrderNote.set(false);
       },
       error: () => {
-        if (this.viewingOrderId !== orderId) return;
-        this.loadingOrderNote = false;
-        this.orderNoteError = 'Failed to load the note for this order.';
+        if (this.viewingOrderId() !== orderId) return;
+        this.loadingOrderNote.set(false);
+        this.orderNoteError.set('Failed to load the note for this order.');
       }
     });
   }
 
   private applyLoadedOrderNote(note: OrderAdminNote): void {
-    this.orderNoteSaved = (note.notes || '').trim();
-    this.orderNoteDraft = this.orderNoteSaved;
-    this.orderNoteUpdatedAt = note.updatedAt || null;
-    this.orderNoteUpdatedByName = note.updatedByName || null;
+    this.orderNoteSaved.set((note.notes || '').trim());
+    this.orderNoteDraft.set(this.orderNoteSaved());
+    this.orderNoteUpdatedAt.set(note.updatedAt || null);
+    this.orderNoteUpdatedByName.set(note.updatedByName || null);
   }
 
   saveOrderNote(): void {
-    const orderId = this.viewingOrderId;
-    if (orderId == null || this.savingOrderNote || !this.canEditOrderNote) return;
+    const orderId = this.viewingOrderId();
+    if (orderId == null || this.savingOrderNote() || !this.canEditOrderNote) return;
 
-    const text = this.orderNoteDraft.trim();
+    const text = this.orderNoteDraft().trim();
     if (text.length > this.orderNoteMaxLength) {
-      this.orderNoteError = `The note is limited to ${this.orderNoteMaxLength} characters.`;
+      this.orderNoteError.set(`The note is limited to ${this.orderNoteMaxLength} characters.`);
       return;
     }
 
-    this.savingOrderNote = true;
-    this.orderNoteError = '';
-    this.orderNoteSuccess = '';
+    this.savingOrderNote.set(true);
+    this.orderNoteError.set('');
+    this.orderNoteSuccess.set('');
 
     // An empty box clears the note; the endpoint deletes the row rather than storing ''.
     this.adminService.updateOrderAdminNotes(orderId, text.length > 0 ? text : null).subscribe({
       next: (note) => {
-        if (this.viewingOrderId !== orderId) return;
+        if (this.viewingOrderId() !== orderId) return;
         this.applyLoadedOrderNote(note);
-        this.savingOrderNote = false;
-        this.orderNoteSuccess = text.length > 0 ? 'Note saved.' : 'Note cleared.';
-        setTimeout(() => { this.orderNoteSuccess = ''; }, 3000);
+        this.savingOrderNote.set(false);
+        this.orderNoteSuccess.set(text.length > 0 ? 'Note saved.' : 'Note cleared.');
+        setTimeout(() => { this.orderNoteSuccess.set(''); }, 3000);
       },
       error: (error) => {
-        if (this.viewingOrderId !== orderId) return;
-        this.savingOrderNote = false;
-        this.orderNoteError = error?.error?.message || 'Failed to save the note.';
+        if (this.viewingOrderId() !== orderId) return;
+        this.savingOrderNote.set(false);
+        this.orderNoteError.set(error?.error?.message || 'Failed to save the note.');
       }
     });
   }
 
   /** Drop an unsaved edit and go back to the stored text. */
   cancelOrderNoteEdit(): void {
-    this.orderNoteDraft = this.orderNoteSaved;
-    this.orderNoteError = '';
-    this.orderNoteSuccess = '';
+    this.orderNoteDraft.set(this.orderNoteSaved());
+    this.orderNoteError.set('');
+    this.orderNoteSuccess.set('');
   }
 
   /** "Aug 23, 2026, 2:15 PM" in NY time, matching every other timestamp on this panel. */
@@ -3286,42 +3334,42 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private resetOrderPhotoState(): void {
-    this.orderPhotos = [];
-    this.lightboxOrderPhoto = null;
-    this.orderPhotoError = '';
-    this.orderPhotoSuccess = '';
-    this.orderPhotoProgress = '';
-    this.uploadingOrderPhoto = false;
+    this.orderPhotos.set([]);
+    this.lightboxOrderPhoto.set(null);
+    this.orderPhotoError.set('');
+    this.orderPhotoSuccess.set('');
+    this.orderPhotoProgress.set('');
+    this.uploadingOrderPhoto.set(false);
   }
 
   // ── Order cleaning photos (same shared store as the per-user library) ──
 
   private loadOrderPhotos(orderId: number): void {
-    this.loadingOrderPhotos = true;
+    this.loadingOrderPhotos.set(true);
     this.adminService.getOrderCleaningPhotos(orderId).subscribe({
       next: (photos) => {
-        if (this.viewingOrderId !== orderId) return;
-        this.orderPhotos = photos;
-        this.loadingOrderPhotos = false;
+        if (this.viewingOrderId() !== orderId) return;
+        this.orderPhotos.set(photos);
+        this.loadingOrderPhotos.set(false);
       },
-      error: () => { this.loadingOrderPhotos = false; }
+      error: () => { this.loadingOrderPhotos.set(false); }
     });
   }
 
   onOrderPhotoSelected(event: Event): void {
     const input = event.target as HTMLInputElement;
-    if (!input.files || input.files.length === 0 || this.viewingOrderId == null) return;
+    if (!input.files || input.files.length === 0 || this.viewingOrderId() == null) return;
     const files = Array.from(input.files);
     input.value = '';
-    this.uploadOrderPhotosSequentially(this.viewingOrderId, files);
+    this.uploadOrderPhotosSequentially(this.viewingOrderId()!, files);
   }
 
   private uploadOrderPhotosSequentially(orderId: number, files: File[]): void {
-    if (this.uploadingOrderPhoto || files.length === 0) return;
-    this.uploadingOrderPhoto = true;
-    this.orderPhotoError = '';
-    this.orderPhotoSuccess = '';
-    this.orderPhotoProgress = '';
+    if (this.uploadingOrderPhoto() || files.length === 0) return;
+    this.uploadingOrderPhoto.set(true);
+    this.orderPhotoError.set('');
+    this.orderPhotoSuccess.set('');
+    this.orderPhotoProgress.set('');
 
     const total = files.length;
     let okCount = 0;
@@ -3329,27 +3377,27 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     const errors: string[] = [];
 
     const uploadOne = (index: number) => {
-      if (this.viewingOrderId !== orderId) {
-        this.uploadingOrderPhoto = false;
-        this.orderPhotoProgress = '';
+      if (this.viewingOrderId() !== orderId) {
+        this.uploadingOrderPhoto.set(false);
+        this.orderPhotoProgress.set('');
         return;
       }
       if (index >= total) {
-        this.uploadingOrderPhoto = false;
-        this.orderPhotoProgress = '';
+        this.uploadingOrderPhoto.set(false);
+        this.orderPhotoProgress.set('');
         if (okCount > 0) {
-          this.orderPhotoSuccess = total === 1 ? 'Photo uploaded.' : `${okCount} of ${total} photos uploaded.`;
-          setTimeout(() => this.orderPhotoSuccess = '', 3000);
+          this.orderPhotoSuccess.set(total === 1 ? 'Photo uploaded.' : `${okCount} of ${total} photos uploaded.`);
+          setTimeout(() => this.orderPhotoSuccess.set(''), 3000);
         }
         if (failCount > 0) {
-          this.orderPhotoError = `${failCount} upload${failCount === 1 ? '' : 's'} failed${errors[0] ? ': ' + errors[0] : ''}.`;
-          setTimeout(() => this.orderPhotoError = '', 5000);
+          this.orderPhotoError.set(`${failCount} upload${failCount === 1 ? '' : 's'} failed${errors[0] ? ': ' + errors[0] : ''}.`);
+          setTimeout(() => this.orderPhotoError.set(''), 5000);
         }
         this.loadOrderPhotos(orderId);
         return;
       }
 
-      this.orderPhotoProgress = total > 1 ? `Uploading ${index + 1}/${total}…` : 'Uploading…';
+      this.orderPhotoProgress.set(total > 1 ? `Uploading ${index + 1}/${total}…` : 'Uploading…');
       this.adminService.uploadOrderCleaningPhoto(orderId, files[index]).subscribe({
         next: () => { okCount++; uploadOne(index + 1); },
         error: (err) => {
@@ -3365,14 +3413,14 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
 
   removeOrderPhoto(photo: UserCleaningPhoto): void {
     if (!confirm('Remove this photo?')) return;
-    const orderId = this.viewingOrderId;
+    const orderId = this.viewingOrderId();
     this.adminService.deleteUserCleaningPhoto(photo.id).subscribe({
       next: () => { if (orderId != null) this.loadOrderPhotos(orderId); }
     });
   }
 
-  openOrderLightbox(photo: UserCleaningPhoto): void { this.lightboxOrderPhoto = photo; }
-  closeOrderLightbox(): void { this.lightboxOrderPhoto = null; }
+  openOrderLightbox(photo: UserCleaningPhoto): void { this.lightboxOrderPhoto.set(photo); }
+  closeOrderLightbox(): void { this.lightboxOrderPhoto.set(null); }
 
   resolvePhotoUrl(photo: UserCleaningPhoto | null | undefined): string {
     // An empty photoUrl means the server would not expose this row (not a local upload).
@@ -3385,37 +3433,37 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   // ── SuperAdmin order deletion ──
 
   deleteOrder(order: { id: number }): void {
-    if (!this.isSuperAdmin || this.deletingOrder) return;
+    if (!this.isSuperAdmin() || this.deletingOrder()) return;
     if (!confirm(`Permanently delete order #${order.id}? This cannot be undone and does not issue a refund.`)) return;
 
-    this.deletingOrder = true;
+    this.deletingOrder.set(true);
     this.adminService.deleteOrder(order.id).subscribe({
       next: () => {
-        this.deletingOrder = false;
-        this.successMessage = `Order #${order.id} deleted.`;
+        this.deletingOrder.set(false);
+        this.successMessage.set(`Order #${order.id} deleted.`);
         setTimeout(() => this.clearMessages(), 3000);
         this.closeOrderDetails();
         this.loadOrders();
       },
       error: (err) => {
-        this.deletingOrder = false;
-        this.errorMessage = err?.error?.message || 'Failed to delete order.';
+        this.deletingOrder.set(false);
+        this.errorMessage.set(err?.error?.message || 'Failed to delete order.');
         setTimeout(() => this.clearMessages(), 4000);
       }
     });
   }
 
   loadUpdateHistory(orderId: number) {
-    this.loadingUpdateHistory = true;
+    this.loadingUpdateHistory.set(true);
     
     this.adminService.getOrderUpdateHistory(orderId).subscribe({
       next: (history) => {
-        this.orderUpdateHistory = history;
-        this.loadingUpdateHistory = false;
+        this.orderUpdateHistory.set(history);
+        this.loadingUpdateHistory.set(false);
       },
       error: (error) => {
         console.error('Error loading update history:', error);
-        this.loadingUpdateHistory = false;
+        this.loadingUpdateHistory.set(false);
       }
     });
   }
@@ -3425,67 +3473,68 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   // Used when the customer paid an order top-up by Zelle/Cash/Check (e.g. cleaning ran longer).
   // Marks just that update-history row paid via the chosen method; the base order stays a Stripe
   // order, so statistics still treat the base as a card charge and exclude this from Stripe fees.
-  recordingManualPaymentForId: number | null = null;
-  manualPaymentMethod = 'Zelle';
-  manualPaymentReference = '';
-  manualPaymentNotes = '';
-  savingManualPayment = false;
+  readonly recordingManualPaymentForId = signal<number | null>(null);
+  readonly manualPaymentMethod = signal('Zelle');
+  readonly manualPaymentReference = signal('');
+  readonly manualPaymentNotes = signal('');
+  readonly savingManualPayment = signal(false);
   readonly manualPaymentMethods = ['Zelle', 'Cash', 'Check', 'BankTransfer', 'Other'];
   /** Display label for a method wire value — "BankTransfer" reads "Bank transfer". */
   readonly methodLabel = paymentMethodLabel;
 
   /** Admins with update rights (and SuperAdmin), for an unpaid row that has money to collect. */
   canRecordManualPayment(update: OrderUpdateHistory): boolean {
-    const canUpdate = this.isSuperAdmin || !!this.userPermissions?.permissions?.canUpdate;
+    const canUpdate = this.isSuperAdmin() || !!this.userPermissions()?.permissions?.canUpdate;
     return canUpdate && !update.isPaid && (Number(update.additionalAmount) || 0) > 0.01;
   }
 
   openManualPaymentForm(update: OrderUpdateHistory): void {
-    this.recordingManualPaymentForId = update.id;
-    this.manualPaymentMethod = 'Zelle';
-    this.manualPaymentReference = '';
-    this.manualPaymentNotes = '';
+    this.recordingManualPaymentForId.set(update.id);
+    this.manualPaymentMethod.set('Zelle');
+    this.manualPaymentReference.set('');
+    this.manualPaymentNotes.set('');
   }
 
   cancelManualPayment(): void {
-    this.recordingManualPaymentForId = null;
+    this.recordingManualPaymentForId.set(null);
   }
 
   confirmManualPayment(update: OrderUpdateHistory): void {
-    if (!this.selectedOrder || this.savingManualPayment) return;
-    const orderId = this.selectedOrder.id;
-    this.savingManualPayment = true;
-    this.errorMessage = '';
-    this.successMessage = '';
+    if (!this.selectedOrder() || this.savingManualPayment()) return;
+    const orderId = this.selectedOrder()!.id;
+    this.savingManualPayment.set(true);
+    this.errorMessage.set('');
+    this.successMessage.set('');
     this.adminService.recordManualAdditionalPayment(
       orderId,
       update.id,
-      this.manualPaymentMethod,
-      this.manualPaymentReference?.trim() || null,
-      this.manualPaymentNotes?.trim() || null
+      this.manualPaymentMethod(),
+      this.manualPaymentReference()?.trim() || null,
+      this.manualPaymentNotes()?.trim() || null
     ).subscribe({
       next: (res) => {
-        this.successMessage = res?.message || 'Manual payment recorded.';
-        setTimeout(() => { this.successMessage = ''; }, 5000);
-        this.recordingManualPaymentForId = null;
+        this.successMessage.set(res?.message || 'Manual payment recorded.');
+        setTimeout(() => { this.successMessage.set(''); }, 5000);
+        this.recordingManualPaymentForId.set(null);
         // Paying off the last additional amount flips the order Pending -> Active server-side.
         // Mirror the returned status locally so the panel badge + list update without a reload.
         if (res?.status) {
-          if (this.selectedOrder && this.selectedOrder.id === orderId) {
-            this.selectedOrder.status = res.status;
+          if (this.selectedOrder() && this.selectedOrder()!.id === orderId) {
+            this.selectedOrder()!.status = res.status;
+            this.selectedOrder.set(this.selectedOrder());
           }
-          const listOrder = this.orders.find(o => o.id === orderId);
-          if (listOrder) listOrder.status = res.status;
+          const listOrder = this.orders().find(o => o.id === orderId);
+          if (listOrder) { listOrder.status = res.status; this.orders.set(this.orders()); }
         }
         // Refresh the whole panel: the row flips to "paid via <method>", unpaid totals, the
         // Payments card, invoices and status all update without a reload.
         this.refreshOrderAfterSave();
       },
       error: (err) => {
-        this.errorMessage = err.error?.message || 'Failed to record manual payment.';
-        setTimeout(() => { this.errorMessage = ''; }, 5000);
+        this.errorMessage.set(err.error?.message || 'Failed to record manual payment.');
+        setTimeout(() => { this.errorMessage.set(''); }, 5000);
       },
-      complete: () => { this.savingManualPayment = false; }
+      complete: () => { this.savingManualPayment.set(false); }
     });
   }
 
@@ -3493,9 +3542,9 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   // For orders created expecting Stripe where the customer decided to pay cash/Zelle/etc.
   // (or the reverse). The backend re-routes the order between the Stripe and manual flows
   // (tracking fields, Pending/Active status, Stripe-fee accounting) — SuperAdmin-only.
-  editingPaymentMethod = false;
-  savingPaymentMethod = false;
-  paymentMethodEdit: PaymentMethodEditChoice = 'Normal';
+  readonly editingPaymentMethod = signal(false);
+  readonly savingPaymentMethod = signal(false);
+  readonly paymentMethodEdit = signal<PaymentMethodEditChoice>('Normal');
 
   /**
    * The editor's choices. "Invoice" is the REGULAR customer invoice (DCR-…) — the same
@@ -3508,18 +3557,18 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     { value: 'RegularInvoice', label: 'Invoice' },
     { value: 'Invoice', label: 'Invoice (commercial)' },
   ];
-  paymentMethodEditReference = '';
-  paymentMethodEditNotes = '';
+  readonly paymentMethodEditReference = signal('');
+  readonly paymentMethodEditNotes = signal('');
 
   /** Who an Invoice-method order is billed to, and the roster to pick from. */
-  paymentMethodEditClientId: number | null = null;
-  commercialClients: InvoiceClientOption[] = [];
+  readonly paymentMethodEditClientId = signal<number | null>(null);
+  readonly commercialClients = signal<InvoiceClientOption[]>([]);
   loadingCommercialClients = false;
 
   /** SuperAdmin, and never once Stripe actually charged the card — a real charge is
    *  corrected with a refund, not a relabel (backend enforces the same rule). */
   get canEditPaymentMethod(): boolean {
-    return this.isSuperAdmin && !!this.selectedOrder && !this.selectedOrder.isPaid;
+    return this.isSuperAdmin() && !!this.selectedOrder() && !this.selectedOrder()!.isPaid;
   }
 
   /** Does choosing this method mean the money has ALREADY arrived? Mirrors the backend's
@@ -3529,26 +3578,26 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   startEditPaymentMethod(): void {
-    if (!this.selectedOrder) return;
-    this.paymentMethodEdit = ((this.selectedOrder.paymentMethod as PaymentMethodValue) || 'Normal');
+    if (!this.selectedOrder()) return;
+    this.paymentMethodEdit.set(((this.selectedOrder()!.paymentMethod as PaymentMethodValue) || 'Normal'));
     // A card order already billed by a regular invoice reads "Invoice" in the header — open on it.
-    if (this.paymentMethodEdit === 'Normal' && this.headerPaymentLabel === 'Invoice') this.paymentMethodEdit = 'RegularInvoice';
-    this.paymentMethodEditReference = this.selectedOrder.paymentReference || '';
-    this.paymentMethodEditNotes = this.selectedOrder.paymentNotes || '';
-    this.paymentMethodEditClientId = this.selectedOrder.contractClientId ?? null;
-    this.editingPaymentMethod = true;
+    if (this.paymentMethodEdit() === 'Normal' && this.headerPaymentLabel === 'Invoice') this.paymentMethodEdit.set('RegularInvoice');
+    this.paymentMethodEditReference.set(this.selectedOrder()!.paymentReference || '');
+    this.paymentMethodEditNotes.set(this.selectedOrder()!.paymentNotes || '');
+    this.paymentMethodEditClientId.set(this.selectedOrder()!.contractClientId ?? null);
+    this.editingPaymentMethod.set(true);
 
     // Loaded once and kept: an admin switching orders to Invoice billing does it repeatedly, and
     // the roster does not change between two clicks.
-    if (!this.commercialClients.length && !this.loadingCommercialClients) {
+    if (!this.commercialClients().length && !this.loadingCommercialClients) {
       this.loadingCommercialClients = true;
       this.invoiceService.clients()
         .pipe(finalize(() => { this.loadingCommercialClients = false; }))
         .subscribe({
-          next: list => { this.commercialClients = list; },
+          next: list => { this.commercialClients.set(list); },
           // The save guard below refuses an Invoice change with no client, so a failed roster
           // fetch cannot produce an unbillable order.
-          error: () => { this.commercialClients = []; }
+          error: () => { this.commercialClients.set([]); }
         });
     }
   }
@@ -3557,19 +3606,19 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   private pendingOpenInvoiceAfterMethodSave = false;
 
   cancelEditPaymentMethod(): void {
-    this.editingPaymentMethod = false;
+    this.editingPaymentMethod.set(false);
   }
 
   savePaymentMethod(): void {
-    if (!this.selectedOrder || this.savingPaymentMethod) return;
-    const orderId = this.selectedOrder.id;
-    const choice = this.paymentMethodEdit;
+    if (!this.selectedOrder() || this.savingPaymentMethod()) return;
+    const orderId = this.selectedOrder()!.id;
+    const choice = this.paymentMethodEdit();
 
     // Regular invoice: the order goes (back) to the card flow, and the invoice modal opens so the
     // admin creates and sends it — whole or split. Nothing is billed or sent without that step.
     if (choice === 'RegularInvoice') {
-      if ((this.selectedOrder.paymentMethod || 'Normal') === 'Normal') {
-        this.editingPaymentMethod = false;
+      if ((this.selectedOrder()!.paymentMethod || 'Normal') === 'Normal') {
+        this.editingPaymentMethod.set(false);
         this.openCustomerInvoiceModal();
         return;
       }
@@ -3577,53 +3626,61 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     }
     const method: PaymentMethodValue = choice === 'RegularInvoice' ? 'Normal' : choice;
 
-    if (method === 'Invoice' && !this.paymentMethodEditClientId) {
-      this.errorMessage = 'Choose the commercial client this order is billed to.';
+    if (method === 'Invoice' && !this.paymentMethodEditClientId()) {
+      this.errorMessage.set('Choose the commercial client this order is billed to.');
       return;
     }
 
-    this.savingPaymentMethod = true;
-    this.errorMessage = '';
-    this.successMessage = '';
+    this.savingPaymentMethod.set(true);
+    this.errorMessage.set('');
+    this.successMessage.set('');
     this.adminService.updateOrderPaymentMethod(
       orderId,
       method,
       // Only a settled method carries a reference or notes — see isSettledPaymentMethod.
-      isSettledOnRecord(method) ? (this.paymentMethodEditReference?.trim() || null) : null,
-      isSettledOnRecord(method) ? (this.paymentMethodEditNotes?.trim() || null) : null,
-      method === 'Invoice' ? this.paymentMethodEditClientId : null
+      isSettledOnRecord(method) ? (this.paymentMethodEditReference()?.trim() || null) : null,
+      isSettledOnRecord(method) ? (this.paymentMethodEditNotes()?.trim() || null) : null,
+      method === 'Invoice' ? this.paymentMethodEditClientId() : null
     ).subscribe({
       next: (res) => {
-        this.editingPaymentMethod = false;
+        this.editingPaymentMethod.set(false);
         // Mirror the returned method + status into the panel and the table row so the
         // status badge, DoneM label and Payment Method filter update without a reload.
-        if (this.selectedOrder && this.selectedOrder.id === orderId) {
-          this.selectedOrder.paymentMethod = res.paymentMethod;
-          this.selectedOrder.paymentReference = res.paymentReference;
-          this.selectedOrder.paymentNotes = res.paymentNotes;
-          this.selectedOrder.status = res.status;
+        if (this.selectedOrder() && this.selectedOrder()!.id === orderId) {
+          this.selectedOrder()!.paymentMethod = res.paymentMethod;
+          this.selectedOrder.set(this.selectedOrder());
+          this.selectedOrder()!.paymentReference = res.paymentReference;
+          this.selectedOrder.set(this.selectedOrder());
+          this.selectedOrder()!.paymentNotes = res.paymentNotes;
+          this.selectedOrder.set(this.selectedOrder());
+          this.selectedOrder()!.status = res.status;
+          this.selectedOrder.set(this.selectedOrder());
         }
-        const listOrder = this.orders.find(o => o.id === orderId);
+        const listOrder = this.orders().find(o => o.id === orderId);
         if (listOrder) {
           listOrder.paymentMethod = res.paymentMethod;
+          this.orders.set(this.orders());
           listOrder.paymentReference = res.paymentReference;
+          this.orders.set(this.orders());
           listOrder.paymentNotes = res.paymentNotes;
+          this.orders.set(this.orders());
           listOrder.status = res.status;
+          this.orders.set(this.orders());
         }
-        this.successMessage = res?.message || 'Payment method updated.';
+        this.successMessage.set(res?.message || 'Payment method updated.');
         this.clearMessagesAfterDelay();
         this.refreshOrderAfterSave();
-        if (this.pendingOpenInvoiceAfterMethodSave && this.selectedOrder?.id === orderId) this.openCustomerInvoiceModal();
+        if (this.pendingOpenInvoiceAfterMethodSave && this.selectedOrder()?.id === orderId) this.openCustomerInvoiceModal();
         this.pendingOpenInvoiceAfterMethodSave = false;
       },
       error: (err) => {
         this.pendingOpenInvoiceAfterMethodSave = false;
-        this.savingPaymentMethod = false;
+        this.savingPaymentMethod.set(false);
         console.error('Error updating payment method:', err);
-        this.errorMessage = err?.error?.message || 'Failed to update payment method.';
+        this.errorMessage.set(err?.error?.message || 'Failed to update payment method.');
         this.clearMessagesAfterDelay();
       },
-      complete: () => { this.savingPaymentMethod = false; }
+      complete: () => { this.savingPaymentMethod.set(false); }
     });
   }
 
@@ -3637,8 +3694,8 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
    * "Nothing to pay". The "(no tips)" pricing columns still display tip-free; only this sum moved.
    */
   getTotalAdditionalAmount(): number {
-    if (!this.selectedOrder || !this.orderUpdateHistory?.length) return 0;
-    const current = Number(this.selectedOrder.total ?? 0) || 0;
+    if (!this.selectedOrder() || !this.orderUpdateHistory()?.length) return 0;
+    const current = Number(this.selectedOrder()!.total ?? 0) || 0;
     const original = this.getOriginalTotalWithTips();
     return Math.max(0, Math.round((current - original) * 100) / 100);
   }
@@ -3646,9 +3703,9 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   /** What the customer originally paid, tips included — the booking snapshot, else the earliest
    * update row's original total (legacy orders carry no snapshot). */
   private getOriginalTotalWithTips(): number {
-    if (!this.selectedOrder) return 0;
-    if (this.selectedOrder.initialTotal > 0) return Number(this.selectedOrder.initialTotal) || 0;
-    const first = this.orderUpdateHistory?.[0];
+    if (!this.selectedOrder()) return 0;
+    if (this.selectedOrder()!.initialTotal > 0) return Number(this.selectedOrder()!.initialTotal) || 0;
+    const first = this.orderUpdateHistory()?.[0];
     return first ? Number(first.originalTotal) || 0 : 0;
   }
 
@@ -3662,8 +3719,8 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
    */
   getUnpaidAdditionalAmount(): number {
     const total = this.getTotalAdditionalAmount();
-    if (total <= 0 || !this.orderUpdateHistory?.length) return 0;
-    const paid = this.orderUpdateHistory
+    if (total <= 0 || !this.orderUpdateHistory()?.length) return 0;
+    const paid = this.orderUpdateHistory()
       .filter(u => u.isPaid && (Number(u.additionalAmount) || 0) > 0)
       .reduce((sum, u) => sum + (Number(u.additionalAmount) || 0), 0);
     return Math.max(0, Math.round((total - paid) * 100) / 100);
@@ -3689,7 +3746,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   // Zelle / Check / Other), no further reminders apply — admin recorded the payment in person,
   // there's nothing to remind. Hide the row in that case.
   shouldShowPaymentReminderRow(): boolean {
-    const o = this.selectedOrder;
+    const o = this.selectedOrder();
     if (!o) return false;
     if (!o.isPaid) return false;
     if (o.status === 'Cancelled') return false;
@@ -3700,24 +3757,24 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     return true;
   }
 
-  sendingReminder = false;
+  readonly sendingReminder = signal(false);
   sendPaymentReminder(): void {
-    if (!this.selectedOrder || this.sendingReminder) return;
-    const orderId = this.selectedOrder.id;
-    this.sendingReminder = true;
-    this.errorMessage = '';
-    this.successMessage = '';
+    if (!this.selectedOrder() || this.sendingReminder()) return;
+    const orderId = this.selectedOrder()!.id;
+    this.sendingReminder.set(true);
+    this.errorMessage.set('');
+    this.successMessage.set('');
     this.adminService.sendPaymentReminder(orderId).subscribe({
       next: (res) => {
-        this.successMessage = res?.message || 'Reminder sent successfully.';
-        setTimeout(() => { this.successMessage = ''; }, 5000);
+        this.successMessage.set(res?.message || 'Reminder sent successfully.');
+        setTimeout(() => { this.successMessage.set(''); }, 5000);
         this.refreshOrderAfterSave();
       },
       error: (err) => {
-        this.errorMessage = err.error?.message || 'Failed to send reminder.';
-        setTimeout(() => { this.errorMessage = ''; }, 5000);
+        this.errorMessage.set(err.error?.message || 'Failed to send reminder.');
+        setTimeout(() => { this.errorMessage.set(''); }, 5000);
       },
-      complete: () => { this.sendingReminder = false; }
+      complete: () => { this.sendingReminder.set(false); }
     });
   }
 
@@ -3725,31 +3782,31 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   // The admin panel uses this to show "Send Updated Payment" (first send) instead of the regular
   // "Send Payment Reminder" button.
   hasUnnotifiedAdditionalPayment(): boolean {
-    if (!this.orderUpdateHistory?.length) return false;
-    return this.orderUpdateHistory.some(
+    if (!this.orderUpdateHistory()?.length) return false;
+    return this.orderUpdateHistory().some(
       u => !u.isPaid && (u.additionalAmount || 0) > 0.01 && !u.updatedPaymentNotificationSentAt
     );
   }
 
-  sendingUpdatedPayment = false;
+  readonly sendingUpdatedPayment = signal(false);
   sendUpdatedPayment(): void {
-    if (!this.selectedOrder || this.sendingUpdatedPayment) return;
-    const orderId = this.selectedOrder.id;
-    this.sendingUpdatedPayment = true;
-    this.errorMessage = '';
-    this.successMessage = '';
+    if (!this.selectedOrder() || this.sendingUpdatedPayment()) return;
+    const orderId = this.selectedOrder()!.id;
+    this.sendingUpdatedPayment.set(true);
+    this.errorMessage.set('');
+    this.successMessage.set('');
     this.adminService.sendUpdatedPayment(orderId).subscribe({
       next: (res) => {
-        this.successMessage = res?.message || 'Updated-payment notification sent.';
-        setTimeout(() => { this.successMessage = ''; }, 5000);
+        this.successMessage.set(res?.message || 'Updated-payment notification sent.');
+        setTimeout(() => { this.successMessage.set(''); }, 5000);
         // Refresh so the button switches to "Send Payment Reminder" (and everything else updates).
         this.refreshOrderAfterSave();
       },
       error: (err) => {
-        this.errorMessage = err.error?.message || 'Failed to send updated-payment notification.';
-        setTimeout(() => { this.errorMessage = ''; }, 5000);
+        this.errorMessage.set(err.error?.message || 'Failed to send updated-payment notification.');
+        setTimeout(() => { this.errorMessage.set(''); }, 5000);
       },
-      complete: () => { this.sendingUpdatedPayment = false; }
+      complete: () => { this.sendingUpdatedPayment.set(false); }
     });
   }
 
@@ -3764,12 +3821,16 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   private loadSingleOrderCleaners(orderId: number) {
     this.adminService.getAssignedCleanersWithIds(orderId).subscribe({
       next: (cleaners) => {
-        this.assignedCleanersCache.set(orderId, cleaners);
-        this.cleanersLoadedSet.add(orderId);
+        this.assignedCleanersCache().set(orderId, cleaners);
+        this.assignedCleanersCache.set(this.assignedCleanersCache());
+        this.cleanersLoadedSet().add(orderId);
+        this.cleanersLoadedSet.set(this.cleanersLoadedSet());
       },
       error: (error) => {
-        this.assignedCleanersCache.set(orderId, []);
-        this.cleanersLoadedSet.add(orderId);
+        this.assignedCleanersCache().set(orderId, []);
+        this.assignedCleanersCache.set(this.assignedCleanersCache());
+        this.cleanersLoadedSet().add(orderId);
+        this.cleanersLoadedSet.set(this.cleanersLoadedSet());
       }
     });
   }
@@ -3793,14 +3854,15 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
       : `Are you sure you want to remove ${cleanerName} from this order? They were never sent the assignment email, so no removal email will go out.`;
 
     if (confirm(confirmMessage)) {
-      this.loadingStates.removingCleaner = true;
+      this.loadingStates().removingCleaner = true;
+      this.loadingStates.set(this.loadingStates());
       
       this.cleanerService.removeCleanerFromOrder(orderId, cleanerId).subscribe({
         next: (response: any) => {
           const notified = response?.removalNotificationSent ?? wasNotified;
-          this.successMessage = notified
+          this.successMessage.set(notified
             ? `${cleanerName} has been removed from the order and notified via email.`
-            : `${cleanerName} has been removed from the order. No email was sent — they had not been notified about this job.`;
+            : `${cleanerName} has been removed from the order. No email was sent — they had not been notified about this job.`);
 
           // Removing a cleaner changes what the job costs (the duration re-splits), so the
           // order's stored salary and the breakdown both move. Refetch rather than leave the
@@ -3811,7 +3873,8 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
           this.adminService.getAssignedCleanersWithIds(orderId).subscribe({
             next: (updatedCleaners) => {
               // Update cache with fresh data from server
-              this.assignedCleanersCache.set(orderId, updatedCleaners);
+              this.assignedCleanersCache().set(orderId, updatedCleaners);
+              this.assignedCleanersCache.set(this.assignedCleanersCache());
               
               // Remove manual change detection to prevent loops
               // this.cdr.detectChanges();
@@ -3819,9 +3882,10 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
             error: (error) => {
               console.error('Error refreshing assigned cleaners after removal:', error);
               // Fallback: update cache manually
-              const currentCleaners = this.assignedCleanersCache.get(orderId) || [];
+              const currentCleaners = this.assignedCleanersCache().get(orderId) || [];
               const updatedCleaners = currentCleaners.filter(c => c.id !== cleanerId);
-              this.assignedCleanersCache.set(orderId, updatedCleaners);
+              this.assignedCleanersCache().set(orderId, updatedCleaners);
+              this.assignedCleanersCache.set(this.assignedCleanersCache());
               // Remove manual change detection to prevent loops
               // this.cdr.detectChanges();
             }
@@ -3831,53 +3895,54 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
         },
         error: (error) => {
           console.error('Error removing cleaner:', error);
-          this.errorMessage = 'Failed to remove cleaner from order.';
+          this.errorMessage.set('Failed to remove cleaner from order.');
         },
         complete: () => {
-          this.loadingStates.removingCleaner = false;
+          this.loadingStates().removingCleaner = false;
+          this.loadingStates.set(this.loadingStates());
         }
       });
     }
   }
 
   openCleanerAssignmentModal(orderId: number) {
-    this.assigningOrderId = orderId;
-    this.selectedCleaners = [];
-    this.tipsForCleaner = '';
-    this.cleanerAssignmentSearchQuery = '';
-    this.showBusyCleaners = false;
-    this.acknowledgeScheduleConflicts = false;
+    this.assigningOrderId.set(orderId);
+    this.selectedCleaners.set([]);
+    this.tipsForCleaner.set('');
+    this.cleanerAssignmentSearchQuery.set('');
+    this.showBusyCleaners.set(false);
+    this.acknowledgeScheduleConflicts.set(false);
 
     // Set hourly rate from order data if available, otherwise use default based on cleaning type
-    const order = this.orders.find(o => o.id === orderId);
-    if (this.selectedOrder && this.selectedOrder.id === orderId) {
-      this.cleanerHourlySalary = this.selectedOrder.cleanerHourlyRate || this.getDefaultHourlyRate(orderId);
+    const order = this.orders().find(o => o.id === orderId);
+    if (this.selectedOrder() && this.selectedOrder()!.id === orderId) {
+      this.cleanerHourlySalary.set(this.selectedOrder()!.cleanerHourlyRate || this.getDefaultHourlyRate(orderId));
     } else {
-      this.cleanerHourlySalary = this.getDefaultHourlyRate(orderId);
+      this.cleanerHourlySalary.set(this.getDefaultHourlyRate(orderId));
     }
 
     this.cleanerService.getAvailableCleaners(orderId).subscribe({
       next: (cleaners) => {
-        this.availableCleaners = cleaners;
-        this.showCleanerModal = true;
+        this.availableCleaners.set(cleaners);
+        this.showCleanerModal.set(true);
       },
       error: (error) => {
         console.error('Error loading available cleaners:', error);
-        this.errorMessage = 'Failed to load available cleaners.';
+        this.errorMessage.set('Failed to load available cleaners.');
       }
     });
   }
 
   closeCleanerModal() {
-    this.showCleanerModal = false;
-    this.assigningOrderId = null;
-    this.selectedCleaners = [];
-    this.tipsForCleaner = '';
-    this.availableCleaners = [];
-    this.cleanerAssignmentSearchQuery = '';
-    this.showBusyCleaners = false;
-    this.acknowledgeScheduleConflicts = false;
-    this.cleanerHourlySalary = REGULAR_CLEANER_HOURLY_RATE;
+    this.showCleanerModal.set(false);
+    this.assigningOrderId.set(null);
+    this.selectedCleaners.set([]);
+    this.tipsForCleaner.set('');
+    this.availableCleaners.set([]);
+    this.cleanerAssignmentSearchQuery.set('');
+    this.showBusyCleaners.set(false);
+    this.acknowledgeScheduleConflicts.set(false);
+    this.cleanerHourlySalary.set(REGULAR_CLEANER_HOURLY_RATE);
   }
 
   /**
@@ -3890,14 +3955,14 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
    * still the wrong first answer. "Show busy cleaners" is how an admin goes looking for them.
    */
   get availableCleanersFiltered(): AvailableCleaner[] {
-    const q = this.cleanerAssignmentSearchQuery.trim().toLowerCase();
-    return this.availableCleaners.filter((c) => {
+    const q = this.cleanerAssignmentSearchQuery().trim().toLowerCase();
+    return this.availableCleaners().filter((c) => {
       if (q) {
         const name = `${c.firstName ?? ''} ${c.lastName ?? ''}`.toLowerCase().trim();
         const email = (c.email ?? '').toLowerCase();
         if (!name.includes(q) && !email.includes(q)) return false;
       }
-      if (this.showBusyCleaners) return true;
+      if (this.showBusyCleaners()) return true;
       if (this.isCleanerSelected(c.id)) return true;
       return !c.isBusyDay && !c.hasScheduleConflict;
     });
@@ -3905,8 +3970,8 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
 
   /** Count of busy/conflicting cleaners currently hidden by the "Show busy" toggle. */
   get hiddenBusyCleanersCount(): number {
-    if (this.showBusyCleaners) return 0;
-    return this.availableCleaners.filter(
+    if (this.showBusyCleaners()) return 0;
+    return this.availableCleaners().filter(
       (c) => (c.isBusyDay || c.hasScheduleConflict) && !this.isCleanerSelected(c.id)
     ).length;
   }
@@ -3919,7 +3984,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
    * de-selecting the last conflicting cleaner takes the banner away on its own.
    */
   get selectedCleanersWithConflicts(): AvailableCleaner[] {
-    return this.availableCleaners.filter(
+    return this.availableCleaners().filter(
       (c) => c.hasScheduleConflict && this.isCleanerSelected(c.id)
     );
   }
@@ -3938,7 +4003,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
    * requires (AssignCleanersDto.AcknowledgeScheduleConflicts).
    */
   get conflictAcknowledgementOwed(): boolean {
-    return this.selectedCleanersWithConflicts.length > 0 && !this.acknowledgeScheduleConflicts;
+    return this.selectedCleanersWithConflicts.length > 0 && !this.acknowledgeScheduleConflicts();
   }
 
   /** Human-readable rank label for a cleaner in the assignment modal. */
@@ -3972,8 +4037,8 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
    * a rate already stored on the order (including an admin override) always wins.
    */
   getDefaultHourlyRate(orderId: number): number {
-    const details = this.selectedOrder?.id === orderId ? this.selectedOrder : null;
-    const listed = this.orders.find(o => o.id === orderId);
+    const details = this.selectedOrder()?.id === orderId ? this.selectedOrder() : null;
+    const listed = this.orders().find(o => o.id === orderId);
 
     // Residential deep cleaning is signalled by the extra service (but not "super deep"): its
     // flags decide, an unkeyed, un-flagged line by its name as before.
@@ -3996,13 +4061,13 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
    *  Built from the same per-cleaner minutes the salary uses — showing the raw total
    *  duration here would contradict the figure above it whenever maids > 1. */
   getEstimatedSalaryBreakdown(): string {
-    const order = this.selectedOrder;
+    const order = this.selectedOrder();
     if (!order) return '';
     const maids = this.getSelectedOrderSplitCount();
     const perCleaner = DurationUtils.formatMinutes(
       calculatePerCleanerBillableMinutes(Number(order.totalDuration) || 0, maids, order.hasCleanersService)
     );
-    const rate = `$${this.cleanerHourlySalary}`;
+    const rate = `$${this.cleanerHourlySalary()}`;
     return maids > 1 ? `${perCleaner} × ${maids} × ${rate}` : `${perCleaner} × ${rate}`;
   }
 
@@ -4022,12 +4087,12 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
    * as-is rather than half-fixed.
    */
   getEstimatedTotalSalary(): number {
-    if (!this.selectedOrder) return 0;
+    if (!this.selectedOrder()) return 0;
     return calculateCleanerTotalSalary(
-      this.selectedOrder.totalDuration,
+      this.selectedOrder()!.totalDuration,
       this.getSelectedOrderSplitCount(),
-      this.selectedOrder.hasCleanersService,
-      this.cleanerHourlySalary
+      this.selectedOrder()!.hasCleanersService,
+      this.cleanerHourlySalary()
     );
   }
 
@@ -4053,7 +4118,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
    * number, and the panel preloads assignments anyway.
    */
   getDisplayCleanerTotalSalary(): number {
-    const order = this.selectedOrder;
+    const order = this.selectedOrder();
     if (!order) return 0;
 
     if (!this.selectedOrderHasNoCleanersAssigned()) {
@@ -4074,16 +4139,16 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
    * breakdown costs the admin the itemisation, not the figure. Nothing here is ever written back.
    */
   private loadOrderCleanerPayroll(orderId: number): void {
-    this.selectedOrderPayroll = null;
-    this.loadingOrderPayroll = true;
+    this.selectedOrderPayroll.set(null);
+    this.loadingOrderPayroll.set(true);
     this.adminService.getOrderCleanerPayroll(orderId).subscribe({
       next: (payroll) => {
         // A late response for an order the admin has already navigated away from must not paint
         // over the panel they are now looking at.
-        if (this.viewingOrderId === orderId) this.selectedOrderPayroll = payroll;
+        if (this.viewingOrderId() === orderId) this.selectedOrderPayroll.set(payroll);
       },
-      error: () => { this.selectedOrderPayroll = null; },
-      complete: () => { this.loadingOrderPayroll = false; }
+      error: () => { this.selectedOrderPayroll.set(null); },
+      complete: () => { this.loadingOrderPayroll.set(false); }
     });
   }
 
@@ -4102,9 +4167,9 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
    * an all-clear nobody checked.
    */
   getOrderStaffingWarnings(): string[] {
-    const orderId = this.selectedOrder?.id;
+    const orderId = this.selectedOrder()?.id;
     if (orderId == null) return [];
-    return this.staffingWarningsByOrderId.get(orderId) ?? [];
+    return this.staffingWarningsByOrderId().get(orderId) ?? [];
   }
 
   /**
@@ -4121,20 +4186,20 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this.needsStaffingReview(order)) {
       reasons.push('Long job — review cleaner count (over 6h per cleaner)');
     }
-    reasons.push(...(this.staffingWarningsByOrderId.get(order.id) ?? []));
+    reasons.push(...(this.staffingWarningsByOrderId().get(order.id) ?? []));
     return reasons.join(' · ');
   }
 
   /** Whether the row's ⚠ shows at all: the advisory long-job flag, or any server-built warning. */
   hasStaffingWarnings(order: AdminOrderList): boolean {
     return this.needsStaffingReview(order)
-      || (this.staffingWarningsByOrderId.get(order.id)?.length ?? 0) > 0;
+      || (this.staffingWarningsByOrderId().get(order.id)?.length ?? 0) > 0;
   }
 
   /** Every line in the breakdown, assigned first then the unstaffed slots, so the rows a reader
    *  adds up are exactly the rows that make the total. */
   getOrderPayrollLines(): OrderCleanerPayrollLine[] {
-    const p = this.selectedOrderPayroll;
+    const p = this.selectedOrderPayroll();
     if (!p) return [];
     return [...p.lines, ...p.unassignedLines];
   }
@@ -4158,7 +4223,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
    * mismatch means a row written before that was true, or a write path that escaped it.
    */
   payrollDisagreesWithStored(): boolean {
-    const p = this.selectedOrderPayroll;
+    const p = this.selectedOrderPayroll();
     if (!p) return false;
     return Math.abs(Number(p.totalSalary) - Number(p.storedTotalSalary)) >= 0.01;
   }
@@ -4176,9 +4241,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
    * Deliberately a role test rather than `canUpdate`: reading is not editing, and
    * `canEditCleanerPayroll` below is the separate gate on the buttons.
    */
-  get canViewCleanerPayroll(): boolean {
-    return this.isSuperAdmin || this.userRole === 'Admin';
-  }
+  readonly canViewCleanerPayroll = computed<boolean>(() => this.isSuperAdmin() || this.userRole() === 'Admin');
 
   /**
    * May this user change what a cleaner is paid on this order?
@@ -4201,13 +4264,11 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
    * 2026-09). Everyone else sees them read-only — they still re-scale with the subtotal — and the
    * server refuses a typed change from anyone else (Helpers/OrderDiscountEditPolicy).
    */
-  get canEditOrderDiscounts(): boolean {
-    return this.isSuperAdmin;
-  }
+  readonly canEditOrderDiscounts = computed<boolean>(() => this.isSuperAdmin());
 
   /** True when at least one line carries a manual hours figure — i.e. there is something to reset. */
   payrollHasHoursOverrides(): boolean {
-    return (this.selectedOrderPayroll?.lines ?? []).some(l => l.hoursOverridden);
+    return (this.selectedOrderPayroll()?.lines ?? []).some(l => l.hoursOverridden);
   }
 
   /**
@@ -4221,7 +4282,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
    * at, because that money has left.
    */
   payrollForAllReach(): string {
-    const p = this.selectedOrderPayroll;
+    const p = this.selectedOrderPayroll();
     if (!p) return '';
 
     const assigned = p.assignedCount;
@@ -4243,7 +4304,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   isEditingPayrollLine(line: OrderCleanerPayrollLine): boolean {
-    return !line.isUnassignedSlot && this.payrollEditingCleanerId === line.orderCleanerId;
+    return !line.isUnassignedSlot && this.payrollEditingCleanerId() === line.orderCleanerId;
   }
 
   /**
@@ -4254,30 +4315,30 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   startEditPayrollLine(line: OrderCleanerPayrollLine): void {
     if (!this.canEditCleanerPayroll || line.isUnassignedSlot) return;
     this.cancelPayrollOrderEditors();
-    this.payrollEditingCleanerId = line.orderCleanerId;
-    this.payrollEditRate = Number(line.hourlyRate) || 0;
-    this.payrollEditHours = this.payrollHoursOf(line.billableMinutes);
-    this.payrollError = '';
+    this.payrollEditingCleanerId.set(line.orderCleanerId);
+    this.payrollEditRate.set(Number(line.hourlyRate) || 0);
+    this.payrollEditHours.set(this.payrollHoursOf(line.billableMinutes));
+    this.payrollError.set('');
   }
 
   cancelEditPayrollLine(): void {
-    this.payrollEditingCleanerId = null;
-    this.payrollEditRate = null;
-    this.payrollEditHours = null;
+    this.payrollEditingCleanerId.set(null);
+    this.payrollEditRate.set(null);
+    this.payrollEditHours.set(null);
   }
 
   savePayrollLine(line: OrderCleanerPayrollLine): void {
-    if (!this.isEditingPayrollLine(line) || this.savingPayroll) return;
+    if (!this.isEditingPayrollLine(line) || this.savingPayroll()) return;
 
-    const rate = this.payrollEditRate;
-    const hours = this.payrollEditHours;
+    const rate = this.payrollEditRate();
+    const hours = this.payrollEditHours();
     if (rate == null || rate < 0 || hours == null || hours < 0) {
-      this.payrollError = 'Rate and hours must both be zero or more.';
+      this.payrollError.set('Rate and hours must both be zero or more.');
       return;
     }
 
     this.writePayroll(
-      this.adminService.updateOrderCleanerPayroll(this.selectedOrder!.id, line.orderCleanerId, {
+      this.adminService.updateOrderCleanerPayroll(this.selectedOrder()!.id, line.orderCleanerId, {
         hourlyRate: rate,
         billableMinutes: Math.round(hours * 60),
         updateHourlyRate: true,
@@ -4293,10 +4354,10 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
    * later, a re-typed one does not.
    */
   resetPayrollLineToAutomatic(line: OrderCleanerPayrollLine): void {
-    if (!this.canEditCleanerPayroll || line.isUnassignedSlot || this.savingPayroll) return;
+    if (!this.canEditCleanerPayroll || line.isUnassignedSlot || this.savingPayroll()) return;
 
     this.writePayroll(
-      this.adminService.updateOrderCleanerPayroll(this.selectedOrder!.id, line.orderCleanerId, {
+      this.adminService.updateOrderCleanerPayroll(this.selectedOrder()!.id, line.orderCleanerId, {
         hourlyRate: null,
         billableMinutes: null,
         updateHourlyRate: true,
@@ -4316,19 +4377,18 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     if (!this.canEditCleanerPayroll) return;
     this.cancelEditPayrollLine();
     this.cancelEditMaidsCount();
-    this.editingPayrollForAll = true;
-    this.payrollAllHoursInput = this.payrollHoursOf(
-      this.selectedOrderPayroll?.automaticMinutesPerCleaner);
-    this.payrollAllRateInput =
-      Number(this.selectedOrderPayroll?.orderHourlyRate ?? this.selectedOrder?.cleanerHourlyRate) || 0;
-    this.payrollAllSeed = { hours: this.payrollAllHoursInput, rate: this.payrollAllRateInput };
-    this.payrollError = '';
+    this.editingPayrollForAll.set(true);
+    this.payrollAllHoursInput.set(this.payrollHoursOf(
+      this.selectedOrderPayroll()?.automaticMinutesPerCleaner));
+    this.payrollAllRateInput.set(Number(this.selectedOrderPayroll()?.orderHourlyRate ?? this.selectedOrder()?.cleanerHourlyRate) || 0);
+    this.payrollAllSeed = { hours: this.payrollAllHoursInput(), rate: this.payrollAllRateInput() };
+    this.payrollError.set('');
   }
 
   cancelEditPayrollForAll(): void {
-    this.editingPayrollForAll = false;
-    this.payrollAllHoursInput = null;
-    this.payrollAllRateInput = null;
+    this.editingPayrollForAll.set(false);
+    this.payrollAllHoursInput.set(null);
+    this.payrollAllRateInput.set(null);
     this.payrollAllSeed = { hours: null, rate: null };
   }
 
@@ -4347,19 +4407,19 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
    * audit log reads back as.
    */
   savePayrollForAll(): void {
-    if (!this.editingPayrollForAll || this.savingPayroll) return;
+    if (!this.editingPayrollForAll() || this.savingPayroll()) return;
 
-    const orderId = this.selectedOrder?.id;
+    const orderId = this.selectedOrder()?.id;
     if (orderId == null) return;
 
-    const hours = this.payrollAllHoursInput;
-    const rate = this.payrollAllRateInput;
+    const hours = this.payrollAllHoursInput();
+    const rate = this.payrollAllRateInput();
     // With nobody assigned there is no hours box: an override has no row to live on, and the
     // order rate is still worth setting ahead of staffing the job.
-    const hasAssigned = (this.selectedOrderPayroll?.assignedCount ?? 0) > 0;
+    const hasAssigned = (this.selectedOrderPayroll()?.assignedCount ?? 0) > 0;
 
     if (rate == null || rate < 0 || (hasAssigned && (hours == null || hours < 0))) {
-      this.payrollError = 'Rate and hours must both be zero or more.';
+      this.payrollError.set('Rate and hours must both be zero or more.');
       return;
     }
 
@@ -4387,8 +4447,8 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   // ── Cleaners Count, on the Wages card ───────────────────────────────────────────────────
   // It used to be a box in Edit Order, which sent a pure staffing / wages figure through the
   // order-edit approval queue. It lives here now, beside the rate and hours it drives.
-  editingMaidsCount = false;
-  maidsCountInput: number | null = null;
+  readonly editingMaidsCount = signal(false);
+  readonly maidsCountInput = signal<number | null>(null);
 
   /**
    * A cleaner+hours order is the exception: its count is the customer's PRICED Cleaners line
@@ -4396,35 +4456,35 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
    * a standalone write for it.
    */
   canEditMaidsCountFromWages(): boolean {
-    return this.canEditCleanerPayroll && !!this.selectedOrder && !this.selectedOrder.hasCleanersService;
+    return this.canEditCleanerPayroll && !!this.selectedOrder() && !this.selectedOrder()!.hasCleanersService;
   }
 
   startEditMaidsCount(): void {
     if (!this.canEditMaidsCountFromWages()) return;
     this.cancelEditPayrollLine();
     this.cancelEditPayrollForAll();
-    this.maidsCountInput = Number(this.selectedOrder?.maidsCount) || 1;
-    this.editingMaidsCount = true;
-    this.payrollError = '';
+    this.maidsCountInput.set(Number(this.selectedOrder()?.maidsCount) || 1);
+    this.editingMaidsCount.set(true);
+    this.payrollError.set('');
   }
 
   cancelEditMaidsCount(): void {
-    this.editingMaidsCount = false;
-    this.maidsCountInput = null;
+    this.editingMaidsCount.set(false);
+    this.maidsCountInput.set(null);
   }
 
   saveMaidsCount(): void {
-    if (!this.editingMaidsCount || this.savingPayroll) return;
-    const orderId = this.selectedOrder?.id;
+    if (!this.editingMaidsCount() || this.savingPayroll()) return;
+    const orderId = this.selectedOrder()?.id;
     if (orderId == null) return;
 
-    const count = Number(this.maidsCountInput);
+    const count = Number(this.maidsCountInput());
     if (!Number.isInteger(count) || count < 1) {
-      this.payrollError = 'Cleaners count must be a whole number, 1 or more.';
+      this.payrollError.set('Cleaners count must be a whole number, 1 or more.');
       return;
     }
     // Unchanged is a cancel, not a write — it would only add an audit row saying nothing moved.
-    if (count === (Number(this.selectedOrder?.maidsCount) || 1)) {
+    if (count === (Number(this.selectedOrder()?.maidsCount) || 1)) {
       this.cancelEditMaidsCount();
       return;
     }
@@ -4434,9 +4494,9 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
 
   /** Clears every per-cleaner hours override at once, putting the order back on the even split. */
   resetPayrollHoursForAll(): void {
-    if (!this.canEditCleanerPayroll || this.savingPayroll) return;
+    if (!this.canEditCleanerPayroll || this.savingPayroll()) return;
     this.writePayroll(
-      this.adminService.updateOrderCleanerHours(this.selectedOrder!.id, null),
+      this.adminService.updateOrderCleanerHours(this.selectedOrder()!.id, null),
       'Could not reset the hours.'
     );
   }
@@ -4449,8 +4509,8 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   private resetPayrollEditState(): void {
     this.cancelEditPayrollLine();
     this.cancelPayrollOrderEditors();
-    this.savingPayroll = false;
-    this.payrollError = '';
+    this.savingPayroll.set(false);
+    this.payrollError.set('');
   }
 
   private cancelPayrollOrderEditors(): void {
@@ -4468,19 +4528,19 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
    * panel's own total contradict the lines directly beneath it.
    */
   private writePayroll(request: Observable<OrderCleanerPayroll>, fallbackMessage: string): void {
-    const orderId = this.selectedOrder?.id;
+    const orderId = this.selectedOrder()?.id;
     if (orderId == null) return;
 
-    this.savingPayroll = true;
-    this.payrollError = '';
+    this.savingPayroll.set(true);
+    this.payrollError.set('');
 
     request.subscribe({
       next: (payroll) => {
         // A late response for an order the admin has already navigated away from must not paint
         // over the panel they are now looking at.
-        if (this.viewingOrderId !== orderId) return;
+        if (this.viewingOrderId() !== orderId) return;
 
-        this.selectedOrderPayroll = payroll;
+        this.selectedOrderPayroll.set(payroll);
         this.applyPayrollTotalsToOrder(orderId, payroll);
         this.cancelEditPayrollLine();
         this.cancelPayrollOrderEditors();
@@ -4490,25 +4550,27 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
         this.refreshChangesIfLoaded(orderId);
       },
       error: (err) => {
-        this.payrollError = extractApiErrorMessage(err, fallbackMessage);
+        this.payrollError.set(extractApiErrorMessage(err, fallbackMessage));
       },
-      complete: () => { this.savingPayroll = false; }
+      complete: () => { this.savingPayroll.set(false); }
     });
   }
 
   /** Copies the re-summed wage figures onto the open order and its list row. */
   private applyPayrollTotalsToOrder(orderId: number, payroll: OrderCleanerPayroll): void {
-    if (this.selectedOrder?.id === orderId) {
-      this.selectedOrder.cleanerTotalSalary = payroll.storedTotalSalary;
-      this.selectedOrder.cleanerHourlyRate = payroll.orderHourlyRate;
-      if (payroll.maidsCount != null) this.selectedOrder.maidsCount = payroll.maidsCount;
+    if (this.selectedOrder()?.id === orderId) {
+      this.selectedOrder()!.cleanerTotalSalary = payroll.storedTotalSalary;
+      this.selectedOrder.set(this.selectedOrder());
+      this.selectedOrder()!.cleanerHourlyRate = payroll.orderHourlyRate;
+      this.selectedOrder.set(this.selectedOrder());
+      if (payroll.maidsCount != null) { this.selectedOrder()!.maidsCount = payroll.maidsCount; this.selectedOrder.set(this.selectedOrder()); }
     }
-    const row: any = this.orders.find(o => o.id === orderId);
+    const row: any = this.orders().find(o => o.id === orderId);
     if (row) {
-      if ('cleanerTotalSalary' in row) row.cleanerTotalSalary = payroll.storedTotalSalary;
-      if ('cleanerHourlyRate' in row) row.cleanerHourlyRate = payroll.orderHourlyRate;
+      if ('cleanerTotalSalary' in row) { row.cleanerTotalSalary = payroll.storedTotalSalary; this.orders.set(this.orders()); }
+      if ('cleanerHourlyRate' in row) { row.cleanerHourlyRate = payroll.orderHourlyRate; this.orders.set(this.orders()); }
       // The list row's staffing-review ⚠ reads maidsCount (same reason refreshOrderAfterSave copies it).
-      if (payroll.maidsCount != null && 'maidsCount' in row) row.maidsCount = payroll.maidsCount;
+      if (payroll.maidsCount != null && 'maidsCount' in row) { row.maidsCount = payroll.maidsCount; this.orders.set(this.orders()); }
     }
   }
 
@@ -4518,15 +4580,15 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
    * which recomputing the salary gives the wrong answer.
    */
   selectedOrderHasNoCleanersAssigned(): boolean {
-    const order = this.selectedOrder;
+    const order = this.selectedOrder();
     if (!order) return true;
-    if (!this.cleanersLoadedSet.has(order.id)) return false; // unknown - assume assigned
-    return (this.assignedCleanersCache.get(order.id)?.length ?? 0) === 0;
+    if (!this.cleanersLoadedSet().has(order.id)) return false; // unknown - assume assigned
+    return (this.assignedCleanersCache().get(order.id)?.length ?? 0) === 0;
   }
 
   /** Inverse of the above, for template and guard readability. */
   selectedOrderHasAssignedCleaners(): boolean {
-    return !!this.selectedOrder && !this.selectedOrderHasNoCleanersAssigned();
+    return !!this.selectedOrder() && !this.selectedOrderHasNoCleanersAssigned();
   }
 
   /**
@@ -4544,11 +4606,12 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
    */
   recalcCleanerTotalSalary(): void {
     if (this.selectedOrderHasAssignedCleaners()) return;
-    const rate = Number(this.editOrderForm.cleanerHourlyRate) || 0;
-    const totalDuration = Number(this.editOrderForm.totalDuration) || 0;
-    const maidsCount = Number(this.editOrderForm.maidsCount) || 1;
-    const hasCleanersService = this.selectedOrder?.hasCleanersService ?? false;
-    this.editOrderForm.cleanerTotalSalary = calculateCleanerTotalSalary(totalDuration, maidsCount, hasCleanersService, rate);
+    const rate = Number(this.editOrderForm().cleanerHourlyRate) || 0;
+    const totalDuration = Number(this.editOrderForm().totalDuration) || 0;
+    const maidsCount = Number(this.editOrderForm().maidsCount) || 1;
+    const hasCleanersService = this.selectedOrder()?.hasCleanersService ?? false;
+    this.editOrderForm().cleanerTotalSalary = calculateCleanerTotalSalary(totalDuration, maidsCount, hasCleanersService, rate);
+    this.editOrderForm.set(this.editOrderForm());
   }
 
   /** The Cleaners Total Salary input is editable only while nobody is assigned. Once cleaners
@@ -4559,8 +4622,10 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
 
   // Method to force refresh all assigned cleaners (for debugging)
   refreshAllAssignedCleaners() {
-    this.assignedCleanersCache.clear();
-    this.cleanersLoadedSet.clear();
+    this.assignedCleanersCache().clear();
+    this.assignedCleanersCache.set(this.assignedCleanersCache());
+    this.cleanersLoadedSet().clear();
+    this.cleanersLoadedSet.set(this.cleanersLoadedSet());
     this.preloadAssignedCleaners();
   }
 
@@ -4575,51 +4640,54 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
    * next conflict the admin picks.
    */
   toggleCleanerSelection(cleanerId: number) {
-    const index = this.selectedCleaners.indexOf(cleanerId);
+    const index = this.selectedCleaners().indexOf(cleanerId);
     if (index > -1) {
-      this.selectedCleaners.splice(index, 1);
+      this.selectedCleaners().splice(index, 1);
+      this.selectedCleaners.set(this.selectedCleaners());
     } else {
-      this.selectedCleaners.push(cleanerId);
+      this.selectedCleaners().push(cleanerId);
+      this.selectedCleaners.set(this.selectedCleaners());
     }
     if (this.selectedCleanersWithConflicts.length === 0) {
-      this.acknowledgeScheduleConflicts = false;
+      this.acknowledgeScheduleConflicts.set(false);
     }
   }
 
   isCleanerSelected(cleanerId: number): boolean {
-    return this.selectedCleaners.includes(cleanerId);
+    return this.selectedCleaners().includes(cleanerId);
   }
 
   assignCleanersToOrder() {
-    if (!this.assigningOrderId || this.selectedCleaners.length === 0) {
-      this.errorMessage = 'Please select at least one cleaner.';
+    if (!this.assigningOrderId() || this.selectedCleaners().length === 0) {
+      this.errorMessage.set('Please select at least one cleaner.');
       return;
     }
 
     // The server refuses a conflicting assignment without the acknowledgement, so catching it
     // here is about the message: "tick the box" beats a 400 that reads like a hard refusal.
     if (this.conflictAcknowledgementOwed) {
-      this.errorMessage = 'Confirm the schedule conflict before assigning.';
+      this.errorMessage.set('Confirm the schedule conflict before assigning.');
       return;
     }
 
-    this.loadingStates.assigningCleaners = true;
+    this.loadingStates().assigningCleaners = true;
+    this.loadingStates.set(this.loadingStates());
 
     // Store the order ID before it gets cleared by modal close
-    const orderIdToRefresh = this.assigningOrderId;
-    const selectedCleanersToAssign = [...this.selectedCleaners];
+    const orderIdToRefresh = this.assigningOrderId()!;
+    const selectedCleanersToAssign = [...this.selectedCleaners()];
     // Only ever true off the admin's explicit tick — read before the modal close clears it.
-    const conflictsAcknowledged = this.acknowledgeScheduleConflicts;
+    const conflictsAcknowledged = this.acknowledgeScheduleConflicts();
 
     this.cleanerService.assignCleaners(
       orderIdToRefresh,
       selectedCleanersToAssign,
-      this.tipsForCleaner || undefined,
-      this.cleanerHourlySalary,
+      this.tipsForCleaner() || undefined,
+      this.cleanerHourlySalary(),
       conflictsAcknowledged
     ).subscribe({
       next: (response) => {
-        this.successMessage = 'Cleaners assigned successfully. Click “Send assignment email” when you are ready to notify them.';
+        this.successMessage.set('Cleaners assigned successfully. Click “Send assignment email” when you are ready to notify them.');
         this.closeCleanerModal();
 
         // Refresh order details to reflect updated hourly rate and salary
@@ -4630,7 +4698,8 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
           this.adminService.getAssignedCleanersWithIds(orderIdToRefresh).subscribe({
             next: (updatedCleaners) => {
               // Update cache with fresh data from server
-              this.assignedCleanersCache.set(orderIdToRefresh, updatedCleaners);
+              this.assignedCleanersCache().set(orderIdToRefresh, updatedCleaners);
+              this.assignedCleanersCache.set(this.assignedCleanersCache());
               
               // Remove manual change detection to prevent loops
               // this.cdr.detectChanges();
@@ -4639,7 +4708,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
               console.error('Error refreshing assigned cleaners after assignment:', error);
               // Fallback: try to update cache manually using stored data
               const newCleanerData = selectedCleanersToAssign.map(cleanerId => {
-                const cleaner = this.availableCleaners.find(c => c.id === cleanerId);
+                const cleaner = this.availableCleaners().find(c => c.id === cleanerId);
                 return {
                   id: cleanerId,
                   name: cleaner ? `${cleaner.firstName} ${cleaner.lastName}` : '',
@@ -4647,7 +4716,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
                 };
               }).filter(cleaner => cleaner.name !== '');
               
-              const existingCleaners = this.assignedCleanersCache.get(orderIdToRefresh) || [];
+              const existingCleaners = this.assignedCleanersCache().get(orderIdToRefresh) || [];
               const allCleaners = [...existingCleaners];
               newCleanerData.forEach(newCleaner => {
                 if (!allCleaners.some(existing => existing.id === newCleaner.id)) {
@@ -4655,7 +4724,8 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
                 }
               });
               
-              this.assignedCleanersCache.set(orderIdToRefresh, allCleaners);
+              this.assignedCleanersCache().set(orderIdToRefresh, allCleaners);
+              this.assignedCleanersCache.set(this.assignedCleanersCache());
               // Remove manual change detection to prevent loops
               // this.cdr.detectChanges();
             }
@@ -4667,10 +4737,11 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
       error: (error) => {
         console.error('Error assigning cleaners:', error);
         // Surface the server's reason (e.g. the 1-hour-gap conflict message) when present.
-        this.errorMessage = error?.error?.message || 'Failed to assign cleaners. Please try again.';
+        this.errorMessage.set(error?.error?.message || 'Failed to assign cleaners. Please try again.');
       },
       complete: () => {
-        this.loadingStates.assigningCleaners = false;
+        this.loadingStates().assigningCleaners = false;
+        this.loadingStates.set(this.loadingStates());
       }
     });
   }
@@ -4680,23 +4751,23 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   getCustomerId(orderId: number): number | string {
-    const order = this.orders.find(o => o.id === orderId);
+    const order = this.orders().find(o => o.id === orderId);
     return order && 'userId' in order ? order.userId : 'N/A';
   }
 
   getCustomerEmail(orderId: number): string {
-    const order = this.orders.find(o => o.id === orderId);
+    const order = this.orders().find(o => o.id === orderId);
     return order && 'contactEmail' in order ? order.contactEmail : 'N/A';
   }
 
   /** Returns true if cleaners have been loaded for this order (even if none assigned) */
   isCleanersLoaded(orderId: number): boolean {
-    return this.cleanersLoadedSet.has(orderId);
+    return this.cleanersLoadedSet().has(orderId);
   }
 
   // OPTIMIZATION: Getter methods for template (with caching) - REMOVED CONSOLE LOGS TO PREVENT INFINITE LOGGING
   getAssignedCleaners(orderId: number): string[] {
-    const cleaners = this.assignedCleanersCache.get(orderId) || [];
+    const cleaners = this.assignedCleanersCache().get(orderId) || [];
     return cleaners.map(c => c.name);
   }
 
@@ -4717,7 +4788,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   getAssignedCleanersWithIds(orderId: number): AssignedCleanerAdmin[] {
-    return this.assignedCleanersCache.get(orderId) || [];
+    return this.assignedCleanersCache().get(orderId) || [];
   }
 
   /** Cleaners on this order who have not yet received the admin-triggered assignment email. */
@@ -4729,29 +4800,32 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
 
   sendCleanerAssignmentMailsForOrder(orderId: number) {
     if (this.getPendingAssignmentEmailCleaners(orderId).length === 0) {
-      this.successMessage = 'All assigned cleaners already received the assignment email.';
+      this.successMessage.set('All assigned cleaners already received the assignment email.');
       this.clearMessagesAfterDelay();
       return;
     }
 
-    this.loadingStates.sendAssignmentMails = true;
-    this.errorMessage = '';
+    this.loadingStates().sendAssignmentMails = true;
+    this.loadingStates.set(this.loadingStates());
+    this.errorMessage.set('');
 
     this.adminService.sendCleanerAssignmentMails(orderId).subscribe({
       next: (result) => {
-        this.successMessage = result.message || `Sent to ${result.emailsSent} cleaner(s).`;
+        this.successMessage.set(result.message || `Sent to ${result.emailsSent} cleaner(s).`);
         this.adminService.getAssignedCleanersWithIds(orderId).subscribe({
-          next: (list) => this.assignedCleanersCache.set(orderId, list),
+          next: (list) => this.assignedCleanersCache().set(orderId, list),
           error: () => { /* cache refresh optional */ }
         });
+        this.assignedCleanersCache.set(this.assignedCleanersCache());
         this.clearMessagesAfterDelay();
       },
       error: (err) => {
         console.error('Error sending assignment emails:', err);
-        this.errorMessage = err.error?.message || 'Failed to send assignment emails.';
+        this.errorMessage.set(err.error?.message || 'Failed to send assignment emails.');
       },
       complete: () => {
-        this.loadingStates.sendAssignmentMails = false;
+        this.loadingStates().sendAssignmentMails = false;
+        this.loadingStates.set(this.loadingStates());
       }
     });
   }
@@ -4761,27 +4835,29 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   // it puts real mail in the customer's inbox; the date is spelled out so a wrong order can't be
   // notified silently.
   resendConfirmation() {
-    if (!this.selectedOrder || this.loadingStates.resendingConfirmation) return;
-    const order = this.selectedOrder;
+    const order = this.selectedOrder();
+    if (!order || this.loadingStates().resendingConfirmation) return;
 
     const when = `${this.formatDate(order.serviceDate)} at ${order.serviceTime}`;
     if (!confirm(`Email and text the customer an updated confirmation for order #${order.id} — ${when}?`)) return;
 
-    this.loadingStates.resendingConfirmation = true;
-    this.errorMessage = '';
-    this.successMessage = '';
+    this.loadingStates().resendingConfirmation = true;
+    this.loadingStates.set(this.loadingStates());
+    this.errorMessage.set('');
+    this.successMessage.set('');
 
     this.adminService.resendConfirmation(order.id).subscribe({
       next: (res) => {
-        this.successMessage = res?.message || 'Updated confirmation sent.';
-        if (this.selectedOrder) this.refreshChangesIfLoaded(this.selectedOrder.id);
+        this.successMessage.set(res?.message || 'Updated confirmation sent.');
+        if (this.selectedOrder()) this.refreshChangesIfLoaded(this.selectedOrder()!.id);
         this.clearMessagesAfterDelay();
       },
       error: (err) => {
-        this.errorMessage = err.error?.message || 'Failed to send the updated confirmation.';
+        this.errorMessage.set(err.error?.message || 'Failed to send the updated confirmation.');
       },
       complete: () => {
-        this.loadingStates.resendingConfirmation = false;
+        this.loadingStates().resendingConfirmation = false;
+        this.loadingStates.set(this.loadingStates());
       }
     });
   }
@@ -4798,16 +4874,16 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
 
   /** True when the selected order's owner has no email address on their account. */
   get customerHasNoAccountEmail(): boolean {
-    return !!this.selectedOrder?.customerHasNoAccountEmail;
+    return !!this.selectedOrder()?.customerHasNoAccountEmail;
   }
 
   /** The account email when it DISAGREES with the order's frozen contact email — the exact
    *  mismatch that makes a send land somewhere the admin did not expect. Null when they
    *  match, when the account has none, or when it wasn't loaded. */
   get differingAccountEmail(): string | null {
-    const account = (this.selectedOrder?.customerAccountEmail || '').trim();
+    const account = (this.selectedOrder()?.customerAccountEmail || '').trim();
     if (!account) return null;
-    const contact = (this.selectedOrder?.contactEmail || '').trim();
+    const contact = (this.selectedOrder()?.contactEmail || '').trim();
     return account.toLowerCase() === contact.toLowerCase() ? null : account;
   }
 
@@ -4815,45 +4891,47 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
    *  can only go by text. Resolved server-side (NoEmailHelper.ResolveOrderNotificationEmail) so
    *  the panel can never name an address the sender would discard. */
   get notificationEmailTarget(): string {
-    return (this.selectedOrder?.notificationEmailTarget || '').trim();
+    return (this.selectedOrder()?.notificationEmailTarget || '').trim();
   }
 
   openSendPaymentLinkModal() {
-    if (!this.selectedOrder) return;
+    if (!this.selectedOrder()) return;
     // Reset to both channels checked each time the modal opens — except email for an account
     // with no address, where the backend would reject the send outright.
-    this.sendPaymentLinkChannels = { email: !this.customerHasNoAccountEmail, sms: true };
-    this.showSendPaymentLinkModal = true;
+    this.sendPaymentLinkChannels.set({ email: !this.customerHasNoAccountEmail, sms: true });
+    this.showSendPaymentLinkModal.set(true);
   }
 
   closeSendPaymentLinkModal() {
-    this.showSendPaymentLinkModal = false;
+    this.showSendPaymentLinkModal.set(false);
   }
 
   confirmSendPaymentLink() {
-    if (!this.selectedOrder) return;
-    const { email, sms } = this.sendPaymentLinkChannels;
+    if (!this.selectedOrder()) return;
+    const { email, sms } = this.sendPaymentLinkChannels();
     if (!email && !sms) {
-      this.errorMessage = 'Select at least one channel (email or phone).';
+      this.errorMessage.set('Select at least one channel (email or phone).');
       return;
     }
 
-    this.loadingStates.sendPaymentLink = true;
-    this.errorMessage = '';
+    this.loadingStates().sendPaymentLink = true;
+    this.loadingStates.set(this.loadingStates());
+    this.errorMessage.set('');
 
-    this.adminService.sendPaymentLink(this.selectedOrder.id, email, sms).subscribe({
+    this.adminService.sendPaymentLink(this.selectedOrder()!.id, email, sms).subscribe({
       next: (result) => {
-        this.successMessage = result.message || 'Payment link sent.';
-        if (this.selectedOrder) this.refreshChangesIfLoaded(this.selectedOrder.id);
-        this.showSendPaymentLinkModal = false;
+        this.successMessage.set(result.message || 'Payment link sent.');
+        if (this.selectedOrder()) this.refreshChangesIfLoaded(this.selectedOrder()!.id);
+        this.showSendPaymentLinkModal.set(false);
         this.clearMessagesAfterDelay();
       },
       error: (err) => {
         console.error('Error sending payment link:', err);
-        this.errorMessage = err.error?.message || 'Failed to send payment link.';
+        this.errorMessage.set(err.error?.message || 'Failed to send payment link.');
       },
       complete: () => {
-        this.loadingStates.sendPaymentLink = false;
+        this.loadingStates().sendPaymentLink = false;
+        this.loadingStates.set(this.loadingStates());
       }
     });
   }
@@ -4863,33 +4941,36 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   isResendingCleanerAssignmentMail(orderId: number, cleanerId: number): boolean {
-    return this.resendingCleanerEmailKeys.has(this.getCleanerResendKey(orderId, cleanerId));
+    return this.resendingCleanerEmailKeys().has(this.getCleanerResendKey(orderId, cleanerId));
   }
 
   resendCleanerAssignmentMail(orderId: number, cleaner: AssignedCleanerAdmin) {
     const key = this.getCleanerResendKey(orderId, cleaner.id);
-    if (this.resendingCleanerEmailKeys.has(key)) {
+    if (this.resendingCleanerEmailKeys().has(key)) {
       return;
     }
 
-    this.resendingCleanerEmailKeys.add(key);
-    this.errorMessage = '';
+    this.resendingCleanerEmailKeys().add(key);
+    this.resendingCleanerEmailKeys.set(this.resendingCleanerEmailKeys());
+    this.errorMessage.set('');
 
     this.adminService.resendCleanerAssignmentMail(orderId, cleaner.id).subscribe({
       next: (result) => {
-        this.successMessage = result.message || `Assignment email sent to ${cleaner.name}.`;
+        this.successMessage.set(result.message || `Assignment email sent to ${cleaner.name}.`);
         this.adminService.getAssignedCleanersWithIds(orderId).subscribe({
-          next: (list) => this.assignedCleanersCache.set(orderId, list),
+          next: (list) => this.assignedCleanersCache().set(orderId, list),
           error: () => { /* optional cache refresh */ }
         });
+        this.assignedCleanersCache.set(this.assignedCleanersCache());
         this.clearMessagesAfterDelay();
       },
       error: (err) => {
         console.error('Error resending cleaner assignment email:', err);
-        this.errorMessage = err.error?.message || 'Failed to resend assignment email.';
+        this.errorMessage.set(err.error?.message || 'Failed to resend assignment email.');
       },
       complete: () => {
-        this.resendingCleanerEmailKeys.delete(key);
+        this.resendingCleanerEmailKeys().delete(key);
+        this.resendingCleanerEmailKeys.set(this.resendingCleanerEmailKeys());
       }
     });
   }
@@ -4913,52 +4994,56 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
           order.paymentNotes = paymentMethod !== 'Normal' ? paymentNotes : null;
         }
         // Also update selectedOrder if it's the same order
-        if (this.selectedOrder && this.selectedOrder.id === order.id) {
-          this.selectedOrder.status = newStatus;
+        if (this.selectedOrder() && this.selectedOrder()!.id === order.id) {
+          this.selectedOrder()!.status = newStatus;
+          this.selectedOrder.set(this.selectedOrder());
           if (paymentMethod !== null && paymentMethod !== undefined) {
-            this.selectedOrder.paymentMethod = paymentMethod;
-            this.selectedOrder.paymentReference = paymentMethod !== 'Normal' ? paymentReference : null;
-            this.selectedOrder.paymentNotes = paymentMethod !== 'Normal' ? paymentNotes : null;
+            this.selectedOrder()!.paymentMethod = paymentMethod;
+            this.selectedOrder.set(this.selectedOrder());
+            this.selectedOrder()!.paymentReference = paymentMethod !== 'Normal' ? paymentReference : null;
+            this.selectedOrder.set(this.selectedOrder());
+            this.selectedOrder()!.paymentNotes = paymentMethod !== 'Normal' ? paymentNotes : null;
+            this.selectedOrder.set(this.selectedOrder());
           }
         }
-        this.successMessage = `Order #${order.id} status updated to ${newStatus}`;
+        this.successMessage.set(`Order #${order.id} status updated to ${newStatus}`);
         this.clearMessagesAfterDelay();
       },
       error: (error) => {
         console.error('Error updating order status:', error);
-        this.errorMessage = 'Failed to update order status.';
+        this.errorMessage.set('Failed to update order status.');
       }
     });
   }
 
   markOrderAsDone(order: AdminOrderList) {
-    this.doneModalOrder = order;
+    this.doneModalOrder.set(order);
     // Pre-fill the payment-method block from whatever the order already carries. Default is
     // 'Normal' (Stripe flow) so existing Active orders behave as before; manual-payment orders
     // (e.g. Pending Zelle from admin booking) come up with the recorded method + reference.
-    this.donePaymentMethod = ((order.paymentMethod as PaymentMethodValue) || 'Normal');
-    this.donePaymentReference = order.paymentReference || '';
-    this.donePaymentNotes = order.paymentNotes || '';
-    this.showDoneModal = true;
+    this.donePaymentMethod.set(((order.paymentMethod as PaymentMethodValue) || 'Normal'));
+    this.donePaymentReference.set(order.paymentReference || '');
+    this.donePaymentNotes.set(order.paymentNotes || '');
+    this.showDoneModal.set(true);
   }
 
   closeDoneModal() {
-    this.showDoneModal = false;
-    this.doneModalOrder = null;
+    this.showDoneModal.set(false);
+    this.doneModalOrder.set(null);
   }
 
   confirmDone(sendReview: boolean) {
-    if (!this.doneModalOrder) return;
-    const order = this.doneModalOrder;
+    const order = this.doneModalOrder();
+    if (!order) return;
 
     // Phase 1 — pass payment method through so the backend can persist it on the Done
     // transition. Reference/Notes are sent only for manual methods (Normal ignores them).
     this.updateOrderStatus(
       order,
       'Done',
-      this.donePaymentMethod,
-      this.donePaymentMethod !== 'Normal' ? this.donePaymentReference : null,
-      this.donePaymentMethod !== 'Normal' ? this.donePaymentNotes : null
+      this.donePaymentMethod(),
+      this.donePaymentMethod() !== 'Normal' ? this.donePaymentReference() : null,
+      this.donePaymentMethod() !== 'Normal' ? this.donePaymentNotes() : null
     );
 
     if (sendReview) {
@@ -4966,12 +5051,12 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
       this.adminService.sendReviewRequest(order.id).subscribe({
         next: () => {
           this.sendingReview = false;
-          this.successMessage = `Order #${order.id} marked as Done. Review request sent.`;
+          this.successMessage.set(`Order #${order.id} marked as Done. Review request sent.`);
           this.clearMessagesAfterDelay();
         },
         error: () => {
           this.sendingReview = false;
-          this.errorMessage = 'Order marked as Done but failed to send review request.';
+          this.errorMessage.set('Order marked as Done but failed to send review request.');
         }
       });
     }
@@ -4993,44 +5078,48 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   cancelOrder(order: AdminOrderList) {
-    if (!this.userPermissions.permissions.canUpdate) {
-      this.errorMessage = 'You do not have permission to cancel orders.';
+    if (!this.userPermissions().permissions.canUpdate) {
+      this.errorMessage.set('You do not have permission to cancel orders.');
       return;
     }
-    this.adminCancelOrderId = order.id;
-    this.adminCancelReason = '';
-    this.showAdminCancelModal = true;
+    this.adminCancelOrderId.set(order.id);
+    this.adminCancelReason.set('');
+    this.showAdminCancelModal.set(true);
   }
 
   closeAdminCancelModal() {
-    this.showAdminCancelModal = false;
-    this.adminCancelOrderId = null;
-    this.adminCancelReason = '';
+    this.showAdminCancelModal.set(false);
+    this.adminCancelOrderId.set(null);
+    this.adminCancelReason.set('');
   }
 
   confirmAdminCancelOrder() {
-    if (!this.adminCancelOrderId || !this.adminCancelReason.trim()) return;
+    const orderId = this.adminCancelOrderId();
+    if (!orderId || !this.adminCancelReason().trim()) return;
 
-    const orderId = this.adminCancelOrderId;
-    const order = this.orders.find(o => o.id === orderId);
+    const order = this.orders().find(o => o.id === orderId);
 
-    this.adminService.cancelOrder(orderId, this.adminCancelReason).subscribe({
+    this.adminService.cancelOrder(orderId, this.adminCancelReason()).subscribe({
       next: () => {
         if (order) {
           order.status = 'Cancelled';
-          order.cancellationReason = this.adminCancelReason;
+          this.orders.set(this.orders());
+          order.cancellationReason = this.adminCancelReason();
+          this.orders.set(this.orders());
         }
-        if (this.selectedOrder && this.selectedOrder.id === orderId) {
-          this.selectedOrder.status = 'Cancelled';
-          this.selectedOrder.cancellationReason = this.adminCancelReason;
+        if (this.selectedOrder() && this.selectedOrder()!.id === orderId) {
+          this.selectedOrder()!.status = 'Cancelled';
+          this.selectedOrder.set(this.selectedOrder());
+          this.selectedOrder()!.cancellationReason = this.adminCancelReason();
+          this.selectedOrder.set(this.selectedOrder());
         }
         this.closeAdminCancelModal();
-        this.successMessage = `Order #${orderId} has been cancelled.`;
+        this.successMessage.set(`Order #${orderId} has been cancelled.`);
         this.clearMessagesAfterDelay();
       },
       error: (error) => {
         console.error('Error cancelling order:', error);
-        this.errorMessage = 'Failed to cancel order.';
+        this.errorMessage.set('Failed to cancel order.');
       }
     });
   }
@@ -5038,16 +5127,16 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   // ── Export (SuperAdmin-only), mirrors the users-tab export ──
 
   openExportModal(): void {
-    if (!this.isSuperAdmin) return;
+    if (!this.isSuperAdmin()) return;
     this.exportColumns.forEach(c => c.selected = true);
-    this.exportError = '';
-    this.showExportModal = true;
+    this.exportError.set('');
+    this.showExportModal.set(true);
   }
 
   closeExportModal(): void {
-    if (this.exporting) return;
-    this.showExportModal = false;
-    this.exportError = '';
+    if (this.exporting()) return;
+    this.showExportModal.set(false);
+    this.exportError.set('');
   }
 
   toggleExportColumn(key: string): void {
@@ -5060,26 +5149,26 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   runExport(): void {
-    if (!this.isSuperAdmin || this.exporting) return;
+    if (!this.isSuperAdmin() || this.exporting()) return;
     const selected = this.exportColumns.filter(c => c.selected).map(c => c.key);
     if (selected.length === 0) {
-      this.exportError = 'Select at least one column to export.';
+      this.exportError.set('Select at least one column to export.');
       return;
     }
     // Export what the admin currently sees: the filtered list (all pages, not just the current one).
     const orderIds = this.filterOrders().map(o => o.id);
     if (orderIds.length === 0) {
-      this.exportError = 'No orders match the current filters.';
+      this.exportError.set('No orders match the current filters.');
       return;
     }
-    this.exporting = true;
-    this.exportError = '';
+    this.exporting.set(true);
+    this.exportError.set('');
     this.adminService.exportOrders(selected, orderIds).subscribe({
       next: (res) => {
         const blob = res.body;
         if (!blob) {
-          this.exportError = 'Export returned an empty file.';
-          this.exporting = false;
+          this.exportError.set('Export returned an empty file.');
+          this.exporting.set(false);
           return;
         }
         // Try to honor the server-provided filename, fall back to a timestamped default.
@@ -5097,14 +5186,14 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
         a.click();
         document.body.removeChild(a);
         window.URL.revokeObjectURL(url);
-        this.exporting = false;
-        this.showExportModal = false;
-        this.successMessage = 'Export downloaded.';
-        setTimeout(() => { this.successMessage = ''; }, 3000);
+        this.exporting.set(false);
+        this.showExportModal.set(false);
+        this.successMessage.set('Export downloaded.');
+        setTimeout(() => { this.successMessage.set(''); }, 3000);
       },
       error: (err) => {
-        this.exporting = false;
-        this.exportError = err?.error?.message || err?.message || 'Failed to export orders.';
+        this.exporting.set(false);
+        this.exportError.set(err?.error?.message || err?.message || 'Failed to export orders.');
       }
     });
   }
@@ -5113,16 +5202,16 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   /** Current page of the filtered list. PURE — no state mutations here (NG0100). */
   get filteredOrders(): AdminOrderList[] {
     const filtered = this.filterOrders();
-    const start = (this.currentPage - 1) * this.itemsPerPage;
+    const start = (this.currentPage() - 1) * this.itemsPerPage;
     return filtered.slice(start, start + this.itemsPerPage);
   }
 
   /** Applies search/status/payment/date filters + sort. Pure function of component state. */
   private filterOrders(): AdminOrderList[] {
-    let filtered = this.orders;
+    let filtered = this.orders();
 
     // Search filter
-    const search = this.searchTerm.trim().toLowerCase();
+    const search = this.searchTerm().trim().toLowerCase();
     if (search) {
       filtered = filtered.filter(order =>
         order.id.toString().includes(search) ||
@@ -5132,30 +5221,30 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     }
 
     // Status filter
-    if (this.statusFilter !== 'all') {
-      filtered = filtered.filter(order => order.status && order.status.toLowerCase() === this.statusFilter.toLowerCase());
+    if (this.statusFilter() !== 'all') {
+      filtered = filtered.filter(order => order.status && order.status.toLowerCase() === this.statusFilter().toLowerCase());
     }
 
     // Phase 1: Payment Method filter. Treat missing paymentMethod as 'Normal' so legacy
     // rows (pre-migration cache) don't disappear when admin filters to "Normal (Stripe)".
-    if (this.paymentMethodFilter !== 'all') {
-      filtered = filtered.filter(o => (o.paymentMethod || 'Normal') === this.paymentMethodFilter);
+    if (this.paymentMethodFilter() !== 'all') {
+      filtered = filtered.filter(o => (o.paymentMethod || 'Normal') === this.paymentMethodFilter());
     }
 
     // Service-type filter (move in/out, arranged, deep, regular, custom, filthy, heavy).
     // Residential orders resolve to 'deep'/'regular' via the same logic as the column.
-    if (this.serviceTypeFilter !== 'all') {
-      filtered = filtered.filter(o => this.getServiceTypeFilterKey(o) === this.serviceTypeFilter);
+    if (this.serviceTypeFilter() !== 'all') {
+      filtered = filtered.filter(o => this.getServiceTypeFilterKey(o) === this.serviceTypeFilter());
     }
 
     // Booked-by filter: admin-created (create-for-user) vs customer self-booked.
-    if (this.bookedByFilter !== 'all') {
+    if (this.bookedByFilter() !== 'all') {
       filtered = filtered.filter(o =>
-        this.bookedByFilter === 'admin' ? !!o.bookedByAdmin : !o.bookedByAdmin);
+        this.bookedByFilter() === 'admin' ? !!o.bookedByAdmin : !o.bookedByAdmin);
     }
 
     // Date filter
-    if (this.dateFilter !== 'all') {
+    if (this.dateFilter() !== 'all') {
       const now = new Date();
       const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       
@@ -5165,7 +5254,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
         
         // Each window is bounded on BOTH sides — "Today"/"This Week"/"This Month"
         // must not leak future days/weeks/months into the list.
-        switch (this.dateFilter) {
+        switch (this.dateFilter()) {
           case 'today':
             return serviceDateOnly.getTime() === today.getTime();
           case 'week': {
@@ -5185,8 +5274,8 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
           case 'custom': {
             // Specific days picked by the admin; both bounds inclusive. With only one bound
             // set it acts as "from that day" / "up to that day".
-            const from = this.parseLocalDate(this.customDateFrom);
-            const to = this.parseLocalDate(this.customDateTo);
+            const from = this.parseLocalDate(this.customDateFrom());
+            const to = this.parseLocalDate(this.customDateTo());
             if (!from && !to) return true;
             if (from && serviceDateOnly < from) return false;
             if (to && serviceDateOnly > to) return false;
@@ -5199,10 +5288,10 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     }
 
     // Sort
-    if (this.sortColumn) {
+    if (this.sortColumn()) {
       filtered = [...filtered].sort((a, b) => {
         let cmp = 0;
-        switch (this.sortColumn) {
+        switch (this.sortColumn()) {
           case 'id':
             cmp = a.id - b.id;
             break;
@@ -5227,12 +5316,12 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
             cmp = (a.status || '').localeCompare(b.status || '');
             break;
           case 'cleaners':
-            cmp = (this.assignedCleanersCache.get(a.id)?.length ?? 0) - (this.assignedCleanersCache.get(b.id)?.length ?? 0);
+            cmp = (this.assignedCleanersCache().get(a.id)?.length ?? 0) - (this.assignedCleanersCache().get(b.id)?.length ?? 0);
             break;
           default:
             break;
         }
-        return this.sortDirection === 'asc' ? cmp : -cmp;
+        return this.sortDirection() === 'asc' ? cmp : -cmp;
       });
     }
 
@@ -5240,30 +5329,30 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   setSort(column: string) {
-    if (this.sortColumn === column) {
-      this.sortDirection = this.sortDirection === 'asc' ? 'desc' : 'asc';
+    if (this.sortColumn() === column) {
+      this.sortDirection.set(this.sortDirection() === 'asc' ? 'desc' : 'asc');
     } else {
-      this.sortColumn = column;
-      this.sortDirection = 'asc';
+      this.sortColumn.set(column);
+      this.sortDirection.set('asc');
     }
   }
 
   // Pagination methods
   previousPage() {
-    if (this.currentPage > 1) {
-      this.currentPage--;
+    if (this.currentPage() > 1) {
+      this.currentPage.update(v => v - 1);
     }
   }
 
   nextPage() {
-    if (this.currentPage < this.totalPages) {
-      this.currentPage++;
+    if (this.currentPage() < this.totalPages) {
+      this.currentPage.update(v => v + 1);
     }
   }
 
   goToPage(page: number) {
     if (page >= 1 && page <= this.totalPages) {
-      this.currentPage = page;
+      this.currentPage.set(page);
     }
   }
 
@@ -5300,15 +5389,15 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
       (value || '').toLowerCase().trim().replace(/[_\s]+/g, '-');
 
     const serviceTypeRaw = normalize(order.serviceTypeName);
-    const selectedOrderForRow = (this.selectedOrder && this.selectedOrder.id === order.id)
-      ? (this.selectedOrder as any)
+    const selectedOrderForRow = (this.selectedOrder() && this.selectedOrder()!.id === order.id)
+      ? (this.selectedOrder() as any)
       : null;
     const orderAny = order as any;
     const cleaningTypeRaw = normalize(orderAny?.cleaningType);
 
     const isResidential = this.isResidentialServiceType(order);
     if (isResidential) {
-      const cachedVariant = this.residentialVariantCache.get(order.id);
+      const cachedVariant = this.residentialVariantCache().get(order.id);
       if (cachedVariant) return cachedVariant;
 
       const extras: any[] =
@@ -5506,15 +5595,15 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
 
   /** Original total excluding tips (for order details pricing column). */
   getOriginalTotalWithoutTips(): number {
-    if (!this.selectedOrder) return 0;
-    if (this.selectedOrder.initialTotal > 0) {
-      const t = this.selectedOrder.initialTotal;
-      const tips = this.selectedOrder.initialTips ?? 0;
-      const companyTips = this.selectedOrder.initialCompanyDevelopmentTips ?? 0;
+    if (!this.selectedOrder()) return 0;
+    if (this.selectedOrder()!.initialTotal > 0) {
+      const t = this.selectedOrder()!.initialTotal;
+      const tips = this.selectedOrder()!.initialTips ?? 0;
+      const companyTips = this.selectedOrder()!.initialCompanyDevelopmentTips ?? 0;
       return Math.round((t - tips - companyTips) * 100) / 100;
     }
-    if (this.orderUpdateHistory && this.orderUpdateHistory.length > 0) {
-      const u = this.orderUpdateHistory[0];
+    if (this.orderUpdateHistory() && this.orderUpdateHistory().length > 0) {
+      const u = this.orderUpdateHistory()[0];
       const t = u.originalTotal;
       const tips = u.originalTips ?? 0;
       const companyTips = u.originalCompanyDevelopmentTips ?? 0;
@@ -5525,10 +5614,10 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
 
   /** Current total excluding tips (for order details pricing column). */
   getCurrentTotalWithoutTips(): number {
-    if (!this.selectedOrder) return 0;
-    const t = this.selectedOrder.total ?? 0;
-    const tips = this.selectedOrder.tips ?? 0;
-    const companyTips = this.selectedOrder.companyDevelopmentTips ?? 0;
+    if (!this.selectedOrder()) return 0;
+    const t = this.selectedOrder()!.total ?? 0;
+    const tips = this.selectedOrder()!.tips ?? 0;
+    const companyTips = this.selectedOrder()!.companyDevelopmentTips ?? 0;
     return Math.round((t - tips - companyTips) * 100) / 100;
   }
 
@@ -5538,13 +5627,13 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
    * the panel's tip-free totals and price previews still subtract/include the STORED value.
    */
   get legacyCompanyDevelopmentTips(): number {
-    return Number(this.selectedOrder?.companyDevelopmentTips ?? 0) || 0;
+    return Number(this.selectedOrder()?.companyDevelopmentTips ?? 0) || 0;
   }
 
   /** Cleaner tips for the panel summary bar — live edit value while editing, saved value otherwise. */
   getSummaryTips(): number {
-    if (this.editingOrder) return Number(this.editOrderForm.tips ?? 0) || 0;
-    return Number(this.selectedOrder?.tips ?? 0) || 0;
+    if (this.editingOrder()) return Number(this.editOrderForm().tips ?? 0) || 0;
+    return Number(this.selectedOrder()?.tips ?? 0) || 0;
   }
 
   /**
@@ -5553,9 +5642,9 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
    * tip-free total shown in view mode.
    */
   getSummaryTotalWithoutTips(): number {
-    if (!this.editingOrder) return this.getCurrentTotalWithoutTips();
-    const t = Number(this.editOrderForm.total ?? 0) || 0;
-    const tips = Number(this.editOrderForm.tips ?? 0) || 0;
+    if (!this.editingOrder()) return this.getCurrentTotalWithoutTips();
+    const t = Number(this.editOrderForm().total ?? 0) || 0;
+    const tips = Number(this.editOrderForm().tips ?? 0) || 0;
     return Math.round(Math.max(0, t - tips - this.legacyCompanyDevelopmentTips) * 100) / 100;
   }
 
@@ -5564,14 +5653,14 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
    * (Backend does not send initialSubscriptionDiscountAmount, so we use rate: currentDiscount/currentSubTotal * originalSubTotal.)
    */
   getOriginalSubscriptionDiscountAmount(): number {
-    if (!this.selectedOrder) return 0;
-    const currentDiscount = Number((this.selectedOrder as any).subscriptionDiscountAmount ?? 0) || 0;
-    const currentSub = Number(this.selectedOrder.subTotal ?? 0) || 0;
+    if (!this.selectedOrder()) return 0;
+    const currentDiscount = Number((this.selectedOrder() as any).subscriptionDiscountAmount ?? 0) || 0;
+    const currentSub = Number(this.selectedOrder()!.subTotal ?? 0) || 0;
     let originalSub = 0;
-    if (this.selectedOrder.initialTotal > 0) {
-      originalSub = Number(this.selectedOrder.initialSubTotal ?? 0) || 0;
-    } else if (this.orderUpdateHistory && this.orderUpdateHistory.length > 0) {
-      originalSub = Number(this.orderUpdateHistory[0].originalSubTotal ?? 0) || 0;
+    if (this.selectedOrder()!.initialTotal > 0) {
+      originalSub = Number(this.selectedOrder()!.initialSubTotal ?? 0) || 0;
+    } else if (this.orderUpdateHistory() && this.orderUpdateHistory().length > 0) {
+      originalSub = Number(this.orderUpdateHistory()[0].originalSubTotal ?? 0) || 0;
     }
     if (currentSub <= 0 || originalSub <= 0) return 0;
     const rate = currentDiscount / currentSub;
@@ -5597,8 +5686,8 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   clearMessages() {
-    this.errorMessage = '';
-    this.successMessage = '';
+    this.errorMessage.set('');
+    this.successMessage.set('');
   }
 
   private clearMessagesAfterDelay() {
@@ -5608,13 +5697,13 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   hasCleanersService(): boolean {
-    if (!this.selectedOrder) return false;
+    if (!this.selectedOrder()) return false;
     // Only true for service types with an explicit Cleaners + Hours row (e.g. Office Cleaning),
     // because for those TotalDuration is already per-cleaner. Custom Pricing now stores
     // TotalDuration as TOTAL across all maids (matching non-custom convention), so the perMaid
     // template branch handles its display correctly via TotalDuration / MaidsCount.
-    if (this.selectedOrder.hasCleanersService) return true;
-    return this.selectedOrder.services?.some(s => isCleanersLine(s)) ?? false;
+    if (this.selectedOrder()!.hasCleanersService) return true;
+    return this.selectedOrder()!.services?.some(s => isCleanersLine(s)) ?? false;
   }
 
   /** Service-line checks for the template: by serviceKey, the name only for an unkeyed line. */
@@ -5635,14 +5724,14 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   getEditServiceDisplayName(s: { quantity: number }, i: number): string {
     const def = this.getEditServiceDefinition(i);
     if (def?.serviceKey === 'bedrooms' && (Number(s.quantity) || 0) === 0) return 'Studio';
-    if (!this.selectedOrder?.services?.[i] && def) return def.name;
-    return this.getServiceName(this.selectedOrder, i, 0);
+    if (!this.selectedOrder()?.services?.[i] && def) return def.name;
+    return this.getServiceName(this.selectedOrder(), i, 0);
   }
 
   getExtraServiceName(order: Order | null, i: number, row: { orderExtraServiceId?: number | null; extraServiceId?: number }): string {
     const orderId = row.orderExtraServiceId ?? 0;
     if (orderId === 0 && row.extraServiceId != null) {
-      const ex = this.editOrderAvailableExtras.find(x => x.id === row.extraServiceId);
+      const ex = this.editOrderAvailableExtras().find(x => x.id === row.extraServiceId);
       return ex?.name ?? 'Extra #' + row.extraServiceId;
     }
     const e = (order?.extraServices ?? []).find(x => x.id === orderId) ?? (order?.extraServices ?? [])[i];
@@ -5651,23 +5740,23 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
 
   /** A catalogue service by id within a service type (for rows the order does not have yet). */
   private findCatalogueService(serviceTypeId: number | null | undefined, serviceId: number): Service | null {
-    const st = this.serviceTypesCache.find(t => t.id === serviceTypeId);
+    const st = this.serviceTypesCache().find(t => t.id === serviceTypeId);
     return st?.services?.find(sv => sv.id === serviceId) ?? null;
   }
 
   getEditOrderServiceType(): ServiceType | null {
-    const stId = this.selectedOrder?.serviceTypeId;
+    const stId = this.selectedOrder()?.serviceTypeId;
     if (stId == null) return null;
-    return this.serviceTypesCache.find(s => s.id === stId) ?? null;
+    return this.serviceTypesCache().find(s => s.id === stId) ?? null;
   }
 
   getEditServiceDefinition(index: number): Service | null {
     const st = this.getEditOrderServiceType();
-    const orderService = this.selectedOrder?.services?.[index];
+    const orderService = this.selectedOrder()?.services?.[index];
     if (orderService) return st?.services?.find(s => s.id === orderService.serviceId) ?? null;
     // A row the editor ADDED (orderServiceId 0) sits after the order's own rows, so it has no
     // order line at this index; it names its catalogue service itself. See ensureEditLevelsRow.
-    const added = this.editOrderForm?.services?.[index];
+    const added = this.editOrderForm()?.services?.[index];
     if (added && !added.orderServiceId && added.serviceId != null) {
       return st?.services?.find(s => s.id === added.serviceId) ?? null;
     }
@@ -5690,13 +5779,13 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     const orderId = row.orderExtraServiceId ?? 0;
     let extraId: number | undefined;
     if (orderId !== 0) {
-      const oes = this.selectedOrder?.extraServices?.find(x => x.id === orderId);
+      const oes = this.selectedOrder()?.extraServices?.find(x => x.id === orderId);
       extraId = oes?.extraServiceId;
     } else {
       extraId = row.extraServiceId;
     }
     if (extraId == null) return null;
-    return this.editOrderAvailableExtras.find(x => x.id === extraId) ?? null;
+    return this.editOrderAvailableExtras().find(x => x.id === extraId) ?? null;
   }
 
   /**
@@ -5708,7 +5797,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     const def = this.getEditServiceDefinition(index);
     if (!def) return 0;
 
-    const allSelected = (this.editOrderForm.services ?? [])
+    const allSelected = (this.editOrderForm().services ?? [])
       .map((row, i) => {
         const definition = this.getEditServiceDefinition(i);
         return definition ? { service: definition, quantity: Number(row.quantity) || 0 } : null;
@@ -5725,7 +5814,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     if (def.serviceKey === 'bedrooms' && (Number(s.quantity) || 0) === 0) return 20;
     const q = Number(s.quantity) || 0;
     if ((def.timeDuration === 0 || def.serviceKey === 'cleaners' || def.serviceKey === 'hours') && q > 0) {
-      return Number(this.editOrderForm?.totalDuration) || 0;
+      return Number(this.editOrderForm()?.totalDuration) || 0;
     }
     return def.timeDuration * q;
   }
@@ -5748,7 +5837,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   /** Hours value for this service row. For 'hours' row = quantity; for 'cleaner' = hours row qty or totalDuration/60. */
   getEditServiceHours(index: number): number {
     const def = this.getEditServiceDefinition(index);
-    const services = this.editOrderForm?.services ?? [];
+    const services = this.editOrderForm()?.services ?? [];
     if (!def || index >= services.length) return 0;
     if (def.serviceRelationType === 'hours' || def.serviceKey === 'hours') {
       return Number(services[index].quantity) || 0;
@@ -5758,7 +5847,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
       if (hoursRowIndex >= 0 && hoursRowIndex < services.length) {
         return Number(services[hoursRowIndex].quantity) || 0;
       }
-      return Math.round((Number(this.editOrderForm?.totalDuration) || 0) / 60 * 10) / 10;
+      return Math.round((Number(this.editOrderForm()?.totalDuration) || 0) / 60 * 10) / 10;
     }
     return 0;
   }
@@ -5774,13 +5863,13 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
    */
   private getEditFallbackHours(): number {
     if (this.getEditHoursRowIndex() >= 0) return 0; // a real hours row is already in the quote
-    const minutes = Number(this.editOrderForm?.totalDuration) || 0;
+    const minutes = Number(this.editOrderForm()?.totalDuration) || 0;
     return minutes > 0 ? minutes / 60 : 0;
   }
 
   /** Index of the 'hours' service row for the current order's service type, or -1. */
   private getEditHoursRowIndex(): number {
-    const orderServices = this.selectedOrder?.services ?? [];
+    const orderServices = this.selectedOrder()?.services ?? [];
     const st = this.getEditOrderServiceType();
     if (!st) return -1;
     for (let i = 0; i < orderServices.length; i++) {
@@ -5792,7 +5881,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
 
   /** Index of the 'cleaner' service row for the current order's service type, or -1. */
   private getEditCleanerRowIndex(): number {
-    const orderServices = this.selectedOrder?.services ?? [];
+    const orderServices = this.selectedOrder()?.services ?? [];
     const st = this.getEditOrderServiceType();
     if (!st) return -1;
     for (let i = 0; i < orderServices.length; i++) {
@@ -5805,16 +5894,17 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   /** When user changes hours for a cleaner/hours row: update totalDuration, cost, and hours row quantity. */
   onEditServiceHoursChange(index: number, value: number): void {
     const hours = this.clampEditHours(Number(value) || 0);
-    const services = this.editOrderForm?.services ?? [];
+    const services = this.editOrderForm()?.services ?? [];
     const st = this.getEditOrderServiceType();
     const def = this.getEditServiceDefinition(index);
     if (!def || !st || index >= services.length) return;
 
-    const priceMultiplier = Number((this.selectedOrder?.services?.[0] as any)?.priceMultiplier ?? 1) || 1;
+    const priceMultiplier = Number((this.selectedOrder()?.services?.[0] as any)?.priceMultiplier ?? 1) || 1;
     const cleanerIdx = this.getEditCleanerRowIndex();
     const hoursIdx = this.getEditHoursRowIndex();
 
-    this.editOrderForm.totalDuration = Math.round(hours * 60);
+    this.editOrderForm().totalDuration = Math.round(hours * 60);
+    this.editOrderForm.set(this.editOrderForm());
     if (hoursIdx >= 0 && hoursIdx < services.length) {
       services[hoursIdx].quantity = Math.round(hours * 2) / 2; // allow 0.5 steps
     }
@@ -5864,17 +5954,17 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
    *  over-assigned order. Falls back to MaidsCount while the assignment list is still
    *  loading, which is what this panel always showed. */
   getSelectedOrderSplitCount(): number {
-    const order = this.selectedOrder;
+    const order = this.selectedOrder();
     if (!order) return 1;
-    const assigned = this.cleanersLoadedSet.has(order.id)
-      ? (this.assignedCleanersCache.get(order.id)?.length ?? 0)
+    const assigned = this.cleanersLoadedSet().has(order.id)
+      ? (this.assignedCleanersCache().get(order.id)?.length ?? 0)
       : 0;
     return resolveCleanerSplitCount(Number(order.maidsCount) || 1, assigned);
   }
 
   /** "12h total · 6h per cleaner" for the details panel, split the way payroll splits it. */
   getSelectedOrderDurationText(): string {
-    const order = this.selectedOrder;
+    const order = this.selectedOrder();
     if (!order) return '';
 
     const totalDuration = Number(order.totalDuration) || 0;
@@ -5890,19 +5980,19 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
    *  everything else stores the TOTAL, shown as "X total" plus the per-cleaner
    *  split once the admin has set more than one maid. */
   getEditDurationHintText(): string {
-    const totalDuration = Number(this.editOrderForm?.totalDuration ?? 0) || 0;
-    const hasCleaners = this.selectedOrder?.hasCleanersService ?? false;
+    const totalDuration = Number(this.editOrderForm()?.totalDuration ?? 0) || 0;
+    const hasCleaners = this.selectedOrder()?.hasCleanersService ?? false;
     if (hasCleaners) {
       return `${DurationUtils.formatDurationRounded(totalDuration)} per maid`;
     }
     // The FORM's maids count (the admin may be changing it right now), widened by the people
     // already assigned — lowering the count below the assignment list does not un-assign
     // anybody, and payroll would still split their way.
-    const assigned = this.selectedOrder && this.cleanersLoadedSet.has(this.selectedOrder.id)
-      ? (this.assignedCleanersCache.get(this.selectedOrder.id)?.length ?? 0)
+    const assigned = this.selectedOrder() && this.cleanersLoadedSet().has(this.selectedOrder()!.id)
+      ? (this.assignedCleanersCache().get(this.selectedOrder()!.id)?.length ?? 0)
       : 0;
     const maidsCount = resolveCleanerSplitCount(
-      Number(this.editOrderForm?.maidsCount ?? 1) || 1, assigned);
+      Number(this.editOrderForm()?.maidsCount ?? 1) || 1, assigned);
 
     const total = `${DurationUtils.formatDurationRounded(totalDuration)} total`;
     return maidsCount > 1
@@ -5966,19 +6056,19 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   /** Options not yet selected — drives the "+ Add floor type" dropdown (extra-services style). */
   getFloorTypesToAdd(): { value: string; label: string }[] {
     return this.floorTypeOptionValues
-      .filter(v => !this.editFloorTypes.includes(v))
+      .filter(v => !this.editFloorTypes().includes(v))
       .map(v => ({ value: v, label: this.getFloorTypeLabel(v) }));
   }
 
   addEditFloorType(value: string): void {
-    if (!value || this.editFloorTypes.includes(value)) return;
-    this.editFloorTypes = [...this.editFloorTypes, value];
+    if (!value || this.editFloorTypes().includes(value)) return;
+    this.editFloorTypes.set([...this.editFloorTypes(), value]);
     this.emitEditFloorTypeChange();
   }
 
   removeEditFloorType(value: string): void {
-    this.editFloorTypes = this.editFloorTypes.filter(v => v !== value);
-    if (value === 'other') this.editFloorTypeOther = '';
+    this.editFloorTypes.set(this.editFloorTypes().filter(v => v !== value));
+    if (value === 'other') this.editFloorTypeOther.set('');
     this.emitEditFloorTypeChange();
   }
 
@@ -5987,22 +6077,26 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private emitEditFloorTypeChange(): void {
-    this.onEditFloorTypeChange({ types: [...this.editFloorTypes], otherText: this.editFloorTypeOther });
+    this.onEditFloorTypeChange({ types: [...this.editFloorTypes()], otherText: this.editFloorTypeOther() });
   }
 
   onEditFloorTypeChange(selection: FloorTypeSelection): void {
-    this.editFloorTypes = selection.types;
-    this.editFloorTypeOther = selection.otherText;
+    this.editFloorTypes.set(selection.types);
+    this.editFloorTypeOther.set(selection.otherText);
     // Update the editOrderForm
     if (selection.types.length === 0) {
-      this.editOrderForm.floorTypes = null;
-      this.editOrderForm.floorTypeOther = null;
+      this.editOrderForm().floorTypes = null;
+      this.editOrderForm.set(this.editOrderForm());
+      this.editOrderForm().floorTypeOther = null;
+      this.editOrderForm.set(this.editOrderForm());
     } else {
-      this.editOrderForm.floorTypes = selection.types.map(t => {
+      this.editOrderForm().floorTypes = selection.types.map(t => {
         if (t === 'other' && selection.otherText) return `other:${selection.otherText}`;
         return t;
       }).join(',');
-      this.editOrderForm.floorTypeOther = selection.otherText || null;
+      this.editOrderForm.set(this.editOrderForm());
+      this.editOrderForm().floorTypeOther = selection.otherText || null;
+      this.editOrderForm.set(this.editOrderForm());
     }
   }
 
@@ -6021,85 +6115,85 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   startEditOrder(): void {
-    if (!this.selectedOrder || !this.canEditOrder) return;
+    if (!this.selectedOrder() || !this.canEditOrder) return;
     // Load service types synchronously if cached, otherwise async — we apply the custom-mode duration
     // multiplier in a callback once the cache is populated.
     this.loadServiceTypesForEdit(() => this.applyCustomModeDurationOnOpen());
-    const dateStr = this.getOrderServiceDateString(this.selectedOrder.serviceDate);
+    const dateStr = this.getOrderServiceDateString(this.selectedOrder()!.serviceDate);
     let timeStr = '';
-    if (this.selectedOrder.serviceTime) {
-      const t = String(this.selectedOrder.serviceTime);
+    if (this.selectedOrder()!.serviceTime) {
+      const t = String(this.selectedOrder()!.serviceTime);
       if (t.includes(':')) timeStr = t.slice(0, 5);
       else timeStr = t;
     }
-    this.editOrderForm = {
-      contactFirstName: this.selectedOrder.contactFirstName,
-      contactLastName: this.selectedOrder.contactLastName,
-      contactEmail: this.selectedOrder.contactEmail,
-      contactPhone: normalizePhone10(this.selectedOrder.contactPhone) ?? this.selectedOrder.contactPhone,
-      serviceAddress: this.selectedOrder.serviceAddress,
-      aptSuite: this.selectedOrder.aptSuite ?? null,
-      city: this.selectedOrder.city,
-      state: this.selectedOrder.state,
-      zipCode: this.selectedOrder.zipCode,
+    this.editOrderForm.set({
+      contactFirstName: this.selectedOrder()!.contactFirstName,
+      contactLastName: this.selectedOrder()!.contactLastName,
+      contactEmail: this.selectedOrder()!.contactEmail,
+      contactPhone: normalizePhone10(this.selectedOrder()!.contactPhone) ?? this.selectedOrder()!.contactPhone,
+      serviceAddress: this.selectedOrder()!.serviceAddress,
+      aptSuite: this.selectedOrder()!.aptSuite ?? null,
+      city: this.selectedOrder()!.city,
+      state: this.selectedOrder()!.state,
+      zipCode: this.selectedOrder()!.zipCode,
       serviceDate: dateStr,
       serviceTime: timeStr || null,
-      maidsCount: this.selectedOrder.maidsCount,
-      totalDuration: this.selectedOrder.totalDuration,
-      bedroomsQuantity: this.selectedOrder.bedroomsQuantity ?? null,
-      bathroomsQuantity: this.selectedOrder.bathroomsQuantity ?? null,
+      maidsCount: this.selectedOrder()!.maidsCount,
+      totalDuration: this.selectedOrder()!.totalDuration,
+      bedroomsQuantity: this.selectedOrder()!.bedroomsQuantity ?? null,
+      bathroomsQuantity: this.selectedOrder()!.bathroomsQuantity ?? null,
       // Null on a legacy order and left null unless the admin picks one, because null means
       // "no change" on the SuperAdmin update path - an admin editing the service date must not
       // silently stamp a property type onto an order that never had one.
-      propertyType: normalizePropertyType((this.selectedOrder as any).propertyType),
-      levelsQuantity: (this.selectedOrder as any).levelsQuantity ?? null,
-      entryMethod: this.selectedOrder.entryMethod ?? null,
-      specialInstructions: this.selectedOrder.specialInstructions ?? null,
-      floorTypes: this.selectedOrder.floorTypes ?? null,
-      floorTypeOther: this.selectedOrder.floorTypeOther ?? null,
-      tips: this.selectedOrder.tips,
-      status: this.selectedOrder.status,
-      cancellationReason: this.selectedOrder.cancellationReason ?? null,
-      subTotal: this.selectedOrder.subTotal,
-      tax: this.selectedOrder.tax,
-      total: this.selectedOrder.total,
-      discountAmount: this.selectedOrder.discountAmount,
-      subscriptionDiscountAmount: (this.selectedOrder as any).subscriptionDiscountAmount ?? 0,
-      loyaltyDiscountAmount: this.selectedOrder.loyaltyDiscountAmount ?? 0,
-      cleanerHourlyRate: this.selectedOrder.cleanerHourlyRate ?? this.getDefaultHourlyRate(this.selectedOrder.id),
-      cleanerTotalSalary: this.selectedOrder.cleanerTotalSalary ?? 0,
-      customServiceDisplayName: (this.selectedOrder as any).customServiceDisplayName ?? null,
-      services: this.selectedOrder.services?.map(s => ({ orderServiceId: s.id, quantity: s.quantity, cost: s.cost })) ?? null,
+      propertyType: normalizePropertyType((this.selectedOrder() as any).propertyType),
+      levelsQuantity: (this.selectedOrder() as any).levelsQuantity ?? null,
+      entryMethod: this.selectedOrder()!.entryMethod ?? null,
+      specialInstructions: this.selectedOrder()!.specialInstructions ?? null,
+      floorTypes: this.selectedOrder()!.floorTypes ?? null,
+      floorTypeOther: this.selectedOrder()!.floorTypeOther ?? null,
+      tips: this.selectedOrder()!.tips,
+      status: this.selectedOrder()!.status,
+      cancellationReason: this.selectedOrder()!.cancellationReason ?? null,
+      subTotal: this.selectedOrder()!.subTotal,
+      tax: this.selectedOrder()!.tax,
+      total: this.selectedOrder()!.total,
+      discountAmount: this.selectedOrder()!.discountAmount,
+      subscriptionDiscountAmount: (this.selectedOrder() as any).subscriptionDiscountAmount ?? 0,
+      loyaltyDiscountAmount: this.selectedOrder()!.loyaltyDiscountAmount ?? 0,
+      cleanerHourlyRate: this.selectedOrder()!.cleanerHourlyRate ?? this.getDefaultHourlyRate(this.selectedOrder()!.id),
+      cleanerTotalSalary: this.selectedOrder()!.cleanerTotalSalary ?? 0,
+      customServiceDisplayName: (this.selectedOrder() as any).customServiceDisplayName ?? null,
+      services: this.selectedOrder()!.services?.map(s => ({ orderServiceId: s.id, quantity: s.quantity, cost: s.cost })) ?? null,
       // Include extraServiceId for existing rows too (backend may require it to persist/recognize updates)
-      extraServices: this.selectedOrder.extraServices?.map(e => ({
+      extraServices: this.selectedOrder()!.extraServices?.map(e => ({
         orderExtraServiceId: e.id,
         extraServiceId: e.extraServiceId,
         quantity: e.quantity,
         hours: e.hours,
         cost: e.cost
       })) ?? null
-    };
-    this.editingOrder = true;
+    });
+    this.editingOrder.set(true);
     this.setEditTimeFromForm(timeStr);
     // A typed Total belongs to one editing session; recalculateEditPricing below seeds the input.
     // The order's OWN tax carries over, though, so opening the editor cannot move the total by a
     // cent all on its own — see resolveStoredTaxOverride.
     this.editOrderTaxOverride = this.resolveStoredTaxOverride();
-    this.editOrderTotalInput = null;
+    this.editOrderTotalInput.set(null);
     this.editOrderPriceTyped = false;
-    const parsed = this.parseFloorTypesForEdit(this.selectedOrder.floorTypes, this.selectedOrder.floorTypeOther);
-    this.editFloorTypes = parsed.types;
-    this.editFloorTypeOther = parsed.otherText;
-    this.editOrderFormOriginalSubTotal = this.selectedOrder.subTotal;
-    this.editOrderFormOriginalDiscount = this.selectedOrder.discountAmount;
-    this.editOrderFormOriginalSubscriptionDiscount = (this.selectedOrder as any).subscriptionDiscountAmount ?? 0;
-    this.editOrderFormOriginalLoyaltyDiscount = this.selectedOrder.loyaltyDiscountAmount ?? 0;
-    this.editOrderFormOriginalLoyaltyPercentage = this.selectedOrder.loyaltyDiscountPercentage ?? 0;
+    const parsed = this.parseFloorTypesForEdit(this.selectedOrder()!.floorTypes, this.selectedOrder()!.floorTypeOther);
+    this.editFloorTypes.set(parsed.types);
+    this.editFloorTypeOther.set(parsed.otherText);
+    this.editOrderFormOriginalSubTotal = this.selectedOrder()!.subTotal;
+    this.editOrderFormOriginalDiscount = this.selectedOrder()!.discountAmount;
+    this.editOrderFormOriginalSubscriptionDiscount = (this.selectedOrder() as any).subscriptionDiscountAmount ?? 0;
+    this.editOrderFormOriginalLoyaltyDiscount = this.selectedOrder()!.loyaltyDiscountAmount ?? 0;
+    this.editOrderFormOriginalLoyaltyPercentage.set(this.selectedOrder()!.loyaltyDiscountPercentage ?? 0);
     this.initEditGiftCard();
-    this.editOrderFormPrevServiceQuantities = (this.editOrderForm.services ?? []).map(s => s.quantity);
+    this.editOrderFormPrevServiceQuantities = (this.editOrderForm().services ?? []).map(s => s.quantity);
     this.editOrderFormSqftBaseline = null;
-    this.editOrderFormPrevExtraQuantities = (this.editOrderForm.extraServices ?? []).map(e => e.quantity);
-    this.editOrderFormPrevExtraHours = (this.editOrderForm.extraServices ?? []).map(e => e.hours);
+    this.editOrderFormPrevExtraQuantities = (this.editOrderForm().extraServices ?? []).map(e => e.quantity);
+    this.editOrderFormPrevExtraHours = (this.editOrderForm().extraServices ?? []).map(e => e.hours);
     // Apply custom-mode multiplier immediately if cache is already loaded; otherwise the loadServiceTypesForEdit
     // callback will do it once the cache arrives.
     this.applyCustomModeDurationOnOpen();
@@ -6111,14 +6205,14 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   /** "HH:mm" from the order -> the three picker controls. */
   private setEditTimeFromForm(time: string | null | undefined): void {
     const parts = parseTime12h(time);
-    this.editTimeHour12 = parts ? parts.hour12 : null;
-    this.editTimeMinute = parts ? parts.minute : 0;
-    this.editTimeMeridiem = parts ? parts.meridiem : 'AM';
+    this.editTimeHour12.set(parts ? parts.hour12 : null);
+    this.editTimeMinute.set(parts ? parts.minute : 0);
+    this.editTimeMeridiem.set(parts ? parts.meridiem : 'AM');
     // 5-minute steps, plus the order's own minute when it sits off that grid, so opening the
     // editor can never silently round a stored time.
     const options = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55];
-    if (!options.includes(this.editTimeMinute)) options.push(this.editTimeMinute);
-    this.editTimeMinuteOptions = options.sort((a, b) => a - b);
+    if (!options.includes(this.editTimeMinute())) options.push(this.editTimeMinute());
+    this.editTimeMinuteOptions.set(options.sort((a, b) => a - b));
   }
 
   /** Minute dropdown label - always two digits, so ":05" can't be read as ":50". */
@@ -6128,13 +6222,15 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
 
   /** The three picker controls -> the "HH:mm" the DTO carries. */
   onEditServiceTimeChange(): void {
-    if (this.editTimeHour12 == null) {
+    if (this.editTimeHour12() == null) {
       // Order carried no time and the admin has not picked one: leave it out of the edit.
-      this.editOrderForm.serviceTime = null;
+      this.editOrderForm().serviceTime = null;
+      this.editOrderForm.set(this.editOrderForm());
       return;
     }
-    this.editOrderForm.serviceTime = composeTime24h(
-      Number(this.editTimeHour12), Number(this.editTimeMinute) || 0, this.editTimeMeridiem);
+    this.editOrderForm().serviceTime = composeTime24h(
+      Number(this.editTimeHour12()), Number(this.editTimeMinute()) || 0, this.editTimeMeridiem());
+    this.editOrderForm.set(this.editOrderForm());
   }
 
   /** Read-back of the picker for labels and the change confirmation. */
@@ -6150,52 +6246,52 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
    * still recompute salary on open so any stale stored cleanerTotalSalary is corrected on display.
    */
   private applyCustomModeDurationOnOpen(): void {
-    if (!this.editingOrder || !this.selectedOrder) return;
+    if (!this.editingOrder() || !this.selectedOrder()) return;
     if (!this.isCustomModeOrder()) return;
     this.recalcCleanerTotalSalary();
   }
 
   private loadServiceTypesForEdit(onLoaded?: () => void): void {
-    const stId = this.selectedOrder?.serviceTypeId;
+    const stId = this.selectedOrder()?.serviceTypeId;
     if (stId == null) return;
-    if (this.serviceTypesCache.length > 0) {
+    if (this.serviceTypesCache().length > 0) {
       this.setEditOrderAvailableExtras(stId);
       onLoaded?.();
       return;
     }
     this.bookingService.getServiceTypes().subscribe({
       next: (list) => {
-        this.serviceTypesCache = list;
+        this.serviceTypesCache.set(list);
         this.setEditOrderAvailableExtras(stId);
         // Do not recalc duration here when edit form is open: preserve order's totalDuration/maids
         onLoaded?.();
       },
-      error: () => this.editOrderAvailableExtras = []
+      error: () => this.editOrderAvailableExtras.set([])
     });
   }
 
   private setEditOrderAvailableExtras(serviceTypeId: number): void {
-    const st = this.serviceTypesCache.find(s => s.id === serviceTypeId);
-    this.editOrderAvailableExtras = st?.extraServices?.filter(x => x.isActive) ?? [];
+    const st = this.serviceTypesCache().find(s => s.id === serviceTypeId);
+    this.editOrderAvailableExtras.set(st?.extraServices?.filter(x => x.isActive) ?? []);
   }
 
   /** Extras that can be added (not already in the form). */
   getEditOrderExtrasToAdd(): ExtraService[] {
     const existing = new Set<number>();
-    for (const e of this.editOrderForm.extraServices ?? []) {
+    for (const e of this.editOrderForm().extraServices ?? []) {
       const orderId = e.orderExtraServiceId ?? 0;
       if (orderId !== 0) {
-        const oes = this.selectedOrder?.extraServices?.find(x => x.id === orderId);
+        const oes = this.selectedOrder()?.extraServices?.find(x => x.id === orderId);
         if (oes) existing.add(oes.extraServiceId);
       } else if (e.extraServiceId != null) {
         existing.add(e.extraServiceId);
       }
     }
-    return this.editOrderAvailableExtras.filter(x => !existing.has(x.id));
+    return this.editOrderAvailableExtras().filter(x => !existing.has(x.id));
   }
 
   addEditExtraService(extra: ExtraService): void {
-    const list = this.editOrderForm.extraServices ?? [];
+    const list = this.editOrderForm().extraServices ?? [];
     const hours = extra.hasHours ? 1 : 0;
     // Custom Pricing ("Pre-Arranged") orders: extras are informational only. The admin-entered
     // amount and duration are the whole quote, so the row is priced at $0 — same rule the shared
@@ -6210,7 +6306,8 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
       hours,
       cost: Math.round(cost * 100) / 100
     });
-    this.editOrderForm.extraServices = list;
+    this.editOrderForm().extraServices = list;
+    this.editOrderForm.set(this.editOrderForm());
     this.editOrderFormPrevExtraQuantities.push(1);
     this.editOrderFormPrevExtraHours.push(hours);
     this.recalcSubtotalFromServicesAndExtras();
@@ -6219,7 +6316,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   onAddExtraServiceChange(value: string): void {
     const id = parseInt(value, 10);
     if (!value || isNaN(id)) return;
-    const extra = this.editOrderAvailableExtras.find(x => x.id === id);
+    const extra = this.editOrderAvailableExtras().find(x => x.id === id);
     if (extra) this.addEditExtraService(extra);
   }
 
@@ -6231,12 +6328,12 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   /** Load the order's gift card (if any) so an edited total can re-draw from leftover balance.
    *  availableBalance = the card's current remaining balance + what this order already used. */
   private initEditGiftCard(): void {
-    const code = (this.selectedOrder as any)?.giftCardCode ?? null;
-    const used = Number((this.selectedOrder as any)?.giftCardAmountUsed ?? 0) || 0;
-    this.editGiftCardCode = code;
-    this.editGiftCardOriginalUsed = used;
-    this.editGiftCardAmountToUse = used;
-    this.editGiftCardAvailableBalance = 0;
+    const code = (this.selectedOrder() as any)?.giftCardCode ?? null;
+    const used = Number((this.selectedOrder() as any)?.giftCardAmountUsed ?? 0) || 0;
+    this.editGiftCardCode.set(code);
+    this.editGiftCardOriginalUsed.set(used);
+    this.editGiftCardAmountToUse.set(used);
+    this.editGiftCardAvailableBalance.set(0);
 
     if (!code || used <= 0) return;
 
@@ -6245,7 +6342,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
         if (validation?.isValid && validation?.isGiftCard) {
           // availableBalance from the API is the card's CURRENT remaining balance; add back what
           // this order already consumed so the edit can re-draw up to the full balance.
-          this.editGiftCardAvailableBalance = (Number(validation.availableBalance) || 0) + used;
+          this.editGiftCardAvailableBalance.set((Number(validation.availableBalance) || 0) + used);
           this.recalculateEditPricing();
         }
       },
@@ -6284,8 +6381,8 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
    * than guess, the field stays read-only for the gift-card case alone.
    */
   canEditTotalDirectly(): boolean {
-    if (!this.editingOrder || !this.selectedOrder) return false;
-    return this.editGiftCardAmountToUse <= 0 && this.editGiftCardOriginalUsed <= 0;
+    if (!this.editingOrder() || !this.selectedOrder()) return false;
+    return this.editGiftCardAmountToUse() <= 0 && this.editGiftCardOriginalUsed() <= 0;
   }
 
   /**
@@ -6294,9 +6391,9 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
    * total, which is exactly why they can be inverted and a gift card cannot.
    */
   private editCreditsHeldOffTheTotal(): number {
-    if (!this.selectedOrder) return 0;
-    return (Number((this.selectedOrder as any).pointsRedeemedDiscount ?? 0) || 0)
-      + (Number((this.selectedOrder as any).rewardBalanceUsed ?? 0) || 0);
+    if (!this.selectedOrder()) return 0;
+    return (Number((this.selectedOrder() as any).pointsRedeemedDiscount ?? 0) || 0)
+      + (Number((this.selectedOrder() as any).rewardBalanceUsed ?? 0) || 0);
   }
 
   /**
@@ -6316,14 +6413,15 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
    * reason Custom Pricing carries one (see splitTaxInclusiveAmount).
    */
   onEditTotalChange(): void {
-    if (!this.editingOrder || !this.canEditTotalDirectly()) return;
+    if (!this.editingOrder() || !this.canEditTotalDirectly()) return;
 
-    const typed = Number(this.editOrderTotalInput ?? 0) || 0;
+    const typed = Number(this.editOrderTotalInput() ?? 0) || 0;
     if (typed <= 0) {
       // Cleared or zeroed: nothing to hold on to, so hand pricing back to the subtotal.
       this.editOrderTaxOverride = null;
       this.editOrderPriceTyped = false;
-      this.editOrderForm.subTotal = 0;
+      this.editOrderForm().subTotal = 0;
+      this.editOrderForm.set(this.editOrderForm());
       this.recalculateEditPricing();
       return;
     }
@@ -6333,16 +6431,20 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
       round2(typed + this.editCreditsHeldOffTheTotal()),
       this.editDiscountSnapshot(),
       {
-        discountAmount: Number(this.editOrderForm.discountAmount ?? 0) || 0,
-        subscriptionDiscountAmount: Number(this.editOrderForm.subscriptionDiscountAmount ?? 0) || 0,
-        loyaltyDiscountAmount: Number(this.editOrderForm.loyaltyDiscountAmount ?? 0) || 0
+        discountAmount: Number(this.editOrderForm().discountAmount ?? 0) || 0,
+        subscriptionDiscountAmount: Number(this.editOrderForm().subscriptionDiscountAmount ?? 0) || 0,
+        loyaltyDiscountAmount: Number(this.editOrderForm().loyaltyDiscountAmount ?? 0) || 0
       });
 
     this.editOrderTaxOverride = { tax: solved.tax, base: solved.discountedSubTotal };
-    this.editOrderForm.subTotal = solved.subTotal;
-    this.editOrderForm.discountAmount = solved.discountAmount;
-    this.editOrderForm.subscriptionDiscountAmount = solved.subscriptionDiscountAmount;
-    this.editOrderForm.loyaltyDiscountAmount = solved.loyaltyDiscountAmount;
+    this.editOrderForm().subTotal = solved.subTotal;
+    this.editOrderForm.set(this.editOrderForm());
+    this.editOrderForm().discountAmount = solved.discountAmount;
+    this.editOrderForm.set(this.editOrderForm());
+    this.editOrderForm().subscriptionDiscountAmount = solved.subscriptionDiscountAmount;
+    this.editOrderForm.set(this.editOrderForm());
+    this.editOrderForm().loyaltyDiscountAmount = solved.loyaltyDiscountAmount;
+    this.editOrderForm.set(this.editOrderForm());
     // Deliberately NOT rederiveDiscountsFromSubTotal: the solve above already scaled them, and
     // re-scaling from the subtotal it produced would chase its own tail.
     this.recalculateEditPricing();
@@ -6371,7 +6473,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
    * already IS the rate math, so nothing is sent and nothing changes for them.
    */
   private resolveStoredTaxOverride(): { tax: number; base: number } | null {
-    const order = this.selectedOrder;
+    const order = this.selectedOrder();
     if (!order) return null;
 
     const storedTax = round2(Number(order.tax ?? 0) || 0);
@@ -6418,11 +6520,11 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
       originalSubTotal: this.editOrderFormOriginalSubTotal,
       originalDiscount: this.editOrderFormOriginalDiscount,
       originalSubscriptionDiscount: this.editOrderFormOriginalSubscriptionDiscount,
-      loyaltyPercentage: this.editOrderFormOriginalLoyaltyPercentage,
+      loyaltyPercentage: this.editOrderFormOriginalLoyaltyPercentage(),
       loyaltyDiscountAmount: this.editOrderFormOriginalLoyaltyDiscount,
-      discountPercent: this.selectedOrder?.discountPercent,
-      discountFixedAmount: this.selectedOrder?.discountFixedAmount,
-      subscriptionDiscountPercent: this.selectedOrder?.subscriptionDiscountPercent
+      discountPercent: this.selectedOrder()?.discountPercent,
+      discountFixedAmount: this.selectedOrder()?.discountFixedAmount,
+      subscriptionDiscountPercent: this.selectedOrder()?.subscriptionDiscountPercent
     };
   }
 
@@ -6433,12 +6535,12 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   recalculateEditPricing(rederiveDiscountsFromSubTotal = false): void {
-    if (!this.selectedOrder || !this.editingOrder) return;
+    if (!this.selectedOrder() || !this.editingOrder()) return;
 
-    let subTotal = Number(this.editOrderForm.subTotal ?? 0) || 0;
-    let discountAmount = Number(this.editOrderForm.discountAmount ?? 0) || 0;
-    let subscriptionDiscountAmount = Number(this.editOrderForm.subscriptionDiscountAmount ?? 0) || 0;
-    let loyaltyDiscountAmount = Number(this.editOrderForm.loyaltyDiscountAmount ?? 0) || 0;
+    let subTotal = Number(this.editOrderForm().subTotal ?? 0) || 0;
+    let discountAmount = Number(this.editOrderForm().discountAmount ?? 0) || 0;
+    let subscriptionDiscountAmount = Number(this.editOrderForm().subscriptionDiscountAmount ?? 0) || 0;
+    let loyaltyDiscountAmount = Number(this.editOrderForm().loyaltyDiscountAmount ?? 0) || 0;
 
     if (this.editOrderFormOriginalSubTotal > 0 && rederiveDiscountsFromSubTotal) {
       // Derived from the ORIGINAL snapshot every time, never from the current value — that is
@@ -6449,19 +6551,22 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
       discountAmount = derived.discountAmount;
       subscriptionDiscountAmount = derived.subscriptionDiscountAmount;
       loyaltyDiscountAmount = derived.loyaltyDiscountAmount;
-      this.editOrderForm.discountAmount = discountAmount;
-      this.editOrderForm.subscriptionDiscountAmount = subscriptionDiscountAmount;
-      this.editOrderForm.loyaltyDiscountAmount = loyaltyDiscountAmount;
+      this.editOrderForm().discountAmount = discountAmount;
+      this.editOrderForm.set(this.editOrderForm());
+      this.editOrderForm().subscriptionDiscountAmount = subscriptionDiscountAmount;
+      this.editOrderForm.set(this.editOrderForm());
+      this.editOrderForm().loyaltyDiscountAmount = loyaltyDiscountAmount;
+      this.editOrderForm.set(this.editOrderForm());
     }
 
-    const tips = Number(this.editOrderForm.tips ?? 0) || 0;
+    const tips = Number(this.editOrderForm().tips ?? 0) || 0;
     // Retired field, read straight off the saved order and never editable. A legacy order that
     // carries one still had it in the total the customer paid, so the preview must keep counting
     // it or opening and saving an untouched old order would look like a price drop.
     const companyTips = this.legacyCompanyDevelopmentTips;
 
-    const pointsRedeemedDiscount = Number((this.selectedOrder as any).pointsRedeemedDiscount ?? 0) || 0;
-    const rewardBalanceUsed = Number((this.selectedOrder as any).rewardBalanceUsed ?? 0) || 0;
+    const pointsRedeemedDiscount = Number((this.selectedOrder() as any).pointsRedeemedDiscount ?? 0) || 0;
+    const rewardBalanceUsed = Number((this.selectedOrder() as any).rewardBalanceUsed ?? 0) || 0;
 
     // Tips are included so the preview matches what the backend persists on save
     // (SuperAdminFullUpdateOrder recomputes Total with tips through the same calculator).
@@ -6484,23 +6589,25 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
 
     // Re-resolve the gift card: draw up to min(availableBalance, totalBeforeGiftCard). Falls back
     // to the original fixed amount until the balance lookup (initEditGiftCard) resolves.
-    const giftCardAmountToUse = this.editGiftCardAvailableBalance > 0
-      ? resolveGiftCardAmountToUse(this.editGiftCardAvailableBalance, totals.totalBeforeGiftCard)
-      : this.editGiftCardOriginalUsed;
-    this.editGiftCardAmountToUse = giftCardAmountToUse;
+    const giftCardAmountToUse = this.editGiftCardAvailableBalance() > 0
+      ? resolveGiftCardAmountToUse(this.editGiftCardAvailableBalance(), totals.totalBeforeGiftCard)
+      : this.editGiftCardOriginalUsed();
+    this.editGiftCardAmountToUse.set(giftCardAmountToUse);
 
-    this.editOrderForm.tax = totals.tax;
-    this.editOrderForm.total = round2(Math.max(0,
+    this.editOrderForm().tax = totals.tax;
+    this.editOrderForm.set(this.editOrderForm());
+    this.editOrderForm().total = round2(Math.max(0,
       totals.totalBeforeGiftCard - giftCardAmountToUse - pointsRedeemedDiscount - rewardBalanceUsed));
+    this.editOrderForm.set(this.editOrderForm());
 
     // Mirror the derived figure back into the Total input, so it tracks every other edit and a
     // typed value round-trips to itself (with no credits, tip-free total === discounted + tax).
-    this.editOrderTotalInput = this.getSummaryTotalWithoutTips();
+    this.editOrderTotalInput.set(this.getSummaryTotalWithoutTips());
 
     const base = totals.total - totals.tax - tips - companyTips;
-    this.editEstimatedPoints = this.pointsEnabled && this.pointsPerDollar > 0
+    this.editEstimatedPoints.set(this.pointsEnabled() && this.pointsPerDollar > 0
       ? Math.floor(Math.max(0, base) * this.pointsPerDollar)
-      : 0;
+      : 0);
   }
 
   /** Recompute subtotal from base price + the stored per-line costs (which the backend
@@ -6529,10 +6636,10 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
 
     const built = buildAdminEditQuoteInput(
       st,
-      (this.editOrderForm.services ?? []).map((row, index) => ({
+      (this.editOrderForm().services ?? []).map((row, index) => ({
         row, definition: this.getEditServiceDefinition(index)
       })),
-      (this.editOrderForm.extraServices ?? []).map((row, index) => ({
+      (this.editOrderForm().extraServices ?? []).map((row, index) => ({
         row, definition: this.getEditExtraDefinition(row, index)
       })),
       this.getEditFallbackHours()
@@ -6568,30 +6675,34 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
         if (!line.shouldAddToOrder) return;
         const rowIndex = built.serviceRowIndices[i];
         if (rowIndex == null) return;
-        const row = this.editOrderForm.services?.[rowIndex];
+        const row = this.editOrderForm().services?.[rowIndex];
         if (row) {
           row.cost = round2(line.cost);
           // An added row has no stored minutes yet; the server takes them from here.
           if (!row.orderServiceId) row.duration = line.duration;
         }
       });
+      this.editOrderForm.set(this.editOrderForm());
       built.quote.extraServiceLines.forEach((line, i) => {
-        const row = this.editOrderForm.extraServices?.[built.extraRowIndices[i]];
+        const row = this.editOrderForm().extraServices?.[built.extraRowIndices[i]];
         if (row) row.cost = round2(line.cost);
       });
+      this.editOrderForm.set(this.editOrderForm());
 
       // The subtotal ALWAYS comes from the quote, including for cleaner+hours, so it carries the
       // MinimumPrice floor and any tiered service cost. This value is what the admin sees AND
       // what gets posted as dto.SubTotal — the SuperAdmin save path persists it verbatim.
-      this.editOrderForm.subTotal = built.quote.subTotal;
+      this.editOrderForm().subTotal = built.quote.subTotal;
+      this.editOrderForm.set(this.editOrderForm());
     } else if (!this.isCustomModeOrder()) {
       // No quote available (service type missing from the cache): sum the rows as before.
       const st = this.getEditOrderServiceType();
-      const priceMultiplier = Number((this.selectedOrder?.services?.[0] as any)?.priceMultiplier ?? 1) || 1;
+      const priceMultiplier = Number((this.selectedOrder()?.services?.[0] as any)?.priceMultiplier ?? 1) || 1;
       let sum = (Number(st?.basePrice ?? 0) || 0) * priceMultiplier;
-      (this.editOrderForm.services ?? []).forEach(s => { sum += Number(s.cost ?? 0) || 0; });
-      (this.editOrderForm.extraServices ?? []).forEach(e => { sum += Number(e.cost ?? 0) || 0; });
-      this.editOrderForm.subTotal = round2(sum);
+      (this.editOrderForm().services ?? []).forEach(s => { sum += Number(s.cost ?? 0) || 0; });
+      (this.editOrderForm().extraServices ?? []).forEach(e => { sum += Number(e.cost ?? 0) || 0; });
+      this.editOrderForm().subTotal = round2(sum);
+      this.editOrderForm.set(this.editOrderForm());
     }
     // Custom ("Pre-Arranged") orders deliberately fall through with subTotal untouched: the
     // amount is what the admin agreed with the customer and is edited directly in the SubTotal
@@ -6609,7 +6720,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
 
   /** Find the index of the Cleaners row (relation, key, or name fallback). Returns -1 if not present. */
   private findCleanerRowIndexRobust(): number {
-    const orderServices = this.selectedOrder?.services ?? [];
+    const orderServices = this.selectedOrder()?.services ?? [];
     const st = this.getEditOrderServiceType();
     for (let i = 0; i < orderServices.length; i++) {
       const def = st?.services?.find(s => s.id === orderServices[i].serviceId);
@@ -6621,7 +6732,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
 
   /** Find the index of the Hours row (relation, key, or name fallback). Returns -1 if not present. */
   private findHoursRowIndexRobust(): number {
-    const orderServices = this.selectedOrder?.services ?? [];
+    const orderServices = this.selectedOrder()?.services ?? [];
     const st = this.getEditOrderServiceType();
     for (let i = 0; i < orderServices.length; i++) {
       const def = st?.services?.find(s => s.id === orderServices[i].serviceId);
@@ -6633,7 +6744,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
 
   /** True when the order's service type uses explicit Cleaners + Hours rows (driven by cleaner count, not duration/6). */
   private isCleanerHoursOrder(): boolean {
-    if (this.selectedOrder?.hasCleanersService) return true;
+    if (this.selectedOrder()?.hasCleanersService) return true;
     return this.findCleanerRowIndexRobust() >= 0 && this.findHoursRowIndexRobust() >= 0;
   }
 
@@ -6666,7 +6777,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     // A levels ROW existing already means this order's type prices levels, so no second check on
     // that is needed. It is hidden only when the order is not a house.
     if (!isLevelsService(definition ?? undefined)) return true;
-    return isHouse(this.editOrderForm?.propertyType);
+    return isHouse(this.editOrderForm()?.propertyType);
   }
 
   /**
@@ -6695,20 +6806,23 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   onEditInformationalLevelsChange(): void {
     // Read as unknown: a cleared number input yields '' at runtime even where the field is typed
     // as number | null, so both emptiness shapes have to be handled.
-    const raw: unknown = this.editOrderForm?.levelsQuantity;
+    const raw: unknown = this.editOrderForm()?.levelsQuantity;
     if (raw === null || raw === undefined || raw === '') {
-      this.editOrderForm.levelsQuantity = null;
+      this.editOrderForm().levelsQuantity = null;
+      this.editOrderForm.set(this.editOrderForm());
       return;
     }
 
     const parsed = Number(raw);
     if (!isFinite(parsed)) {
-      this.editOrderForm.levelsQuantity = null;
+      this.editOrderForm().levelsQuantity = null;
+      this.editOrderForm.set(this.editOrderForm());
       return;
     }
 
     const max = Math.max(...LEVEL_OPTIONS);
-    this.editOrderForm.levelsQuantity = Math.min(Math.max(Math.round(parsed), MIN_LEVELS), max);
+    this.editOrderForm().levelsQuantity = Math.min(Math.max(Math.round(parsed), MIN_LEVELS), max);
+    this.editOrderForm.set(this.editOrderForm());
 
     // On a service type that prices levels, a count is never informational: it becomes the
     // priced Levels row (seeded from this value) and reprices, exactly like switching to House.
@@ -6724,13 +6838,13 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   showEditInformationalLevels(): boolean {
-    if (!isHouse(this.editOrderForm?.propertyType)) return false;
-    return !(this.editOrderForm?.services ?? []).some(
+    if (!isHouse(this.editOrderForm()?.propertyType)) return false;
+    return !(this.editOrderForm()?.services ?? []).some(
       (_row: any, index: number) => isLevelsService(this.getEditServiceDefinition(index) ?? undefined));
   }
 
   onEditPropertyTypeChange(): void {
-    if (isHouse(this.editOrderForm?.propertyType)) {
+    if (isHouse(this.editOrderForm()?.propertyType)) {
       // Same two rules the booking page and the customer order edit apply on picking House:
       // the type's priced Levels line joins the quote, and a studio becomes 1 bedroom.
       this.ensureEditLevelsRow();
@@ -6745,7 +6859,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     // order already had is forced to the included level, which prices it at exactly $0, rather
     // than deleting a row the backend still expects.
     this.removeAddedEditLevelsRow();
-    (this.editOrderForm.services ?? []).forEach((row: any, index: number) => {
+    (this.editOrderForm().services ?? []).forEach((row: any, index: number) => {
       if (isLevelsService(this.getEditServiceDefinition(index) ?? undefined)) row.quantity = 1;
     });
 
@@ -6772,10 +6886,11 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this.isCustomModeOrder()) return;
     const levelsService = findLevelsService(this.getEditOrderServiceType());
     if (!levelsService) return;
-    const rows = this.editOrderForm.services ?? (this.editOrderForm.services = []);
+    const rows = this.editOrderForm().services ?? (this.editOrderForm().services = []);
+    this.editOrderForm.set(this.editOrderForm());
     if (rows.some((_row, index) => isLevelsService(this.getEditServiceDefinition(index) ?? undefined))) return;
 
-    const seeded = Number(this.editOrderForm.levelsQuantity) || MIN_LEVELS;
+    const seeded = Number(this.editOrderForm().levelsQuantity) || MIN_LEVELS;
     const quantity = this.clampEditLevels(seeded, levelsService);
     rows.push({ orderServiceId: 0, serviceId: levelsService.id, quantity, cost: 0 });
     this.editOrderFormPrevServiceQuantities.push(quantity);
@@ -6783,7 +6898,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
 
   /** Undoes ensureEditLevelsRow: only an unsaved row is ever removed. */
   private removeAddedEditLevelsRow(): void {
-    const rows = this.editOrderForm.services ?? [];
+    const rows = this.editOrderForm().services ?? [];
     for (let i = rows.length - 1; i >= 0; i--) {
       if (!rows[i].orderServiceId && isLevelsService(this.getEditServiceDefinition(i) ?? undefined)) {
         rows.splice(i, 1);
@@ -6801,9 +6916,10 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   private raiseEditBedroomsToHouseMinimum(): void {
     const index = this.findEditServiceIndexByKey('bedrooms');
     if (index < 0) return;
-    const row = this.editOrderForm.services![index];
+    const row = this.editOrderForm().services![index];
     if ((Number(row.quantity) || 0) >= 1) return;
     row.quantity = 1;
+    this.editOrderForm.set(this.editOrderForm());
     this.onEditServiceQuantityChange(row, index);
   }
 
@@ -6815,7 +6931,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
    */
   private clampEditServiceQuantity(value: number, def: Service): number {
     let min = def.minValue || 0;
-    if (def.serviceKey === 'bedrooms' && isHouse(this.editOrderForm?.propertyType)) min = Math.max(min, 1);
+    if (def.serviceKey === 'bedrooms' && isHouse(this.editOrderForm()?.propertyType)) min = Math.max(min, 1);
     const max = def.maxValue || (def.serviceKey === 'sqft' ? 5000 : 10);
     return Math.min(Math.max(value, min), max);
   }
@@ -6836,7 +6952,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private editHasExtraCleaners(): boolean {
-    return (this.editOrderForm?.extraServices ?? []).some((e, index) => {
+    return (this.editOrderForm()?.extraServices ?? []).some((e, index) => {
       const def = this.getEditExtraDefinition(e, index);
       return !!def && isExtraCleaners(def);
     });
@@ -6865,9 +6981,9 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   isCustomModeOrder(): boolean {
-    const stId = this.selectedOrder?.serviceTypeId;
+    const stId = this.selectedOrder()?.serviceTypeId;
     if (stId == null) return false;
-    const st = this.serviceTypesCache.find(s => s.id === stId);
+    const st = this.serviceTypesCache().find(s => s.id === stId);
     return !!st?.isCustom;
   }
 
@@ -6880,7 +6996,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
     const st = this.getEditOrderServiceType();
-    const services = this.editOrderForm.services ?? [];
+    const services = this.editOrderForm().services ?? [];
 
     // If service type uses explicit Cleaners + Hours rows, those drive maids and duration directly.
     // Extras must NOT affect maids count or total duration in this mode (e.g. Vacuum Cleaner with duration 0,
@@ -6893,12 +7009,15 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
       const hoursQty = (hoursIdx >= 0 && hoursIdx < services.length)
         ? (Number(services[hoursIdx].quantity) || 0) : 0;
       if (cleanersQty > 0) {
-        this.editOrderForm.maidsCount = cleanersQty;
+        this.editOrderForm().maidsCount = cleanersQty;
+        this.editOrderForm.set(this.editOrderForm());
       }
       if (hoursQty > 0) {
-        this.editOrderForm.totalDuration = Math.max(Math.round(hoursQty * 60), 60);
-      } else if (!this.editOrderForm.totalDuration) {
-        this.editOrderForm.totalDuration = Math.max(Number(this.selectedOrder?.totalDuration) || 60, 60);
+        this.editOrderForm().totalDuration = Math.max(Math.round(hoursQty * 60), 60);
+        this.editOrderForm.set(this.editOrderForm());
+      } else if (!this.editOrderForm().totalDuration) {
+        this.editOrderForm().totalDuration = Math.max(Number(this.selectedOrder()?.totalDuration) || 60, 60);
+        this.editOrderForm.set(this.editOrderForm());
       }
       return;
     }
@@ -6915,17 +7034,18 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
       services.forEach((s, i) => {
         totalMin += this.getEditServiceDurationMin(s, i);
       });
-      (this.editOrderForm.extraServices ?? []).forEach((e, i) => {
+      (this.editOrderForm().extraServices ?? []).forEach((e, i) => {
         totalMin += this.getEditExtraDurationMin(e, i);
       });
     }
-    const currentFormDuration = Number(this.editOrderForm.totalDuration) || 0;
+    const currentFormDuration = Number(this.editOrderForm().totalDuration) || 0;
     // When services contribute nothing (e.g. custom Cleaners with timeDuration 0), don't overwrite order's duration
     if (totalMin <= baseOnly && currentFormDuration > baseOnly) {
       totalMin = currentFormDuration;
     }
     totalMin = Math.max(Math.round(totalMin), 60);
-    this.editOrderForm.totalDuration = totalMin;
+    this.editOrderForm().totalDuration = totalMin;
+    this.editOrderForm.set(this.editOrderForm());
     this.updateMaidsFromDuration();
   }
 
@@ -6937,12 +7057,13 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   updateMaidsFromDuration(): void {
     if (this.isCustomModeOrder()) return;
     if (this.isCleanerHoursOrder()) {
-      const services = this.editOrderForm.services ?? [];
+      const services = this.editOrderForm().services ?? [];
       const cleanerIdx = this.findCleanerRowIndexRobust();
       const cleanersQty = (cleanerIdx >= 0 && cleanerIdx < services.length)
         ? (Number(services[cleanerIdx].quantity) || 0) : 0;
       if (cleanersQty > 0) {
-        this.editOrderForm.maidsCount = cleanersQty;
+        this.editOrderForm().maidsCount = cleanersQty;
+        this.editOrderForm.set(this.editOrderForm());
       }
     }
   }
@@ -6951,11 +7072,11 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
    *  Null when it matches the current count, so the hint only shows when actionable. */
   getSuggestedMaidsCount(): number | null {
     if (this.isCustomModeOrder() || this.isCleanerHoursOrder()) return null;
-    const totalMin = Number(this.editOrderForm.totalDuration) || 0;
+    const totalMin = Number(this.editOrderForm().totalDuration) || 0;
     if (totalMin <= 0) return null;
     const totalHours = totalMin / 60;
     const suggested = totalHours > 6 ? Math.ceil(totalHours / 6) : 1;
-    const current = Number(this.editOrderForm.maidsCount) || 1;
+    const current = Number(this.editOrderForm().maidsCount) || 1;
     return suggested === current ? null : suggested;
   }
 
@@ -6992,7 +7113,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
 
   /** Detail-panel variant (full OrderDto shapes differ from list rows). */
   needsStaffingReviewForSelected(): boolean {
-    const order = this.selectedOrder;
+    const order = this.selectedOrder();
     if (!order || this.hasCleanersService() || this.isCustomServiceType(order)) return false;
     return OrdersComponent.staffingReviewNeeded(order.totalDuration, order.maidsCount || 1);
   }
@@ -7001,8 +7122,8 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   editFormNeedsStaffingReview(): boolean {
     if (this.isCustomModeOrder() || this.isCleanerHoursOrder()) return false;
     return OrdersComponent.staffingReviewNeeded(
-      Number(this.editOrderForm?.totalDuration) || 0,
-      Number(this.editOrderForm?.maidsCount) || 1);
+      Number(this.editOrderForm()?.totalDuration) || 0,
+      Number(this.editOrderForm()?.maidsCount) || 1);
   }
 
   onEditDurationChange(): void {
@@ -7051,7 +7172,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     if (def?.serviceKey === 'sqft') {
       const bedroomsIdx = this.findEditServiceIndexByKey('bedrooms');
       if (bedroomsIdx >= 0) {
-        const bedroomsQty = Number(this.editOrderForm.services?.[bedroomsIdx]?.quantity) || 0;
+        const bedroomsQty = Number(this.editOrderForm().services?.[bedroomsIdx]?.quantity) || 0;
         const minSquareFeet = this.getEditSquareFeetForBedrooms(bedroomsQty);
         if (q < minSquareFeet) {
           q = minSquareFeet;
@@ -7088,7 +7209,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     const isCleanerRow = def?.serviceRelationType === 'cleaner' || def?.serviceKey === 'cleaners';
     if (isCleanerRow) {
       const hours = this.getEditServiceHours(index);
-      const priceMultiplier = Number((this.selectedOrder?.services?.[0] as any)?.priceMultiplier ?? 1) || 1;
+      const priceMultiplier = Number((this.selectedOrder()?.services?.[0] as any)?.priceMultiplier ?? 1) || 1;
       const rate = (def.cost ?? 0) * priceMultiplier;
       s.cost = round2(rate * q * hours);
       this.editOrderFormPrevServiceQuantities[index] = q;
@@ -7097,8 +7218,8 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     }
     let unitPrice = def?.cost ?? 0;
     if (prevQ > 0 && prevCost > 0) unitPrice = prevCost / prevQ;
-    else if (unitPrice === 0 && this.selectedOrder?.services?.[index]) {
-      const os = this.selectedOrder.services[index];
+    else if (unitPrice === 0 && this.selectedOrder()?.services?.[index]) {
+      const os = this.selectedOrder()!.services[index];
       if (os.quantity > 0 && os.cost > 0) unitPrice = os.cost / os.quantity;
     }
     s.cost = round2(unitPrice * q);
@@ -7113,7 +7234,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
 
   /** Find the index of an edit-form service row by its catalog serviceKey. Returns -1 if absent. */
   private findEditServiceIndexByKey(serviceKey: string): number {
-    const rows = this.editOrderForm.services ?? [];
+    const rows = this.editOrderForm().services ?? [];
     for (let i = 0; i < rows.length; i++) {
       if (this.getEditServiceDefinition(i)?.serviceKey === serviceKey) return i;
     }
@@ -7124,7 +7245,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   private syncEditSqftWithBedrooms(bedroomsQty: number, prevBedroomsQty: number): void {
     const sqftIdx = this.findEditServiceIndexByKey('sqft');
     if (sqftIdx < 0) return;
-    const row = this.editOrderForm.services?.[sqftIdx];
+    const row = this.editOrderForm().services?.[sqftIdx];
     if (!row) return;
 
     // Quantity follows the shared bedrooms→sqft rule against the CONFIGURED allowances (same
@@ -7144,6 +7265,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
       // value it overwrote rather than the floor resolveSquareFeetForBedroomChange would give
       // (which reads a floor-raised current as "was tracking the floor" and drops it further).
       row.quantity = Math.max(baseline.sqft, newMinSquareFeet);
+      this.editOrderForm.set(this.editOrderForm());
     } else {
       const resolved = resolveSquareFeetForBedroomChange(current, oldMinSquareFeet, newMinSquareFeet);
       // A deliberate value (current not sitting on the outgoing floor) is about to be clobbered
@@ -7152,6 +7274,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
         this.editOrderFormSqftBaseline = { bedrooms: prevBedroomsQty, sqft: current };
       }
       row.quantity = resolved;
+      this.editOrderForm.set(this.editOrderForm());
     }
     this.editOrderFormPrevServiceQuantities[sqftIdx] = row.quantity;
   }
@@ -7173,7 +7296,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     }
     if (def?.hasQuantity) {
       // Same rule as the shared calculator: deep-cleaning multiplier applies, Same Day is exempt.
-      const priceMultiplier = Number((this.selectedOrder?.services?.[0] as any)?.priceMultiplier ?? 1) || 1;
+      const priceMultiplier = Number((this.selectedOrder()?.services?.[0] as any)?.priceMultiplier ?? 1) || 1;
       const m = def.isSameDayService ? 1 : priceMultiplier;
       e.cost = round2(def.price * q * m);
     } else {
@@ -7181,8 +7304,8 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
       const prevCost = Number(e.cost) || 0;
       const orderId = e.orderExtraServiceId ?? 0;
       let unitPrice = (prevQ > 0 && prevCost > 0) ? (prevCost / prevQ) : (def?.price ?? 0);
-      if (unitPrice === 0 && orderId !== 0 && this.selectedOrder?.extraServices) {
-        const oes = this.selectedOrder.extraServices.find(x => x.id === orderId);
+      if (unitPrice === 0 && orderId !== 0 && this.selectedOrder()?.extraServices) {
+        const oes = this.selectedOrder()!.extraServices.find(x => x.id === orderId);
         if (oes && (oes.quantity > 0 || oes.hours > 0) && oes.cost > 0)
           unitPrice = oes.hours > 0 ? (oes.cost / oes.hours) : (oes.cost / oes.quantity);
       }
@@ -7204,7 +7327,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     }
     if (def?.hasHours) {
       // Same rule as the shared calculator: deep-cleaning multiplier applies, Same Day is exempt.
-      const priceMultiplier = Number((this.selectedOrder?.services?.[0] as any)?.priceMultiplier ?? 1) || 1;
+      const priceMultiplier = Number((this.selectedOrder()?.services?.[0] as any)?.priceMultiplier ?? 1) || 1;
       const m = def.isSameDayService ? 1 : priceMultiplier;
       e.cost = round2(def.price * h * m);
     } else {
@@ -7244,7 +7367,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   removeEditExtraService(index: number): void {
-    const extras = this.editOrderForm.extraServices ?? [];
+    const extras = this.editOrderForm().extraServices ?? [];
     if (index < 0 || index >= extras.length) return;
     extras.splice(index, 1);
     this.editOrderFormPrevExtraQuantities.splice(index, 1);
@@ -7253,7 +7376,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   cancelEditOrder(): void {
-    this.editingOrder = false;
+    this.editingOrder.set(false);
     // Drop any unconfirmed save with the form it was built from, so reopening the editor can
     // never surface a diff against values that are no longer on screen.
     this.resetSaveConfirmState();
@@ -7264,39 +7387,39 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
    * Empty for an admin who cannot review, because the list is never fetched for them.
    */
   getPendingEditsForSelectedOrder(): PendingOrderEditListDto[] {
-    if (!this.selectedOrder) return [];
-    return this.pendingOrderEdits.filter(p => p.orderId === this.selectedOrder!.id);
+    if (!this.selectedOrder()) return [];
+    return this.pendingOrderEdits().filter(p => p.orderId === this.selectedOrder()!.id);
   }
 
   /** Optional free-text reason an Admin gives when submitting an edit for approval. */
-  orderEditRequestReason = '';
+  readonly orderEditRequestReason = signal('');
 
   loadPendingOrderEdits(): void {
     // Whoever may apply an order edit themselves may also approve one from a colleague; the
     // endpoint enforces the same rule, so an ungranted admin would just get a 403.
-    if (!this.canSaveOrderEditsDirectly) return;
+    if (!this.canSaveOrderEditsDirectly()) return;
     this.loadingPendingEdits = true;
     this.adminService.getPendingOrderEdits().subscribe({
       next: (list) => {
-        this.pendingOrderEdits = list;
+        this.pendingOrderEdits.set(list);
         this.cdr.detectChanges();
       },
-      error: () => { this.pendingOrderEdits = []; },
+      error: () => { this.pendingOrderEdits.set([]); },
       complete: () => { this.loadingPendingEdits = false; }
     });
   }
 
   openPendingEditDetail(id: number): void {
-    this.loadingPendingEditDetail = true;
-    this.selectedPendingEdit = null;
+    this.loadingPendingEditDetail.set(true);
+    this.selectedPendingEdit.set(null);
     this.adminService.getPendingOrderEditDetail(id).subscribe({
       next: (detail) => {
-        this.selectedPendingEdit = detail;
+        this.selectedPendingEdit.set(detail);
         this.loadExtraServiceNamesForPendingEdit();
         this.cdr.detectChanges();
       },
-      error: () => { this.selectedPendingEdit = null; },
-      complete: () => { this.loadingPendingEditDetail = false; }
+      error: () => { this.selectedPendingEdit.set(null); },
+      complete: () => { this.loadingPendingEditDetail.set(false); }
     });
   }
 
@@ -7317,14 +7440,14 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
             if (!hasHoursMap.has(es.id)) hasHoursMap.set(es.id, !!es.hasHours);
           }
         }
-        this.extraServiceNamesMap = nameMap;
-        this.extraServiceHasHoursMap = hasHoursMap;
+        this.extraServiceNamesMap.set(nameMap);
+        this.extraServiceHasHoursMap.set(hasHoursMap);
         this.cdr.detectChanges();
         done?.();
       },
       error: () => {
-        this.extraServiceNamesMap = new Map();
-        this.extraServiceHasHoursMap = new Map();
+        this.extraServiceNamesMap.set(new Map());
+        this.extraServiceHasHoursMap.set(new Map());
         done?.();
       }
     });
@@ -7336,66 +7459,66 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
    * after a round trip, and an empty cache only costs us "Extra #17" instead of "Oven Cleaning".
    */
   private hydrateExtraServiceLabelMapsFromCache(): void {
-    if (this.extraServiceNamesMap.size > 0) return;
+    if (this.extraServiceNamesMap().size > 0) return;
     const nameMap = new Map<number, string>();
     const hasHoursMap = new Map<number, boolean>();
-    for (const st of this.serviceTypesCache) {
+    for (const st of this.serviceTypesCache()) {
       for (const es of st.extraServices ?? []) {
         if (!nameMap.has(es.id)) nameMap.set(es.id, es.name);
         if (!hasHoursMap.has(es.id)) hasHoursMap.set(es.id, !!es.hasHours);
       }
     }
     if (nameMap.size === 0) return;
-    this.extraServiceNamesMap = nameMap;
-    this.extraServiceHasHoursMap = hasHoursMap;
+    this.extraServiceNamesMap.set(nameMap);
+    this.extraServiceHasHoursMap.set(hasHoursMap);
   }
 
   closePendingEditDetail(): void {
-    this.selectedPendingEdit = null;
+    this.selectedPendingEdit.set(null);
     this.loadPendingOrderEdits();
   }
 
   approvePendingOrderEdit(id: number): void {
-    if (this.approvingPendingId != null) return;
-    this.approvingPendingId = id;
+    if (this.approvingPendingId() != null) return;
+    this.approvingPendingId.set(id);
     this.adminService.approvePendingOrderEdit(id).subscribe({
       next: () => {
-        this.successMessage = 'Order edit approved and applied.';
+        this.successMessage.set('Order edit approved and applied.');
         this.closePendingEditDetail();
-        if (this.selectedOrder && this.selectedPendingEdit && this.selectedOrder.id === this.selectedPendingEdit.orderId) {
-          this.adminService.getOrderDetails(this.selectedOrder.id).subscribe({
+        if (this.selectedOrder() && this.selectedPendingEdit() && this.selectedOrder()!.id === this.selectedPendingEdit()!.orderId) {
+          this.adminService.getOrderDetails(this.selectedOrder()!.id).subscribe({
             next: (o) => {
-              this.selectedOrder = o;
+              this.selectedOrder.set(o);
               this.customerNames.set(o.id, `${o.contactFirstName} ${o.contactLastName}`);
               this.customerDetails.set(o.id, { id: o.userId, email: o.contactEmail });
             }
           });
         }
         this.calculateStatistics();
-        setTimeout(() => { this.successMessage = ''; }, 5000);
+        setTimeout(() => { this.successMessage.set(''); }, 5000);
       },
       error: (err) => {
-        this.errorMessage = err.error?.message || 'Failed to approve.';
-        setTimeout(() => { this.errorMessage = ''; }, 5000);
+        this.errorMessage.set(err.error?.message || 'Failed to approve.');
+        setTimeout(() => { this.errorMessage.set(''); }, 5000);
       },
-      complete: () => { this.approvingPendingId = null; }
+      complete: () => { this.approvingPendingId.set(null); }
     });
   }
 
   rejectPendingOrderEdit(id: number, reason?: string): void {
-    if (this.rejectingPendingId != null) return;
-    this.rejectingPendingId = id;
+    if (this.rejectingPendingId() != null) return;
+    this.rejectingPendingId.set(id);
     this.adminService.rejectPendingOrderEdit(id, reason).subscribe({
       next: () => {
-        this.successMessage = 'Order edit rejected.';
+        this.successMessage.set('Order edit rejected.');
         this.closePendingEditDetail();
-        setTimeout(() => { this.successMessage = ''; }, 5000);
+        setTimeout(() => { this.successMessage.set(''); }, 5000);
       },
       error: (err) => {
-        this.errorMessage = err.error?.message || 'Failed to reject.';
-        setTimeout(() => { this.errorMessage = ''; }, 5000);
+        this.errorMessage.set(err.error?.message || 'Failed to reject.');
+        setTimeout(() => { this.errorMessage.set(''); }, 5000);
       },
-      complete: () => { this.rejectingPendingId = null; }
+      complete: () => { this.rejectingPendingId.set(null); }
     });
   }
 
@@ -7436,7 +7559,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
    * against a state that no longer exists.
    */
   getPendingEditChanges(): OrderEditChange[] {
-    const d = this.selectedPendingEdit;
+    const d = this.selectedPendingEdit();
     if (!d) return [];
 
     const live = this.computeLivePendingEditChanges();
@@ -7467,7 +7590,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
 
   /** The proposal diffed against the order AS IT STANDS NOW. */
   private computeLivePendingEditChanges(): OrderEditChange[] {
-    const d = this.selectedPendingEdit;
+    const d = this.selectedPendingEdit();
     if (!d?.currentOrder || !d?.proposedChanges) return [];
     return this.computeOrderEditChanges(d.currentOrder, d.proposedChanges);
   }
@@ -7476,7 +7599,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   pendingEditHasDrift(): boolean {
     // Only meaningful while the request is still open: once approved the order SHOULD have moved
     // (this request moved it), and once rejected nobody is going to act on it.
-    if (!this.selectedPendingEdit || this.selectedPendingEdit.status !== 'Pending') return false;
+    if (!this.selectedPendingEdit() || this.selectedPendingEdit()!.status !== 'Pending') return false;
     return this.getPendingEditChanges().some(c => c.hasDrifted);
   }
 
@@ -7487,12 +7610,12 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
 
   /** True when this request predates the field-level payload, so there is nothing stored to read. */
   pendingEditPayloadUnavailable(): boolean {
-    return !!this.selectedPendingEdit?.requestedChangesUnavailable;
+    return !!this.selectedPendingEdit()?.requestedChangesUnavailable;
   }
 
   /** A decided request is read-only: the buttons would apply a change that was already settled. */
   pendingEditIsDecided(): boolean {
-    const s = this.selectedPendingEdit?.status;
+    const s = this.selectedPendingEdit()?.status;
     return !!s && s !== 'Pending';
   }
 
@@ -7649,7 +7772,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     const curExtras = cur.extraServices ?? [];
     const propExtras = prop.extraServices ?? [];
     const propExtraIds = new Set((propExtras as any[]).map((e: any) => e.orderExtraServiceId ?? (e as any).orderExtraServiceId ?? 0));
-    const extraUnit = (extraId: number) => this.extraServiceHasHoursMap.get(Number(extraId)) ? '(hours/cost)' : '(qty/cost)';
+    const extraUnit = (extraId: number) => this.extraServiceHasHoursMap().get(Number(extraId)) ? '(hours/cost)' : '(qty/cost)';
     for (const pe of propExtras) {
       const oeId = pe.orderExtraServiceId ?? (pe as any).orderExtraServiceId ?? 0;
       const ce = curExtras.find((e: any) => e.id === oeId);
@@ -7657,7 +7780,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
       const label = ce ? (ce.extraServiceName ?? `Extra #${ce.extraServiceId ?? oeId}`) : '';
       const unit = extraUnit(extraId);
       if (ce) {
-        const useHours = this.extraServiceHasHoursMap.get(Number(ce.extraServiceId ?? extraId));
+        const useHours = this.extraServiceHasHoursMap().get(Number(ce.extraServiceId ?? extraId));
         const cVal = useHours ? Number(ce.hours) : Number(ce.quantity);
         const pVal = useHours ? Number(pe.hours) : Number(pe.quantity);
         const cc = Number(ce.cost);
@@ -7667,8 +7790,8 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
         }
       } else if (oeId === 0 && (pe.extraServiceId ?? (pe as any).extraServiceId)) {
         const eid = pe.extraServiceId ?? (pe as any).extraServiceId;
-        const extraName = this.extraServiceNamesMap.get(Number(eid)) ?? `Extra #${eid}`;
-        const useHours = this.extraServiceHasHoursMap.get(Number(eid));
+        const extraName = this.extraServiceNamesMap().get(Number(eid)) ?? `Extra #${eid}`;
+        const useHours = this.extraServiceHasHoursMap().get(Number(eid));
         const pVal = useHours ? Number(pe.hours) : Number(pe.quantity);
         const pc = Number(pe.cost);
         changes.push({ field: `${extraName} (new) ${unit}`, current: '—', proposed: `(${pVal}/${pc})`, difference: fmtDiff(0, pc) });
@@ -7681,7 +7804,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
       const extraLabel = ce.extraServiceName ?? `Extra #${ce.extraServiceId ?? oesId}`;
       const eid = ce.extraServiceId ?? 0;
       const unit = extraUnit(eid);
-      const useHours = this.extraServiceHasHoursMap.get(Number(eid));
+      const useHours = this.extraServiceHasHoursMap().get(Number(eid));
       const cVal = useHours ? Number(ce.hours) : Number(ce.quantity);
       const cc = Number(ce.cost);
       changes.push({ field: `${extraLabel} (removed) ${unit}`, current: `(${cVal}/${cc})`, proposed: '—', difference: fmtDiff(cc, 0) });
@@ -7710,7 +7833,8 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     if (input.value !== cleaned) {
       input.value = cleaned;
     }
-    this.editOrderForm.contactPhone = cleaned;
+    this.editOrderForm().contactPhone = cleaned;
+    this.editOrderForm.set(this.editOrderForm());
   }
 
   /**
@@ -7719,53 +7843,53 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
    */
   private buildOrderEditDto(): SuperAdminUpdateOrderDto {
     // Custom pricing: totalDuration is per-cleaner minutes (matches booking payload).
-    const persistedTotalDuration = this.editOrderForm.totalDuration ?? undefined;
+    const persistedTotalDuration = this.editOrderForm().totalDuration ?? undefined;
     const dto: SuperAdminUpdateOrderDto = {
-      contactFirstName: this.editOrderForm.contactFirstName ?? undefined,
-      contactLastName: this.editOrderForm.contactLastName ?? undefined,
-      contactEmail: this.editOrderForm.contactEmail ?? undefined,
-      contactPhone: normalizePhone10(this.editOrderForm.contactPhone) ?? undefined,
-      serviceAddress: this.editOrderForm.serviceAddress ?? undefined,
-      aptSuite: this.editOrderForm.aptSuite ?? undefined,
-      city: this.editOrderForm.city ?? undefined,
-      state: this.editOrderForm.state ?? undefined,
-      zipCode: this.editOrderForm.zipCode ?? undefined,
-      serviceDate: this.editOrderForm.serviceDate ?? undefined,
-      serviceTime: this.editOrderForm.serviceTime ?? undefined,
+      contactFirstName: this.editOrderForm().contactFirstName ?? undefined,
+      contactLastName: this.editOrderForm().contactLastName ?? undefined,
+      contactEmail: this.editOrderForm().contactEmail ?? undefined,
+      contactPhone: normalizePhone10(this.editOrderForm().contactPhone) ?? undefined,
+      serviceAddress: this.editOrderForm().serviceAddress ?? undefined,
+      aptSuite: this.editOrderForm().aptSuite ?? undefined,
+      city: this.editOrderForm().city ?? undefined,
+      state: this.editOrderForm().state ?? undefined,
+      zipCode: this.editOrderForm().zipCode ?? undefined,
+      serviceDate: this.editOrderForm().serviceDate ?? undefined,
+      serviceTime: this.editOrderForm().serviceTime ?? undefined,
       // Set on the Wages card now, so the form only sends a count its own Cleaners service line
       // (cleaner+hours types) moved — never the value it was opened with, which could overwrite
       // a count changed on the Wages card in the meantime.
-      maidsCount: this.editOrderForm.maidsCount != null && this.editOrderForm.maidsCount !== this.selectedOrder?.maidsCount
-        ? this.editOrderForm.maidsCount
+      maidsCount: this.editOrderForm().maidsCount != null && this.editOrderForm().maidsCount !== this.selectedOrder()?.maidsCount
+        ? this.editOrderForm().maidsCount
         : undefined,
       totalDuration: persistedTotalDuration ?? undefined,
-      bedroomsQuantity: this.editOrderForm.bedroomsQuantity ?? undefined,
-      bathroomsQuantity: this.editOrderForm.bathroomsQuantity ?? undefined,
+      bedroomsQuantity: this.editOrderForm().bedroomsQuantity ?? undefined,
+      bathroomsQuantity: this.editOrderForm().bathroomsQuantity ?? undefined,
       // undefined = no change, which is what a legacy order the admin did not touch must send.
-      propertyType: this.editOrderForm.propertyType ?? undefined,
+      propertyType: this.editOrderForm().propertyType ?? undefined,
       // Informational only; a priced levels row in `services` wins server-side.
-      levelsQuantity: this.editOrderForm.levelsQuantity ?? undefined,
-      entryMethod: this.editOrderForm.entryMethod ?? undefined,
-      specialInstructions: this.editOrderForm.specialInstructions ?? undefined,
-      floorTypes: this.editOrderForm.floorTypes ?? undefined,
-      floorTypeOther: this.editOrderForm.floorTypeOther ?? undefined,
-      tips: this.editOrderForm.tips ?? undefined,
-      status: this.editOrderForm.status ?? undefined,
-      cancellationReason: this.editOrderForm.cancellationReason ?? undefined,
-      subTotal: this.editOrderForm.subTotal ?? undefined,
-      tax: this.editOrderForm.tax ?? undefined,
-      total: this.editOrderForm.total ?? undefined,
+      levelsQuantity: this.editOrderForm().levelsQuantity ?? undefined,
+      entryMethod: this.editOrderForm().entryMethod ?? undefined,
+      specialInstructions: this.editOrderForm().specialInstructions ?? undefined,
+      floorTypes: this.editOrderForm().floorTypes ?? undefined,
+      floorTypeOther: this.editOrderForm().floorTypeOther ?? undefined,
+      tips: this.editOrderForm().tips ?? undefined,
+      status: this.editOrderForm().status ?? undefined,
+      cancellationReason: this.editOrderForm().cancellationReason ?? undefined,
+      subTotal: this.editOrderForm().subTotal ?? undefined,
+      tax: this.editOrderForm().tax ?? undefined,
+      total: this.editOrderForm().total ?? undefined,
       // Only present when the admin typed a Total. The server re-checks the base against the
       // subtotal this order's discounts leave behind before honouring the tax.
       taxOverride: this.editOrderTaxOverride?.tax ?? undefined,
       taxOverrideBase: this.editOrderTaxOverride?.base ?? undefined,
       // Only when the admin typed the price; otherwise the server prices the lines itself.
       priceTypedByAdmin: this.editOrderPriceTyped ? true : undefined,
-      discountAmount: this.editOrderForm.discountAmount ?? undefined,
-      subscriptionDiscountAmount: this.editOrderForm.subscriptionDiscountAmount ?? undefined,
+      discountAmount: this.editOrderForm().discountAmount ?? undefined,
+      subscriptionDiscountAmount: this.editOrderForm().subscriptionDiscountAmount ?? undefined,
       // Loyalty Discount: persist the rescaled $ amount. Backend leaves the original
       // LoyaltyDiscountPercentage untouched per SuperAdminFullUpdateOrder comment.
-      loyaltyDiscountAmount: this.editOrderForm.loyaltyDiscountAmount ?? undefined,
+      loyaltyDiscountAmount: this.editOrderForm().loyaltyDiscountAmount ?? undefined,
       // Not part of an order edit any more: the rate is set on the Wages card
       // (updateOrderCleanerHourlyRate), and resending the value seeded when the form opened could
       // overwrite a rate changed there in the meantime.
@@ -7776,23 +7900,23 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
       // change that was never going to happen - undefined means "not part of this edit", which is
       // exactly right here and is what computeOrderEditChanges already skips on.
       cleanerTotalSalary: this.canEditCleanerTotalSalary()
-        ? (this.editOrderForm.cleanerTotalSalary ?? undefined)
+        ? (this.editOrderForm().cleanerTotalSalary ?? undefined)
         : undefined,
       // Only meaningful for custom orders; backend ignores it for other service types.
       // Send '' (not undefined) when cleared so the backend can reset it to "Arranged".
       customServiceDisplayName: this.selectedOrderIsCustomServiceType
-        ? (this.editOrderForm.customServiceDisplayName ?? '')
+        ? (this.editOrderForm().customServiceDisplayName ?? '')
         : undefined,
       // Existing rows as they are; an added row also names its service and carries its minutes.
-      services: (this.editOrderForm.services ?? undefined)?.map(row => row.orderServiceId
+      services: (this.editOrderForm().services ?? undefined)?.map(row => row.orderServiceId
         ? { orderServiceId: row.orderServiceId, quantity: row.quantity, cost: row.cost }
         : { orderServiceId: 0, serviceId: row.serviceId, quantity: row.quantity, cost: row.cost, duration: row.duration ?? 0 }),
       // Send extra services: existing rows with orderExtraServiceId; new rows with orderExtraServiceId: 0 and extraServiceId (backend may expect 0 for "create")
-      extraServices: (this.editOrderForm.extraServices ?? undefined)?.map(e => {
+      extraServices: (this.editOrderForm().extraServices ?? undefined)?.map(e => {
         const orderExtraServiceId = Number((e as any).orderExtraServiceId ?? 0) || 0;
         const maybeExtraServiceId = Number((e as any).extraServiceId ?? 0) || 0;
         const existingExtraServiceId = orderExtraServiceId > 0
-          ? (this.selectedOrder?.extraServices?.find(x => x.id === orderExtraServiceId)?.extraServiceId ?? 0)
+          ? (this.selectedOrder()?.extraServices?.find(x => x.id === orderExtraServiceId)?.extraServiceId ?? 0)
           : 0;
         const extraServiceId = maybeExtraServiceId || existingExtraServiceId;
         const quantity = Number((e as any).quantity ?? 0) || 0;
@@ -7815,14 +7939,14 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
    * away, because their changes are reviewed on the SuperAdmin side.
    */
   saveOrderEdit(): void {
-    if (!this.selectedOrder || !this.canEditOrder || this.savingOrder) return;
-    this.errorMessage = '';
-    this.successMessage = '';
+    if (!this.selectedOrder() || !this.canEditOrder || this.savingOrder()) return;
+    this.errorMessage.set('');
+    this.successMessage.set('');
 
     const dto = this.buildOrderEditDto();
 
-    if (!this.canSaveOrderEditsDirectly) {
-      this.savingOrder = true;
+    if (!this.canSaveOrderEditsDirectly()) {
+      this.savingOrder.set(true);
       this.submitOrderEditForApproval(dto);
       return;
     }
@@ -7831,68 +7955,68 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     // catalogue the open editor already loaded, so the modal opens on the click.
     this.hydrateExtraServiceLabelMapsFromCache();
     this.pendingSaveDto = dto;
-    this.saveConfirmChanges = this.computeOrderEditChanges(this.selectedOrder, dto);
-    this.showSaveConfirm = true;
+    this.saveConfirmChanges.set(this.computeOrderEditChanges(this.selectedOrder(), dto));
+    this.showSaveConfirm.set(true);
   }
 
   /** Apply the reviewed changes. Only reachable from the save-confirmation modal. */
   confirmSaveOrderEdit(): void {
-    if (!this.selectedOrder || !this.pendingSaveDto || this.savingOrder) return;
+    if (!this.selectedOrder() || !this.pendingSaveDto || this.savingOrder()) return;
     const dto = this.pendingSaveDto;
-    this.savingOrder = true;
-    this.adminService.superAdminFullUpdateOrder(this.selectedOrder.id, dto).subscribe({
+    this.savingOrder.set(true);
+    this.adminService.superAdminFullUpdateOrder(this.selectedOrder()!.id, dto).subscribe({
       next: () => {
-        this.successMessage = 'Order updated successfully. All changes are recorded in Audit logs.';
-        this.editingOrder = false;
+        this.successMessage.set('Order updated successfully. All changes are recorded in Audit logs.');
+        this.editingOrder.set(false);
         this.resetSaveConfirmState();
         this.refreshOrderAfterSave();
-        setTimeout(() => { this.successMessage = ''; }, 5000);
+        setTimeout(() => { this.successMessage.set(''); }, 5000);
       },
       error: (err) => {
         // Keep the edit form open with the admin's values intact so they can retry or adjust.
-        this.errorMessage = err.error?.message || 'Failed to update order.';
+        this.errorMessage.set(err.error?.message || 'Failed to update order.');
         this.resetSaveConfirmState();
-        setTimeout(() => { this.errorMessage = ''; }, 5000);
+        setTimeout(() => { this.errorMessage.set(''); }, 5000);
       },
-      complete: () => { this.savingOrder = false; }
+      complete: () => { this.savingOrder.set(false); }
     });
   }
 
   /** Dismiss the confirmation and return to the still-open edit form with nothing sent. */
   closeSaveConfirm(): void {
-    if (this.savingOrder) return;
-    this.showSaveConfirm = false;
+    if (this.savingOrder()) return;
+    this.showSaveConfirm.set(false);
     this.pendingSaveDto = null;
-    this.saveConfirmChanges = [];
+    this.saveConfirmChanges.set([]);
   }
 
   private submitOrderEditForApproval(dto: SuperAdminUpdateOrderDto): void {
-    if (!this.selectedOrder) return;
+    if (!this.selectedOrder()) return;
 
     // Send the field-level diff the requesting admin is looking at, so the reviewer reads back the
     // request that was actually made rather than the proposal re-measured against whatever the
     // order looks like by the time they open it. Same computeOrderEditChanges the save-confirm
     // modal uses — one implementation, so requester and reviewer see identical rows.
     this.hydrateExtraServiceLabelMapsFromCache();
-    const fieldChanges = this.computeOrderEditChanges(this.selectedOrder, dto);
+    const fieldChanges = this.computeOrderEditChanges(this.selectedOrder(), dto);
 
     this.adminService.submitPendingOrderEdit(
-      this.selectedOrder.id, dto, fieldChanges, this.orderEditRequestReason.trim() || undefined
+      this.selectedOrder()!.id, dto, fieldChanges, this.orderEditRequestReason().trim() || undefined
     ).subscribe({
       next: () => {
-        this.successMessage = 'Your changes have been sent to SAdmin for approval. You will see the update once a SAdmin confirms.';
-        this.editingOrder = false;
-        this.orderEditRequestReason = '';
-        setTimeout(() => { this.successMessage = ''; }, 5000);
+        this.successMessage.set('Your changes have been sent to SAdmin for approval. You will see the update once a SAdmin confirms.');
+        this.editingOrder.set(false);
+        this.orderEditRequestReason.set('');
+        setTimeout(() => { this.successMessage.set(''); }, 5000);
       },
       error: (err) => {
         // extractApiErrorMessage, not err.error?.message: a rejection from [ApiController] model
         // binding is a ValidationProblemDetails with no 'message' property, so the real reason
         // used to be swallowed behind this generic fallback.
-        this.errorMessage = extractApiErrorMessage(err, 'Failed to submit edit for approval.');
-        setTimeout(() => { this.errorMessage = ''; }, 5000);
+        this.errorMessage.set(extractApiErrorMessage(err, 'Failed to submit edit for approval.'));
+        setTimeout(() => { this.errorMessage.set(''); }, 5000);
       },
-      complete: () => { this.savingOrder = false; }
+      complete: () => { this.savingOrder.set(false); }
     });
   }
 
@@ -7903,44 +8027,56 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
    * Called from every action handler; each read is independent, so one failing hides nothing else.
    */
   private refreshOrderAfterSave(): void {
-    if (!this.selectedOrder) return;
-    const orderId = this.selectedOrder.id;
+    if (!this.selectedOrder()) return;
+    const orderId = this.selectedOrder()!.id;
     this.loadUpdateHistory(orderId);
     this.refreshPartialBalanceQuietly(orderId);
     this.loadOrderSavedCardInfo(orderId);
     this.loadSingleOrderCleaners(orderId);
-    if (this.isSuperAdmin) this.loadOrderRefunds(orderId);
+    if (this.isSuperAdmin()) this.loadOrderRefunds(orderId);
     if (this.orderChangesLoadedFor === orderId) this.loadOrderChanges(orderId);
     // The salary can move on any save (services, duration, maids, rate), so the breakdown is
     // refetched with the order rather than left showing the pre-save split.
-    if (this.canViewCleanerPayroll) this.loadOrderCleanerPayroll(this.selectedOrder.id);
+    if (this.canViewCleanerPayroll()) this.loadOrderCleanerPayroll(this.selectedOrder()!.id);
     // So can the warnings — a save that raises the cleaner count or records a payment resolves
     // one. Targeted at this order so a single save does not drag the whole table over the wire.
-    this.preloadStaffingWarnings([this.selectedOrder.id]);
-    this.adminService.getOrderDetails(this.selectedOrder.id).subscribe({
+    this.preloadStaffingWarnings([this.selectedOrder()!.id]);
+    this.adminService.getOrderDetails(this.selectedOrder()!.id).subscribe({
       next: (o) => {
-        this.selectedOrder = o;
+        this.selectedOrder.set(o);
         this.customerNames.set(o.id, `${o.contactFirstName} ${o.contactLastName}`);
         this.customerDetails.set(o.id, { id: o.userId, email: o.contactEmail });
-        const orderIndex = this.orders.findIndex(order => order.id === o.id);
+        const orderIndex = this.orders().findIndex(order => order.id === o.id);
         if (orderIndex !== -1) {
-          const updatedOrder = this.orders[orderIndex];
+          const updatedOrder = this.orders()[orderIndex];
           updatedOrder.contactFirstName = o.contactFirstName;
+          this.orders.set(this.orders());
           updatedOrder.contactLastName = o.contactLastName;
+          this.orders.set(this.orders());
           updatedOrder.contactEmail = o.contactEmail;
+          this.orders.set(this.orders());
           updatedOrder.serviceAddress = o.serviceAddress;
+          this.orders.set(this.orders());
           updatedOrder.serviceDate = o.serviceDate;
+          this.orders.set(this.orders());
           updatedOrder.serviceTime = o.serviceTime;
+          this.orders.set(this.orders());
           updatedOrder.totalDuration = o.totalDuration;
+          this.orders.set(this.orders());
           // The row's staffing-review ⚠ is per-cleaner load, so it reads maidsCount. Assigning
           // cleaners now raises that count server-side; without copying it back the flag would
           // keep warning about a job that has just been staffed.
           updatedOrder.maidsCount = o.maidsCount;
+          this.orders.set(this.orders());
           updatedOrder.status = o.status;
+          this.orders.set(this.orders());
           updatedOrder.total = o.total;
+          this.orders.set(this.orders());
           updatedOrder.tips = o.tips;
+          this.orders.set(this.orders());
           updatedOrder.companyDevelopmentTips = o.companyDevelopmentTips;
-          if (this.isSuperAdmin) this.calculateStatistics();
+          this.orders.set(this.orders());
+          if (this.isSuperAdmin()) this.calculateStatistics();
         }
       }
     });
@@ -7955,7 +8091,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
         pages.push(i);
       }
     } else {
-      let start = Math.max(2, this.currentPage - 1);
+      let start = Math.max(2, this.currentPage() - 1);
       let end = Math.min(this.totalPages - 1, start + maxVisiblePages - 1);
 
       if (end === this.totalPages - 1) {

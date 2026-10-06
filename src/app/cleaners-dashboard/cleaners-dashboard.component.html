@@ -3,8 +3,8 @@
   strip, the filters and the card list - is dropped, and the detail panel is all that renders. The
   host supplies the cleaner id and the frame around it. See CleanersDashboardComponent.
 -->
-<div class="cleaners-dashboard" [class.embedded]="embedded">
-  @if (!embedded) {
+<div class="cleaners-dashboard" [class.embedded]="embedded()">
+  @if (!embedded()) {
   <header class="dashboard-header">
     <div class="title-block">
       <h1>Cleaners</h1>
@@ -12,7 +12,7 @@
     <!-- Dashboard-only: the Portal tab is a read-only calendar with nothing to search, toggle or
          add here. Hidden rather than disabled - a control that does nothing on the tab you are
          looking at is worse than an absent one. -->
-    @if (activeTab === 'dashboard') {
+    @if (activeTab() === 'dashboard') {
     <div class="header-actions">
       <div class="search-box">
         <input
@@ -41,17 +41,17 @@
     dashboard but not the schedule, so the tab strip is not rendered for them at all rather than
     showing one tab.
   -->
-  @if (canSeePortal && !embedded) {
+  @if (canSeePortal && !embedded()) {
   <nav class="dashboard-tabs" aria-label="Cleaners sections">
     <button type="button"
             class="dashboard-tab"
-            [class.active]="activeTab === 'dashboard'"
+            [class.active]="activeTab() === 'dashboard'"
             (click)="setTab('dashboard')">
       Dashboard
     </button>
     <button type="button"
             class="dashboard-tab"
-            [class.active]="activeTab === 'portal'"
+            [class.active]="activeTab() === 'portal'"
             (click)="setTab('portal')">
       Portal
     </button>
@@ -67,20 +67,20 @@
     Created on first visit and destroyed on leaving the tab, so the month it shows is always freshly
     fetched - one small request, against a calendar that must not show yesterday's staffing.
   -->
-  @if (activeTab === 'portal' && !embedded) {
+  @if (activeTab() === 'portal' && !embedded()) {
   <app-cleaner-portal [embedded]="true"></app-cleaner-portal>
   }
 
-  @if (activeTab === 'dashboard') {
+  @if (activeTab() === 'dashboard') {
 
-  @if (errorMessage) {
+  @if (errorMessage()) {
   <div class="error-banner" role="alert">
-    {{ errorMessage }}
-    <button type="button" (click)="errorMessage = ''">&times;</button>
+    {{ errorMessage() }}
+    <button type="button" (click)="errorMessage.set('')">&times;</button>
   </div>
   }
 
-  @if (!embedded) {
+  @if (!embedded()) {
   <div class="list-controls">
     <label class="control">
       <span class="control-label">Sort</span>
@@ -127,22 +127,22 @@
       </select>
     </label>
     }
-    @if (!loading && cleaners.length > 0) {
+    @if (!loading() && cleaners().length > 0) {
     <span class="result-count">{{ displayedCleaners.length }} shown</span>
     }
   </div>
   }
 
-  <section class="dashboard-body" [class.embedded]="embedded">
-    @if (!embedded) {
+  <section class="dashboard-body" [class.embedded]="embedded()">
+    @if (!embedded()) {
     <div class="cards-column">
-      @if (loading && cleaners.length === 0) {
+      @if (loading() && cleaners().length === 0) {
       <div class="loading-state">Loading cleaners…</div>
       }
-      @if (!loading && cleaners.length === 0) {
+      @if (!loading() && cleaners().length === 0) {
       <div class="empty-state">No cleaners found.</div>
       }
-      @if (!loading && cleaners.length > 0 && displayedCleaners.length === 0) {
+      @if (!loading() && cleaners().length > 0 && displayedCleaners.length === 0) {
       <div class="empty-state">
         No cleaners match this filter.
       </div>
@@ -152,7 +152,7 @@
       <article
         class="cleaner-card"
         [class.inactive]="!cleaner.isActive"
-        [class.selected]="selectedDetail?.id === cleaner.id"
+        [class.selected]="selectedDetail()?.id === cleaner.id"
         (click)="openDetail(cleaner)">
         <div class="avatar">
           @if (cleaner.photoUrl) {
@@ -206,52 +206,52 @@
       }
     </div>
     }
-    @if (selectedDetail || loadingDetail || embedded) {
+    @if (selectedDetail() || loadingDetail() || embedded()) {
     <aside class="detail-column">
-      @if (loadingDetail) {
+      @if (loadingDetail()) {
       <div class="loading-state">Loading details…</div>
       }
 
-      @if (selectedDetail && !loadingDetail) {
+      @if (selectedDetail() && !loadingDetail()) {
 
         <div class="detail-header">
           <div
             class="avatar lg"
-            [class.clickable]="!!selectedDetail.photoUrl"
-            (click)="openImageViewer(selectedDetail.photoUrl, selectedDetail.firstName + ' ' + selectedDetail.lastName, 'cleaner photo')"
-            [attr.role]="selectedDetail.photoUrl ? 'button' : null"
-            [attr.tabindex]="selectedDetail.photoUrl ? 0 : null"
-            [attr.aria-label]="selectedDetail.photoUrl ? 'View profile photo' : null"
-            (keydown.enter)="openImageViewer(selectedDetail.photoUrl, selectedDetail.firstName + ' ' + selectedDetail.lastName, 'cleaner photo')"
-            (keydown.space)="$event.preventDefault(); openImageViewer(selectedDetail.photoUrl, selectedDetail.firstName + ' ' + selectedDetail.lastName, 'cleaner photo')">
-            @if (selectedDetail.photoUrl) {
-            <img [src]="selectedDetail.photoUrl" alt="cleaner photo" referrerpolicy="no-referrer" />
+            [class.clickable]="!!selectedDetail()!.photoUrl"
+            (click)="openImageViewer(selectedDetail()!.photoUrl, selectedDetail()!.firstName + ' ' + selectedDetail()!.lastName, 'cleaner photo')"
+            [attr.role]="selectedDetail()!.photoUrl ? 'button' : null"
+            [attr.tabindex]="selectedDetail()!.photoUrl ? 0 : null"
+            [attr.aria-label]="selectedDetail()!.photoUrl ? 'View profile photo' : null"
+            (keydown.enter)="openImageViewer(selectedDetail()!.photoUrl, selectedDetail()!.firstName + ' ' + selectedDetail()!.lastName, 'cleaner photo')"
+            (keydown.space)="$event.preventDefault(); openImageViewer(selectedDetail()!.photoUrl, selectedDetail()!.firstName + ' ' + selectedDetail()!.lastName, 'cleaner photo')">
+            @if (selectedDetail()!.photoUrl) {
+            <img [src]="selectedDetail()!.photoUrl" alt="cleaner photo" referrerpolicy="no-referrer" />
             }
-            @if (!selectedDetail.photoUrl) {
+            @if (!selectedDetail()!.photoUrl) {
             <span class="avatar-initials">
-              {{ (selectedDetail.firstName.charAt(0) || '') + (selectedDetail.lastName.charAt(0) || '') }}
+              {{ (selectedDetail()!.firstName.charAt(0) || '') + (selectedDetail()!.lastName.charAt(0) || '') }}
             </span>
             }
           </div>
           <div class="detail-name-block">
             <div class="name-line">
-              <h2>{{ selectedDetail.firstName }} {{ selectedDetail.lastName }}</h2>
-              <span [class]="rankingClass(selectedDetail.ranking)">{{ rankingLabel(selectedDetail.ranking) }}</span>
+              <h2>{{ selectedDetail()!.firstName }} {{ selectedDetail()!.lastName }}</h2>
+              <span [class]="rankingClass(selectedDetail()!.ranking)">{{ rankingLabel(selectedDetail()!.ranking) }}</span>
             </div>
             <div class="contact-line">
-              @if (selectedDetail.phone) {
-              <a class="detail-phone" [href]="telHref(selectedDetail.phone)">
-                <span class="phone-icon" aria-hidden="true">📞</span>{{ selectedDetail.phone }}
+              @if (selectedDetail()!.phone) {
+              <a class="detail-phone" [href]="telHref(selectedDetail()!.phone)">
+                <span class="phone-icon" aria-hidden="true">📞</span>{{ selectedDetail()!.phone }}
               </a>
               }
-              @if (selectedDetail.documentUrl) {
+              @if (selectedDetail()!.documentUrl) {
               <button
                 type="button"
                 class="detail-document-btn"
-                (click)="openImageViewer(selectedDetail.documentUrl, (selectedDetail.firstName + ' ' + selectedDetail.lastName + ' — ' + (documentTypeLabel(selectedDetail.documentType) || 'Document')), 'cleaner document')"
-                [attr.aria-label]="'View ' + (documentTypeLabel(selectedDetail.documentType) || 'document')">
+                (click)="openImageViewer(selectedDetail()!.documentUrl, (selectedDetail()!.firstName + ' ' + selectedDetail()!.lastName + ' — ' + (documentTypeLabel(selectedDetail()!.documentType) || 'Document')), 'cleaner document')"
+                [attr.aria-label]="'View ' + (documentTypeLabel(selectedDetail()!.documentType) || 'document')">
                 <span class="doc-icon" aria-hidden="true">📄</span>
-                <span class="doc-label">{{ documentTypeLabel(selectedDetail.documentType) || 'Document' }}</span>
+                <span class="doc-label">{{ documentTypeLabel(selectedDetail()!.documentType) || 'Document' }}</span>
               </button>
               }
             </div>
@@ -263,10 +263,10 @@
           -->
           <div class="detail-actions">
             @if (!showsInlineForm) {
-            <button type="button" class="btn-secondary" (click)="openEdit(selectedDetail)">Edit</button>
+            <button type="button" class="btn-secondary" (click)="openEdit(selectedDetail()!)">Edit</button>
             }
             @if (!showsInlineForm) {
-            <button type="button" class="btn-danger" (click)="deleteCleaner(selectedDetail)">Delete</button>
+            <button type="button" class="btn-danger" (click)="deleteCleaner(selectedDetail()!)">Delete</button>
             }
             <button type="button" class="btn-close" (click)="closeDetail()" aria-label="Close">&times;</button>
           </div>
@@ -285,72 +285,72 @@
 
         @if (!showsInlineForm) {
 
-        @if (selectedDetail.mainNote || selectedDetail.location) {
+        @if (selectedDetail()!.mainNote || selectedDetail()!.location) {
         <div class="pinned-note-row">
-          @if (selectedDetail.mainNote) {
+          @if (selectedDetail()!.mainNote) {
           <div class="pinned-note">
             <strong>📌</strong>
-            <span class="note-text-inline">{{ selectedDetail.mainNote }}</span>
+            <span class="note-text-inline">{{ selectedDetail()!.mainNote }}</span>
           </div>
           }
-          @if (selectedDetail.location) {
+          @if (selectedDetail()!.location) {
           <div class="note-location">
             <span class="location-label">Location</span>
-            <span class="location-value">{{ selectedDetail.location }}</span>
+            <span class="location-value">{{ selectedDetail()!.location }}</span>
           </div>
           }
         </div>
         }
 
         <div class="info-grid">
-          <div><label>ID</label><span class="info-id">#{{ selectedDetail.id }}</span></div>
-          @if (selectedDetail.age != null) {
-          <div><label>Age</label><span>{{ selectedDetail.age }}</span></div>
+          <div><label>ID</label><span class="info-id">#{{ selectedDetail()!.id }}</span></div>
+          @if (selectedDetail()!.age != null) {
+          <div><label>Age</label><span>{{ selectedDetail()!.age }}</span></div>
           }
-          @if (selectedDetail.email) {
+          @if (selectedDetail()!.email) {
           <div>
             <label>Email</label>
-            <span>{{ selectedDetail.email }}</span>
+            <span>{{ selectedDetail()!.email }}</span>
             <!-- Why the edit form will not let this be changed, said where the value is read. -->
-            @if (selectedDetail.isEmailManagedByAccount) {
+            @if (selectedDetail()!.isEmailManagedByAccount) {
             <span class="info-sub">
               🔒 login account
             </span>
             }
           </div>
           }
-          @if (selectedDetail.linkedUserId) {
+          @if (selectedDetail()!.linkedUserId) {
           <div>
             <label>Cleaner portal login</label>
-            <span>{{ linkedAccountLabel(selectedDetail) }}</span>
+            <span>{{ linkedAccountLabel(selectedDetail()) }}</span>
           </div>
           }
           <div><label>Jobs Completed</label><span>{{ jobsCompletedCount }}</span></div>
-          <div><label>Operating areas</label><span>{{ boroughsDisplay(selectedDetail.operatingAreas) }}</span></div>
-          @if (selectedDetail.nationality) {
-          <div><label>Nationality</label><span>{{ selectedDetail.nationality }}</span></div>
+          <div><label>Operating areas</label><span>{{ boroughsDisplay(selectedDetail()!.operatingAreas) }}</span></div>
+          @if (selectedDetail()!.nationality) {
+          <div><label>Nationality</label><span>{{ selectedDetail()!.nationality }}</span></div>
           }
-          @if (selectedDetail.experience) {
-          <div><label>Experience</label><span>{{ selectedDetail.experience }}</span></div>
+          @if (selectedDetail()!.experience) {
+          <div><label>Experience</label><span>{{ selectedDetail()!.experience }}</span></div>
           }
-          @if (paymentSummary(selectedDetail)) {
-          <div><label>Paid via</label><span>{{ paymentSummary(selectedDetail) }}</span></div>
+          @if (paymentSummary(selectedDetail()!)) {
+          <div><label>Paid via</label><span>{{ paymentSummary(selectedDetail()!) }}</span></div>
           }
-          @if (selectedDetail.ranking === 'Restricted' || selectedDetail.ranking === 3) {
+          @if (selectedDetail()!.ranking === 'Restricted' || selectedDetail()!.ranking === 3) {
           <div>
             <label>Restriction reason</label>
-            <span>{{ selectedDetail.restrictedReason || '—' }}</span>
+            <span>{{ selectedDetail()!.restrictedReason || '—' }}</span>
           </div>
           }
         </div>
 
-        @if (selectedDetail.allergies || selectedDetail.restrictions) {
+        @if (selectedDetail()!.allergies || selectedDetail()!.restrictions) {
         <div class="warnings">
-          @if (selectedDetail.allergies) {
-          <div><strong>⚠ Allergies:</strong> {{ selectedDetail.allergies }}</div>
+          @if (selectedDetail()!.allergies) {
+          <div><strong>⚠ Allergies:</strong> {{ selectedDetail()!.allergies }}</div>
           }
-          @if (selectedDetail.restrictions) {
-          <div><strong>⚠ Restrictions:</strong> {{ selectedDetail.restrictions }}</div>
+          @if (selectedDetail()!.restrictions) {
+          <div><strong>⚠ Restrictions:</strong> {{ selectedDetail()!.restrictions }}</div>
           }
         </div>
         }
@@ -358,16 +358,16 @@
         <div class="availability-summary">
           <div class="avail-row">
             <label>Available days</label>
-            <span>{{ availableDayNames(selectedDetail.busyDaysOfWeek) || 'None' }}</span>
+            <span>{{ availableDayNames(selectedDetail()!.busyDaysOfWeek) || 'None' }}</span>
           </div>
           <div class="avail-row">
             <label>Vacations</label>
-            @if (!selectedDetail.vacations?.length) {
+            @if (!selectedDetail()!.vacations?.length) {
             <span>None</span>
             }
-            @if (selectedDetail.vacations?.length) {
+            @if (selectedDetail()!.vacations?.length) {
             <span class="vacation-chips">
-              @for (v of selectedDetail.vacations; track $index) {
+              @for (v of selectedDetail()!.vacations; track $index) {
               <span class="vacation-chip">
                 {{ formatDateOnly(v.startDate) }} – {{ formatDateOnly(v.endDate) }}@if (v.note) {
                 <span class="vac-note"> · {{ v.note }}</span>
@@ -407,13 +407,13 @@
                   }
                   <span class="note-date">{{ note.createdAt | nyDate:'datetime' }}</span>
                   <div class="note-actions">
-                    @if (editingNoteId !== note.id) {
+                    @if (editingNoteId() !== note.id) {
                     <button
                       type="button"
                       class="btn-link"
                       (click)="startEditNote(note)">Edit</button>
                     }
-                    @if (editingNoteId !== note.id) {
+                    @if (editingNoteId() !== note.id) {
                     <button
                       type="button"
                       class="btn-link danger"
@@ -422,7 +422,7 @@
                   </div>
                 </div>
 
-                @if (editingNoteId === note.id) {
+                @if (editingNoteId() === note.id) {
                   <textarea aria-label="Edit note"
                     class="note-edit-textarea"
                     [(ngModel)]="editingNoteText"
@@ -434,13 +434,13 @@
                       type="button"
                       class="btn-secondary"
                       (click)="cancelEditNote()"
-                      [disabled]="savingNoteEdit">Cancel</button>
+                      [disabled]="savingNoteEdit()">Cancel</button>
                     <button
                       type="button"
                       class="btn-primary"
                       (click)="saveEditNote()"
-                      [disabled]="savingNoteEdit || !editingNoteText.trim()">
-                      {{ savingNoteEdit ? 'Saving…' : 'Save' }}
+                      [disabled]="savingNoteEdit() || !editingNoteText().trim()">
+                      {{ savingNoteEdit() ? 'Saving…' : 'Save' }}
                     </button>
                   </div>
                 } @else {
@@ -544,7 +544,7 @@
   }
 </div>
 
-@if (addNoteModalOpen) {
+@if (addNoteModalOpen()) {
 <div class="modal-overlay" (click)="closeAddNoteModal()">
   <div class="modal note-modal" (click)="$event.stopPropagation()">
     <header class="modal-header">
@@ -557,7 +557,7 @@
         <label class="perf-field-label" for="cleaner-note-text">Note</label>
         <textarea
           id="cleaner-note-text"
-          [(ngModel)]="newNote.text"
+          [(ngModel)]="newNote().text"
           rows="5"
           maxlength="2000"
           placeholder="Add a note about this cleaner…"></textarea>
@@ -565,9 +565,9 @@
     </div>
 
     <div class="modal-footer">
-      <button type="button" class="btn-secondary" (click)="closeAddNoteModal()" [disabled]="addingNote">Cancel</button>
-      <button type="button" class="btn-primary" (click)="saveAddNoteFromModal()" [disabled]="addingNote || !newNote.text.trim()">
-        {{ addingNote ? 'Saving…' : 'Save Note' }}
+      <button type="button" class="btn-secondary" (click)="closeAddNoteModal()" [disabled]="addingNote()">Cancel</button>
+      <button type="button" class="btn-primary" (click)="saveAddNoteFromModal()" [disabled]="addingNote() || !newNote().text.trim()">
+        {{ addingNote() ? 'Saving…' : 'Save Note' }}
       </button>
     </div>
   </div>
@@ -582,7 +582,7 @@
 
   The template is the single copy of the markup; only the frame around it differs.
 -->
-@if (formOpen && !embedded) {
+@if (formOpen() && !embedded()) {
 <div class="modal-overlay" (click)="closeForm()">
   <div class="modal" (click)="$event.stopPropagation()">
     <ng-container *ngTemplateOutlet="cleanerFormTpl"></ng-container>
@@ -592,7 +592,7 @@
 
 <ng-template #cleanerFormTpl>
     <header class="modal-header">
-      <h2>{{ formMode === 'create' ? 'Add Cleaner' : 'Edit Cleaner' }}</h2>
+      <h2>{{ formMode() === 'create' ? 'Add Cleaner' : 'Edit Cleaner' }}</h2>
       <button type="button" class="btn-close" (click)="closeForm()">&times;</button>
     </header>
 
@@ -600,22 +600,22 @@
       <div class="form-grid">
         <label class="full">
           <span>First name <em>*</em></span>
-          <input type="text" [(ngModel)]="formModel.firstName" name="firstName" required maxlength="50" />
+          <input type="text" [(ngModel)]="formModel().firstName" name="firstName" required maxlength="50" />
         </label>
 
         <label class="full">
           <span>Last name <em>*</em></span>
-          <input type="text" [(ngModel)]="formModel.lastName" name="lastName" required maxlength="50" />
+          <input type="text" [(ngModel)]="formModel().lastName" name="lastName" required maxlength="50" />
         </label>
 
         <label>
           <span>Age</span>
-          <input type="number" [(ngModel)]="formModel.age" name="age" min="16" max="99" />
+          <input type="number" [(ngModel)]="formModel().age" name="age" min="16" max="99" />
         </label>
 
         <label>
           <span>Nationality</span>
-          <select [(ngModel)]="formModel.nationality" name="nationality">
+          <select [(ngModel)]="formModel().nationality" name="nationality">
             <option [ngValue]="null">—</option>
             @for (opt of nationalityOptions; track opt.value) {
             <option [value]="opt.value">{{ opt.label }}</option>
@@ -628,7 +628,7 @@
           <input
             type="tel"
             inputmode="numeric"
-            [(ngModel)]="formModel.phone"
+            [(ngModel)]="formModel().phone"
             (input)="onPhoneInput($event)"
             name="phone"
             placeholder="10-digit number" />
@@ -645,16 +645,16 @@
         <label>
           <span>Email</span>
           <input type="email"
-                 [(ngModel)]="formModel.email"
+                 [(ngModel)]="formModel().email"
                  name="email"
                  maxlength="100"
-                 [readonly]="emailLockedByAccount"
-                 [class.locked]="emailLockedByAccount"
-                 [attr.aria-readonly]="emailLockedByAccount ? true : null"
-                 [attr.title]="emailLockedByAccount ? 'Set from the linked login account - change it on the account instead' : null" />
-          @if (emailLockedByAccount) {
+                 [readonly]="emailLockedByAccount()"
+                 [class.locked]="emailLockedByAccount()"
+                 [attr.aria-readonly]="emailLockedByAccount() ? true : null"
+                 [attr.title]="emailLockedByAccount() ? 'Set from the linked login account - change it on the account instead' : null" />
+          @if (emailLockedByAccount()) {
           <small class="field-hint locked-hint">
-            🔒 Signs in as <strong>{{ lockedAccountEmail }}</strong>, so this is set from that
+            🔒 Signs in as <strong>{{ lockedAccountEmail() }}</strong>, so this is set from that
             account. Change the address on the account, then re-link them on the admin panel's
             Cleaners tab - that copies it across.
           </small>
@@ -663,7 +663,7 @@
 
         <label>
           <span>Location (lives in)</span>
-          <select [(ngModel)]="formModel.location" name="location">
+          <select [(ngModel)]="formModel().location" name="location">
             <option [ngValue]="null">—</option>
             @for (opt of locationOptions; track opt.value) {
             <option [value]="opt.value">{{ opt.label }}</option>
@@ -683,7 +683,7 @@
           <div class="payment-row">
             <label class="payment-method-field">
               <span>Method</span>
-              <select [(ngModel)]="formModel.paymentMethod" name="paymentMethod">
+              <select [(ngModel)]="formModel().paymentMethod" name="paymentMethod">
                 @for (opt of paymentMethodOptions; track opt.value) {
                 <option [ngValue]="opt.value || null">{{ opt.label }}</option>
                 }
@@ -694,7 +694,7 @@
               <span>{{ paymentDetailsLabel }}</span>
               <div class="payment-details-input">
                 <input type="text"
-                       [(ngModel)]="formModel.paymentDetails"
+                       [(ngModel)]="formModel().paymentDetails"
                        name="paymentDetails"
                        maxlength="200"
                        [placeholder]="paymentDetailsLabel" />
@@ -703,19 +703,19 @@
                      banking app. -->
                 <button type="button"
                         class="copy-btn"
-                        [class.copied]="paymentDetailsCopied"
-                        [disabled]="!formModel.paymentDetails"
+                        [class.copied]="paymentDetailsCopied()"
+                        [disabled]="!formModel().paymentDetails"
                         (click)="copyFormPaymentDetails()"
                         [attr.aria-label]="'Copy ' + paymentDetailsLabel"
-                        [title]="paymentDetailsCopied ? 'Copied' : 'Copy'">
-                  @if (!paymentDetailsCopied) {
+                        [title]="paymentDetailsCopied() ? 'Copied' : 'Copy'">
+                  @if (!paymentDetailsCopied()) {
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
                     <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
                   </svg>
                   }
-                  @if (paymentDetailsCopied) {
+                  @if (paymentDetailsCopied()) {
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
                        stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                     <polyline points="20 6 9 17 4 12"/>
@@ -731,10 +731,10 @@
           <span class="field-label">Operating areas</span>
           <div class="busy-day-chips">
             @for (opt of locationOptions; track opt.value) {
-            <label class="busy-day-chip" [class.active]="operatingBoroughs[opt.value]">
+            <label class="busy-day-chip" [class.active]="operatingBoroughs()[opt.value]">
               <input
                 type="checkbox"
-                [checked]="operatingBoroughs[opt.value]"
+                [checked]="operatingBoroughs()[opt.value]"
                 (change)="toggleBorough(opt.value)"
                 [name]="'borough-' + opt.value" />
               <span>{{ opt.label }}</span>
@@ -747,10 +747,10 @@
           <span class="field-label">Available days</span>
           <div class="busy-day-chips">
             @for (day of dayOrder; track day) {
-            <label class="busy-day-chip" [class.active]="availableDays[day]">
+            <label class="busy-day-chip" [class.active]="availableDays()[day]">
               <input
                 type="checkbox"
-                [checked]="availableDays[day]"
+                [checked]="availableDays()[day]"
                 (change)="toggleAvailableDay(day)"
                 [name]="'available-' + day" />
               <span>{{ dayLabel[day] }}</span>
@@ -764,10 +764,10 @@
             <span class="field-label">Vacations</span>
             <button type="button" class="add-vacation-btn" (click)="addVacation()">+ Add vacation</button>
           </div>
-          @if (vacations.length === 0) {
+          @if (vacations().length === 0) {
           <p class="field-hint">No vacations set. Add a date range when this cleaner will be away.</p>
           }
-          @for (vac of vacations; track $index; let i = $index) {
+          @for (vac of vacations(); track $index; let i = $index) {
           <div class="vacation-row">
             <div class="vacation-dates">
               <label class="vacation-field">
@@ -793,7 +793,7 @@
 
         <label>
           <span>Ranking</span>
-          <select [(ngModel)]="formModel.ranking" name="ranking">
+          <select [(ngModel)]="formModel().ranking" name="ranking">
             @for (opt of rankingOptions; track opt.value) {
             <option [value]="opt.value">{{ opt.label }}</option>
             }
@@ -802,7 +802,7 @@
 
         <label>
           <span>Experience</span>
-          <select [(ngModel)]="formModel.experience" name="experience">
+          <select [(ngModel)]="formModel().experience" name="experience">
             @for (opt of experienceOptions; track opt.value) {
             <option [value]="opt.value">{{ opt.label }}</option>
             }
@@ -811,7 +811,7 @@
 
         <label>
           <span>Document type</span>
-          <select [(ngModel)]="formModel.documentType" name="documentType">
+          <select [(ngModel)]="formModel().documentType" name="documentType">
             @for (opt of documentTypeOptions; track opt.value) {
             <option [ngValue]="opt.value || null">{{ opt.label }}</option>
             }
@@ -822,16 +822,16 @@
           <div class="file-field">
             <span class="field-label">Document image</span>
             <div class="file-preview-row">
-              @if (formDocumentPreview) {
+              @if (formDocumentPreview()) {
               <div class="file-thumb">
-                <img [src]="formDocumentPreview" alt="document preview" />
+                <img [src]="formDocumentPreview()" alt="document preview" />
               </div>
               }
               <label class="file-button">
                 <input type="file" accept="image/*" (change)="onFormDocumentSelected($event)" />
-                <span>{{ formDocumentPreview ? 'Change document' : 'Upload document' }}</span>
+                <span>{{ formDocumentPreview() ? 'Change document' : 'Upload document' }}</span>
               </label>
-              @if (formDocumentFile || formDocumentPreview) {
+              @if (formDocumentFile() || formDocumentPreview()) {
               <button type="button" class="btn-link danger" (click)="clearFormDocument()">
                 Clear
               </button>
@@ -842,16 +842,16 @@
           <div class="file-field">
             <span class="field-label">Profile photo</span>
             <div class="file-preview-row">
-              @if (formPhotoPreview) {
+              @if (formPhotoPreview()) {
               <div class="file-thumb">
-                <img [src]="formPhotoPreview" alt="photo preview" referrerpolicy="no-referrer" />
+                <img [src]="formPhotoPreview()" alt="photo preview" referrerpolicy="no-referrer" />
               </div>
               }
               <label class="file-button">
                 <input type="file" accept="image/*" (change)="onFormPhotoSelected($event)" />
-                <span>{{ formPhotoPreview ? 'Change photo' : 'Upload photo' }}</span>
+                <span>{{ formPhotoPreview() ? 'Change photo' : 'Upload photo' }}</span>
               </label>
-              @if (formPhotoFile || formPhotoPreview) {
+              @if (formPhotoFile() || formPhotoPreview()) {
               <button type="button" class="btn-link danger" (click)="clearFormPhoto()">
                 Clear
               </button>
@@ -861,58 +861,58 @@
         </div>
 
         <label class="checkbox">
-          <input type="checkbox" [(ngModel)]="formModel.alreadyWorkedWithUs" name="alreadyWorkedWithUs" />
+          <input type="checkbox" [(ngModel)]="formModel().alreadyWorkedWithUs" name="alreadyWorkedWithUs" />
           <span>Already worked with us (not reserve)</span>
         </label>
 
-        @if (formMode === 'edit') {
+        @if (formMode() === 'edit') {
         <label class="checkbox">
-          <input type="checkbox" [(ngModel)]="formModel.isActive" name="isActive" />
+          <input type="checkbox" [(ngModel)]="formModel().isActive" name="isActive" />
           <span>Active</span>
         </label>
         }
 
-        @if (formModel.ranking === 'Restricted') {
+        @if (formModel().ranking === 'Restricted') {
         <label class="full">
           <span>Restriction reason</span>
-          <input type="text" [(ngModel)]="formModel.restrictedReason" name="restrictedReason" maxlength="500" />
+          <input type="text" [(ngModel)]="formModel().restrictedReason" name="restrictedReason" maxlength="500" />
         </label>
         }
 
         <label class="full">
           <span>Allergies (e.g. cats, dogs)</span>
-          <input type="text" [(ngModel)]="formModel.allergies" name="allergies" maxlength="1000" />
+          <input type="text" [(ngModel)]="formModel().allergies" name="allergies" maxlength="1000" />
         </label>
 
         <label class="full">
           <span>Restrictions (e.g. won't do heavy condition)</span>
-          <input type="text" [(ngModel)]="formModel.restrictions" name="restrictions" maxlength="1000" />
+          <input type="text" [(ngModel)]="formModel().restrictions" name="restrictions" maxlength="1000" />
         </label>
 
         <label class="full">
           <span>Main note (pinned summary)</span>
-          <textarea [(ngModel)]="formModel.mainNote" name="mainNote" rows="3" maxlength="2000"></textarea>
+          <textarea [(ngModel)]="formModel().mainNote" name="mainNote" rows="3" maxlength="2000"></textarea>
         </label>
       </div>
 
-      @if (formError) {
-      <div class="error-banner inline">{{ formError }}</div>
+      @if (formError()) {
+      <div class="error-banner inline">{{ formError() }}</div>
       }
 
       <div class="modal-footer">
         <button type="button" class="btn-secondary" (click)="closeForm()">Cancel</button>
-        <button type="submit" class="btn-primary" [disabled]="formSaving">
-          {{ formSaving ? 'Saving…' : (formMode === 'create' ? 'Create' : 'Save') }}
+        <button type="submit" class="btn-primary" [disabled]="formSaving()">
+          {{ formSaving() ? 'Saving…' : (formMode() === 'create' ? 'Create' : 'Save') }}
         </button>
       </div>
     </form>
 </ng-template>
 
-@if (performanceModalOpen && performanceModal) {
+@if (performanceModalOpen() && performanceModal()) {
 <div class="modal-overlay" (click)="closePerformanceModal()">
   <div class="modal perf-modal" (click)="$event.stopPropagation()">
     <header class="modal-header">
-      <h2>Performance — Order #{{ performanceModal.orderId }}</h2>
+      <h2>Performance — Order #{{ performanceModal()!.orderId }}</h2>
       <button type="button" class="btn-close" (click)="closePerformanceModal()" aria-label="Close">&times;</button>
     </header>
 
@@ -925,8 +925,8 @@
             type="button"
             class="perf-choice"
             [attr.data-category]="opt.value.toLowerCase()"
-            [class.active]="performanceModal.performance === opt.value"
-            (click)="performanceModal.performance = opt.value">
+            [class.active]="performanceModal()!.performance === opt.value"
+            (click)="performanceModal()!.performance = opt.value">
             <span class="perf-icon">{{ opt.icon }}</span>
             <span class="perf-label">{{ opt.label }}</span>
           </button>
@@ -934,8 +934,8 @@
           <button
             type="button"
             class="perf-choice perf-choice-clear"
-            [class.active]="performanceModal.performance === ''"
-            (click)="performanceModal.performance = ''">
+            [class.active]="performanceModal()!.performance === ''"
+            (click)="performanceModal()!.performance = ''">
             None
           </button>
         </div>
@@ -945,7 +945,7 @@
         <label class="perf-field-label" for="perf-note">Note (optional)</label>
         <textarea
           id="perf-note"
-          [(ngModel)]="performanceModal.text"
+          [(ngModel)]="performanceModal()!.text"
           rows="4"
           maxlength="4000"
           placeholder="Add context for this job…"></textarea>
@@ -953,32 +953,32 @@
 
       <div class="perf-field perf-order-field">
         <label class="perf-field-label">Order</label>
-        <span class="perf-order-readonly">#{{ performanceModal.orderId }}</span>
+        <span class="perf-order-readonly">#{{ performanceModal()!.orderId }}</span>
       </div>
 
-      @if (performanceModal.error) {
-      <div class="error-banner inline">{{ performanceModal.error }}</div>
+      @if (performanceModal()!.error) {
+      <div class="error-banner inline">{{ performanceModal()!.error }}</div>
       }
     </div>
 
     <div class="modal-footer">
-      @if (performanceModal.existingNoteId) {
+      @if (performanceModal()!.existingNoteId) {
       <button
         type="button"
         class="btn-danger"
         (click)="clearPerformance()"
-        [disabled]="performanceModal.saving">Clear</button>
+        [disabled]="performanceModal()!.saving">Clear</button>
       }
-      <button type="button" class="btn-secondary" (click)="closePerformanceModal()" [disabled]="performanceModal.saving">Cancel</button>
-      <button type="button" class="btn-primary" (click)="savePerformance()" [disabled]="performanceModal.saving">
-        {{ performanceModal.saving ? 'Saving…' : 'Save' }}
+      <button type="button" class="btn-secondary" (click)="closePerformanceModal()" [disabled]="performanceModal()!.saving">Cancel</button>
+      <button type="button" class="btn-primary" (click)="savePerformance()" [disabled]="performanceModal()!.saving">
+        {{ performanceModal()!.saving ? 'Saving…' : 'Save' }}
       </button>
     </div>
   </div>
 </div>
 }
 
-@if (imageViewer) {
+@if (imageViewer(); as imageViewer) {
 <div class="image-viewer-overlay" (click)="closeImageViewer()">
   <button type="button" class="image-viewer-close" (click)="closeImageViewer()" aria-label="Close">&times;</button>
   <figure class="image-viewer-figure" (click)="$event.stopPropagation()">

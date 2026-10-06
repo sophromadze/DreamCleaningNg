@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, inject, ChangeDetectionStrategy, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -41,7 +41,7 @@ interface EditableLine {
   standalone: true,
   imports: [CommonModule, FormsModule, RouterLink, CommercialClientModalComponent],
   templateUrl: './invoice-form.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./invoice-form.component.scss']
 })
 export class InvoiceFormComponent implements OnInit {
@@ -59,7 +59,7 @@ export class InvoiceFormComponent implements OnInit {
   invoiceId?: number;
   get isEdit(): boolean { return !!this.invoiceId; }
 
-  existing?: InvoiceDetail;
+  readonly existing = signal<InvoiceDetail | undefined>(undefined, { equal: () => false });
   driftChoices: string[] = [];
 
   driftKind(warning: string): 'Price' | 'Tax' | null {
@@ -69,67 +69,68 @@ export class InvoiceFormComponent implements OnInit {
 
   chooseDrift(warning: string, useCurrent: boolean): void {
     const kind = this.driftKind(warning);
-    const invoice = this.existing;
-    if (!kind || !invoice || this.monetaryLocked) return;
+    const invoice = this.existing();
+    if (!kind || !invoice || this.monetaryLocked()) return;
     if (useCurrent && kind === 'Price') {
       if (invoice.currentContractUnitPrice == null) return;
-      this.discountType = InvoiceDiscountType.None;
-      this.discountValue = null;
-      this.lines = this.lines.map(line => ({ ...line, unitPrice: invoice.currentContractUnitPrice! }));
+      this.discountType.set(InvoiceDiscountType.None);
+      this.discountValue.set(null);
+      this.lines.set(this.lines().map(line => ({ ...line, unitPrice: invoice.currentContractUnitPrice! })));
 
     }
     if (useCurrent && kind === 'Tax') {
       if (invoice.currentContractTaxType == null) return;
-      this.taxType = invoice.currentContractTaxType;
-      this.taxRate = invoice.currentContractTaxRate ?? 0;
+      this.taxType.set(invoice.currentContractTaxType);
+      this.taxRate.set(invoice.currentContractTaxRate ?? 0);
     }
     this.driftChoices = this.driftChoices.filter(c => !c.endsWith(kind));
     this.driftChoices.push((useCurrent ? 'Current' : 'Keep') + kind);
-    if (this.selectedOrderIds.length && this.driftChoices.includes('CurrentPrice')) {
+    if (this.selectedOrderIds().length && this.driftChoices.includes('CurrentPrice')) {
       if (invoice.currentContractIsWeeklyFlatFee) {
         // A WEEKLY FLAT FEE is billed per SERVICE WEEK, which the server prices from the contract
         // itself for the cleanings selected. Multiplying the weekly fee by the number of cleanings
         // here billed six weekly fees for one week of six visits.
-        this.negotiatedGroupTotal = null;
-        this.negotiatingTotal = false;
+        this.negotiatedGroupTotal.set(null);
+        this.negotiatingTotal.set(false);
       } else {
-        this.negotiatedGroupTotal = previewTotals(
-          [{ quantity: this.selectedOrderIds.length, unitPrice: invoice.currentContractUnitPrice! }],
-          this.discountType, this.discountValue, this.taxType, this.taxRate).total;
-        this.negotiatingTotal = true;
+        this.negotiatedGroupTotal.set(previewTotals(
+          [{ quantity: this.selectedOrderIds().length, unitPrice: invoice.currentContractUnitPrice! }],
+          this.discountType(), this.discountValue(), this.taxType(), this.taxRate()).total);
+        this.negotiatingTotal.set(true);
       }
     }
     invoice.draftWarnings = invoice.draftWarnings.filter(w => this.driftKind(w) !== kind);
-    if (this.selectedOrderIds.length) this.previewAllocation();
+    this.existing.set(this.existing());
+    if (this.selectedOrderIds().length) this.previewAllocation();
   }
-  clients: InvoiceClientOption[] = [];
+  readonly clients = signal<InvoiceClientOption[]>([]);
 
-  loading = true;
-  saving = false;
-  error = '';
+  readonly loading = signal(true);
+  readonly saving = signal(false);
+  readonly error = signal('');
 
   /** Shown once the client already has their copy - see EditRequiresWarning on the server. */
-  sentWarning = false;
-  monetaryLocked = false;
+  readonly sentWarning = signal(false);
+  readonly monetaryLocked = signal(false);
 
   /**
    * Whether to offer "+ New client" beside the dropdown. From the permission map, not a role test
    * - the same map `[RequirePermission(Permission.Create)]` enforces on the create endpoint.
    */
-  canCreateClient = false;
-  showClientModal = false;
+  readonly canCreateClient = signal(false);
+  readonly showClientModal = signal(false);
 
   // ── Form state ──
-  clientId: number | null = null;
-  contractId: number | null = null;
-  locationId: number | null = null;
+  readonly clientId = signal<number | null>(null);
+  readonly contractId = signal<number | null>(null);
+  readonly locationId = signal<number | null>(null);
 
-  invoiceDate = this.today();
-  dueTerms: InvoiceDueTerms = InvoiceDueTerms.Net15;
-  customDueDate = '';
+  readonly invoiceDate = signal(this.today());
+  readonly dueTerms = signal<InvoiceDueTerms>(InvoiceDueTerms.Net15);
+  readonly customDueDate = signal('');
 
-  serviceStartDate = '';
-  serviceEndDate = '';
+  readonly serviceStartDate = signal('');
+  readonly serviceEndDate = signal('');
 
   /**
    * The individual visits this invoice covers - "October 7, 14, 21, 28".
@@ -138,18 +139,18 @@ export class InvoiceFormComponent implements OnInit {
    * the whole point of producing a draft first. An empty list is legitimate and falls back to the
    * period bounds above; what is never legitimate is a range nobody's schedule supports.
    */
-  serviceDates: string[] = [];
-  newServiceDate = '';
+  readonly serviceDates = signal<string[]>([]);
+  readonly newServiceDate = signal('');
 
-  serviceAddress = '';
-  poNumber = '';
-  clientReference = '';
+  readonly serviceAddress = signal('');
+  readonly poNumber = signal('');
+  readonly clientReference = signal('');
 
-  discountType: InvoiceDiscountType = InvoiceDiscountType.None;
-  discountValue: number | null = null;
+  readonly discountType = signal<InvoiceDiscountType>(InvoiceDiscountType.None);
+  readonly discountValue = signal<number | null>(null);
 
-  taxType: InvoiceTaxType = InvoiceTaxType.Exempt;
-  taxRate: number | null = null;
+  readonly taxType = signal<InvoiceTaxType>(InvoiceTaxType.Exempt);
+  readonly taxRate = signal<number | null>(null);
 
   /**
    * The tax rate is shown LOCKED with an Edit control, matching the contract form.
@@ -158,20 +159,20 @@ export class InvoiceFormComponent implements OnInit {
    * than typing it, and an always-editable number invites a stray keystroke on the field that
    * decides what a client is charged.
    */
-  taxRateUnlocked = false;
+  readonly taxRateUnlocked = signal(false);
 
   /** Ticked while unlocked: persist this rate as the default for future documents. */
-  saveTaxRateAsDefault = false;
+  readonly saveTaxRateAsDefault = signal(false);
 
-  paymentMethod: InvoicePaymentMethod = InvoicePaymentMethod.AchBankTransfer;
+  readonly paymentMethod = signal<InvoicePaymentMethod>(InvoicePaymentMethod.AchBankTransfer);
 
-  customerNote = '';
-  internalNote = '';
+  readonly customerNote = signal('');
+  readonly internalNote = signal('');
 
-  lines: EditableLine[] = [{ description: '', quantity: 1, unitPrice: 0 }];
+  readonly lines = signal<EditableLine[]>([{ description: '', quantity: 1, unitPrice: 0 }], { equal: () => false });
 
   /** Set when contract prefill would overwrite something the admin already typed. */
-  prefillWarning = '';
+  readonly prefillWarning = signal('');
 
   // ── The cleanings this invoice covers ─────────────────────────────────────────────────────
   //
@@ -181,22 +182,22 @@ export class InvoiceFormComponent implements OnInit {
   // hidden while a selection exists, rather than sitting there offering an edit that the next
   // save would silently discard.
 
-  eligibleOrders: InvoiceEligibleOrder[] = [];
-  loadingEligible = false;
-  eligibleError = '';
+  readonly eligibleOrders = signal<InvoiceEligibleOrder[]>([]);
+  readonly loadingEligible = signal(false);
+  readonly eligibleError = signal('');
 
   /** Order ids the admin has ticked. Order is irrelevant — the server sorts by service date. */
-  selectedOrderIds: number[] = [];
+  readonly selectedOrderIds = signal<number[]>([], { equal: () => false });
   private allocationRequest = 0;
   private selectionTouched = false;
   private standaloneDraft?: { lines: EditableLine[]; dates: string[]; from: string; to: string;
     discountType: InvoiceDiscountType; discountValue: number | null };
-  get linkedDraftEditable(): boolean { return !this.existing || this.existing.status === InvoiceStatus.Draft; }
+  get linkedDraftEditable(): boolean { return !this.existing() || this.existing()!.status === InvoiceStatus.Draft; }
 
   private rememberStandalone(): void {
-    if (!this.selectedOrderIds.length) this.standaloneDraft = {
-      lines: this.lines.map(l => ({ ...l })), dates: [...this.serviceDates], from: this.serviceStartDate, to: this.serviceEndDate,
-      discountType: this.discountType, discountValue: this.discountValue
+    if (!this.selectedOrderIds().length) this.standaloneDraft = {
+      lines: this.lines().map(l => ({ ...l })), dates: [...this.serviceDates()], from: this.serviceStartDate(), to: this.serviceEndDate(),
+      discountType: this.discountType(), discountValue: this.discountValue()
     };
     this.selectionTouched = true;
   }
@@ -205,17 +206,17 @@ export class InvoiceFormComponent implements OnInit {
    * The agreed group total, when one has been negotiated. Null means "bill what the cleanings
    * cost", which is the default and the common case.
    */
-  negotiatedGroupTotal: number | null = null;
-  negotiatingTotal = false;
+  readonly negotiatedGroupTotal = signal<number | null>(null);
+  readonly negotiatingTotal = signal(false);
 
   /** The last allocation the server computed, for the preview table. */
-  allocations: InvoiceOrderAllocation[] = [];
-  allocationWarnings: string[] = [];
-  savingOrders = false;
+  readonly allocations = signal<InvoiceOrderAllocation[]>([]);
+  readonly allocationWarnings = signal<string[]>([]);
+  readonly savingOrders = signal(false);
 
   /** The last preview priced the selection as the contract's weekly flat fee, over this many weeks. */
-  pricedAsWeeklyFlatFee = false;
-  serviceWeekCount = 0;
+  readonly pricedAsWeeklyFlatFee = signal(false);
+  readonly serviceWeekCount = signal(0);
 
   /**
    * The chosen contract bills a flat fee per SERVICE WEEK. Its cleanings' own totals are then
@@ -227,7 +228,7 @@ export class InvoiceFormComponent implements OnInit {
 
   /** Committed allocations, loaded on edit — proof of what a SENT invoice actually did. */
   get hasCommittedAllocation(): boolean {
-    return this.allocations.some(a => !a.isProposal);
+    return this.allocations().some(a => !a.isProposal);
   }
 
   ngOnInit(): void {
@@ -235,15 +236,15 @@ export class InvoiceFormComponent implements OnInit {
     this.invoiceId = idParam ? Number(idParam) : undefined;
 
     this.adminService.getUserPermissions().subscribe({
-      next: p => { this.canCreateClient = !!p?.permissions?.canCreate; },
-      error: () => { this.canCreateClient = false; }
+      next: p => { this.canCreateClient.set(!!p?.permissions?.canCreate); },
+      error: () => { this.canCreateClient.set(false); }
     });
 
     this.invoiceService.clients()
-      .pipe(finalize(() => { if (!this.isEdit) this.loading = false; }))
+      .pipe(finalize(() => { if (!this.isEdit) this.loading.set(false); }))
       .subscribe({
         next: list => {
-          this.clients = list;
+          this.clients.set(list);
           if (this.isEdit) {
             this.loadExisting();
           } else {
@@ -252,8 +253,8 @@ export class InvoiceFormComponent implements OnInit {
           }
         },
         error: err => {
-          this.error = extractApiErrorMessage(err, 'Could not load commercial clients.');
-          this.loading = false;
+          this.error.set(extractApiErrorMessage(err, 'Could not load commercial clients.'));
+          this.loading.set(false);
         }
       });
   }
@@ -266,7 +267,7 @@ export class InvoiceFormComponent implements OnInit {
   private preselectFromQuery(): void {
     const raw = this.route.snapshot.queryParamMap.get('clientId');
     const clientId = raw ? Number(raw) : NaN;
-    if (!clientId || !this.clients.some(c => c.id === clientId)) return;
+    if (!clientId || !this.clients().some(c => c.id === clientId)) return;
 
     // The Orders panel sends the cleaning it wants billed along with the client, so "put this job
     // on an invoice" lands on a form that already has that job ticked. Stashed rather than applied
@@ -276,7 +277,7 @@ export class InvoiceFormComponent implements OnInit {
     const orderId = rawOrder ? Number(rawOrder) : NaN;
     this.preselectOrderId = orderId > 0 ? orderId : null;
 
-    this.clientId = clientId;
+    this.clientId.set(clientId);
     this.onClientChange();
   }
 
@@ -295,79 +296,79 @@ export class InvoiceFormComponent implements OnInit {
   private applyBillingDefaults(): void {
     this.invoiceService.getBillingDefaults().subscribe({
       next: d => {
-        this.taxType = d.defaultTaxType;
-        this.taxRate = d.defaultTaxRate ?? null;
-        this.dueTerms = d.defaultDueTerms;
+        this.taxType.set(d.defaultTaxType);
+        this.taxRate.set(d.defaultTaxRate ?? null);
+        this.dueTerms.set(d.defaultDueTerms);
       },
       // Defaults are a convenience; the form is perfectly usable without them.
       error: () => {}
     });
 
     this.invoiceService.getBillingSettings().subscribe({
-      next: s => { if (!this.customerNote) this.customerNote = s.defaultCustomerNote ?? ''; },
+      next: s => { if (!this.customerNote()) this.customerNote.set(s.defaultCustomerNote ?? ''); },
       error: () => {}
     });
   }
 
   unlockTaxRate(): void {
-    this.taxRateUnlocked = true;
+    this.taxRateUnlocked.set(true);
   }
 
   private loadExisting(): void {
     this.invoiceService.get(this.invoiceId!)
-      .pipe(finalize(() => this.loading = false))
+      .pipe(finalize(() => this.loading.set(false)))
       .subscribe({
         next: inv => {
-          this.existing = inv;
-          this.sentWarning = inv.editRequiresWarning;
-          this.monetaryLocked = !inv.canEditMonetaryValues;
+          this.existing.set(inv);
+          this.sentWarning.set(inv.editRequiresWarning);
+          this.monetaryLocked.set(!inv.canEditMonetaryValues);
 
-          this.clientId = inv.contractClientId;
-          this.contractId = inv.contractId ?? null;
-          this.locationId = inv.contractServiceLocationId ?? null;
+          this.clientId.set(inv.contractClientId);
+          this.contractId.set(inv.contractId ?? null);
+          this.locationId.set(inv.contractServiceLocationId ?? null);
 
-          this.invoiceDate = inv.invoiceDate.slice(0, 10);
-          this.dueTerms = inv.dueTerms;
-          this.customDueDate = inv.dueDate.slice(0, 10);
+          this.invoiceDate.set(inv.invoiceDate.slice(0, 10));
+          this.dueTerms.set(inv.dueTerms);
+          this.customDueDate.set(inv.dueDate.slice(0, 10));
 
-          this.serviceStartDate = inv.serviceStartDate?.slice(0, 10) ?? '';
-          this.serviceEndDate = inv.serviceEndDate?.slice(0, 10) ?? '';
-          this.serviceDates = (inv.serviceDates ?? []).map(d => d.slice(0, 10));
-          this.serviceAddress = inv.serviceAddress ?? '';
-          this.poNumber = inv.poNumber ?? '';
-          this.clientReference = inv.clientReference ?? '';
+          this.serviceStartDate.set(inv.serviceStartDate?.slice(0, 10) ?? '');
+          this.serviceEndDate.set(inv.serviceEndDate?.slice(0, 10) ?? '');
+          this.serviceDates.set((inv.serviceDates ?? []).map(d => d.slice(0, 10)));
+          this.serviceAddress.set(inv.serviceAddress ?? '');
+          this.poNumber.set(inv.poNumber ?? '');
+          this.clientReference.set(inv.clientReference ?? '');
 
-          this.discountType = inv.discountType;
-          this.discountValue = inv.discountValue ?? null;
-          this.taxType = inv.taxType;
-          this.taxRate = inv.taxRate ?? null;
-          this.paymentMethod = inv.paymentMethod;
+          this.discountType.set(inv.discountType);
+          this.discountValue.set(inv.discountValue ?? null);
+          this.taxType.set(inv.taxType);
+          this.taxRate.set(inv.taxRate ?? null);
+          this.paymentMethod.set(inv.paymentMethod);
 
-          this.customerNote = inv.customerNote ?? '';
-          this.internalNote = inv.internalNote ?? '';
+          this.customerNote.set(inv.customerNote ?? '');
+          this.internalNote.set(inv.internalNote ?? '');
 
-          this.lines = inv.items.length
+          this.lines.set(inv.items.length
             ? inv.items.map(i => ({
                 id: i.id, description: i.description, quantity: i.quantity, unitPrice: i.unitPrice
               }))
-            : [{ description: '', quantity: 1, unitPrice: 0 }];
+            : [{ description: '', quantity: 1, unitPrice: 0 }]);
 
           // A negotiated figure round-trips, so re-opening a draft shows the agreed total rather
           // than four $875 lines with no explanation of where they came from.
-          this.negotiatedGroupTotal = inv.negotiatedOrderGroupTotal ?? null;
-          this.negotiatingTotal = this.negotiatedGroupTotal != null;
+          this.negotiatedGroupTotal.set(inv.negotiatedOrderGroupTotal ?? null);
+          this.negotiatingTotal.set(this.negotiatedGroupTotal() != null);
 
           this.loadEligibleOrders();
           this.loadAllocations();
         },
-        error: err => this.error = extractApiErrorMessage(err, 'Could not load the invoice.')
+        error: err => this.error.set(extractApiErrorMessage(err, 'Could not load the invoice.'))
       });
   }
 
   // ── Derived views of the selected client ──
 
   get selectedClient(): InvoiceClientOption | undefined {
-    return this.clients.find(c => c.id === this.clientId);
+    return this.clients().find(c => c.id === this.clientId());
   }
 
   get availableLocations(): InvoiceLocationOption[] {
@@ -379,7 +380,7 @@ export class InvoiceFormComponent implements OnInit {
   }
 
   get selectedContract(): InvoiceContractOption | undefined {
-    return this.availableContracts.find(c => c.id === this.contractId);
+    return this.availableContracts.find(c => c.id === this.contractId());
   }
 
   /**
@@ -388,27 +389,27 @@ export class InvoiceFormComponent implements OnInit {
    */
   onClientChange(): void {
     ++this.allocationRequest;
-    this.savingOrders = false;
+    this.savingOrders.set(false);
     this.selectionTouched = false;
-    this.contractId = null;
-    this.locationId = null;
-    this.prefillWarning = '';
+    this.contractId.set(null);
+    this.locationId.set(null);
+    this.prefillWarning.set('');
 
     const client = this.selectedClient;
     if (client?.locations.length === 1) {
-      this.locationId = client.locations[0].id;
-      this.serviceAddress = client.locations[0].address;
+      this.locationId.set(client.locations[0].id);
+      this.serviceAddress.set(client.locations[0].address);
     } else {
-      this.serviceAddress = '';
+      this.serviceAddress.set('');
     }
 
     // A selection belongs to ONE client. Carrying it across would offer to bill somebody else's
     // cleanings — which the server refuses, but the form should not have offered.
-    this.selectedOrderIds = [];
-    this.allocations = [];
-    this.allocationWarnings = [];
-    this.negotiatedGroupTotal = null;
-    this.negotiatingTotal = false;
+    this.selectedOrderIds.set([]);
+    this.allocations.set([]);
+    this.allocationWarnings.set([]);
+    this.negotiatedGroupTotal.set(null);
+    this.negotiatingTotal.set(false);
 
     this.loadEligibleOrders();
   }
@@ -416,20 +417,20 @@ export class InvoiceFormComponent implements OnInit {
   // ── The cleanings this invoice covers ─────────────────────────────────────────────────────
 
   loadEligibleOrders(): void {
-    this.eligibleOrders = [];
-    this.eligibleError = '';
-    if (!this.clientId) return;
+    this.eligibleOrders.set([]);
+    this.eligibleError.set('');
+    if (!this.clientId()) return;
 
-    this.loadingEligible = true;
-    this.invoiceService.eligibleOrders(this.clientId, { invoiceId: this.invoiceId, contractId: this.contractId })
-      .pipe(finalize(() => { this.loadingEligible = false; }))
+    this.loadingEligible.set(true);
+    this.invoiceService.eligibleOrders(this.clientId()!, { invoiceId: this.invoiceId, contractId: this.contractId() })
+      .pipe(finalize(() => { this.loadingEligible.set(false); }))
       .subscribe({
         next: res => {
-          this.eligibleOrders = res.orders;
+          this.eligibleOrders.set(res.orders);
           // Rows already on THIS invoice come back ticked, so re-opening a draft shows the
           // selection it was saved with rather than an empty picker beside four line items.
           const already = res.orders.filter(o => o.isOnThisInvoice).map(o => o.orderId);
-          if (!this.selectionTouched && already.length && this.selectedOrderIds.length === 0) this.selectedOrderIds = already;
+          if (!this.selectionTouched && already.length && this.selectedOrderIds().length === 0) this.selectedOrderIds.set(already);
 
           // Honour ?orderId= now that we know whether that cleaning is actually selectable.
           // Once only — a later reload of the picker must not re-tick a row the admin unticked.
@@ -437,17 +438,17 @@ export class InvoiceFormComponent implements OnInit {
             const wanted = res.orders.find(
               o => o.orderId === this.preselectOrderId && o.canSelect);
             this.preselectOrderId = null;
-            if (wanted && !this.selectedOrderIds.includes(wanted.orderId)) {
-              this.selectedOrderIds = [...this.selectedOrderIds, wanted.orderId];
+            if (wanted && !this.selectedOrderIds().includes(wanted.orderId)) {
+              this.selectedOrderIds.set([...this.selectedOrderIds(), wanted.orderId]);
               this.selectionTouched = true;
             }
           }
-          if (this.selectedOrderIds.length && this.linkedDraftEditable) this.previewAllocation();
+          if (this.selectedOrderIds().length && this.linkedDraftEditable) this.previewAllocation();
         },
         error: err => {
           // Never fatal: an invoice can perfectly well be raised without linking any cleaning.
-          this.eligibleError = extractApiErrorMessage(
-            err, 'Could not load this client\'s cleanings.');
+          this.eligibleError.set(extractApiErrorMessage(
+            err, 'Could not load this client\'s cleanings.'));
         }
       });
   }
@@ -457,10 +458,10 @@ export class InvoiceFormComponent implements OnInit {
     this.invoiceService.orders(this.invoiceId).subscribe({
       next: rows => {
         if (this.selectionTouched) return;
-        this.allocations = rows;
-        if (!this.selectionTouched && rows.length && this.selectedOrderIds.length === 0) {
-          this.selectedOrderIds = rows.map(r => r.orderId);
-          if (this.eligibleOrders.length && this.linkedDraftEditable) this.previewAllocation();
+        this.allocations.set(rows);
+        if (!this.selectionTouched && rows.length && this.selectedOrderIds().length === 0) {
+          this.selectedOrderIds.set(rows.map(r => r.orderId));
+          if (this.eligibleOrders().length && this.linkedDraftEditable) this.previewAllocation();
         }
       },
       error: () => { /* the picker below still works; the preview simply stays empty */ }
@@ -468,57 +469,57 @@ export class InvoiceFormComponent implements OnInit {
   }
 
   isOrderSelected(order: InvoiceEligibleOrder): boolean {
-    return this.selectedOrderIds.includes(order.orderId);
+    return this.selectedOrderIds().includes(order.orderId);
   }
 
   toggleOrder(order: InvoiceEligibleOrder): void {
-    if (!order.canSelect || this.monetaryLocked || !this.linkedDraftEditable) return;
+    if (!order.canSelect || this.monetaryLocked() || !this.linkedDraftEditable) return;
     this.rememberStandalone();
 
     // A cleaning a contract-linked plan scheduled can only be billed on THAT contract's invoice
     // (the server refuses otherwise). Picking one with no contract chosen yet chooses it.
-    if (order.contractId && !this.contractId && this.availableContracts.some(c => c.id === order.contractId)) {
-      this.contractId = order.contractId;
+    if (order.contractId && !this.contractId() && this.availableContracts.some(c => c.id === order.contractId)) {
+      this.contractId.set(order.contractId);
       this.onContractChange();
     }
 
-    const index = this.selectedOrderIds.indexOf(order.orderId);
-    if (index >= 0) this.selectedOrderIds.splice(index, 1);
-    else this.selectedOrderIds.push(order.orderId);
+    const index = this.selectedOrderIds().indexOf(order.orderId);
+    if (index >= 0) { this.selectedOrderIds().splice(index, 1); this.selectedOrderIds.set(this.selectedOrderIds()); }
+    else { this.selectedOrderIds().push(order.orderId); this.selectedOrderIds.set(this.selectedOrderIds()); }
 
     // The negotiated figure was agreed for a SPECIFIC set of visits. Changing the set makes it
     // meaningless — four visits at $3,500 is not three visits at $3,500 — so it is dropped rather
     // than silently re-divided across a different number of cleanings.
-    if (this.negotiatingTotal) {
-      this.negotiatedGroupTotal = null;
-      this.negotiatingTotal = false;
+    if (this.negotiatingTotal()) {
+      this.negotiatedGroupTotal.set(null);
+      this.negotiatingTotal.set(false);
     }
 
     this.previewAllocation();
   }
 
   selectAllEligible(): void {
-    if (this.monetaryLocked || !this.linkedDraftEditable) return;
+    if (this.monetaryLocked() || !this.linkedDraftEditable) return;
     this.rememberStandalone();
-    this.selectedOrderIds = this.eligibleOrders.filter(o => o.canSelect).map(o => o.orderId);
-    this.negotiatedGroupTotal = null;
-    this.negotiatingTotal = false;
+    this.selectedOrderIds.set(this.eligibleOrders().filter(o => o.canSelect).map(o => o.orderId));
+    this.negotiatedGroupTotal.set(null);
+    this.negotiatingTotal.set(false);
     this.previewAllocation();
   }
 
   clearOrderSelection(): void {
-    if (this.monetaryLocked || !this.linkedDraftEditable) return;
+    if (this.monetaryLocked() || !this.linkedDraftEditable) return;
     this.selectionTouched = true;
-    this.selectedOrderIds = [];
-    this.negotiatedGroupTotal = null;
-    this.negotiatingTotal = false;
-    this.allocations = [];
-    this.allocationWarnings = [];
+    this.selectedOrderIds.set([]);
+    this.negotiatedGroupTotal.set(null);
+    this.negotiatingTotal.set(false);
+    this.allocations.set([]);
+    this.allocationWarnings.set([]);
     this.previewAllocation();
   }
 
   get selectedOrders(): InvoiceEligibleOrder[] {
-    return this.eligibleOrders.filter(o => this.selectedOrderIds.includes(o.orderId));
+    return this.eligibleOrders().filter(o => this.selectedOrderIds().includes(o.orderId));
   }
 
   /** What the selected cleanings cost today, before any negotiation. */
@@ -527,16 +528,16 @@ export class InvoiceFormComponent implements OnInit {
   }
 
   startNegotiatingTotal(): void {
-    this.negotiatingTotal = true;
-    if (this.negotiatedGroupTotal == null) {
-      this.negotiatedGroupTotal = this.selectedOrdersDefaultTotal;
+    this.negotiatingTotal.set(true);
+    if (this.negotiatedGroupTotal() == null) {
+      this.negotiatedGroupTotal.set(this.selectedOrdersDefaultTotal);
     }
     this.previewAllocation();
   }
 
   cancelNegotiatedTotal(): void {
-    this.negotiatingTotal = false;
-    this.negotiatedGroupTotal = null;
+    this.negotiatingTotal.set(false);
+    this.negotiatedGroupTotal.set(null);
     this.previewAllocation();
   }
 
@@ -550,70 +551,70 @@ export class InvoiceFormComponent implements OnInit {
   previewAllocation(): void {
     if (!this.linkedDraftEditable) return;
     const version = ++this.allocationRequest;
-    this.eligibleError = '';
-    if (this.selectedOrderIds.length === 0) {
-      this.allocations = [];
-      this.allocationWarnings = [];
-      this.pricedAsWeeklyFlatFee = false;
-      this.serviceWeekCount = 0;
-      this.savingOrders = false;
+    this.eligibleError.set('');
+    if (this.selectedOrderIds().length === 0) {
+      this.allocations.set([]);
+      this.allocationWarnings.set([]);
+      this.pricedAsWeeklyFlatFee.set(false);
+      this.serviceWeekCount.set(0);
+      this.savingOrders.set(false);
       if (this.selectionTouched) {
-        this.lines = this.standaloneDraft?.lines.map(l => ({ ...l })) ?? [{ description: '', quantity: 1, unitPrice: 0 }];
-        this.serviceDates = [...(this.standaloneDraft?.dates ?? [])];
-        this.serviceStartDate = this.standaloneDraft?.from ?? '';
-        this.serviceEndDate = this.standaloneDraft?.to ?? '';
-        this.discountType = this.standaloneDraft?.discountType ?? InvoiceDiscountType.None;
-        this.discountValue = this.standaloneDraft?.discountValue ?? null;
+        this.lines.set(this.standaloneDraft?.lines.map(l => ({ ...l })) ?? [{ description: '', quantity: 1, unitPrice: 0 }]);
+        this.serviceDates.set([...(this.standaloneDraft?.dates ?? [])]);
+        this.serviceStartDate.set(this.standaloneDraft?.from ?? '');
+        this.serviceEndDate.set(this.standaloneDraft?.to ?? '');
+        this.discountType.set(this.standaloneDraft?.discountType ?? InvoiceDiscountType.None);
+        this.discountValue.set(this.standaloneDraft?.discountValue ?? null);
       }
       return;
     }
 
     const selected = [...this.selectedOrders].sort((a, b) => a.serviceDate.localeCompare(b.serviceDate) || a.orderId - b.orderId);
-    this.discountType = InvoiceDiscountType.None;
-    this.discountValue = null;
-    this.serviceDates = [...new Set(selected.map(o => o.serviceDate.slice(0, 10)))];
-    this.serviceStartDate = this.serviceDates[0] ?? '';
-    this.serviceEndDate = this.serviceDates[this.serviceDates.length - 1] ?? '';
+    this.discountType.set(InvoiceDiscountType.None);
+    this.discountValue.set(null);
+    this.serviceDates.set([...new Set(selected.map(o => o.serviceDate.slice(0, 10)))]);
+    this.serviceStartDate.set(this.serviceDates()[0] ?? '');
+    this.serviceEndDate.set(this.serviceDates()[this.serviceDates().length - 1] ?? '');
     // Placeholder lines until the server answers — never under a weekly flat fee, where a
     // cleaning's own total is not a charge and summing them would flash six weekly fees.
     if (!this.contractIsWeeklyFlatFee) {
-      this.lines = selected.map(o => ({ description: `${o.serviceTypeName} — ${o.serviceDate.slice(0, 10)} (#${o.orderId})`, quantity: 1, unitPrice: o.total }));
+      this.lines.set(selected.map(o => ({ description: `${o.serviceTypeName} — ${o.serviceDate.slice(0, 10)} (#${o.orderId})`, quantity: 1, unitPrice: o.total })));
     }
 
-    this.savingOrders = true;
+    this.savingOrders.set(true);
     this.invoiceService.previewOrders(this.buildPayload(), this.invoiceId)
-      .pipe(finalize(() => { if (version === this.allocationRequest) this.savingOrders = false; }))
+      .pipe(finalize(() => { if (version === this.allocationRequest) this.savingOrders.set(false); }))
       .subscribe({
         next: res => {
           if (version !== this.allocationRequest) return;
-          this.allocations = res.allocations;
-          this.allocationWarnings = res.warnings;
-          this.pricedAsWeeklyFlatFee = !!res.pricedAsWeeklyFlatFee;
-          this.serviceWeekCount = res.serviceWeekCount ?? 0;
-          this.eligibleError = '';
+          this.allocations.set(res.allocations);
+          this.allocationWarnings.set(res.warnings);
+          this.pricedAsWeeklyFlatFee.set(!!res.pricedAsWeeklyFlatFee);
+          this.serviceWeekCount.set(res.serviceWeekCount ?? 0);
+          this.eligibleError.set('');
           // The server rebuilt the line items from the selection; mirror them so the totals
           // preview and the saved invoice agree.
-          this.lines = res.items.map(i => ({ description: i.description, quantity: i.quantity, unitPrice: i.unitPrice }));
-          this.serviceDates = res.serviceDates.map(d => d.slice(0, 10));
-          this.serviceStartDate = this.serviceDates[0] ?? '';
-          this.serviceEndDate = this.serviceDates[this.serviceDates.length - 1] ?? '';
+          this.lines.set(res.items.map(i => ({ description: i.description, quantity: i.quantity, unitPrice: i.unitPrice })));
+          this.serviceDates.set(res.serviceDates.map(d => d.slice(0, 10)));
+          this.serviceStartDate.set(this.serviceDates()[0] ?? '');
+          this.serviceEndDate.set(this.serviceDates()[this.serviceDates().length - 1] ?? '');
         },
         error: err => {
           if (version !== this.allocationRequest) return;
-          this.eligibleError = extractApiErrorMessage(
-            err, 'Could not work out the split for these cleanings.');
+          this.eligibleError.set(extractApiErrorMessage(
+            err, 'Could not work out the split for these cleanings.'));
         }
       });
   }
 
   onLocationChange(): void {
-    const location = this.availableLocations.find(l => l.id === this.locationId);
-    if (location) this.serviceAddress = location.address;
+    const location = this.availableLocations.find(l => l.id === this.locationId());
+    if (location) this.serviceAddress.set(location.address);
   }
 
   openClientModal(): void {
-    if (!this.canCreateClient || this.monetaryLocked) return;
-    this.showClientModal = true;
+    if (!this.canCreateClient() || this.monetaryLocked()) return;
+    this.showClientModal.set(true);
   }
 
   /**
@@ -632,7 +633,7 @@ export class InvoiceFormComponent implements OnInit {
   onClientCreated(client: ContractClient): void {
     this.invoiceService.clients().subscribe({
       next: list => {
-        this.clients = list;
+        this.clients.set(list);
         this.selectClient(client.id);
       },
       error: () => this.selectClient(client.id)
@@ -640,7 +641,7 @@ export class InvoiceFormComponent implements OnInit {
   }
 
   private selectClient(clientId: number): void {
-    this.clientId = clientId;
+    this.clientId.set(clientId);
     this.onClientChange();
   }
 
@@ -653,49 +654,48 @@ export class InvoiceFormComponent implements OnInit {
    * prefill cannot quietly undo something they meant.
    */
   onContractChange(): void {
-    this.prefillWarning = '';
+    this.prefillWarning.set('');
     const contract = this.selectedContract;
     if (!contract) return;
 
     const kept: string[] = [];
 
-    if (contract.serviceLocationId && !this.locationId) {
-      this.locationId = contract.serviceLocationId;
+    if (contract.serviceLocationId && !this.locationId()) {
+      this.locationId.set(contract.serviceLocationId);
     }
-    if (contract.serviceAddress && !this.serviceAddress) {
-      this.serviceAddress = contract.serviceAddress;
+    if (contract.serviceAddress && !this.serviceAddress()) {
+      this.serviceAddress.set(contract.serviceAddress);
     }
 
-    const hasTypedLines = this.lines.some(l => l.description.trim() || l.unitPrice > 0);
+    const hasTypedLines = this.lines().some(l => l.description.trim() || l.unitPrice > 0);
     if (hasTypedLines) {
       kept.push('the line items you have already entered');
     } else if (contract.agreedAmount) {
-      this.lines = [{
+      this.lines.set([{
         description: contract.serviceDescription || 'Commercial cleaning services',
         quantity: 1,
         unitPrice: contract.agreedAmount
-      }];
+      }]);
     }
 
     // Only a still-default (Exempt, no rate) tax setting is replaced by the contract's.
-    const taxUntouched = this.taxType === InvoiceTaxType.Exempt && !this.taxRate;
+    const taxUntouched = this.taxType() === InvoiceTaxType.Exempt && !this.taxRate();
     if (contract.taxType !== undefined && contract.taxType !== null) {
       if (taxUntouched) {
-        this.taxType = contract.taxType;
-        this.taxRate = contract.taxRate ?? null;
+        this.taxType.set(contract.taxType);
+        this.taxRate.set(contract.taxRate ?? null);
       } else {
         kept.push('your tax settings');
       }
     }
 
     if (kept.length) {
-      this.prefillWarning =
-        `Filled in what was empty from ${contract.contractNumber}, and kept ${kept.join(' and ')}.`;
+      this.prefillWarning.set(`Filled in what was empty from ${contract.contractNumber}, and kept ${kept.join(' and ')}.`);
     }
 
     // The contract decides which cleanings belong here (another contract's are listed as blocked)
     // and, for a weekly flat fee, how they are priced — so the picker and split are re-read.
-    if (this.clientId) this.loadEligibleOrders();
+    if (this.clientId()) this.loadEligibleOrders();
   }
 
   // ── Service dates ──
@@ -705,16 +705,16 @@ export class InvoiceFormComponent implements OnInit {
   // sending is what "the admin reviews the generated dates" means.
 
   addServiceDate(): void {
-    const date = this.newServiceDate;
-    if (!date || this.serviceDates.includes(date)) return;
+    const date = this.newServiceDate();
+    if (!date || this.serviceDates().includes(date)) return;
 
-    this.serviceDates = [...this.serviceDates, date].sort();
-    this.newServiceDate = '';
+    this.serviceDates.set([...this.serviceDates(), date].sort());
+    this.newServiceDate.set('');
     this.syncServicePeriodToDates();
   }
 
   removeServiceDate(date: string): void {
-    this.serviceDates = this.serviceDates.filter(d => d !== date);
+    this.serviceDates.set(this.serviceDates().filter(d => d !== date));
     this.syncServicePeriodToDates();
   }
 
@@ -727,9 +727,9 @@ export class InvoiceFormComponent implements OnInit {
    * may still want the range they typed.
    */
   private syncServicePeriodToDates(): void {
-    if (this.serviceDates.length === 0) return;
-    this.serviceStartDate = this.serviceDates[0];
-    this.serviceEndDate = this.serviceDates[this.serviceDates.length - 1];
+    if (this.serviceDates().length === 0) return;
+    this.serviceStartDate.set(this.serviceDates()[0]);
+    this.serviceEndDate.set(this.serviceDates()[this.serviceDates().length - 1]);
   }
 
   /**
@@ -740,21 +740,23 @@ export class InvoiceFormComponent implements OnInit {
    * the version the admin sees before pressing the button. Ad-hoc invoices are unaffected.
    */
   get needsServiceDates(): boolean {
-    return !!this.contractId
-      && this.serviceDates.length === 0
-      && !this.serviceStartDate
-      && !this.serviceEndDate;
+    return !!this.contractId()
+      && this.serviceDates().length === 0
+      && !this.serviceStartDate()
+      && !this.serviceEndDate();
   }
 
   // ── Line items ──
 
   addLine(): void {
-    this.lines.push({ description: '', quantity: 1, unitPrice: 0 });
+    this.lines().push({ description: '', quantity: 1, unitPrice: 0 });
+    this.lines.set(this.lines());
   }
 
   removeLine(index: number): void {
-    this.lines.splice(index, 1);
-    if (!this.lines.length) this.addLine();
+    this.lines().splice(index, 1);
+    this.lines.set(this.lines());
+    if (!this.lines().length) this.addLine();
   }
 
   lineAmount(line: EditableLine): number {
@@ -765,35 +767,33 @@ export class InvoiceFormComponent implements OnInit {
 
   get totals() {
     return previewTotals(
-      this.lines.map(l => ({ quantity: l.quantity || 0, unitPrice: l.unitPrice || 0 })),
-      this.discountType, this.discountValue, this.taxType, this.taxRate);
+      this.lines().map(l => ({ quantity: l.quantity || 0, unitPrice: l.unitPrice || 0 })),
+      this.discountType(), this.discountValue(), this.taxType(), this.taxRate());
   }
 
-  get amountPaid(): number { return this.existing?.amountPaid ?? 0; }
+  get amountPaid(): number { return this.existing()?.amountPaid ?? 0; }
 
   get balanceDue(): number { return Math.max(0, this.totals.total - this.amountPaid); }
 
   /** What the Due Date box shows, resolved the same way the server will resolve it. */
-  get resolvedDueDate(): string {
-    return resolveDueDate(this.invoiceDate, this.dueTerms, this.customDueDate);
-  }
+  readonly resolvedDueDate = computed<string>(() => resolveDueDate(this.invoiceDate(), this.dueTerms(), this.customDueDate()));
 
   onDueTermsChange(): void {
-    if (this.dueTerms !== InvoiceDueTerms.Custom) {
-      this.customDueDate = this.resolvedDueDate;
+    if (this.dueTerms() !== InvoiceDueTerms.Custom) {
+      this.customDueDate.set(this.resolvedDueDate());
     }
   }
 
   // ── Save ──
 
   get canSave(): boolean {
-    return !!this.clientId
-      && this.lines.some(l => l.description.trim())
-      && !this.saving && !this.savingOrders && (!this.selectedOrderIds.length || !this.eligibleError);
+    return !!this.clientId()
+      && this.lines().some(l => l.description.trim())
+      && !this.saving() && !this.savingOrders() && (!this.selectedOrderIds().length || !this.eligibleError());
   }
 
   private buildPayload(): SaveInvoice {
-    const items: SaveInvoiceItem[] = this.lines
+    const items: SaveInvoiceItem[] = this.lines()
       .filter(l => l.description.trim())
       .map((l, index) => ({
         id: l.id,
@@ -804,31 +804,31 @@ export class InvoiceFormComponent implements OnInit {
       }));
 
     return {
-      orderIds: this.linkedDraftEditable ? [...this.selectedOrderIds] : undefined,
-      negotiatedGroupTotal: this.negotiatingTotal ? this.negotiatedGroupTotal : null,
-      contractClientId: this.clientId!,
+      orderIds: this.linkedDraftEditable ? [...this.selectedOrderIds()] : undefined,
+      negotiatedGroupTotal: this.negotiatingTotal() ? this.negotiatedGroupTotal() : null,
+      contractClientId: this.clientId()!,
       draftDriftChoices: this.driftChoices,
-      contractId: this.contractId,
-      contractServiceLocationId: this.locationId,
-      invoiceDate: this.invoiceDate,
-      dueTerms: this.dueTerms,
-      customDueDate: this.dueTerms === InvoiceDueTerms.Custom ? this.customDueDate : null,
-      serviceStartDate: this.serviceStartDate || null,
-      serviceEndDate: this.serviceEndDate || null,
-      serviceDates: this.serviceDates,
-      serviceAddress: this.serviceAddress.trim() || null,
-      poNumber: this.poNumber.trim() || null,
-      clientReference: this.clientReference.trim() || null,
-      discountType: this.discountType,
-      discountValue: this.discountType === InvoiceDiscountType.None ? null : this.discountValue,
-      taxType: this.taxType,
-      taxRate: this.taxType === InvoiceTaxType.Exempt ? null : this.taxRate,
+      contractId: this.contractId(),
+      contractServiceLocationId: this.locationId(),
+      invoiceDate: this.invoiceDate(),
+      dueTerms: this.dueTerms(),
+      customDueDate: this.dueTerms() === InvoiceDueTerms.Custom ? this.customDueDate() : null,
+      serviceStartDate: this.serviceStartDate() || null,
+      serviceEndDate: this.serviceEndDate() || null,
+      serviceDates: this.serviceDates(),
+      serviceAddress: this.serviceAddress().trim() || null,
+      poNumber: this.poNumber().trim() || null,
+      clientReference: this.clientReference().trim() || null,
+      discountType: this.discountType(),
+      discountValue: this.discountType() === InvoiceDiscountType.None ? null : this.discountValue(),
+      taxType: this.taxType(),
+      taxRate: this.taxType() === InvoiceTaxType.Exempt ? null : this.taxRate(),
       // Only ever true while the rate is unlocked - a locked field cannot have been edited, so
       // it must not silently rewrite the company's default on every save.
-      saveTaxRateAsDefault: this.taxRateUnlocked && this.saveTaxRateAsDefault,
-      paymentMethod: this.paymentMethod,
-      customerNote: this.customerNote.trim() || null,
-      internalNote: this.internalNote.trim() || null,
+      saveTaxRateAsDefault: this.taxRateUnlocked() && this.saveTaxRateAsDefault(),
+      paymentMethod: this.paymentMethod(),
+      customerNote: this.customerNote().trim() || null,
+      internalNote: this.internalNote().trim() || null,
       items
     };
   }
@@ -846,8 +846,8 @@ export class InvoiceFormComponent implements OnInit {
   private persist(thenSend: boolean): void {
     if (!this.canSave) return;
 
-    this.saving = true;
-    this.error = '';
+    this.saving.set(true);
+    this.error.set('');
 
     const payload = this.buildPayload();
     const request$ = this.isEdit
@@ -858,15 +858,15 @@ export class InvoiceFormComponent implements OnInit {
       next: saved => {
         // Invoice fields and the linked-order selection are saved together by the backend.
         if (!thenSend) {
-          this.saving = false;
+          this.saving.set(false);
           this.router.navigate(['/admin/commercial/invoices', saved.id]);
           return;
         }
         this.sendAfterSave(saved.id);
       },
       error: err => {
-        this.saving = false;
-        this.error = extractApiErrorMessage(err, 'Could not save the invoice.');
+        this.saving.set(false);
+        this.error.set(extractApiErrorMessage(err, 'Could not save the invoice.'));
       }
     });
   }
@@ -880,7 +880,7 @@ export class InvoiceFormComponent implements OnInit {
    */
   private sendAfterSave(savedId: number): void {
     this.invoiceService.send(savedId, { attachPdf: true })
-      .pipe(finalize(() => this.saving = false))
+      .pipe(finalize(() => this.saving.set(false)))
       .subscribe({
         next: () => this.router.navigate(['/admin/commercial/invoices', savedId]),
         error: err => {

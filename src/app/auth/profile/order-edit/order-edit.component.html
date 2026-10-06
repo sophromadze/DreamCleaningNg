@@ -5,20 +5,20 @@
   <div class="booking-container__glow" aria-hidden="true"></div>
   <div class="booking-content">
     <div class="booking-header">
-      <a [routerLink]="['/order', $safeNavigationMigration(order?.id)]" class="back-link">← Back to Order Details</a>
-      <h1>Edit Order #{{ order?.id }}</h1>
+      <a [routerLink]="['/order', $safeNavigationMigration(order()?.id)]" class="back-link">← Back to Order Details</a>
+      <h1>Edit Order #{{ order()?.id }}</h1>
     </div>
 
-    @if (isLoading) {
+    @if (isLoading()) {
     <div class="loading">Loading order...</div>
     }
-    @if (errorMessage) {
-    <div class="error-message">{{ errorMessage }}</div>
+    @if (errorMessage()) {
+    <div class="error-message">{{ errorMessage() }}</div>
     }
-    @if (successMessage) {
-    <div class="success-message">{{ successMessage }}</div>
+    @if (successMessage()) {
+    <div class="success-message">{{ successMessage() }}</div>
     }
-    @if (!isLoading && order) {
+    @if (!isLoading() && order()) {
     <div class="booking-grid has-summary">
       <!-- Left Side - Edit Form (mirrors .booking-form on the booking page) -->
       <div class="booking-form">
@@ -26,7 +26,7 @@
 
           <!-- Service type heading -->
           <section class="booking-section">
-            <h2 class="large-header">{{ serviceType?.name }}</h2>
+            <h2 class="large-header">{{ serviceType()?.name }}</h2>
           </section>
 
           <!-- Cleaning Type (same rich buttons as booking) -->
@@ -74,7 +74,7 @@
           }
 
           <!-- Services (Bedrooms / Bathrooms / SqFt) -->
-          @if (serviceType) {
+          @if (serviceType()) {
           <section class="booking-section">
             <!-- Office Cleaning Pricing Text -->
             @if (hasCleanerServices()) {
@@ -146,7 +146,7 @@
             <div class="services">
               <!-- Levels is excluded: it has its own block above. The entry stays in
                    selectedServices so the FormArray of controls remains index-aligned. -->
-              @for (selected of selectedServices; track $index; let i = $index) {
+              @for (selected of selectedServices(); track $index; let i = $index) {
               @if (!isLevelsService(selected.service)) {
               <div class="service-item">
                 <label>{{ selected.service.name }}</label>
@@ -187,18 +187,18 @@
           }
 
           <!-- Extra Services (same card grid + show-more as booking) -->
-          @if (serviceType && getFilteredExtraServices().length > 0) {
+          @if (serviceType() && getFilteredExtraServices().length > 0) {
           <section class="booking-section">
             <!-- Floor Type (Optional) — sits right above Extra Services, like booking -->
             <app-floor-type-selector
-              [selectedTypes]="floorTypes"
-              [otherText]="floorTypeOther"
+              [selectedTypes]="floorTypes()"
+              [otherText]="floorTypeOther()"
               (selectionChange)="onFloorTypeSelectionChange($event)">
             </app-floor-type-selector>
 
             <app-extra-services-grid
               [extras]="getFilteredExtraServices()"
-              [selections]="selectedExtraServices"
+              [selections]="selectedExtraServices()"
               [tooltips]="mobileTooltips"
               (cardClick)="toggleExtraService($event)"
               (quantityChange)="updateExtraServiceQuantity($event.extra, $event.quantity)"
@@ -250,7 +250,7 @@
                   <span>{{ orderForm.get('entryMethod')?.value || 'Select entry method' }}</span>
                   <i class="fas fa-chevron-down"></i>
                 </button>
-                @if (entryMethodDropdownOpen) {
+                @if (entryMethodDropdownOpen()) {
                 <div class="dropdown-menu">
                   @for (method of entryMethods; track method) {
                   <button
@@ -291,7 +291,7 @@
                       ${{ tipsAmount }}
                       <span class="dropdown-arrow">▼</span>
                     </button>
-                    @if (tipDropdownOpen) {
+                    @if (tipDropdownOpen()) {
                     <div class="tip-dropdown-menu">
                       <button type="button"
                               class="tip-dropdown-item"
@@ -432,7 +432,7 @@
               <div class="form-group">
                 <select aria-label="City" formControlName="city">
                   <option value="">City *</option>
-                  @for (city of cities; track city) {
+                  @for (city of cities(); track city) {
                   <option [value]="city">{{ city }}</option>
                   }
                 </select>
@@ -440,7 +440,7 @@
               <div class="form-group">
                 <select aria-label="State" formControlName="state" (change)="onStateChange($any($event.target).value)">
                   <option value="">State *</option>
-                  @for (state of states; track state) {
+                  @for (state of states(); track state) {
                   <option [value]="state">{{ state }}</option>
                   }
                 </select>
@@ -452,7 +452,7 @@
           </section>
 
           <!-- Gift Card Applied (same panel as booking) -->
-          @if (giftCardApplied) {
+          @if (giftCardApplied()) {
           <section class="booking-section">
             <div class="discounts">
               <div class="gift-card-applied">
@@ -461,10 +461,10 @@
                   <div class="gift-card-details">
                     <div class="gift-card-title">Gift Card Applied</div>
                     <div class="gift-card-amounts">
-                      <span class="amount-using">${{ originalGiftCardAmountUsed.toFixed(2) }} spent on this order</span>
-                      @if ((giftCardBalance - originalGiftCardAmountUsed) > 0) {
+                      <span class="amount-using">${{ originalGiftCardAmountUsed().toFixed(2) }} spent on this order</span>
+                      @if ((giftCardBalance() - originalGiftCardAmountUsed()) > 0) {
                       <span class="remaining-balance">
-                        ${{ (giftCardBalance - originalGiftCardAmountUsed).toFixed(2) }} remaining
+                        ${{ (giftCardBalance() - originalGiftCardAmountUsed()).toFixed(2) }} remaining
                       </span>
                       }
                     </div>
@@ -477,21 +477,21 @@
           }
 
           <!-- Additional Amount Info (order-edit specific) -->
-          @if (additionalAmount > 0) {
+          @if (additionalAmount() > 0) {
           <div class="additional-amount-info">
             <p class="info-message">
-              <strong>Additional Payment Required:</strong> ${{ additionalAmount.toFixed(2) }}
+              <strong>Additional Payment Required:</strong> ${{ additionalAmount().toFixed(2) }}
             </p>
             <p>This additional amount will need to be paid to confirm your changes.</p>
           </div>
           }
 
-          @if (additionalAmount < 0) {
+          @if (additionalAmount() < 0) {
           <div class="additional-amount-info warning">
             <p class="info-message">
               <strong>⚠️ Cannot Save Changes</strong>
             </p>
-            <p>Your changes would reduce the order total by ${{ (-additionalAmount).toFixed(2) }}.</p>
+            <p>Your changes would reduce the order total by ${{ (-additionalAmount()).toFixed(2) }}.</p>
             <p>Orders cannot be reduced after payment. Please add more services or keep the current selection.</p>
           </div>
           }
@@ -499,11 +499,11 @@
           <!-- Action Buttons (same navigation styling as booking) -->
           <div class="step-navigation">
             <div class="step-buttons-container">
-              <a [routerLink]="['/order', order.id]" class="back-btn discard-btn">Discard</a>
+              <a [routerLink]="['/order', order()!.id]" class="back-btn discard-btn">Discard</a>
               <button type="submit" class="book-now-btn"
-                      [disabled]="!orderForm.valid || isSaving || additionalAmount < 0 || isPropertyTypeAnswerIncomplete()"
-                      [class.disabled]="!orderForm.valid || isSaving || additionalAmount < 0 || isPropertyTypeAnswerIncomplete()">
-                {{ isSaving ? 'Saving...' : 'Save Changes' }}
+                      [disabled]="!orderForm.valid || isSaving() || additionalAmount() < 0 || isPropertyTypeAnswerIncomplete()"
+                      [class.disabled]="!orderForm.valid || isSaving() || additionalAmount() < 0 || isPropertyTypeAnswerIncomplete()">
+                {{ isSaving() ? 'Saving...' : 'Save Changes' }}
               </button>
             </div>
           </div>
@@ -514,31 +514,31 @@
       <div class="booking-summary">
         <app-order-summary-card
           title="Order Summary"
-          [collapsed]="isSummaryCollapsed"
+          [collapsed]="isSummaryCollapsed()"
           [details]="getSummaryDetailLines()"
           [priceLines]="getSummaryPriceLines()"
           totalLabel="New Total:"
-          [totalValue]="'$' + newTotal.toFixed(2)"
+          [totalValue]="'$' + newTotal().toFixed(2)"
           [estimatedPoints]="getEstimatedPointsDisplay()"
           (toggleCollapsed)="toggleOrderSummary()">
 
           <!-- Original total + difference (order-edit specific) -->
-          <div summary-mid class="edit-diff-info" [class.hidden]="isSummaryCollapsed">
+          <div summary-mid class="edit-diff-info" [class.hidden]="isSummaryCollapsed()">
             <div class="price-item original-total">
               <span>Original Total:</span>
-              <span class="summary-value">${{ originalTotal.toFixed(2) }}</span>
+              <span class="summary-value">${{ originalTotal().toFixed(2) }}</span>
             </div>
 
-            @if (additionalAmount !== 0) {
+            @if (additionalAmount() !== 0) {
             <div class="price-item edit-diff-amount">
-              <span>{{ additionalAmount > 0 ? 'Additional Payment:' : 'Reduction:' }}</span>
-              <span [class.positive]="additionalAmount > 0" [class.negative]="additionalAmount < 0">
-                {{ additionalAmount > 0 ? '+' : '' }}${{ (additionalAmount > 0 ? additionalAmount : -additionalAmount).toFixed(2) }}
+              <span>{{ additionalAmount() > 0 ? 'Additional Payment:' : 'Reduction:' }}</span>
+              <span [class.positive]="additionalAmount() > 0" [class.negative]="additionalAmount() < 0">
+                {{ additionalAmount() > 0 ? '+' : '' }}${{ (additionalAmount() > 0 ? additionalAmount() : -additionalAmount()).toFixed(2) }}
               </span>
             </div>
             }
 
-            @if (additionalAmount < 0) {
+            @if (additionalAmount() < 0) {
             <div class="price-note">
               <p>⚠️ Refunds are not available for order reductions. The new total cannot be less than the original amount paid.</p>
             </div>
@@ -550,18 +550,18 @@
     }
 
     <!-- Payment Modal (order-edit specific) -->
-    @if (showPaymentModal) {
+    @if (showPaymentModal()) {
     <div class="modal-backdrop" (click)="closePaymentModal()">
       <div class="modal" (click)="$event.stopPropagation()">
         <h2>Additional Payment Required</h2>
         <div class="payment-info">
           <p>Your changes require an additional payment of:</p>
-          <div class="amount">${{ additionalAmount.toFixed(2) }}</div>
+          <div class="amount">${{ additionalAmount().toFixed(2) }}</div>
           <p class="note">This is the difference between your new order total and the original amount paid.</p>
         </div>
 
         <!-- Apple Pay / Google Pay button -->
-        @if (showApplePay) {
+        @if (showApplePay()) {
         <div id="payment-request-button-order-edit" class="applepay-button-container"></div>
         }
 
@@ -570,24 +570,24 @@
           <div class="form-group">
             <label>Card Details</label>
             <div id="card-element-order-edit" class="stripe-card-element"></div>
-            @if (cardError) {
-            <div class="card-errors">{{ cardError }}</div>
+            @if (cardError()) {
+            <div class="card-errors">{{ cardError() }}</div>
             }
           </div>
         </div>
 
         <div class="modal-actions">
           <button class="pay-btn" (click)="processAdditionalPayment()"
-                  [disabled]="isProcessingPayment || !!cardError">
-            {{ isProcessingPayment ? 'Processing...' : 'Pay $' + additionalAmount.toFixed(2) }}
+                  [disabled]="isProcessingPayment() || !!cardError()">
+            {{ isProcessingPayment() ? 'Processing...' : 'Pay $' + additionalAmount().toFixed(2) }}
           </button>
           <button class="btn-danger" (click)="closePaymentModal()"
-                  [disabled]="isProcessingPayment">Cancel Edit</button>
+                  [disabled]="isProcessingPayment()">Cancel Edit</button>
         </div>
 
-        @if (paymentErrorMessage) {
+        @if (paymentErrorMessage()) {
         <div class="error-message">
-          {{ paymentErrorMessage }}
+          {{ paymentErrorMessage() }}
         </div>
         }
       </div>

@@ -97,7 +97,7 @@ export class AdminGiftCardsComponent implements OnInit, AfterViewInit, OnDestroy
   readonly giftCardBackgroundMissing = signal<boolean>(false);
   isUpdatingBackground: boolean = false;
 
-  selectedFile: File | null = null;
+  readonly selectedFile = signal<File | null>(null);
   readonly isUploading = signal<boolean>(false);
   readonly imagePreviewUrl = signal<string | null>(null);
   
@@ -626,7 +626,7 @@ export class AdminGiftCardsComponent implements OnInit, AfterViewInit, OnDestroy
         return;
       }
       
-      this.selectedFile = file;
+      this.selectedFile.set(file);
       
       // Create preview
       const reader = new FileReader();
@@ -638,14 +638,14 @@ export class AdminGiftCardsComponent implements OnInit, AfterViewInit, OnDestroy
   }
   
   uploadImage() {
-    if (!this.selectedFile) {
+    if (!this.selectedFile()) {
       alert('Please select an image first');
       return;
     }
     
     this.isUploading.set(true);
     
-    this.adminService.uploadGiftCardBackground(this.selectedFile).subscribe({
+    this.adminService.uploadGiftCardBackground(this.selectedFile()!).subscribe({
       next: (response) => {
         this.isUploading.set(false);
         
@@ -653,7 +653,7 @@ export class AdminGiftCardsComponent implements OnInit, AfterViewInit, OnDestroy
           this.giftCardBackgroundPath.set(response.imagePath);
           this.hasGiftCardBackground.set(true);
           this.giftCardBackgroundMissing.set(false);
-          this.selectedFile = null;
+          this.selectedFile.set(null);
           this.imagePreviewUrl.set(null);
           
           // Clear file input

@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, HostListener, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, HostListener, ChangeDetectionStrategy, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
@@ -30,7 +30,7 @@ import { debounceTime, distinctUntilChanged, switchMap, filter } from 'rxjs/oper
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './tasks.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./tasks.component.scss']
 })
 export class TasksComponent implements OnInit, OnDestroy {
@@ -50,164 +50,164 @@ export class TasksComponent implements OnInit, OnDestroy {
   // ── Data ──
   tasks: AdminTask[] = [];
   clientInteractions: ClientInteraction[] = [];
-  handoverNotes: HandoverNote[] = [];
-  admins: UserAdmin[] = [];
+  readonly handoverNotes = signal<HandoverNote[]>([]);
+  readonly admins = signal<UserAdmin[]>([]);
   personalTasks: PersonalAdminTask[] = [];
 
   // ── Computed / filtered ──
-  urgentTasks: AdminTask[] = [];
-  activeTasks: AdminTask[] = [];
-  activeTaskCount = 0;
-  doneSharedTasks: AdminTask[] = [];
+  readonly urgentTasks = signal<AdminTask[]>([]);
+  readonly activeTasks = signal<AdminTask[]>([]);
+  readonly activeTaskCount = signal(0);
+  readonly doneSharedTasks = signal<AdminTask[]>([]);
   recentInteractions: ClientInteraction[] = [];
-  filteredHistory: ClientInteraction[] = [];
-  closedInteractions: ClientInteraction[] = [];
+  readonly filteredHistory = signal<ClientInteraction[]>([]);
+  readonly closedInteractions = signal<ClientInteraction[]>([]);
 
   // ── Personal tasks computed ──
-  myAssignedTasks: PersonalAdminTask[] = [];
-  myCreatedTasks: PersonalAdminTask[] = [];
-  allAdminTasks: PersonalAdminTask[] = [];
-  donePersonalTasks: PersonalAdminTask[] = [];
-  uncheckedDoneCreatedCount = 0;
-  loadingAllAdminTasks = false;
+  readonly myAssignedTasks = signal<PersonalAdminTask[]>([]);
+  readonly myCreatedTasks = signal<PersonalAdminTask[]>([]);
+  readonly allAdminTasks = signal<PersonalAdminTask[]>([]);
+  readonly donePersonalTasks = signal<PersonalAdminTask[]>([]);
+  readonly uncheckedDoneCreatedCount = signal(0);
+  readonly loadingAllAdminTasks = signal(false);
 
   // ── Pagination (6 items per page) ──
   readonly itemsPerPage = 6;
 
   // Shared tab
-  urgentPage = 1;
-  urgentTotalPages = 1;
-  activePage = 1;
-  activeTotalPages = 1;
+  readonly urgentPage = signal(1);
+  readonly urgentTotalPages = signal(1);
+  readonly activePage = signal(1);
+  readonly activeTotalPages = signal(1);
 
   // My Tasks tab
-  myAssignedPage = 1;
-  myAssignedTotalPages = 1;
-  myCreatedPage = 1;
-  myCreatedTotalPages = 1;
-  allAdminPage = 1;
-  allAdminTotalPages = 1;
+  readonly myAssignedPage = signal(1);
+  readonly myAssignedTotalPages = signal(1);
+  readonly myCreatedPage = signal(1);
+  readonly myCreatedTotalPages = signal(1);
+  readonly allAdminPage = signal(1);
+  readonly allAdminTotalPages = signal(1);
 
   // Done cards
-  doneSharedPage = 1;
-  doneSharedTotalPages = 1;
-  donePersonalPage = 1;
-  donePersonalTotalPages = 1;
-  closedInteractionsPage = 1;
-  closedInteractionsTotalPages = 1;
+  readonly doneSharedPage = signal(1);
+  readonly doneSharedTotalPages = signal(1);
+  readonly donePersonalPage = signal(1);
+  readonly donePersonalTotalPages = signal(1);
+  readonly closedInteractionsPage = signal(1);
+  readonly closedInteractionsTotalPages = signal(1);
 
   // Interactions tab
-  interactionsPage = 1;
-  interactionsTotalPages = 1;
+  readonly interactionsPage = signal(1);
+  readonly interactionsTotalPages = signal(1);
 
   // Handover tab
-  handoverPage = 1;
-  handoverTotalPages = 1;
+  readonly handoverPage = signal(1);
+  readonly handoverTotalPages = signal(1);
 
   // Logs tab
-  logsPage = 1;
-  logsTotalPages = 1;
+  readonly logsPage = signal(1);
+  readonly logsTotalPages = signal(1);
 
   // ── Activity logs ──
-  activityLogs: TaskActivityLog[] = [];
-  loadingLogs = false;
-  logSearchId = '';
-  logEntityTypeFilter = '';
-  logActionFilter = '';
-  logAdminFilter = '';
+  readonly activityLogs = signal<TaskActivityLog[]>([]);
+  readonly loadingLogs = signal(false);
+  readonly logSearchId = signal('');
+  readonly logEntityTypeFilter = signal('');
+  readonly logActionFilter = signal('');
+  readonly logAdminFilter = signal('');
   logPage = 1;
-  logHasMore = true;
+  readonly logHasMore = signal(true);
 
   // ── Tabs ──
-  activeTab = 'dashboard';
+  readonly activeTab = signal('dashboard');
 
   // ── Sub-tabs ──
-  sharedSubTab: 'urgent' | 'active' | 'done' = 'urgent';
-  myTasksSubTab: 'assigned' | 'created' | 'done' | 'allAdmin' = 'assigned';
-  interactionsSubTab: 'active' | 'closed' = 'active';
+  readonly sharedSubTab = signal<'urgent' | 'active' | 'done'>('urgent');
+  readonly myTasksSubTab = signal<'assigned' | 'created' | 'done' | 'allAdmin'>('assigned');
+  readonly interactionsSubTab = signal<'active' | 'closed'>('active');
 
   // ── Filters ──
   taskFilter = 'all';
-  historySearch = '';
-  historyStatusFilter = '';
-  historyAdminFilter = '';
+  readonly historySearch = signal('');
+  readonly historyStatusFilter = signal('');
+  readonly historyAdminFilter = signal('');
   historyPeriodFilter = 'thisMonth';
 
   // ── Loading ──
-  loadingTasks = false;
-  loadingInteractions = false;
-  loadingNotes = false;
-  loadingPersonalTasks = false;
+  readonly loadingTasks = signal(false);
+  readonly loadingInteractions = signal(false);
+  readonly loadingNotes = signal(false);
+  readonly loadingPersonalTasks = signal(false);
 
   // ── Modals ──
-  showTaskModal = false;
-  showInteractionModal = false;
-  showNoteModal = false;
-  showPersonalTaskModal = false;
+  readonly showTaskModal = signal(false);
+  readonly showInteractionModal = signal(false);
+  readonly showNoteModal = signal(false);
+  readonly showPersonalTaskModal = signal(false);
 
   // ── Task form ──
-  taskForm: CreateAdminTask & { completionNote?: string } = { title: '', priority: 'Normal' };
-  editingTaskId: number | null = null;
+  readonly taskForm = signal<CreateAdminTask & { completionNote?: string }>({ title: '', priority: 'Normal' }, { equal: () => false });
+  readonly editingTaskId = signal<number | null>(null);
 
   // ── Personal task form ──
-  personalTaskForm: any = { title: '', priority: 'Normal', assignedToAdminIds: [] as number[] };
-  editingPersonalTaskId: number | null = null;
+  readonly personalTaskForm = signal<any>({ title: '', priority: 'Normal', assignedToAdminIds: [] as number[] }, { equal: () => false });
+  readonly editingPersonalTaskId = signal<number | null>(null);
 
   // ── Interaction form ──
-  interactionForm: CreateClientInteraction = {
+  readonly interactionForm = signal<CreateClientInteraction>({
     clientName: '',
     type: '',
     notes: '',
     status: 'Pending'
-  };
-  editingInteractionId: number | null = null;
+  }, { equal: () => false });
+  readonly editingInteractionId = signal<number | null>(null);
 
   // ── Note form ──
-  noteForm: CreateHandoverNote = { content: '', targetAudience: 'ForNextAdmin' };
-  editingNoteId: number | null = null;
+  readonly noteForm = signal<CreateHandoverNote>({ content: '', targetAudience: 'ForNextAdmin' });
+  readonly editingNoteId = signal<number | null>(null);
 
   // ── Dashboard limit ──
   readonly dashboardLimit = 10;
 
   // ── Personal task edit restriction ──
-  personalTaskReadOnly = false;
+  readonly personalTaskReadOnly = signal(false);
 
   // ── View-only modal for SuperAdmin all tasks ──
-  showViewPersonalTaskModal = false;
-  viewingPersonalTask: PersonalAdminTask | null = null;
+  readonly showViewPersonalTaskModal = signal(false);
+  readonly viewingPersonalTask = signal<PersonalAdminTask | null>(null);
 
   // ── Completion modal ──
-  showCompletionModal = false;
-  completionNoteText = '';
+  readonly showCompletionModal = signal(false);
+  readonly completionNoteText = signal('');
   pendingCompletionTask: AdminTask | PersonalAdminTask | null = null;
   pendingCompletionType: 'shared' | 'personal' = 'shared';
 
   // ── Filtered admins (no moderators for history) ──
-  historyAdmins: UserAdmin[] = [];
+  readonly historyAdmins = signal<UserAdmin[]>([]);
 
   // ── Context menus ──
-  openMenuTaskId: number | null = null;
-  openMenuInteractionId: number | null = null;
-  openMenuPersonalTaskId: number | null = null;
+  readonly openMenuTaskId = signal<number | null>(null);
+  readonly openMenuInteractionId = signal<number | null>(null);
+  readonly openMenuPersonalTaskId = signal<number | null>(null);
 
   // ── Client autocomplete (for tasks) ──
-  taskClientQuery = '';
-  taskClientResults: ClientSearchResult[] = [];
-  showTaskClientDropdown = false;
+  readonly taskClientQuery = signal('');
+  readonly taskClientResults = signal<ClientSearchResult[]>([]);
+  readonly showTaskClientDropdown = signal(false);
   taskClientSelected = false;
   private taskClientSearch$ = new Subject<string>();
 
   // ── Order autocomplete (for tasks) ──
-  taskOrderQuery = '';
-  taskOrderResults: OrderSearchResult[] = [];
-  showTaskOrderDropdown = false;
+  readonly taskOrderQuery = signal('');
+  readonly taskOrderResults = signal<OrderSearchResult[]>([]);
+  readonly showTaskOrderDropdown = signal(false);
   taskOrderSelected = false;
   private taskOrderSearch$ = new Subject<string>();
 
   // ── Client autocomplete (for interactions) ──
-  interactionClientQuery = '';
-  interactionClientResults: ClientSearchResult[] = [];
-  showInteractionClientDropdown = false;
+  readonly interactionClientQuery = signal('');
+  readonly interactionClientResults = signal<ClientSearchResult[]>([]);
+  readonly showInteractionClientDropdown = signal(false);
   interactionClientSelected = false;
   private interactionClientSearch$ = new Subject<string>();
 
@@ -219,9 +219,9 @@ export class TasksComponent implements OnInit, OnDestroy {
       this.currentAdminRole = user.role;
     }
     const savedTab = sessionStorage.getItem('tasksActiveTab');
-    if (savedTab) this.activeTab = savedTab;
+    if (savedTab) this.activeTab.set(savedTab);
     this.loadData();
-    if (this.activeTab === 'logs' && this.isSuperAdmin) {
+    if (this.activeTab() === 'logs' && this.isSuperAdmin) {
       this.loadActivityLogs();
     }
     this.setupSearchStreams();
@@ -255,7 +255,7 @@ export class TasksComponent implements OnInit, OnDestroy {
           break;
       }
       // Refresh logs if on logs tab
-      if (this.activeTab === 'logs') {
+      if (this.activeTab() === 'logs') {
         this.loadActivityLogs();
       }
     });
@@ -263,12 +263,12 @@ export class TasksComponent implements OnInit, OnDestroy {
 
   @HostListener('document:click')
   onDocumentClick(): void {
-    this.openMenuTaskId = null;
-    this.openMenuInteractionId = null;
-    this.openMenuPersonalTaskId = null;
-    this.showTaskClientDropdown = false;
-    this.showTaskOrderDropdown = false;
-    this.showInteractionClientDropdown = false;
+    this.openMenuTaskId.set(null);
+    this.openMenuInteractionId.set(null);
+    this.openMenuPersonalTaskId.set(null);
+    this.showTaskClientDropdown.set(false);
+    this.showTaskOrderDropdown.set(false);
+    this.showInteractionClientDropdown.set(false);
   }
 
   // ── Search streams with debounce ──
@@ -279,8 +279,8 @@ export class TasksComponent implements OnInit, OnDestroy {
       distinctUntilChanged(),
       switchMap(q => this.taskService.searchClients(q))
     ).subscribe(results => {
-      this.taskClientResults = results;
-      this.showTaskClientDropdown = results.length > 0;
+      this.taskClientResults.set(results);
+      this.showTaskClientDropdown.set(results.length > 0);
     });
 
     this.taskOrderSearch$.pipe(
@@ -288,8 +288,8 @@ export class TasksComponent implements OnInit, OnDestroy {
       distinctUntilChanged(),
       switchMap(q => this.taskService.searchOrders(q))
     ).subscribe(results => {
-      this.taskOrderResults = results;
-      this.showTaskOrderDropdown = results.length > 0;
+      this.taskOrderResults.set(results);
+      this.showTaskOrderDropdown.set(results.length > 0);
     });
 
     this.interactionClientSearch$.pipe(
@@ -297,88 +297,105 @@ export class TasksComponent implements OnInit, OnDestroy {
       distinctUntilChanged(),
       switchMap(q => this.taskService.searchClients(q))
     ).subscribe(results => {
-      this.interactionClientResults = results;
-      this.showInteractionClientDropdown = results.length > 0;
+      this.interactionClientResults.set(results);
+      this.showInteractionClientDropdown.set(results.length > 0);
     });
   }
 
   // ── Task client autocomplete ──
 
   onTaskClientInput(value: string): void {
-    this.taskClientQuery = value;
+    this.taskClientQuery.set(value);
     this.taskClientSelected = false;
-    this.taskForm.clientName = value;
-    this.taskForm.clientId = undefined;
+    this.taskForm().clientName = value;
+    this.taskForm.set(this.taskForm());
+    this.taskForm().clientId = undefined;
+    this.taskForm.set(this.taskForm());
     if (value.length >= 2) {
       this.taskClientSearch$.next(value);
     } else {
-      this.taskClientResults = [];
-      this.showTaskClientDropdown = false;
+      this.taskClientResults.set([]);
+      this.showTaskClientDropdown.set(false);
     }
   }
 
   selectTaskClient(client: ClientSearchResult, event: Event): void {
     event.stopPropagation();
-    this.taskClientQuery = `${client.firstName} ${client.lastName}`;
-    this.taskForm.clientName = this.taskClientQuery;
-    this.taskForm.clientEmail = client.email;
-    this.taskForm.clientPhone = client.phone || '';
-    this.taskForm.clientId = client.id;
+    this.taskClientQuery.set(`${client.firstName} ${client.lastName}`);
+    this.taskForm().clientName = this.taskClientQuery();
+    this.taskForm.set(this.taskForm());
+    this.taskForm().clientEmail = client.email;
+    this.taskForm.set(this.taskForm());
+    this.taskForm().clientPhone = client.phone || '';
+    this.taskForm.set(this.taskForm());
+    this.taskForm().clientId = client.id;
+    this.taskForm.set(this.taskForm());
     this.taskClientSelected = true;
-    this.showTaskClientDropdown = false;
+    this.showTaskClientDropdown.set(false);
   }
 
   // ── Task order autocomplete ──
 
   onTaskOrderInput(value: string): void {
-    this.taskOrderQuery = value;
+    this.taskOrderQuery.set(value);
     this.taskOrderSelected = false;
-    this.taskForm.orderId = undefined;
+    this.taskForm().orderId = undefined;
+    this.taskForm.set(this.taskForm());
     if (value.length >= 1) {
       this.taskOrderSearch$.next(value);
     } else {
-      this.taskOrderResults = [];
-      this.showTaskOrderDropdown = false;
+      this.taskOrderResults.set([]);
+      this.showTaskOrderDropdown.set(false);
     }
   }
 
   selectTaskOrder(order: OrderSearchResult, event: Event): void {
     event.stopPropagation();
-    this.taskOrderQuery = `#${order.id} - ${order.contactFirstName} ${order.contactLastName} (${order.serviceTypeName})`;
-    this.taskForm.orderId = order.id;
-    this.taskForm.clientName = `${order.contactFirstName} ${order.contactLastName}`;
-    this.taskForm.clientEmail = order.contactEmail || '';
-    this.taskForm.clientPhone = order.contactPhone || '';
-    this.taskClientQuery = this.taskForm.clientName;
+    this.taskOrderQuery.set(`#${order.id} - ${order.contactFirstName} ${order.contactLastName} (${order.serviceTypeName})`);
+    this.taskForm().orderId = order.id;
+    this.taskForm.set(this.taskForm());
+    this.taskForm().clientName = `${order.contactFirstName} ${order.contactLastName}`;
+    this.taskForm.set(this.taskForm());
+    this.taskForm().clientEmail = order.contactEmail || '';
+    this.taskForm.set(this.taskForm());
+    this.taskForm().clientPhone = order.contactPhone || '';
+    this.taskForm.set(this.taskForm());
+    this.taskClientQuery.set(this.taskForm().clientName!);
     this.taskClientSelected = true;
     this.taskOrderSelected = true;
-    this.showTaskOrderDropdown = false;
+    this.showTaskOrderDropdown.set(false);
   }
 
   // ── Interaction client autocomplete ──
 
   onInteractionClientInput(value: string): void {
-    this.interactionClientQuery = value;
+    this.interactionClientQuery.set(value);
     this.interactionClientSelected = false;
-    this.interactionForm.clientName = value;
-    this.interactionForm.clientId = undefined;
+    this.interactionForm().clientName = value;
+    this.interactionForm.set(this.interactionForm());
+    this.interactionForm().clientId = undefined;
+    this.interactionForm.set(this.interactionForm());
     if (value.length >= 2) {
       this.interactionClientSearch$.next(value);
     } else {
-      this.interactionClientResults = [];
-      this.showInteractionClientDropdown = false;
+      this.interactionClientResults.set([]);
+      this.showInteractionClientDropdown.set(false);
     }
   }
 
   selectInteractionClient(client: ClientSearchResult, event: Event): void {
     event.stopPropagation();
-    this.interactionClientQuery = `${client.firstName} ${client.lastName}`;
-    this.interactionForm.clientName = this.interactionClientQuery;
-    this.interactionForm.clientEmail = client.email;
-    this.interactionForm.clientPhone = client.phone || '';
-    this.interactionForm.clientId = client.id;
+    this.interactionClientQuery.set(`${client.firstName} ${client.lastName}`);
+    this.interactionForm().clientName = this.interactionClientQuery();
+    this.interactionForm.set(this.interactionForm());
+    this.interactionForm().clientEmail = client.email;
+    this.interactionForm.set(this.interactionForm());
+    this.interactionForm().clientPhone = client.phone || '';
+    this.interactionForm.set(this.interactionForm());
+    this.interactionForm().clientId = client.id;
+    this.interactionForm.set(this.interactionForm());
     this.interactionClientSelected = true;
-    this.showInteractionClientDropdown = false;
+    this.showInteractionClientDropdown.set(false);
   }
 
   // ── Data loading ──
@@ -399,65 +416,65 @@ export class TasksComponent implements OnInit, OnDestroy {
   }
 
   loadTasks(): void {
-    this.loadingTasks = true;
+    this.loadingTasks.set(true);
     this.taskService.getTasks().subscribe({
       next: (tasks) => {
         this.tasks = tasks;
         this.computeTaskViews();
-        this.loadingTasks = false;
+        this.loadingTasks.set(false);
       },
-      error: () => { this.loadingTasks = false; }
+      error: () => { this.loadingTasks.set(false); }
     });
   }
 
   loadPersonalTasks(): void {
-    this.loadingPersonalTasks = true;
+    this.loadingPersonalTasks.set(true);
     this.taskService.getPersonalTasks().subscribe({
       next: (tasks) => {
         this.personalTasks = tasks;
         this.computePersonalTaskViews();
-        this.loadingPersonalTasks = false;
+        this.loadingPersonalTasks.set(false);
       },
-      error: () => { this.loadingPersonalTasks = false; }
+      error: () => { this.loadingPersonalTasks.set(false); }
     });
   }
 
   loadAllAdminTasks(): void {
-    this.loadingAllAdminTasks = true;
+    this.loadingAllAdminTasks.set(true);
     this.taskService.getAllPersonalTasks().subscribe({
       next: (tasks) => {
-        this.allAdminTasks = tasks.filter(t => t.status !== 'Done');
-        this.allAdminPage = 1;
+        this.allAdminTasks.set(tasks.filter(t => t.status !== 'Done'));
+        this.allAdminPage.set(1);
         this.updatePaginationCounts();
-        this.loadingAllAdminTasks = false;
+        this.loadingAllAdminTasks.set(false);
       },
-      error: () => { this.loadingAllAdminTasks = false; }
+      error: () => { this.loadingAllAdminTasks.set(false); }
     });
   }
 
   loadInteractions(): void {
-    this.loadingInteractions = true;
+    this.loadingInteractions.set(true);
     this.taskService.getClientInteractions().subscribe({
       next: (interactions) => {
         this.clientInteractions = interactions;
         this.recentInteractions = interactions.slice(0, 3);
         this.applyHistoryFilters();
-        this.loadingInteractions = false;
+        this.loadingInteractions.set(false);
       },
-      error: () => { this.loadingInteractions = false; }
+      error: () => { this.loadingInteractions.set(false); }
     });
   }
 
   loadHandoverNotes(): void {
-    this.loadingNotes = true;
+    this.loadingNotes.set(true);
     this.taskService.getHandoverNotes().subscribe({
       next: (notes) => {
-        this.handoverNotes = notes;
-        this.handoverPage = 1;
+        this.handoverNotes.set(notes);
+        this.handoverPage.set(1);
         this.updatePaginationCounts();
-        this.loadingNotes = false;
+        this.loadingNotes.set(false);
       },
-      error: () => { this.loadingNotes = false; }
+      error: () => { this.loadingNotes.set(false); }
     });
   }
 
@@ -465,12 +482,12 @@ export class TasksComponent implements OnInit, OnDestroy {
     this.adminService.getUsers().subscribe({
       next: (response: any) => {
         const users: UserAdmin[] = response.users || response;
-        this.admins = users.filter(u =>
+        this.admins.set(users.filter(u =>
           u.role === 'Admin' || u.role === 'SuperAdmin'
-        );
-        this.historyAdmins = users.filter(u =>
+        ));
+        this.historyAdmins.set(users.filter(u =>
           u.role === 'Admin' || u.role === 'SuperAdmin'
-        );
+        ));
       }
     });
   }
@@ -480,15 +497,15 @@ export class TasksComponent implements OnInit, OnDestroy {
   loadActivityLogs(reset = true): void {
     if (reset) {
       this.logPage = 1;
-      this.activityLogs = [];
-      this.logHasMore = true;
+      this.activityLogs.set([]);
+      this.logHasMore.set(true);
     }
-    this.loadingLogs = true;
-    const adminId = this.logAdminFilter ? +this.logAdminFilter : undefined;
-    const entityId = this.logSearchId ? +this.logSearchId : undefined;
+    this.loadingLogs.set(true);
+    const adminId = this.logAdminFilter() ? +this.logAdminFilter() : undefined;
+    const entityId = this.logSearchId() ? +this.logSearchId() : undefined;
     this.taskService.getTaskActivityLogs(
-      this.logEntityTypeFilter || undefined,
-      this.logActionFilter || undefined,
+      this.logEntityTypeFilter() || undefined,
+      this.logActionFilter() || undefined,
       adminId,
       this.logPage,
       50,
@@ -496,16 +513,16 @@ export class TasksComponent implements OnInit, OnDestroy {
     ).subscribe({
       next: (logs) => {
         if (reset) {
-          this.activityLogs = logs;
-          this.logsPage = 1;
+          this.activityLogs.set(logs);
+          this.logsPage.set(1);
         } else {
-          this.activityLogs = [...this.activityLogs, ...logs];
+          this.activityLogs.set([...this.activityLogs(), ...logs]);
         }
-        this.logHasMore = logs.length >= 50;
+        this.logHasMore.set(logs.length >= 50);
         this.updatePaginationCounts();
-        this.loadingLogs = false;
+        this.loadingLogs.set(false);
       },
-      error: () => { this.loadingLogs = false; }
+      error: () => { this.loadingLogs.set(false); }
     });
   }
 
@@ -567,15 +584,15 @@ export class TasksComponent implements OnInit, OnDestroy {
   // ── Tab switching ──
 
   goToSharedTab(subTab: 'urgent' | 'active' | 'done'): void {
-    this.activeTab = 'shared';
-    this.sharedSubTab = subTab;
+    this.activeTab.set('shared');
+    this.sharedSubTab.set(subTab);
     sessionStorage.setItem('tasksActiveTab', 'shared');
   }
 
   setActiveTab(tab: string): void {
-    this.activeTab = tab;
+    this.activeTab.set(tab);
     sessionStorage.setItem('tasksActiveTab', tab);
-    if (tab === 'logs' && this.activityLogs.length === 0) {
+    if (tab === 'logs' && this.activityLogs().length === 0) {
       this.loadActivityLogs();
     }
   }
@@ -583,37 +600,37 @@ export class TasksComponent implements OnInit, OnDestroy {
   // ── Task filtering ──
 
   computeTaskViews(): void {
-    this.urgentTasks = this.tasks.filter(t =>
+    this.urgentTasks.set(this.tasks.filter(t =>
       t.status !== 'Done' &&
       (t.priority === 'Urgent' || t.priority === 'High' || this.isDueSoon(t))
-    );
-    this.urgentPage = 1;
+    ));
+    this.urgentPage.set(1);
     this.applyTaskFilter();
   }
 
   computePersonalTaskViews(): void {
-    this.myAssignedTasks = this.personalTasks.filter(t => t.assignedToAdminId === this.currentAdminId && t.status !== 'Done');
-    this.myCreatedTasks = this.personalTasks.filter(t => t.createdByAdminId === this.currentAdminId && (t.status !== 'Done' || !t.checkedByCreator));
-    this.donePersonalTasks = this.personalTasks.filter(t =>
+    this.myAssignedTasks.set(this.personalTasks.filter(t => t.assignedToAdminId === this.currentAdminId && t.status !== 'Done'));
+    this.myCreatedTasks.set(this.personalTasks.filter(t => t.createdByAdminId === this.currentAdminId && (t.status !== 'Done' || !t.checkedByCreator)));
+    this.donePersonalTasks.set(this.personalTasks.filter(t =>
       t.status === 'Done' &&
       (t.assignedToAdminId === this.currentAdminId || t.createdByAdminId === this.currentAdminId)
-    );
-    this.uncheckedDoneCreatedCount = this.personalTasks.filter(t =>
+    ));
+    this.uncheckedDoneCreatedCount.set(this.personalTasks.filter(t =>
       t.createdByAdminId === this.currentAdminId && t.status === 'Done' && !t.checkedByCreator
-    ).length;
-    this.myAssignedPage = 1;
-    this.myCreatedPage = 1;
-    this.donePersonalPage = 1;
+    ).length);
+    this.myAssignedPage.set(1);
+    this.myCreatedPage.set(1);
+    this.donePersonalPage.set(1);
     this.updatePaginationCounts();
   }
 
   applyTaskFilter(): void {
-    const urgentIds = new Set(this.urgentTasks.map(t => t.id));
-    this.activeTasks = this.tasks.filter(t => t.status !== 'Done' && !urgentIds.has(t.id));
-    this.activeTaskCount = this.activeTasks.length;
-    this.doneSharedTasks = this.tasks.filter(t => t.status === 'Done');
-    this.activePage = 1;
-    this.doneSharedPage = 1;
+    const urgentIds = new Set(this.urgentTasks().map(t => t.id));
+    this.activeTasks.set(this.tasks.filter(t => t.status !== 'Done' && !urgentIds.has(t.id)));
+    this.activeTaskCount.set(this.activeTasks().length);
+    this.doneSharedTasks.set(this.tasks.filter(t => t.status === 'Done'));
+    this.activePage.set(1);
+    this.doneSharedPage.set(1);
     this.updatePaginationCounts();
   }
 
@@ -643,21 +660,21 @@ export class TasksComponent implements OnInit, OnDestroy {
   }
 
   get dashboardUrgentTasks(): AdminTask[] {
-    return this.sortTasksByImportance(this.urgentTasks).slice(0, this.dashboardLimit);
+    return this.sortTasksByImportance(this.urgentTasks()).slice(0, this.dashboardLimit);
   }
 
   get dashboardActiveTasks(): AdminTask[] {
-    return this.sortTasksByImportance(this.activeTasks).slice(0, this.dashboardLimit);
+    return this.sortTasksByImportance(this.activeTasks()).slice(0, this.dashboardLimit);
   }
 
   get dashboardInteractions(): ClientInteraction[] {
-    return [...this.filteredHistory]
+    return [...this.filteredHistory()]
       .sort((a, b) => new Date(b.interactionDate).getTime() - new Date(a.interactionDate).getTime())
       .slice(0, this.dashboardLimit);
   }
 
   get dashboardNotes(): HandoverNote[] {
-    return [...this.handoverNotes]
+    return [...this.handoverNotes()]
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
       .slice(0, this.dashboardLimit);
   }
@@ -674,61 +691,61 @@ export class TasksComponent implements OnInit, OnDestroy {
   }
 
   get paginatedUrgentTasks(): AdminTask[] {
-    return this.paginate(this.urgentTasks, this.urgentPage);
+    return this.paginate(this.urgentTasks(), this.urgentPage());
   }
 
   get paginatedActiveTasks(): AdminTask[] {
-    return this.paginate(this.activeTasks, this.activePage);
+    return this.paginate(this.activeTasks(), this.activePage());
   }
 
   get paginatedMyAssignedTasks(): PersonalAdminTask[] {
-    return this.paginate(this.myAssignedTasks, this.myAssignedPage);
+    return this.paginate(this.myAssignedTasks(), this.myAssignedPage());
   }
 
   get paginatedMyCreatedTasks(): PersonalAdminTask[] {
-    return this.paginate(this.myCreatedTasks, this.myCreatedPage);
+    return this.paginate(this.myCreatedTasks(), this.myCreatedPage());
   }
 
   get paginatedAllAdminTasks(): PersonalAdminTask[] {
-    return this.paginate(this.allAdminTasks, this.allAdminPage);
+    return this.paginate(this.allAdminTasks(), this.allAdminPage());
   }
 
   get paginatedFilteredHistory(): ClientInteraction[] {
-    return this.paginate(this.filteredHistory, this.interactionsPage);
+    return this.paginate(this.filteredHistory(), this.interactionsPage());
   }
 
   get paginatedHandoverNotes(): HandoverNote[] {
-    return this.paginate(this.handoverNotes, this.handoverPage);
+    return this.paginate(this.handoverNotes(), this.handoverPage());
   }
 
   get paginatedActivityLogs(): TaskActivityLog[] {
-    return this.paginate(this.activityLogs, this.logsPage);
+    return this.paginate(this.activityLogs(), this.logsPage());
   }
 
   get paginatedDoneSharedTasks(): AdminTask[] {
-    return this.paginate(this.doneSharedTasks, this.doneSharedPage);
+    return this.paginate(this.doneSharedTasks(), this.doneSharedPage());
   }
 
   get paginatedDonePersonalTasks(): PersonalAdminTask[] {
-    return this.paginate(this.donePersonalTasks, this.donePersonalPage);
+    return this.paginate(this.donePersonalTasks(), this.donePersonalPage());
   }
 
   get paginatedClosedInteractions(): ClientInteraction[] {
-    return this.paginate(this.closedInteractions, this.closedInteractionsPage);
+    return this.paginate(this.closedInteractions(), this.closedInteractionsPage());
   }
 
   private updatePaginationCounts(): void {
-    this.urgentTotalPages = this.calcTotalPages(this.urgentTasks.length);
-    this.activeTotalPages = this.calcTotalPages(this.activeTasks.length);
-    this.myAssignedTotalPages = this.calcTotalPages(this.myAssignedTasks.length);
-    this.myCreatedTotalPages = this.calcTotalPages(this.myCreatedTasks.length);
-    this.allAdminTotalPages = this.calcTotalPages(this.allAdminTasks.length);
-    this.interactionsTotalPages = this.calcTotalPages(this.filteredHistory.length);
-    this.handoverTotalPages = this.calcTotalPages(this.handoverNotes.length);
-    this.logsTotalPages = this.calcTotalPages(this.activityLogs.length);
-    this.doneSharedTotalPages = this.calcTotalPages(this.doneSharedTasks.length);
-    this.donePersonalTotalPages = this.calcTotalPages(this.donePersonalTasks.length);
-    this.closedInteractionsTotalPages = this.calcTotalPages(this.closedInteractions.length);
+    this.urgentTotalPages.set(this.calcTotalPages(this.urgentTasks().length));
+    this.activeTotalPages.set(this.calcTotalPages(this.activeTasks().length));
+    this.myAssignedTotalPages.set(this.calcTotalPages(this.myAssignedTasks().length));
+    this.myCreatedTotalPages.set(this.calcTotalPages(this.myCreatedTasks().length));
+    this.allAdminTotalPages.set(this.calcTotalPages(this.allAdminTasks().length));
+    this.interactionsTotalPages.set(this.calcTotalPages(this.filteredHistory().length));
+    this.handoverTotalPages.set(this.calcTotalPages(this.handoverNotes().length));
+    this.logsTotalPages.set(this.calcTotalPages(this.activityLogs().length));
+    this.doneSharedTotalPages.set(this.calcTotalPages(this.doneSharedTasks().length));
+    this.donePersonalTotalPages.set(this.calcTotalPages(this.donePersonalTasks().length));
+    this.closedInteractionsTotalPages.set(this.calcTotalPages(this.closedInteractions().length));
   }
 
   goToPageFor(section: string, page: number): void {
@@ -793,8 +810,8 @@ export class TasksComponent implements OnInit, OnDestroy {
       // Marking as Done → show completion modal
       this.pendingCompletionTask = task;
       this.pendingCompletionType = 'shared';
-      this.completionNoteText = task.completionNote || '';
-      this.showCompletionModal = true;
+      this.completionNoteText.set(task.completionNote || '');
+      this.showCompletionModal.set(true);
     } else {
       // Re-opening task
       this.taskService.updateTaskStatus(task.id, 'Todo').subscribe({
@@ -808,18 +825,18 @@ export class TasksComponent implements OnInit, OnDestroy {
   }
 
   openCreateTask(): void {
-    this.editingTaskId = null;
-    this.taskForm = { title: '', priority: 'Normal' };
-    this.taskClientQuery = '';
-    this.taskOrderQuery = '';
+    this.editingTaskId.set(null);
+    this.taskForm.set({ title: '', priority: 'Normal' });
+    this.taskClientQuery.set('');
+    this.taskOrderQuery.set('');
     this.taskClientSelected = false;
     this.taskOrderSelected = false;
-    this.showTaskModal = true;
+    this.showTaskModal.set(true);
   }
 
   openEditTask(task: AdminTask): void {
-    this.editingTaskId = task.id;
-    this.taskForm = {
+    this.editingTaskId.set(task.id);
+    this.taskForm.set({
       title: task.title,
       description: task.description,
       priority: task.priority,
@@ -830,20 +847,20 @@ export class TasksComponent implements OnInit, OnDestroy {
       clientId: task.clientId,
       orderId: task.orderId,
       completionNote: task.completionNote
-    };
-    this.taskClientQuery = task.clientName || '';
-    this.taskOrderQuery = task.orderId ? `#${task.orderId}` : '';
+    });
+    this.taskClientQuery.set(task.clientName || '');
+    this.taskOrderQuery.set(task.orderId ? `#${task.orderId}` : '');
     this.taskClientSelected = !!task.clientId;
     this.taskOrderSelected = !!task.orderId;
-    this.showTaskModal = true;
-    this.openMenuTaskId = null;
+    this.showTaskModal.set(true);
+    this.openMenuTaskId.set(null);
   }
 
   saveTask(): void {
-    if (!this.taskForm.title.trim()) return;
+    if (!this.taskForm().title.trim()) return;
 
-    if (this.editingTaskId) {
-      const update: UpdateAdminTask = { ...this.taskForm };
+    if (this.editingTaskId()) {
+      const update: UpdateAdminTask = { ...this.taskForm() };
       // The HTML date input gives '' (empty string) when cleared. Sending '' to the
       // backend's DateTime? property fails model binding (400). Normalise to null and
       // set clearDueDate so the backend actually nulls the column instead of preserving
@@ -853,13 +870,13 @@ export class TasksComponent implements OnInit, OnDestroy {
         update.dueDate = undefined;
         update.clearDueDate = true;
       }
-      this.taskService.updateTask(this.editingTaskId, update).subscribe({
-        next: () => { this.showTaskModal = false; this.loadTasks(); }
+      this.taskService.updateTask(this.editingTaskId()!, update).subscribe({
+        next: () => { this.showTaskModal.set(false); this.loadTasks(); }
       });
     } else {
-      const { completionNote, ...createData } = this.taskForm as any;
+      const { completionNote, ...createData } = this.taskForm() as any;
       this.taskService.createTask(createData).subscribe({
-        next: () => { this.showTaskModal = false; this.loadTasks(); }
+        next: () => { this.showTaskModal.set(false); this.loadTasks(); }
       });
     }
   }
@@ -869,12 +886,12 @@ export class TasksComponent implements OnInit, OnDestroy {
     this.taskService.deleteTask(task.id).subscribe({
       next: () => this.loadTasks()
     });
-    this.openMenuTaskId = null;
+    this.openMenuTaskId.set(null);
   }
 
   toggleMenu(taskId: number, event: Event): void {
     event.stopPropagation();
-    this.openMenuTaskId = this.openMenuTaskId === taskId ? null : taskId;
+    this.openMenuTaskId.set(this.openMenuTaskId() === taskId ? null : taskId);
   }
 
   // ── Personal Admin Task CRUD ──
@@ -884,8 +901,8 @@ export class TasksComponent implements OnInit, OnDestroy {
       // Marking as Done → show completion modal
       this.pendingCompletionTask = task;
       this.pendingCompletionType = 'personal';
-      this.completionNoteText = task.completionNote || '';
-      this.showCompletionModal = true;
+      this.completionNoteText.set(task.completionNote || '');
+      this.showCompletionModal.set(true);
     } else {
       // Re-opening task
       this.taskService.updatePersonalTaskStatus(task.id, 'Todo').subscribe({
@@ -895,24 +912,24 @@ export class TasksComponent implements OnInit, OnDestroy {
   }
 
   openCreatePersonalTask(): void {
-    this.editingPersonalTaskId = null;
-    this.personalTaskForm = { title: '', priority: 'Normal', assignedToAdminIds: [] as number[] };
-    this.showPersonalTaskModal = true;
+    this.editingPersonalTaskId.set(null);
+    this.personalTaskForm.set({ title: '', priority: 'Normal', assignedToAdminIds: [] as number[] });
+    this.showPersonalTaskModal.set(true);
   }
 
   openEditPersonalTask(task: PersonalAdminTask): void {
-    this.editingPersonalTaskId = task.id;
-    this.personalTaskReadOnly = task.createdByAdminId !== this.currentAdminId;
-    this.personalTaskForm = {
+    this.editingPersonalTaskId.set(task.id);
+    this.personalTaskReadOnly.set(task.createdByAdminId !== this.currentAdminId);
+    this.personalTaskForm.set({
       title: task.title,
       description: task.description,
       priority: task.priority,
       dueDate: task.dueDate ? task.dueDate.split('T')[0] : undefined,
       assignedToAdminId: task.assignedToAdminId,
       completionNote: task.completionNote
-    };
-    this.showPersonalTaskModal = true;
-    this.openMenuPersonalTaskId = null;
+    });
+    this.showPersonalTaskModal.set(true);
+    this.openMenuPersonalTaskId.set(null);
 
     // Mark as checked by creator when creator opens a completed task
     if (task.status === 'Done' && !task.checkedByCreator && task.createdByAdminId === this.currentAdminId) {
@@ -926,8 +943,8 @@ export class TasksComponent implements OnInit, OnDestroy {
   }
 
   openViewPersonalTask(task: PersonalAdminTask): void {
-    this.viewingPersonalTask = task;
-    this.showViewPersonalTaskModal = true;
+    this.viewingPersonalTask.set(task);
+    this.showViewPersonalTaskModal.set(true);
 
     // Mark as checked by creator when creator views a completed task
     if (task.status === 'Done' && !task.checkedByCreator && task.createdByAdminId === this.currentAdminId) {
@@ -941,16 +958,16 @@ export class TasksComponent implements OnInit, OnDestroy {
   }
 
   savePersonalTask(): void {
-    if (!this.personalTaskForm.title.trim()) return;
+    if (!this.personalTaskForm().title.trim()) return;
 
-    if (this.editingPersonalTaskId) {
+    if (this.editingPersonalTaskId()) {
       const update: UpdatePersonalAdminTask = {
-        title: this.personalTaskForm.title,
-        description: this.personalTaskForm.description,
-        priority: this.personalTaskForm.priority,
-        dueDate: this.personalTaskForm.dueDate,
-        assignedToAdminId: this.personalTaskForm.assignedToAdminId,
-        completionNote: this.personalTaskForm.completionNote
+        title: this.personalTaskForm().title,
+        description: this.personalTaskForm().description,
+        priority: this.personalTaskForm().priority,
+        dueDate: this.personalTaskForm().dueDate,
+        assignedToAdminId: this.personalTaskForm().assignedToAdminId,
+        completionNote: this.personalTaskForm().completionNote
       };
       // Same fix as saveTask() — empty date input means "remove the date" and needs to be
       // translated into clearDueDate=true so the backend nulls the column.
@@ -959,37 +976,38 @@ export class TasksComponent implements OnInit, OnDestroy {
         update.dueDate = undefined;
         update.clearDueDate = true;
       }
-      this.taskService.updatePersonalTask(this.editingPersonalTaskId, update).subscribe({
-        next: () => { this.showPersonalTaskModal = false; this.loadPersonalTasks(); if (this.isSuperAdmin) this.loadAllAdminTasks(); }
+      this.taskService.updatePersonalTask(this.editingPersonalTaskId()!, update).subscribe({
+        next: () => { this.showPersonalTaskModal.set(false); this.loadPersonalTasks(); if (this.isSuperAdmin) this.loadAllAdminTasks(); }
       });
     } else {
-      if (!this.personalTaskForm.assignedToAdminIds || this.personalTaskForm.assignedToAdminIds.length === 0) return;
+      if (!this.personalTaskForm().assignedToAdminIds || this.personalTaskForm().assignedToAdminIds.length === 0) return;
       const create: CreatePersonalAdminTask = {
-        title: this.personalTaskForm.title,
-        description: this.personalTaskForm.description,
-        priority: this.personalTaskForm.priority,
-        dueDate: this.personalTaskForm.dueDate,
-        assignedToAdminIds: this.personalTaskForm.assignedToAdminIds
+        title: this.personalTaskForm().title,
+        description: this.personalTaskForm().description,
+        priority: this.personalTaskForm().priority,
+        dueDate: this.personalTaskForm().dueDate,
+        assignedToAdminIds: this.personalTaskForm().assignedToAdminIds
       };
       this.taskService.createPersonalTask(create).subscribe({
-        next: () => { this.showPersonalTaskModal = false; this.loadPersonalTasks(); if (this.isSuperAdmin) this.loadAllAdminTasks(); }
+        next: () => { this.showPersonalTaskModal.set(false); this.loadPersonalTasks(); if (this.isSuperAdmin) this.loadAllAdminTasks(); }
       });
     }
   }
 
   toggleAdminSelection(adminId: number): void {
-    const ids: number[] = this.personalTaskForm.assignedToAdminIds || [];
+    const ids: number[] = this.personalTaskForm().assignedToAdminIds || [];
     const idx = ids.indexOf(adminId);
     if (idx >= 0) {
       ids.splice(idx, 1);
     } else {
       ids.push(adminId);
     }
-    this.personalTaskForm.assignedToAdminIds = [...ids];
+    this.personalTaskForm().assignedToAdminIds = [...ids];
+    this.personalTaskForm.set(this.personalTaskForm());
   }
 
   isAdminSelected(adminId: number): boolean {
-    return (this.personalTaskForm.assignedToAdminIds || []).includes(adminId);
+    return (this.personalTaskForm().assignedToAdminIds || []).includes(adminId);
   }
 
   deletePersonalTask(task: PersonalAdminTask): void {
@@ -997,56 +1015,56 @@ export class TasksComponent implements OnInit, OnDestroy {
     this.taskService.deletePersonalTask(task.id).subscribe({
       next: () => { this.loadPersonalTasks(); if (this.isSuperAdmin) this.loadAllAdminTasks(); }
     });
-    this.openMenuPersonalTaskId = null;
+    this.openMenuPersonalTaskId.set(null);
   }
 
   togglePersonalTaskMenu(taskId: number, event: Event): void {
     event.stopPropagation();
-    this.openMenuPersonalTaskId = this.openMenuPersonalTaskId === taskId ? null : taskId;
+    this.openMenuPersonalTaskId.set(this.openMenuPersonalTaskId() === taskId ? null : taskId);
   }
 
   // ── Interaction CRUD ──
 
   openCreateInteraction(): void {
-    this.editingInteractionId = null;
-    this.interactionForm = { clientName: '', type: '', notes: '', status: 'Pending' };
-    this.interactionClientQuery = '';
+    this.editingInteractionId.set(null);
+    this.interactionForm.set({ clientName: '', type: '', notes: '', status: 'Pending' });
+    this.interactionClientQuery.set('');
     this.interactionClientSelected = false;
-    this.showInteractionModal = true;
+    this.showInteractionModal.set(true);
   }
 
   openEditInteraction(interaction: ClientInteraction): void {
-    this.editingInteractionId = interaction.id;
-    this.interactionForm = {
+    this.editingInteractionId.set(interaction.id);
+    this.interactionForm.set({
       clientName: interaction.clientName,
       clientPhone: interaction.clientPhone,
       clientEmail: interaction.clientEmail,
       type: interaction.type,
       notes: interaction.notes,
       status: interaction.status
-    };
-    this.interactionClientQuery = interaction.clientName;
+    });
+    this.interactionClientQuery.set(interaction.clientName);
     this.interactionClientSelected = !!interaction.clientId;
-    this.showInteractionModal = true;
+    this.showInteractionModal.set(true);
   }
 
   saveInteraction(): void {
-    if (!this.interactionForm.clientName.trim()) return;
+    if (!this.interactionForm().clientName.trim()) return;
 
-    if (this.editingInteractionId) {
-      this.taskService.updateClientInteraction(this.editingInteractionId, {
-        clientName: this.interactionForm.clientName,
-        clientPhone: this.interactionForm.clientPhone,
-        clientEmail: this.interactionForm.clientEmail,
-        type: this.interactionForm.type,
-        notes: this.interactionForm.notes,
-        status: this.interactionForm.status
+    if (this.editingInteractionId()) {
+      this.taskService.updateClientInteraction(this.editingInteractionId()!, {
+        clientName: this.interactionForm().clientName,
+        clientPhone: this.interactionForm().clientPhone,
+        clientEmail: this.interactionForm().clientEmail,
+        type: this.interactionForm().type,
+        notes: this.interactionForm().notes,
+        status: this.interactionForm().status
       }).subscribe({
-        next: () => { this.showInteractionModal = false; this.loadInteractions(); }
+        next: () => { this.showInteractionModal.set(false); this.loadInteractions(); }
       });
     } else {
-      this.taskService.createClientInteraction(this.interactionForm).subscribe({
-        next: () => { this.showInteractionModal = false; this.loadInteractions(); }
+      this.taskService.createClientInteraction(this.interactionForm()).subscribe({
+        next: () => { this.showInteractionModal.set(false); this.loadInteractions(); }
       });
     }
   }
@@ -1056,40 +1074,40 @@ export class TasksComponent implements OnInit, OnDestroy {
     this.taskService.deleteClientInteraction(interaction.id).subscribe({
       next: () => this.loadInteractions()
     });
-    this.openMenuInteractionId = null;
+    this.openMenuInteractionId.set(null);
   }
 
   toggleInteractionMenu(interactionId: number, event: Event): void {
     event.stopPropagation();
-    this.openMenuInteractionId = this.openMenuInteractionId === interactionId ? null : interactionId;
+    this.openMenuInteractionId.set(this.openMenuInteractionId() === interactionId ? null : interactionId);
   }
 
   // ── Handover Note CRUD ──
 
   openCreateNote(): void {
-    this.noteForm = { content: '', targetAudience: 'ForNextAdmin' };
-    this.editingNoteId = null;
-    this.showNoteModal = true;
+    this.noteForm.set({ content: '', targetAudience: 'ForNextAdmin' });
+    this.editingNoteId.set(null);
+    this.showNoteModal.set(true);
   }
 
   openEditNote(note: HandoverNote): void {
-    this.noteForm = { content: note.content, targetAudience: note.targetAudience };
-    this.editingNoteId = note.id;
-    this.showNoteModal = true;
+    this.noteForm.set({ content: note.content, targetAudience: note.targetAudience });
+    this.editingNoteId.set(note.id);
+    this.showNoteModal.set(true);
   }
 
   saveNote(): void {
-    if (!this.noteForm.content.trim()) return;
-    if (this.editingNoteId) {
-      this.taskService.updateHandoverNote(this.editingNoteId, {
-        content: this.noteForm.content,
-        targetAudience: this.noteForm.targetAudience
+    if (!this.noteForm().content.trim()) return;
+    if (this.editingNoteId()) {
+      this.taskService.updateHandoverNote(this.editingNoteId()!, {
+        content: this.noteForm().content,
+        targetAudience: this.noteForm().targetAudience
       }).subscribe({
-        next: () => { this.showNoteModal = false; this.loadHandoverNotes(); }
+        next: () => { this.showNoteModal.set(false); this.loadHandoverNotes(); }
       });
     } else {
-      this.taskService.createHandoverNote(this.noteForm).subscribe({
-        next: () => { this.showNoteModal = false; this.loadHandoverNotes(); }
+      this.taskService.createHandoverNote(this.noteForm()).subscribe({
+        next: () => { this.showNoteModal.set(false); this.loadHandoverNotes(); }
       });
     }
   }
@@ -1106,8 +1124,8 @@ export class TasksComponent implements OnInit, OnDestroy {
   applyHistoryFilters(): void {
     let filtered = [...this.clientInteractions];
 
-    if (this.historySearch) {
-      const q = this.historySearch.toLowerCase();
+    if (this.historySearch()) {
+      const q = this.historySearch().toLowerCase();
       filtered = filtered.filter(i =>
         i.clientName.toLowerCase().includes(q) ||
         (i.clientPhone && i.clientPhone.toLowerCase().includes(q)) ||
@@ -1116,18 +1134,18 @@ export class TasksComponent implements OnInit, OnDestroy {
       );
     }
 
-    if (this.historyStatusFilter) {
-      filtered = filtered.filter(i => i.status === this.historyStatusFilter);
+    if (this.historyStatusFilter()) {
+      filtered = filtered.filter(i => i.status === this.historyStatusFilter());
     }
 
-    if (this.historyAdminFilter) {
-      filtered = filtered.filter(i => i.adminId === +this.historyAdminFilter);
+    if (this.historyAdminFilter()) {
+      filtered = filtered.filter(i => i.adminId === +this.historyAdminFilter());
     }
 
-    this.filteredHistory = filtered.filter(i => i.status !== 'Closed');
-    this.closedInteractions = filtered.filter(i => i.status === 'Closed');
-    this.interactionsPage = 1;
-    this.closedInteractionsPage = 1;
+    this.filteredHistory.set(filtered.filter(i => i.status !== 'Closed'));
+    this.closedInteractions.set(filtered.filter(i => i.status === 'Closed'));
+    this.interactionsPage.set(1);
+    this.closedInteractionsPage.set(1);
     this.updatePaginationCounts();
   }
 
@@ -1187,7 +1205,7 @@ export class TasksComponent implements OnInit, OnDestroy {
 
   confirmCompletion(): void {
     if (!this.pendingCompletionTask) return;
-    const note = this.completionNoteText.trim() || undefined;
+    const note = this.completionNoteText().trim() || undefined;
 
     if (this.pendingCompletionType === 'shared') {
       this.taskService.updateTaskStatus(this.pendingCompletionTask.id, 'Done', note).subscribe({
@@ -1233,19 +1251,19 @@ export class TasksComponent implements OnInit, OnDestroy {
   }
 
   closeCompletionModal(): void {
-    this.showCompletionModal = false;
-    this.completionNoteText = '';
+    this.showCompletionModal.set(false);
+    this.completionNoteText.set('');
     this.pendingCompletionTask = null;
   }
 
 
   closeModal(event: MouseEvent): void {
     if ((event.target as HTMLElement).classList.contains('modal-overlay')) {
-      this.showTaskModal = false;
-      this.showInteractionModal = false;
-      this.showNoteModal = false;
-      this.showPersonalTaskModal = false;
-      this.showViewPersonalTaskModal = false;
+      this.showTaskModal.set(false);
+      this.showInteractionModal.set(false);
+      this.showNoteModal.set(false);
+      this.showPersonalTaskModal.set(false);
+      this.showViewPersonalTaskModal.set(false);
       this.closeCompletionModal();
     }
   }

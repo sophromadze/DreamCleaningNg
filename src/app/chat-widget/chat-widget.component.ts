@@ -1,4 +1,4 @@
-import { Component, ElementRef, NgZone, OnDestroy, OnInit, PLATFORM_ID, ViewChild, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, ElementRef, NgZone, OnDestroy, OnInit, PLATFORM_ID, ChangeDetectionStrategy, inject, viewChild, signal, computed } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { NavigationEnd, Router } from '@angular/router';
@@ -60,7 +60,7 @@ interface WidgetMessage {
   standalone: true,
   imports: [FormsModule, ChatMarkdownPipe, IconComponent],
   templateUrl: './chat-widget.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './chat-widget.component.scss'
 })
 export class ChatWidgetComponent implements OnInit, OnDestroy {
@@ -89,19 +89,19 @@ export class ChatWidgetComponent implements OnInit, OnDestroy {
   private static readonly RESUME_DAYS_AI = 7;
   private static readonly RESUME_DAYS_ESCALATED = 30;
 
-  visible = false;
-  isOpen = false;
-  messages: WidgetMessage[] = [];
-  draft = '';
-  sending = false;
-  uploadingImage = false;
-  error: string | null = null;
-  escalated = false;
-  conversationEnded = false;
-  unreadCount = 0;
-  pendingImage: { path: string; previewUrl: string } | null = null;
+  readonly visible = signal(false);
+  readonly isOpen = signal(false);
+  readonly messages = signal<WidgetMessage[]>([], { equal: () => false });
+  readonly draft = signal('');
+  readonly sending = signal(false);
+  readonly uploadingImage = signal(false);
+  readonly error = signal<string | null>(null);
+  readonly escalated = signal(false);
+  readonly conversationEnded = signal(false);
+  readonly unreadCount = signal(0);
+  readonly pendingImage = signal<{ path: string; previewUrl: string } | null>(null);
   /** Whether a signed-in user owns this widget (their account email is used server-side). */
-  isLoggedIn = false;
+  readonly isLoggedIn = signal(false);
 
   // ===== Guest contact email =====
   // The field used to vanish the instant the first message was sent, which in practice meant
@@ -109,31 +109,31 @@ export class ChatWidgetComponent implements OnInit, OnDestroy {
   // and we never get an address. It now has its OWN submit button and stays put until the
   // visitor either submits an address or dismisses the row. Sending is never blocked by it.
   /** What's currently typed in the email field. */
-  guestEmailInput = '';
+  readonly guestEmailInput = signal('');
   /** The submitted address, held locally until a session exists to attach it to. */
   private capturedGuestEmail: string | null = null;
   /** Set once an address has been accepted — one of the two things that hide the field. */
-  guestEmailSaved = false;
+  readonly guestEmailSaved = signal(false);
   /** The other: the visitor dismissed the row. It no longer hides itself on the first
    *  message, so declining has to be something they can actually do. */
-  guestEmailDismissed = false;
+  readonly guestEmailDismissed = signal(false);
   /** Format complaint from describeEmailProblem, or a server rejection. */
-  guestEmailError: string | null = null;
-  savingGuestEmail = false;
+  readonly guestEmailError = signal<string | null>(null);
+  readonly savingGuestEmail = signal(false);
   /** Brief "thanks" line shown in place of the field so it doesn't just silently vanish. */
-  guestEmailNoteVisible = false;
+  readonly guestEmailNoteVisible = signal(false);
 
   // ===== Human handoff =====
   /** The "Talk to a real person" bar is a two-step action — one stray tap shouldn't page the team. */
-  confirmingHumanRequest = false;
-  requestingHuman = false;
+  readonly confirmingHumanRequest = signal(false);
+  readonly requestingHuman = signal(false);
   /** Set by the "Work with us" opener. The handoff reaches the customer support desk, which
    *  doesn't handle hiring, so an applicant is pointed at the phone/email instead of being
    *  put through to somebody who would only redirect them again. */
-  jobSeekerDeclared = false;
+  readonly jobSeekerDeclared = signal(false);
   /** Polling suspended after IDLE_TIMEOUT_MS of no user activity. When the panel is open
    *  this drives the "Paused due to inactivity" banner; when closed it's silent. */
-  paused = false;
+  readonly paused = signal(false);
   /**
    * Whether the mobile sticky CTA bar is on screen. On phones the widget floats ABOVE that
    * bar, so on the pages that hide it (/booking, /order, the staff pages — the list lives in
@@ -141,7 +141,7 @@ export class ChatWidgetComponent implements OnInit, OnDestroy {
    * Read from StickyCtaService rather than re-testing the route here, so there is one answer
    * to "is the bar showing" and it already accounts for touch devices and window width.
    */
-  stickyCtaVisible = false;
+  readonly stickyCtaVisible = signal(false);
 
   /** Wall-clock of the last user interaction (send / open panel / click or keydown in the
    *  open panel). Drives the idle-timeout check; refreshed by registerActivity(). */
@@ -169,8 +169,8 @@ export class ChatWidgetComponent implements OnInit, OnDestroy {
   /** Auto-dismiss for the "thanks for your email" line. */
   private emailNoteTimer?: ReturnType<typeof setTimeout>;
 
-  @ViewChild('messageList') private messageList?: ElementRef<HTMLDivElement>;
-  @ViewChild('messageInput') private messageInput?: ElementRef<HTMLInputElement>;
+  private readonly messageList = viewChild<ElementRef<HTMLDivElement>>('messageList');
+  private readonly messageInput = viewChild<ElementRef<HTMLInputElement>>('messageInput');
 
   constructor() {
     const platformId = inject<Object>(PLATFORM_ID);
@@ -185,7 +185,7 @@ export class ChatWidgetComponent implements OnInit, OnDestroy {
     // BehaviorSubject emits immediately, so this also performs the initial check;
     // afterwards it re-checks only when the signed-in user actually changes.
     this.authSub = this.authService.currentUser.subscribe(user => {
-      this.isLoggedIn = !!user;
+      this.isLoggedIn.set(!!user);
       const key = user ? `user-${user.id}` : 'anonymous';
       if (key === this.lastAuthKey) return;
       this.lastAuthKey = key;
@@ -195,7 +195,7 @@ export class ChatWidgetComponent implements OnInit, OnDestroy {
     // How far off the bottom the widget floats. The bar publishes its own visibility on
     // every route change and resize, so this stays correct across SPA navigation.
     this.stickyCtaSub = this.stickyCtaService.visible$
-      .subscribe(visible => this.stickyCtaVisible = visible);
+      .subscribe(visible => this.stickyCtaVisible.set(visible));
 
     // Treat a hidden tab as "not watching" even when the panel is open — so a reply
     // arriving while the customer is on another tab still raises the badge, and
@@ -231,7 +231,7 @@ export class ChatWidgetComponent implements OnInit, OnDestroy {
   }
 
   private readonly onVisibilityChange = (): void => {
-    if (this.isTabVisible() && this.isOpen) this.markAllSeen();
+    if (this.isTabVisible() && this.isOpen()) this.markAllSeen();
   };
 
   /** The customer is "watching" only when the panel is open AND the tab is visible. */
@@ -240,16 +240,16 @@ export class ChatWidgetComponent implements OnInit, OnDestroy {
   }
 
   toggleOpen(): void {
-    this.isOpen = !this.isOpen;
-    this.isOpen ? this.enterFullscreenMode() : this.exitFullscreenMode();
-    if (this.isOpen) {
+    this.isOpen.set(!this.isOpen());
+    this.isOpen() ? this.enterFullscreenMode() : this.exitFullscreenMode();
+    if (this.isOpen()) {
       // Opening is activity — resets the idle clock and clears a closed idle-pause so
       // the catch-up below and foreground polling resume normally.
       this.registerActivity();
-      this.paused = false;
+      this.paused.set(false);
       this.stopBackgroundPolling();
       this.markAllSeen();
-      if (this.escalated && this.sessionId && !this.conversationEnded) {
+      if (this.escalated() && this.sessionId && !this.conversationEnded()) {
         this.pollOnce(); // catch up on replies missed while closed
         this.startPolling();
       }
@@ -258,7 +258,7 @@ export class ChatWidgetComponent implements OnInit, OnDestroy {
       this.stopPolling();
       // If we were idle-paused while open, closing keeps it paused (nobody's watching) —
       // reopening later resumes and catches up.
-      if (!this.paused && this.escalated && this.sessionId && !this.conversationEnded) {
+      if (!this.paused() && this.escalated() && this.sessionId && !this.conversationEnded()) {
         this.startBackgroundPolling();
       }
     }
@@ -266,51 +266,51 @@ export class ChatWidgetComponent implements OnInit, OnDestroy {
 
   /** Customer "End chat" — resolves the session server-side and shows the ended state. */
   endChat(): void {
-    if (!this.sessionId || this.conversationEnded) return;
+    if (!this.sessionId || this.conversationEnded()) return;
     if (!confirm('End this conversation?')) return;
 
     const sessionId = this.sessionId;
     this.chatService.resolveSession(sessionId).subscribe({
       next: () => this.enterResolvedState(),
       error: () => {
-        this.error = 'Could not end the conversation. Please try again.';
+        this.error.set('Could not end the conversation. Please try again.');
       }
     });
   }
 
   /** Ended banner's "Start new chat" — fresh session on the next message. */
   startNewChat(): void {
-    this.conversationEnded = false;
+    this.conversationEnded.set(false);
     this.sessionId = null;
-    this.escalated = false;
-    this.messages = [];
+    this.escalated.set(false);
+    this.messages.set([]);
     this.seenIds.clear();
     this.lastSeenTimestamp = null;
     this.lastSeenByUserAt = null;
-    this.unreadCount = 0;
-    this.error = null;
-    this.paused = false;
+    this.unreadCount.set(0);
+    this.error.set(null);
+    this.paused.set(false);
     // Never carry a previous visitor's email into a fresh chat — this is a shared device
     // as far as we know. The field comes back with it, asking again.
-    this.guestEmailInput = '';
+    this.guestEmailInput.set('');
     this.capturedGuestEmail = null;
-    this.guestEmailSaved = false;
-    this.guestEmailDismissed = false;
-    this.guestEmailError = null;
-    this.guestEmailNoteVisible = false;
-    this.confirmingHumanRequest = false;
+    this.guestEmailSaved.set(false);
+    this.guestEmailDismissed.set(false);
+    this.guestEmailError.set(null);
+    this.guestEmailNoteVisible.set(false);
+    this.confirmingHumanRequest.set(false);
     // A fresh chat is where a mis-tapped "Work with us" is undone — the opener chips come
     // back with it, so this is the one route from the applicant path to the customer one.
-    this.jobSeekerDeclared = false;
+    this.jobSeekerDeclared.set(false);
     this.registerActivity();
     this.clearPendingImage();
     this.clearStoredSession();
   }
 
   private enterResolvedState(): void {
-    this.conversationEnded = true;
-    this.escalated = false;
-    this.paused = false;
+    this.conversationEnded.set(true);
+    this.escalated.set(false);
+    this.paused.set(false);
     this.stopPolling();
     this.stopBackgroundPolling();
     this.clearStoredSession();
@@ -318,34 +318,35 @@ export class ChatWidgetComponent implements OnInit, OnDestroy {
   }
 
   send(): void {
-    if (this.conversationEnded) return; // ended state — Start new chat first
-    const text = this.draft.trim();
-    const image = this.pendingImage;
-    if (this.sending || (!text && !image)) return;
+    if (this.conversationEnded()) return; // ended state — Start new chat first
+    const text = this.draft().trim();
+    const image = this.pendingImage();
+    if (this.sending() || (!text && !image)) return;
 
     // A real send always counts as activity and lifts any idle pause — resuming works
     // whether or not they clicked "Continue" first (foreground polling is restarted in
     // the success handler below).
     this.registerActivity();
-    this.paused = false;
+    this.paused.set(false);
 
     // The first message of a new guest session carries an email the visitor had already
     // submitted through the field's own button (there was no session to POST it to yet).
     // Anything merely TYPED and not submitted is not sent — the field is still on screen
     // waiting for them to confirm it, which is the whole point of the button.
-    const guestEmail = !this.sessionId && !this.isLoggedIn ? this.capturedGuestEmail : null;
+    const guestEmail = !this.sessionId && !this.isLoggedIn() ? this.capturedGuestEmail : null;
 
-    this.error = null;
-    this.sending = true;
-    this.draft = '';
-    this.pendingImage = null; // keep previewUrl alive for the message bubble
+    this.error.set(null);
+    this.sending.set(true);
+    this.draft.set('');
+    this.pendingImage.set(null); // keep previewUrl alive for the message bubble
 
     // The conversation is moving on — retire any outstanding quick-reply chips.
-    for (const m of this.messages) {
+    for (const m of this.messages()) {
       if (m.quickReplies) m.quickRepliesUsed = true;
     }
+    this.messages.set(this.messages());
 
-    this.messages.push({
+    this.messages().push({
       id: null,
       role: 'user',
       content: text || null,
@@ -354,11 +355,12 @@ export class ChatWidgetComponent implements OnInit, OnDestroy {
       imagePath: image?.previewUrl ?? null,
       createdAt: null
     });
+    this.messages.set(this.messages());
     this.scrollToBottom();
 
     this.chatService.sendMessage(this.sessionId, text, image?.path ?? null, guestEmail).subscribe({
       next: response => {
-        this.sending = false;
+        this.sending.set(false);
         this.focusInput(); // disabling during send dropped focus — give it back
         // The server may hand back a NEW id (e.g. the stored session was resolved
         // by an admin and a fresh one was started) — always adopt and persist it.
@@ -373,7 +375,7 @@ export class ChatWidgetComponent implements OnInit, OnDestroy {
         // reply is null for post-escalation relays — no bubble, no sound; the
         // human's actual answer arrives via polling.
         if (response.reply) {
-          this.messages.push({
+          this.messages().push({
             id: null,
             role: 'assistant',
             content: response.reply,
@@ -381,28 +383,29 @@ export class ChatWidgetComponent implements OnInit, OnDestroy {
             createdAt: null,
             quickReplies: response.quickReplies?.length ? response.quickReplies : null
           });
+          this.messages.set(this.messages());
           this.playNotificationSound();
           this.scrollToBottom();
         }
 
-        if (response.escalated && !this.escalated) {
-          this.escalated = true;
+        if (response.escalated && !this.escalated()) {
+          this.escalated.set(true);
           this.syncHistory(); // adopt server ids so polling never duplicates
           this.startPolling();
-        } else if (this.escalated && this.isOpen) {
+        } else if (this.escalated() && this.isOpen()) {
           // Already escalated — make sure foreground polling is live (resumes it if an
           // idle pause had stopped it; no-op when it's already running).
           this.startPolling();
         }
       },
       error: err => {
-        this.sending = false;
+        this.sending.set(false);
         this.focusInput(); // same focus restore on failure — they'll want to retry
-        this.error = err?.status === 429
+        this.error.set(err?.status === 429
           ? "You're sending messages a little fast — give it a few seconds and try again."
           : err?.status === 403
             ? 'Chat is currently unavailable.'
-            : 'Something went wrong sending your message. Please try again.';
+            : 'Something went wrong sending your message. Please try again.');
       }
     });
   }
@@ -414,39 +417,39 @@ export class ChatWidgetComponent implements OnInit, OnDestroy {
     if (!file) return;
 
     if (file.size > ChatWidgetComponent.MAX_IMAGE_BYTES) {
-      this.error = 'Image is too large — maximum size is 5 MB.';
+      this.error.set('Image is too large — maximum size is 5 MB.');
       return;
     }
 
-    this.error = null;
-    this.uploadingImage = true;
+    this.error.set(null);
+    this.uploadingImage.set(true);
     this.chatService.uploadImage(file).subscribe({
       next: response => {
-        this.uploadingImage = false;
+        this.uploadingImage.set(false);
         this.clearPendingImage();
-        this.pendingImage = {
+        this.pendingImage.set({
           path: response.imagePath,
           previewUrl: URL.createObjectURL(file)
-        };
+        });
       },
       error: err => {
-        this.uploadingImage = false;
-        this.error = err?.status === 429
+        this.uploadingImage.set(false);
+        this.error.set(err?.status === 429
           ? 'Too many requests — give it a few seconds and try again.'
-          : 'Could not upload that image (JPG, PNG or WEBP up to 5 MB).';
+          : 'Could not upload that image (JPG, PNG or WEBP up to 5 MB).');
       }
     });
   }
 
   clearPendingImage(): void {
-    if (this.pendingImage) {
-      URL.revokeObjectURL(this.pendingImage.previewUrl);
-      this.pendingImage = null;
+    if (this.pendingImage()) {
+      URL.revokeObjectURL(this.pendingImage()!.previewUrl);
+      this.pendingImage.set(null);
     }
   }
 
   get canSend(): boolean {
-    return !this.sending && (!!this.draft.trim() || !!this.pendingImage);
+    return !this.sending() && (!!this.draft().trim() || !!this.pendingImage());
   }
 
   /**
@@ -457,17 +460,13 @@ export class ChatWidgetComponent implements OnInit, OnDestroy {
    * hide it now, and both are the visitor's own decision: submitting an address, or
    * dismissing the row.
    */
-  get showEmailField(): boolean {
-    return !this.isLoggedIn && !this.guestEmailSaved && !this.guestEmailDismissed && !this.conversationEnded;
-  }
+  readonly showEmailField = computed<boolean>(() => !this.isLoggedIn() && !this.guestEmailSaved() && !this.guestEmailDismissed() && !this.conversationEnded());
 
   /**
    * The handoff bar is pointless once the team is already on the conversation — and it is
    * the wrong door for somebody who came here about a job (see `jobSeekerDeclared`).
    */
-  get showHumanHandoff(): boolean {
-    return !this.escalated && !this.conversationEnded && !this.jobSeekerDeclared;
-  }
+  readonly showHumanHandoff = computed<boolean>(() => !this.escalated() && !this.conversationEnded() && !this.jobSeekerDeclared());
 
   /**
    * Submit the email field. Validated in the browser first with the same
@@ -477,16 +476,16 @@ export class ChatWidgetComponent implements OnInit, OnDestroy {
    * is POSTed on its own, because the conversation may already be with a human by then.
    */
   submitGuestEmail(): void {
-    if (this.savingGuestEmail || this.guestEmailSaved) return;
+    if (this.savingGuestEmail() || this.guestEmailSaved()) return;
     this.registerActivity();
 
-    const email = this.guestEmailInput.trim();
+    const email = this.guestEmailInput().trim();
     const problem = describeEmailProblem(email);
     if (problem) {
-      this.guestEmailError = problem;
+      this.guestEmailError.set(problem);
       return;
     }
-    this.guestEmailError = null;
+    this.guestEmailError.set(null);
 
     if (!this.sessionId) {
       this.capturedGuestEmail = email;
@@ -494,18 +493,18 @@ export class ChatWidgetComponent implements OnInit, OnDestroy {
       return;
     }
 
-    this.savingGuestEmail = true;
+    this.savingGuestEmail.set(true);
     this.chatService.setGuestEmail(this.sessionId, email).subscribe({
       next: () => {
-        this.savingGuestEmail = false;
+        this.savingGuestEmail.set(false);
         this.capturedGuestEmail = email;
         this.acceptGuestEmail();
       },
       error: err => {
-        this.savingGuestEmail = false;
+        this.savingGuestEmail.set(false);
         // The server's own wording when it has one (it names the same mistakes this
         // component's check does); a transport failure gets something actionable.
-        this.guestEmailError = extractApiErrorMessage(err, "Couldn't save that email — please try again.");
+        this.guestEmailError.set(extractApiErrorMessage(err, "Couldn't save that email — please try again."));
       }
     });
   }
@@ -515,33 +514,33 @@ export class ChatWidgetComponent implements OnInit, OnDestroy {
    * so it stays away across a reload, and deliberately silent: there is nothing to confirm.
    */
   dismissGuestEmail(): void {
-    if (this.savingGuestEmail) return;
+    if (this.savingGuestEmail()) return;
     this.registerActivity();
-    this.guestEmailDismissed = true;
-    this.guestEmailError = null;
+    this.guestEmailDismissed.set(true);
+    this.guestEmailError.set(null);
     this.saveStoredSession();
   }
 
   /** Hide the field and leave a short confirmation behind, so it doesn't just vanish. */
   private acceptGuestEmail(): void {
-    this.guestEmailSaved = true;
-    this.guestEmailNoteVisible = true;
+    this.guestEmailSaved.set(true);
+    this.guestEmailNoteVisible.set(true);
     if (this.emailNoteTimer) clearTimeout(this.emailNoteTimer);
     this.emailNoteTimer = setTimeout(() => {
-      this.guestEmailNoteVisible = false;
+      this.guestEmailNoteVisible.set(false);
       this.emailNoteTimer = undefined;
     }, 5000);
   }
 
   /** First tap on "Talk to a real person" — asks before paging the team. */
   askForHuman(): void {
-    if (this.requestingHuman) return;
+    if (this.requestingHuman()) return;
     this.registerActivity();
-    this.confirmingHumanRequest = true;
+    this.confirmingHumanRequest.set(true);
   }
 
   cancelHumanRequest(): void {
-    this.confirmingHumanRequest = false;
+    this.confirmingHumanRequest.set(false);
   }
 
   /**
@@ -550,18 +549,18 @@ export class ChatWidgetComponent implements OnInit, OnDestroy {
    * the assistant agreeing (or on Anthropic being reachable at all).
    */
   confirmHumanRequest(): void {
-    if (this.requestingHuman || this.escalated || this.conversationEnded) return;
+    if (this.requestingHuman() || this.escalated() || this.conversationEnded()) return;
     this.registerActivity();
-    this.paused = false;
-    this.requestingHuman = true;
-    this.error = null;
+    this.paused.set(false);
+    this.requestingHuman.set(true);
+    this.error.set(null);
 
-    const guestEmail = !this.sessionId && !this.isLoggedIn ? this.capturedGuestEmail : null;
+    const guestEmail = !this.sessionId && !this.isLoggedIn() ? this.capturedGuestEmail : null;
 
     this.chatService.requestHuman(this.sessionId, guestEmail).subscribe({
       next: response => {
-        this.requestingHuman = false;
-        this.confirmingHumanRequest = false;
+        this.requestingHuman.set(false);
+        this.confirmingHumanRequest.set(false);
         if (this.sessionId !== response.sessionId) {
           this.sessionId = response.sessionId;
           this.seenIds.clear();
@@ -571,43 +570,45 @@ export class ChatWidgetComponent implements OnInit, OnDestroy {
         this.saveStoredSession();
 
         // Outstanding chips belong to a question the AI is no longer answering.
-        for (const m of this.messages) {
+        for (const m of this.messages()) {
           if (m.quickReplies) m.quickRepliesUsed = true;
         }
+        this.messages.set(this.messages());
 
         if (response.reply) {
-          this.messages.push({
+          this.messages().push({
             id: null,
             role: 'assistant',
             content: response.reply,
             imagePath: null,
             createdAt: null
           });
+          this.messages.set(this.messages());
           this.scrollToBottom();
         }
 
-        this.escalated = true;
+        this.escalated.set(true);
         this.syncHistory();  // adopt server ids so polling never duplicates
         this.startPolling();
       },
       error: err => {
-        this.requestingHuman = false;
-        this.error = err?.status === 429
+        this.requestingHuman.set(false);
+        this.error.set(err?.status === 429
           ? "You're going a little fast — give it a few seconds and try again."
-          : 'Could not reach our team just now. Please call (929) 930-1525 and we\'ll help right away.';
+          : 'Could not reach our team just now. Please call (929) 930-1525 and we\'ll help right away.');
       }
     });
   }
 
   /** Chips render only under the newest message so stale choice sets can't linger. */
   isLastMessage(message: WidgetMessage): boolean {
-    return this.messages.length > 0 && this.messages[this.messages.length - 1] === message;
+    return this.messages().length > 0 && this.messages()[this.messages().length - 1] === message;
   }
 
   /** A chip click sends its label through the exact normal send flow. */
   onQuickReply(option: string): void {
-    if (this.sending) return;
-    this.draft = option;
+    if (this.sending()) return;
+    this.draft.set(option);
     this.send(); // send() also retires all outstanding chips
   }
 
@@ -645,16 +646,16 @@ export class ChatWidgetComponent implements OnInit, OnDestroy {
   ];
 
   sendOpener(opener: { message: string; intent: 'booking' | 'employment' }): void {
-    if (this.sending) return;
+    if (this.sending()) return;
     // Declaring themselves a job-seeker takes the handoff bar away (owner's call): the team
     // on the other end of it is the CUSTOMER support desk, and hiring is answered by phone
     // or email — so offering to put an applicant through would only route them somewhere
     // that has to redirect them again.
     if (opener.intent === 'employment') {
-      this.jobSeekerDeclared = true;
-      this.confirmingHumanRequest = false;
+      this.jobSeekerDeclared.set(true);
+      this.confirmingHumanRequest.set(false);
     }
-    this.draft = opener.message;
+    this.draft.set(opener.message);
     this.send();
   }
 
@@ -663,10 +664,10 @@ export class ChatWidgetComponent implements OnInit, OnDestroy {
   private checkVisibility(): void {
     this.chatService.getVisibility().subscribe({
       next: result => {
-        this.visible = result.visible;
+        this.visible.set(result.visible);
         if (!result.visible) {
-          if (this.isOpen) this.exitFullscreenMode();
-          this.isOpen = false;
+          if (this.isOpen()) this.exitFullscreenMode();
+          this.isOpen.set(false);
           this.stopPolling();
           this.stopBackgroundPolling();
         } else if (!this.restoreAttempted) {
@@ -675,7 +676,7 @@ export class ChatWidgetComponent implements OnInit, OnDestroy {
         }
       },
       error: () => {
-        this.visible = false;
+        this.visible.set(false);
         this.stopPolling();
         this.stopBackgroundPolling();
       }
@@ -693,10 +694,10 @@ export class ChatWidgetComponent implements OnInit, OnDestroy {
         // So a resumed conversation doesn't ask again for an address the visitor already
         // gave (the history endpoint doesn't report it, and re-asking looks like we lost
         // it) — or one they already declined to give.
-        guestEmailSaved: this.guestEmailSaved,
-        guestEmailDismissed: this.guestEmailDismissed,
+        guestEmailSaved: this.guestEmailSaved(),
+        guestEmailDismissed: this.guestEmailDismissed(),
         // Or a reload would hand an applicant the handoff bar their opener took away.
-        jobSeekerDeclared: this.jobSeekerDeclared
+        jobSeekerDeclared: this.jobSeekerDeclared()
       }));
     } catch { /* private browsing / quota — session just won't resume */ }
   }
@@ -759,19 +760,19 @@ export class ChatWidgetComponent implements OnInit, OnDestroy {
         }
 
         this.sessionId = stored.sessionId;
-        this.guestEmailSaved = stored.guestEmailSaved;
-        this.guestEmailDismissed = stored.guestEmailDismissed;
-        this.jobSeekerDeclared = stored.jobSeekerDeclared;
-        this.escalated = history.status === 'escalatedToHuman';
-        this.messages = history.messages.map(m => this.toWidgetMessage(m));
+        this.guestEmailSaved.set(stored.guestEmailSaved);
+        this.guestEmailDismissed.set(stored.guestEmailDismissed);
+        this.jobSeekerDeclared.set(stored.jobSeekerDeclared);
+        this.escalated.set(history.status === 'escalatedToHuman');
+        this.messages.set(history.messages.map(m => this.toWidgetMessage(m)));
         this.seenIds = new Set(history.messages.map(m => m.id));
         this.lastSeenTimestamp = newest;
         this.lastSeenByUserAt = stored.lastSeenMessageAt;
-        this.unreadCount = history.messages.filter(m =>
+        this.unreadCount.set(history.messages.filter(m =>
           m.role !== 'user' &&
-          (!stored.lastSeenMessageAt || m.createdAt > stored.lastSeenMessageAt)).length;
+          (!stored.lastSeenMessageAt || m.createdAt > stored.lastSeenMessageAt)).length);
 
-        if (this.escalated) this.startBackgroundPolling();
+        if (this.escalated()) this.startBackgroundPolling();
       },
       error: err => {
         if (err?.status === 404) this.clearStoredSession();
@@ -785,7 +786,7 @@ export class ChatWidgetComponent implements OnInit, OnDestroy {
 
   /** Panel is open and current — reset the badge and advance the seen cursor. */
   private markAllSeen(): void {
-    this.unreadCount = 0;
+    this.unreadCount.set(0);
     if (this.lastSeenTimestamp) this.lastSeenByUserAt = this.lastSeenTimestamp;
     this.saveStoredSession();
   }
@@ -796,7 +797,7 @@ export class ChatWidgetComponent implements OnInit, OnDestroy {
   // the customer just sent, so there is nothing to discover in the background.
 
   private startPolling(): void {
-    if (this.pollHandle || !this.isOpen || debugTimersPaused()) return;
+    if (this.pollHandle || !this.isOpen() || debugTimersPaused()) return;
     this.pollHandle = setIntervalOutsideZone(this.ngZone, () => this.pollOnce(), ChatWidgetComponent.POLL_INTERVAL_MS);
   }
 
@@ -808,7 +809,7 @@ export class ChatWidgetComponent implements OnInit, OnDestroy {
   }
 
   private startBackgroundPolling(): void {
-    if (this.bgPollHandle || this.isOpen || !this.escalated || !this.sessionId || this.conversationEnded || debugTimersPaused()) return;
+    if (this.bgPollHandle || this.isOpen() || !this.escalated() || !this.sessionId || this.conversationEnded() || debugTimersPaused()) return;
     this.bgPollHandle = setIntervalOutsideZone(this.ngZone, () => this.pollOnce(), ChatWidgetComponent.BG_POLL_INTERVAL_MS);
   }
 
@@ -834,7 +835,7 @@ export class ChatWidgetComponent implements OnInit, OnDestroy {
    *  only the rare resume-from-silent-pause re-enters the zone, because catching up
    *  can touch template-bound state (badge, messages). */
   private readonly onDocumentClick = (): void => {
-    if (!this.paused) {
+    if (!this.paused()) {
       this.registerActivity();
       return;
     }
@@ -847,9 +848,9 @@ export class ChatWidgetComponent implements OnInit, OnDestroy {
    *  panel's pause keeps its banner and still requires Continue or a send. */
   private onSiteActivity(): void {
     this.registerActivity();
-    if (this.paused && !this.isOpen) {
-      this.paused = false;
-      if (this.sessionId && this.escalated && !this.conversationEnded) {
+    if (this.paused() && !this.isOpen()) {
+      this.paused.set(false);
+      if (this.sessionId && this.escalated() && !this.conversationEnded()) {
         this.pollOnce(); // catch up on anything relayed while paused
         this.startBackgroundPolling();
       }
@@ -859,7 +860,7 @@ export class ChatWidgetComponent implements OnInit, OnDestroy {
   /** Idle threshold crossed — suspend both poll rates. Open panels surface the banner
    *  (via the `paused` flag); closed panels pause silently and catch up on reopen. */
   private pauseForIdle(): void {
-    this.paused = true;
+    this.paused.set(true);
     this.stopPolling();
     this.stopBackgroundPolling();
   }
@@ -867,16 +868,16 @@ export class ChatWidgetComponent implements OnInit, OnDestroy {
   /** "Continue chat" from the idle banner — reset the clock, drop the pause, catch up on
    *  anything relayed while paused, and resume the current context's rate. */
   continueChat(): void {
-    this.paused = false;
+    this.paused.set(false);
     this.registerActivity();
-    if (!this.sessionId || this.conversationEnded) return;
+    if (!this.sessionId || this.conversationEnded()) return;
     this.pollOnce(); // immediate catch-up
-    if (this.isOpen) this.startPolling();
+    if (this.isOpen()) this.startPolling();
     else this.startBackgroundPolling();
   }
 
   private pollOnce(): void {
-    if (!this.sessionId || this.conversationEnded) return;
+    if (!this.sessionId || this.conversationEnded()) return;
     // Idle guard piggybacks on every poll tick: no activity for IDLE_TIMEOUT_MS pauses
     // both rates until the user comes back (Continue / send / reopen).
     if (Date.now() - this.lastActivityAt >= ChatWidgetComponent.IDLE_TIMEOUT_MS) {
@@ -908,12 +909,12 @@ export class ChatWidgetComponent implements OnInit, OnDestroy {
     if (!this.sessionId) return;
     this.chatService.getSessionMessages(this.sessionId, null).subscribe({
       next: history => {
-        this.messages = history.messages.map(m => this.toWidgetMessage(m));
+        this.messages.set(history.messages.map(m => this.toWidgetMessage(m)));
         this.seenIds = new Set(history.messages.map(m => m.id));
         this.lastSeenTimestamp = history.messages.length
           ? history.messages[history.messages.length - 1].createdAt
           : this.lastSeenTimestamp;
-        if (this.isOpen) this.markAllSeen(); // escalation happens with the panel open
+        if (this.isOpen()) this.markAllSeen(); // escalation happens with the panel open
         this.saveStoredSession();
         this.scrollToBottom();
       },
@@ -934,7 +935,7 @@ export class ChatWidgetComponent implements OnInit, OnDestroy {
       // A user message we don't know by id is usually our own optimistic copy
       // coming back from the server — adopt the id instead of duplicating it.
       if (message.role === 'user') {
-        const optimistic = this.messages.find(m =>
+        const optimistic = this.messages().find(m =>
           m.id === null && m.role === 'user' && (m.content ?? '') === (message.content ?? ''));
         if (optimistic) {
           optimistic.id = message.id;
@@ -943,20 +944,21 @@ export class ChatWidgetComponent implements OnInit, OnDestroy {
         }
       }
 
-      this.messages.push(this.toWidgetMessage(message));
+      this.messages().push(this.toWidgetMessage(message));
       appended = true;
       if (message.role !== 'user') incomingReplies++;
     }
+    this.messages.set(this.messages());
     if (appended) this.scrollToBottom();
     if (incomingReplies > 0) {
       // One chirp per poll batch, replies only — never for the visitor's own messages.
       this.playNotificationSound();
       // "Watching" = panel open AND tab visible. Panel open on a hidden/background
       // tab still accrues a badge, so the customer sees it on return.
-      if (this.isOpen && this.isTabVisible()) {
+      if (this.isOpen() && this.isTabVisible()) {
         this.markAllSeen();
       } else {
-        this.unreadCount += incomingReplies;
+        this.unreadCount.update(v => v + (incomingReplies));
         this.saveStoredSession();
       }
     }
@@ -993,12 +995,12 @@ export class ChatWidgetComponent implements OnInit, OnDestroy {
    * NOT called on polled replies: those never disable the input (no focus was lost), and
    * grabbing focus there would fight e.g. the guest-email field or text selection. */
   private focusInput(): void {
-    setTimeout(() => this.messageInput?.nativeElement?.focus());
+    setTimeout(() => this.messageInput()?.nativeElement?.focus());
   }
 
   private scrollToBottom(): void {
     setTimeout(() => {
-      const el = this.messageList?.nativeElement;
+      const el = this.messageList()?.nativeElement;
       if (el) el.scrollTop = el.scrollHeight;
     });
   }
@@ -1085,7 +1087,7 @@ export class ChatWidgetComponent implements OnInit, OnDestroy {
   }
 
   private isScrolledToBottom(): boolean {
-    const el = this.messageList?.nativeElement;
+    const el = this.messageList()?.nativeElement;
     if (!el) return true;
     return el.scrollHeight - el.scrollTop - el.clientHeight < 40;
   }

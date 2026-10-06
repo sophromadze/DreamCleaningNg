@@ -6,18 +6,18 @@
     <div class="profile-header">
       <div>
         <h1>My Account</h1>
-        @if (profile) {
+        @if (profile()) {
         <p class="profile-subtitle">Hi {{ displayFirstName }} — manage your details, orders and payments.</p>
         }
       </div>
       <button class="logout-btn" (click)="logout()">Logout</button>
     </div>
 
-    @if (errorMessage && activeTab !== 'addresses') {
-    <div class="error-message">{{ errorMessage }}</div>
+    @if (errorMessage() && activeTab() !== 'addresses') {
+    <div class="error-message">{{ errorMessage() }}</div>
     }
-    @if (successMessage) {
-    <div class="success-message">{{ successMessage }}</div>
+    @if (successMessage()) {
+    <div class="success-message">{{ successMessage() }}</div>
     }
 
     <!-- ═══ Tab navigation: one strip that wraps onto more rows when it has to ═══ -->
@@ -25,23 +25,23 @@
       @for (tab of tabs; track tab.key) {
       <button type="button" role="tab" class="profile-tab"
               [id]="'profile-tab-' + tab.key"
-              [class.active]="activeTab === tab.key"
-              [attr.aria-selected]="activeTab === tab.key"
+              [class.active]="activeTab() === tab.key"
+              [attr.aria-selected]="activeTab() === tab.key"
               [attr.aria-controls]="'profile-panel-' + tab.key"
-              [attr.tabindex]="activeTab === tab.key ? 0 : -1"
+              [attr.tabindex]="activeTab() === tab.key ? 0 : -1"
               (click)="setTab(tab.key)">
         <i [class]="tab.icon" aria-hidden="true"></i>
         <span>{{ tab.label }}</span>
-        @if (tab.key === 'billing' && billingIssueCount > 0) {
+        @if (tab.key === 'billing' && billingIssueCount() > 0) {
         <span class="profile-tab__badge"
-              [attr.aria-label]="billingIssueCount + ' payment issue(s)'">{{ billingIssueCount }}</span>
+              [attr.aria-label]="billingIssueCount() + ' payment issue(s)'">{{ billingIssueCount() }}</span>
         }
       </button>
       }
     </nav>
 
     <!-- Loading skeleton: labels visible, shimmer for backend data -->
-    @if (isLoading) {
+    @if (isLoading()) {
     <div class="profile-content profile-content-skeleton">
       <div class="overview-grid">
         <div class="overview-card">
@@ -65,17 +65,17 @@
     </div>
     }
 
-    @if (!isLoading && profile) {
+    @if (!isLoading() && profile()) {
     <div class="profile-content">
 
       <!-- ═══ OVERVIEW ═══ -->
-      @if (activeTab === 'overview') {
+      @if (activeTab() === 'overview') {
       <section role="tabpanel" id="profile-panel-overview" aria-labelledby="profile-tab-overview" class="tab-panel">
-        @if (billingIssueCount > 0) {
+        @if (billingIssueCount() > 0) {
         <div class="overview-alert" role="alert">
           <i class="fas fa-exclamation-circle" aria-hidden="true"></i>
           <div>
-            <strong>{{ billingIssueCount === 1 ? 'A payment needs your attention.' : billingIssueCount + ' payments need your attention.' }}</strong>
+            <strong>{{ billingIssueCount() === 1 ? 'A payment needs your attention.' : billingIssueCount() + ' payments need your attention.' }}</strong>
             <span>Open Billing to update your card or pay.</span>
           </div>
           <button type="button" class="overview-alert__btn" (click)="setTab('billing')">Go to Billing</button>
@@ -90,7 +90,7 @@
             <strong>No active plan</strong>
             }
             @if (hasActiveSubscription) {
-            <strong>{{ profile.subscriptionName }} · {{ profile.subscriptionDiscountPercentage }}% off</strong>
+            <strong>{{ profile()!.subscriptionName }} · {{ profile()!.subscriptionDiscountPercentage }}% off</strong>
             }
             <span class="overview-card__hint">
               {{ hasActiveSubscription ? 'View or change your plan' : 'See our plans' }}
@@ -100,7 +100,7 @@
 
           <button type="button" class="overview-card overview-card--link" (click)="setTab('addresses')">
             <span class="overview-card__label">Saved addresses</span>
-            <strong>{{ profile.apartments.length }} saved</strong>
+            <strong>{{ profile()!.apartments.length }} saved</strong>
             <span class="overview-card__hint">
               Add or edit an address <i class="fas fa-arrow-right" aria-hidden="true"></i>
             </span>
@@ -114,10 +114,10 @@
             </span>
           </button>
 
-          @if (profile.hasLoyaltyDiscount) {
+          @if (profile()!.hasLoyaltyDiscount) {
           <div class="overview-card overview-card--static">
             <span class="overview-card__label">Special discount</span>
-            <strong>{{ profile.loyaltyDiscountPercentage | number:'1.0-2' }}%</strong>
+            <strong>{{ profile()!.loyaltyDiscountPercentage | number:'1.0-2' }}%</strong>
             <span class="overview-card__hint overview-card__hint--plain">Applied automatically at checkout</span>
           </div>
           }
@@ -129,12 +129,12 @@
              two identical CTAs a few hundred pixels apart read as a rendering fault.
              The row itself is conditional so a residential customer — who has neither invoices
              nor contracts — gets no empty flex box holding open an unexplained gap. -->
-        @if (hasInvoices || hasContracts) {
+        @if (hasInvoices() || hasContracts()) {
         <div class="overview-links">
-          @if (hasInvoices) {
+          @if (hasInvoices()) {
           <a routerLink="/profile/invoices" class="overview-link"><i class="fas fa-file-invoice-dollar" aria-hidden="true"></i> My invoices</a>
           }
-          @if (hasContracts) {
+          @if (hasContracts()) {
           <a routerLink="/profile/contracts" class="overview-link"><i class="fas fa-file-signature" aria-hidden="true"></i> My contracts</a>
           }
         </div>
@@ -146,8 +146,8 @@
              passes it, and it is not competing with the three "doors into a tab" above. It
              draws nothing at all until the code arrives. ── -->
         <app-refer-a-friend class="overview-referral"
-                            [code]="referralCode"
-                            [shareUrl]="referralShareUrl"></app-refer-a-friend>
+                            [code]="referralCode()"
+                            [shareUrl]="referralShareUrl()"></app-refer-a-friend>
 
         <!-- Upcoming recurring cleanings, nearest first, with what may be paid now. Sits ABOVE
              the history: the list below is "everything that has ever happened", this answers
@@ -157,24 +157,24 @@
         <!-- ── Every cleaning on the account, newest first, 10 to a page ── -->
         <div class="section orders-section" id="profile-orders">
           <div class="section-header section-header--split">
-            <h2>Your cleanings @if (orders) {
+            <h2>Your cleanings @if (orders()) {
             <span class="orders-count">({{ realOrderCount }})</span>
             }</h2>
             <a routerLink="/booking" class="add-btn">Book a cleaning</a>
           </div>
 
-          @if (ordersError) {
-          <div class="error-message">{{ ordersError }}</div>
+          @if (ordersError()) {
+          <div class="error-message">{{ ordersError() }}</div>
           }
 
-          @if (orders === null) {
+          @if (orders() === null) {
           <div class="orders-list">
             <div class="profile-shimmer-order" [shimmer]="true"></div>
             <div class="profile-shimmer-order" [shimmer]="true"></div>
           </div>
           }
 
-          @if (orders !== null && orders.length === 0) {
+          @if (orders() !== null && orders()!.length === 0) {
           <div class="no-orders">
             <i class="fas fa-broom" aria-hidden="true"></i>
             <p>You haven't booked a cleaning yet.</p>
@@ -182,7 +182,7 @@
           </div>
           }
 
-          @if (orders !== null && orders.length > 0) {
+          @if (orders() !== null && orders()!.length > 0) {
           <div class="orders-list">
             @for (order of pagedOrders; track order.id) {
             <article class="order-card">
@@ -270,21 +270,21 @@
 
           @if (orderPageCount > 1) {
           <nav class="orders-pager" aria-label="Your cleanings, by page">
-            <button type="button" class="orders-pager__step" (click)="goToOrderPage(ordersPage - 1)"
-                    [disabled]="ordersPage <= 1" aria-label="Previous page">
+            <button type="button" class="orders-pager__step" (click)="goToOrderPage(ordersPage() - 1)"
+                    [disabled]="ordersPage() <= 1" aria-label="Previous page">
               <i class="fas fa-chevron-left" aria-hidden="true"></i>
             </button>
             @for (page of orderPageNumbers; track page) {
             <button type="button" class="orders-pager__page"
-                    [class.active]="page === ordersPage"
-                    [attr.aria-current]="page === ordersPage ? 'page' : null"
+                    [class.active]="page === ordersPage()"
+                    [attr.aria-current]="page === ordersPage() ? 'page' : null"
                     (click)="goToOrderPage(page)">{{ page }}</button>
             }
-            <button type="button" class="orders-pager__step" (click)="goToOrderPage(ordersPage + 1)"
-                    [disabled]="ordersPage >= orderPageCount" aria-label="Next page">
+            <button type="button" class="orders-pager__step" (click)="goToOrderPage(ordersPage() + 1)"
+                    [disabled]="ordersPage() >= orderPageCount" aria-label="Next page">
               <i class="fas fa-chevron-right" aria-hidden="true"></i>
             </button>
-            <span class="orders-pager__summary">Page {{ ordersPage }} of {{ orderPageCount }}</span>
+            <span class="orders-pager__summary">Page {{ ordersPage() }} of {{ orderPageCount }}</span>
           </nav>
           }
         </div>
@@ -292,20 +292,20 @@
       }
 
       <!-- ═══ PERSONAL INFORMATION ═══ -->
-      @if (activeTab === 'personal') {
+      @if (activeTab() === 'personal') {
       <section role="tabpanel" id="profile-panel-personal" aria-labelledby="profile-tab-personal" class="tab-panel">
       <!-- Profile Information Section -->
       <div class="section">
         <div class="section-header section-header--split">
           <h2>Personal Information</h2>
           <div class="header-actions">
-            @if (!isEditingProfile) {
+            @if (!isEditingProfile()) {
             <button class="edit-btn" (click)="startEditProfile()">Edit</button>
             }
           </div>
         </div>
 
-        @if (!isEditingProfile) {
+        @if (!isEditingProfile()) {
         <div class="info-display">
           <div class="info-row">
             <label>First Name:</label>
@@ -317,11 +317,11 @@
           </div>
           <div class="info-row">
             <label>Email:</label>
-            <span>{{ profile.email }}</span>
+            <span>{{ profile()!.email }}</span>
           </div>
           <div class="info-row">
             <label>Phone:</label>
-            <span>{{ profile.phone || 'Not provided' }}</span>
+            <span>{{ profile()!.phone || 'Not provided' }}</span>
           </div>
           <div class="info-row subscription-row">
             <label>Current plan:</label>
@@ -330,10 +330,10 @@
             }
             @if (hasActiveSubscription) {
             <span class="subscription-value-wrap">
-              <span class="subscription-active">{{ profile.subscriptionName }} ({{ profile.subscriptionDiscountPercentage }}% discount)</span>
-              @if (profile.subscriptionExpiryDate) {
+              <span class="subscription-active">{{ profile()!.subscriptionName }} ({{ profile()!.subscriptionDiscountPercentage }}% discount)</span>
+              @if (profile()!.subscriptionExpiryDate) {
               <small class="subscription-details">
-                Expires: {{ profile.subscriptionExpiryDate | date: 'MMM d, y' }}
+                Expires: {{ profile()!.subscriptionExpiryDate | date: 'MMM d, y' }}
               </small>
               }
             </span>
@@ -345,12 +345,12 @@
               <span class="yes-no-toggle">
                 <span class="yn-btn yes"
                       [class.active]="canReceiveEmails"
-                      [class.disabled]="updatingComms"
-                      (click)="!updatingComms && setEmailsPreference(true)">Yes</span>
+                      [class.disabled]="updatingComms()"
+                      (click)="!updatingComms() && setEmailsPreference(true)">Yes</span>
                 <span class="yn-btn no"
                       [class.active]="!canReceiveEmails"
-                      [class.disabled]="updatingComms"
-                      (click)="!updatingComms && setEmailsPreference(false)">No</span>
+                      [class.disabled]="updatingComms()"
+                      (click)="!updatingComms() && setEmailsPreference(false)">No</span>
                 @if (canReceiveEmails) {
                 <span class="yn-icon yes-icon" aria-hidden="true">
                   <i class="fas fa-check"></i>
@@ -362,7 +362,7 @@
                 </span>
                 }
               </span>
-              @if (updatingComms) {
+              @if (updatingComms()) {
               <span class="comm-saving">Updating...</span>
               }
             </span>
@@ -373,12 +373,12 @@
               <span class="yes-no-toggle">
                 <span class="yn-btn yes"
                       [class.active]="canReceiveMessages"
-                      [class.disabled]="updatingComms"
-                      (click)="!updatingComms && setMessagesPreference(true)">Yes</span>
+                      [class.disabled]="updatingComms()"
+                      (click)="!updatingComms() && setMessagesPreference(true)">Yes</span>
                 <span class="yn-btn no"
                       [class.active]="!canReceiveMessages"
-                      [class.disabled]="updatingComms"
-                      (click)="!updatingComms && setMessagesPreference(false)">No</span>
+                      [class.disabled]="updatingComms()"
+                      (click)="!updatingComms() && setMessagesPreference(false)">No</span>
                 @if (canReceiveMessages) {
                 <span class="yn-icon yes-icon" aria-hidden="true">
                   <i class="fas fa-check"></i>
@@ -390,28 +390,28 @@
                 </span>
                 }
               </span>
-              @if (updatingComms) {
+              @if (updatingComms()) {
               <span class="comm-saving">Updating...</span>
               }
             </span>
           </div>
-          @if (profile.hasLoyaltyDiscount) {
+          @if (profile()!.hasLoyaltyDiscount) {
           <div class="info-row">
             <label>Special Discount:</label>
-            <span>{{ profile.loyaltyDiscountPercentage | number:'1.0-2' }}%</span>
+            <span>{{ profile()!.loyaltyDiscountPercentage | number:'1.0-2' }}%</span>
           </div>
           }
           <div class="info-row special-offers-row">
             <label>Special Offers:</label>
-            @if (specialOffers === null) {
+            @if (specialOffers() === null) {
             <div class="profile-shimmer-value profile-shimmer-offers" [shimmer]="true"></div>
             }
-            @if (specialOffers !== null && specialOffers.length === 0) {
+            @if (specialOffers() !== null && specialOffers()!.length === 0) {
             <span class="no-offers-text">No special offers yet.</span>
             }
-            @if (specialOffers !== null && specialOffers.length > 0) {
+            @if (specialOffers() !== null && specialOffers()!.length > 0) {
             <div class="special-offers-container">
-              @for (offer of specialOffers; track $index) {
+              @for (offer of specialOffers(); track $index) {
               <div class="special-offer-item">
                 <span class="offer-badge" [style.background-color]="offer.badgeColor || '#28a745'"
                       [style.color]="badgeLabelColor(offer.badgeColor || '#28a745')">
@@ -436,27 +436,27 @@
         </div>
         }
 
-        @if (isEditingProfile) {
+        @if (isEditingProfile()) {
         <div class="edit-form">
           <div class="form-group">
             <label>First Name</label>
-            <input aria-label="First Name" type="text" [(ngModel)]="editProfileForm.firstName" (blur)="onNameBlur('firstName')" required>
+            <input aria-label="First Name" type="text" [(ngModel)]="editProfileForm().firstName" (blur)="onNameBlur('firstName')" required>
           </div>
           <div class="form-group">
             <label>Last Name</label>
-            <input aria-label="Last Name" type="text" [(ngModel)]="editProfileForm.lastName" (blur)="onNameBlur('lastName')" required>
+            <input aria-label="Last Name" type="text" [(ngModel)]="editProfileForm().lastName" (blur)="onNameBlur('lastName')" required>
           </div>
           <div class="form-group">
             <label>Phone</label>
             <input type="tel"
-                   [(ngModel)]="editProfileForm.phone"
+                   [(ngModel)]="editProfileForm().phone"
                    (input)="onPhoneInput($event)"
                    pattern="[0-9]{10}"
                    maxlength="10"
                    placeholder="1234567890">
-            @if (errorMessage && errorMessage.includes('phone number')) {
+            @if (errorMessage() && errorMessage().includes('phone number')) {
             <div class="error-message">
-              {{ errorMessage }}
+              {{ errorMessage() }}
             </div>
             }
           </div>
@@ -475,7 +475,7 @@
            customer books and does nothing else. No charge, no activation — the discount starts
            on the second cleaning in a row, which is what the explanation below says in words.
            See DreamCleaningBackend/Helpers/PlanSelectionPolicy. -->
-      @if (activeTab === 'plan') {
+      @if (activeTab() === 'plan') {
       <section role="tabpanel" id="profile-panel-plan" aria-labelledby="profile-tab-plan" class="tab-panel">
         <div class="section">
           <div class="section-header section-header--split">
@@ -483,23 +483,23 @@
             <a routerLink="/booking" class="add-btn">Book a cleaning</a>
           </div>
 
-          <div class="plan-status" [class.plan-status--active]="plan?.activeSubscriptionId">
-            <i class="fas" [ngClass]="plan?.activeSubscriptionId ? 'fa-circle-check' : 'fa-circle-info'" aria-hidden="true"></i>
+          <div class="plan-status" [class.plan-status--active]="plan()?.activeSubscriptionId">
+            <i class="fas" [ngClass]="plan()?.activeSubscriptionId ? 'fa-circle-check' : 'fa-circle-info'" aria-hidden="true"></i>
             <div>
-              @if (plan?.activeSubscriptionId) {
+              @if (plan()?.activeSubscriptionId) {
               <strong>
-                {{ plan?.activeSubscriptionName }} is active — {{ plan?.activeDiscountPercentage }}% off your next cleaning
+                {{ plan()?.activeSubscriptionName }} is active — {{ plan()?.activeDiscountPercentage }}% off your next cleaning
               </strong>
               }
-              @if (plan && !plan.activeSubscriptionId) {
+              @if (plan() && !plan()!.activeSubscriptionId) {
               <strong>You're not on a plan yet</strong>
               }
-              @if (plan?.activeExpiresAt) {
+              @if (plan()?.activeExpiresAt) {
               <span>
-                Keep your cleanings going to stay on it — it runs until {{ $safeNavigationMigration(plan?.activeExpiresAt) | date: 'MMM d, y' }}.
+                Keep your cleanings going to stay on it — it runs until {{ $safeNavigationMigration(plan()?.activeExpiresAt) | date: 'MMM d, y' }}.
               </span>
               }
-              @if (plan && !plan.activeSubscriptionId) {
+              @if (plan() && !plan()!.activeSubscriptionId) {
               <span>
                 Pick the cadence you want below and we'll have it ready when you book.
               </span>
@@ -519,11 +519,11 @@
             </ul>
           </div>
 
-          @if (planError) {
-          <div class="error-message">{{ planError }}</div>
+          @if (planError()) {
+          <div class="error-message">{{ planError() }}</div>
           }
 
-          @if (planLoading && !plan) {
+          @if (planLoading() && !plan()) {
           <div class="plan-grid">
             <div class="profile-shimmer-order" [shimmer]="true"></div>
             <div class="profile-shimmer-order" [shimmer]="true"></div>
@@ -531,7 +531,7 @@
           </div>
           }
 
-          @if (plan) {
+          @if (plan(); as plan) {
           <div class="plan-grid">
             @for (option of plan.plans; track $index) {
             <article class="plan-card"
@@ -555,7 +555,7 @@
                       [class.btn--primary]="!option.isPreferred"
                       [class.btn--secondary]="option.isPreferred"
                       (click)="choosePlan(option)"
-                      [disabled]="planSavingId !== undefined">
+                      [disabled]="planSavingId() !== undefined">
                 @if (!isPlanSaving(option)) {
                 {{ option.isPreferred ? 'Remove' : 'Choose ' + option.name }}
                 }
@@ -568,7 +568,7 @@
           </div>
           }
 
-          @if (plan && plan.plans.length > 0) {
+          @if (plan() && plan()!.plans.length > 0) {
           <p class="plan-footnote">
             Choosing a plan here doesn't book anything and doesn't charge anything — it just means
             we have it selected for you when you come to book.
@@ -579,17 +579,17 @@
       }
 
       <!-- ═══ SAVED ADDRESSES ═══ -->
-      @if (activeTab === 'addresses') {
+      @if (activeTab() === 'addresses') {
       <section role="tabpanel" id="profile-panel-addresses" aria-labelledby="profile-tab-addresses" class="tab-panel">
       <!-- Apartments Section -->
       <div class="section">
         <div class="section-header section-header--split">
-          <h2>Saved Addresses ({{ profile.apartments.length }}/10)</h2>
-          @if (!isAddingApartment && !editingApartmentId) {
+          <h2>Saved Addresses ({{ profile()!.apartments.length }}/10)</h2>
+          @if (!isAddingApartment() && !editingApartmentId()) {
           <button
             class="add-btn"
             (click)="startAddApartment()"
-            [disabled]="profile.apartments.length >= 10"
+            [disabled]="profile()!.apartments.length >= 10"
            >
             Add New Address
           </button>
@@ -597,21 +597,21 @@
         </div>
 
         <!-- Show message when at limit -->
-        @if (profile.apartments.length >= 10) {
+        @if (profile()!.apartments.length >= 10) {
         <div class="info-message">
           You have reached the maximum limit of 10 saved addresses.
         </div>
         }
 
         <!-- Add New Apartment Form -->
-        @if (isAddingApartment) {
+        @if (isAddingApartment()) {
         <div class="apartment-form">
           <h3>Add New Apartment</h3>
 
           <!-- Show error message at the top of the form -->
-          @if (errorMessage) {
+          @if (errorMessage()) {
           <div class="error-message">
-            {{ errorMessage }}
+            {{ errorMessage() }}
           </div>
           }
 
@@ -619,7 +619,7 @@
             <div class="form-group">
               <label>Name *</label>
               <input type="text"
-                     [(ngModel)]="newApartment.name"
+                     [(ngModel)]="newApartment().name"
                      (ngModelChange)="onApartmentNameChange()"
                      placeholder="e.g., My Home"
                      required>
@@ -627,31 +627,31 @@
             <div class="form-group full-width">
               <label>Address *</label>
               <input aria-label="Address" type="text"
-                     [(ngModel)]="newApartment.address"
+                     [(ngModel)]="newApartment().address"
                      (input)="onApartmentAddressChange()"
                      required>
             </div>
             <div class="form-group">
               <label>Apt/Suite</label>
-              <input aria-label="Apt/Suite" type="text" [(ngModel)]="newApartment.aptSuite">
+              <input aria-label="Apt/Suite" type="text" [(ngModel)]="newApartment().aptSuite">
             </div>
             <div class="form-group">
               <label>State *</label>
-              <select aria-label="State" [(ngModel)]="newApartment.state"
-                      (change)="onStateChange(newApartment.state)"
+              <select aria-label="State" [(ngModel)]="newApartment().state"
+                      (change)="onStateChange(newApartment().state)"
                       required>
                 <option value="">Select state</option>
-                @for (state of states; track state) {
+                @for (state of states(); track state) {
                 <option [value]="state">{{ state }}</option>
                 }
               </select>
             </div>
             <div class="form-group">
               <label>City *</label>
-              <select aria-label="City" [(ngModel)]="newApartment.city"
+              <select aria-label="City" [(ngModel)]="newApartment().city"
                       required>
                 <option value="">Select city</option>
-                @for (city of cities; track city) {
+                @for (city of cities(); track city) {
                 <option [value]="city">{{ city }}</option>
                 }
               </select>
@@ -659,7 +659,7 @@
             <div class="form-group">
               <label>Zip Code *</label>
               <input type="text"
-                     [(ngModel)]="newApartment.postalCode"
+                     [(ngModel)]="newApartment().postalCode"
                      pattern="[0-9]{5}"
                      maxlength="5"
                      placeholder="12345"
@@ -667,18 +667,18 @@
             </div>
             <div class="form-group full-width">
               <label>Special Instructions</label>
-              <textarea aria-label="Special Instructions" [(ngModel)]="newApartment.specialInstructions" rows="3" maxlength="2000"></textarea>
+              <textarea aria-label="Special Instructions" [(ngModel)]="newApartment().specialInstructions" rows="3" maxlength="2000"></textarea>
               <small class="char-counter"
-                     [class.char-counter--limit]="(newApartment.specialInstructions?.length || 0) >= 2000">
-                {{ newApartment.specialInstructions?.length || 0 }} / 2000 characters
+                     [class.char-counter--limit]="(newApartment().specialInstructions?.length || 0) >= 2000">
+                {{ newApartment().specialInstructions?.length || 0 }} / 2000 characters
               </small>
             </div>
           </div>
           <div class="form-actions">
             <button class="save-btn"
                     (click)="addApartment()"
-                    [disabled]="!newApartment.name || !newApartment.address || !newApartment.city ||
-                               !newApartment.state || !newApartment.postalCode || errorMessage">
+                    [disabled]="!newApartment().name || !newApartment().address || !newApartment().city ||
+                               !newApartment().state || !newApartment().postalCode || errorMessage()">
               Add Apartment
             </button>
             <button class="cancel-btn" (click)="cancelAddApartment()">Cancel</button>
@@ -687,11 +687,11 @@
         }
 
         <!-- Apartments List -->
-        @if (!isAddingApartment) {
+        @if (!isAddingApartment()) {
         <div class="apartments-list">
-          @for (apartment of profile.apartments; track apartment.id) {
+          @for (apartment of profile()!.apartments; track apartment.id) {
           <div class="apartment-card">
-            @if (editingApartmentId !== apartment.id) {
+            @if (editingApartmentId() !== apartment.id) {
             <div>
               <h3>{{ apartment.name }}</h3>
               <p><strong>Address:</strong> {{ apartment.address }}@if (apartment.aptSuite) {
@@ -713,45 +713,45 @@
             }
 
             <!-- Edit Apartment Form -->
-            @if (editingApartmentId === apartment.id && editingApartment) {
+            @if (editingApartmentId() === apartment.id && editingApartment()) {
             <div class="edit-apartment-form">
 
               <!-- Show error message at the top of the form -->
-              @if (errorMessage) {
+              @if (errorMessage()) {
               <div class="error-message">
-                {{ errorMessage }}
+                {{ errorMessage() }}
               </div>
               }
 
               <div class="form-grid">
                 <div class="form-group">
                   <label>Name *</label>
-                  <input aria-label="Name" type="text" [(ngModel)]="editingApartment.name" required>
+                  <input aria-label="Name" type="text" [(ngModel)]="editingApartment()!.name" required>
                 </div>
                 <div class="form-group full-width">
                   <label>Address *</label>
-                  <input aria-label="Address" type="text" [(ngModel)]="editingApartment.address" required>
+                  <input aria-label="Address" type="text" [(ngModel)]="editingApartment()!.address" required>
                 </div>
                 <div class="form-group">
                   <label>Apt/Suite</label>
-                  <input aria-label="Apt/Suite" type="text" [(ngModel)]="editingApartment.aptSuite">
+                  <input aria-label="Apt/Suite" type="text" [(ngModel)]="editingApartment()!.aptSuite">
                 </div>
                 <div class="form-group">
                   <label>State *</label>
-                  <select aria-label="State" [(ngModel)]="editingApartment.state"
-                          (change)="onStateChange(editingApartment.state)"
+                  <select aria-label="State" [(ngModel)]="editingApartment()!.state"
+                          (change)="onStateChange(editingApartment()!.state)"
                           required>
                     <option value="">Select state</option>
-                    @for (state of states; track state) {
+                    @for (state of states(); track state) {
                     <option [value]="state">{{ state }}</option>
                     }
                   </select>
                 </div>
                 <div class="form-group">
                   <label>City *</label>
-                  <select aria-label="City" [(ngModel)]="editingApartment.city" required>
+                  <select aria-label="City" [(ngModel)]="editingApartment()!.city" required>
                     <option value="">Select city</option>
-                    @for (city of cities; track city) {
+                    @for (city of cities(); track city) {
                     <option [value]="city">{{ city }}</option>
                     }
                   </select>
@@ -759,7 +759,7 @@
                 <div class="form-group">
                   <label>Zip Code *</label>
                   <input type="text"
-                         [(ngModel)]="editingApartment.postalCode"
+                         [(ngModel)]="editingApartment()!.postalCode"
                          pattern="[0-9]{5}"
                          maxlength="5"
                          placeholder="12345"
@@ -767,18 +767,18 @@
                 </div>
                 <div class="form-group full-width">
                   <label>Special Instructions</label>
-                  <textarea aria-label="Special Instructions" [(ngModel)]="editingApartment.specialInstructions" rows="3" maxlength="2000"></textarea>
+                  <textarea aria-label="Special Instructions" [(ngModel)]="editingApartment()!.specialInstructions" rows="3" maxlength="2000"></textarea>
                   <small class="char-counter"
-                         [class.char-counter--limit]="(editingApartment.specialInstructions?.length || 0) >= 2000">
-                    {{ editingApartment.specialInstructions?.length || 0 }} / 2000 characters
+                         [class.char-counter--limit]="(editingApartment()!.specialInstructions?.length || 0) >= 2000">
+                    {{ editingApartment()!.specialInstructions?.length || 0 }} / 2000 characters
                   </small>
                 </div>
               </div>
               <div class="form-actions">
                 <button class="save-btn"
                         (click)="saveApartment()"
-                        [disabled]="!editingApartment.name || !editingApartment.address || !editingApartment.city ||
-                                   !editingApartment.state || !editingApartment.postalCode">
+                        [disabled]="!editingApartment()!.name || !editingApartment()!.address || !editingApartment()!.city ||
+                                   !editingApartment()!.state || !editingApartment()!.postalCode">
                   Save
                 </button>
                 <button class="cancel-btn" (click)="cancelEditApartment()">Cancel</button>
@@ -788,7 +788,7 @@
           </div>
           }
 
-          @if (profile.apartments.length === 0) {
+          @if (profile()!.apartments.length === 0) {
           <div class="no-apartments">
             <p>You haven't added any apartments yet.</p>
           </div>
@@ -800,14 +800,14 @@
       }
 
       <!-- ═══ BILLING ═══ -->
-      @if (activeTab === 'billing') {
+      @if (activeTab() === 'billing') {
       <section role="tabpanel" id="profile-panel-billing" aria-labelledby="profile-tab-billing" class="tab-panel">
         <app-billing-tab></app-billing-tab>
       </section>
       }
 
       <!-- ═══ INVOICES — the customer's own invoices, paid and unpaid (2026-09) ═══ -->
-      @if (activeTab === 'invoices') {
+      @if (activeTab() === 'invoices') {
       <section role="tabpanel" id="profile-panel-invoices" aria-labelledby="profile-tab-invoices" class="tab-panel">
         <div class="section">
           <div class="section-header"><h2>Invoices</h2></div>
@@ -817,7 +817,7 @@
       }
 
       <!-- ═══ GIFT CARDS — cards this customer bought; "send later" cards are sent from here (2026-10) ═══ -->
-      @if (activeTab === 'gift-cards') {
+      @if (activeTab() === 'gift-cards') {
       <section role="tabpanel" id="profile-panel-gift-cards" aria-labelledby="profile-tab-gift-cards" class="tab-panel">
         <div class="section">
           <div class="section-header"><h2>Gift Cards</h2></div>
@@ -827,7 +827,7 @@
       }
 
       <!-- ═══ SECURITY ═══ -->
-      @if (activeTab === 'security') {
+      @if (activeTab() === 'security') {
       <section role="tabpanel" id="profile-panel-security" aria-labelledby="profile-tab-security" class="tab-panel">
         <div class="section">
           <div class="section-header"><h2>Sign-in &amp; security</h2></div>
@@ -835,7 +835,7 @@
             <div class="security-item">
               <div class="security-item__text">
                 <strong>Email</strong>
-                <span>{{ profile.email }}</span>
+                <span>{{ profile()!.email }}</span>
                 <!-- Email change is Local-account only server-side. Saying so here beats letting
                      a Google/Apple customer fill in a password they don't have and be refused. -->
                 @if (!canChangeEmail) {
@@ -851,12 +851,12 @@
             <div class="security-item">
               <div class="security-item__text">
                 <strong>Password</strong>
-                <span>{{ profile.hasPassword === false ? 'You sign in with Google or Apple and have no password yet.' : '••••••••' }}</span>
+                <span>{{ profile()!.hasPassword === false ? 'You sign in with Google or Apple and have no password yet.' : '••••••••' }}</span>
               </div>
-              @if (profile.hasPassword !== false) {
+              @if (profile()!.hasPassword !== false) {
               <a routerLink="/change-password" class="security-btn security-btn--primary" role="button">Change password</a>
               }
-              @if (profile.hasPassword === false) {
+              @if (profile()!.hasPassword === false) {
               <a routerLink="/set-password" class="security-btn security-btn--warning" role="button">Set password</a>
               }
             </div>
@@ -873,7 +873,7 @@
     }
 
     <!-- ═══ Cancel a paid cleaning ═══ -->
-    @if (showCancelModal) {
+    @if (showCancelModal()) {
     <div class="modal-backdrop" (click)="closeCancelModal()">
       <div class="modal" role="dialog" aria-modal="true" aria-labelledby="cancel-order-title" (click)="$event.stopPropagation()">
         <h2 id="cancel-order-title">Cancel this cleaning?</h2>
@@ -897,8 +897,8 @@
 
         <div class="modal-actions">
           <button type="button" class="btn btn--danger" (click)="confirmCancelOrder()"
-                  [disabled]="!cancelReason.trim() || cancellingOrderId !== null">
-            {{ cancellingOrderId !== null ? 'Cancelling…' : 'Confirm cancellation' }}
+                  [disabled]="!cancelReason().trim() || cancellingOrderId() !== null">
+            {{ cancellingOrderId() !== null ? 'Cancelling…' : 'Confirm cancellation' }}
           </button>
           <button type="button" class="btn btn--secondary" (click)="closeCancelModal()">Keep it</button>
         </div>

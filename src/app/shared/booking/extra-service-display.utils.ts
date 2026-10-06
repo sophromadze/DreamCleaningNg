@@ -4,6 +4,7 @@
  * mobile tooltip show/auto-hide machinery — change here, applies to both.
  */
 
+import { signal } from '@angular/core';
 import { EXTRA_SERVICE_KEYS, extraIs, extraServiceKeyOf } from './extra-service-keys';
 
 /**
@@ -142,7 +143,8 @@ export function composeTime24h(hour12: number, minute: number, meridiem: 'AM' | 
  */
 export class MobileTooltipManager {
   private timeouts: { [key: number]: any } = {};
-  private states: { [key: number]: boolean } = {};
+  /** Which tooltips are open. A signal, so OnPush templates calling isVisible() update when the timer hides one. */
+  private readonly states = signal<{ [key: number]: boolean }>({});
 
   constructor(
     private readonly isMobile: () => boolean,
@@ -152,7 +154,7 @@ export class MobileTooltipManager {
   show(id: number): void {
     if (!this.isMobile()) return;
     this.clear(id);
-    this.states[id] = true;
+    this.states.update(s => ({ ...s, [id]: true }));
     this.timeouts[id] = setTimeout(() => this.clear(id), this.autoHideMs);
   }
 
@@ -161,7 +163,7 @@ export class MobileTooltipManager {
       clearTimeout(this.timeouts[id]);
       delete this.timeouts[id];
     }
-    this.states[id] = false;
+    this.states.update(s => ({ ...s, [id]: false }));
   }
 
   clearAll(): void {
@@ -172,10 +174,10 @@ export class MobileTooltipManager {
       }
     });
     this.timeouts = {};
-    this.states = {};
+    this.states.set({});
   }
 
   isVisible(id: number): boolean {
-    return this.states[id] || false;
+    return this.states()[id] || false;
   }
 }

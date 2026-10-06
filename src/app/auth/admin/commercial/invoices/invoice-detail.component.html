@@ -1,15 +1,15 @@
-@if (!loading) {
+@if (!loading()) {
 <div class="invoice-detail-page">
 
   <a class="back-link" routerLink="/admin/commercial/invoices">← Invoices</a>
 
-  @if (error) {
-  <div class="alert alert-error">{{ error }}</div>
+  @if (error()) {
+  <div class="alert alert-error">{{ error() }}</div>
   }
-  @if (notice) {
-  <div class="alert alert-success">{{ notice }}</div>
+  @if (notice()) {
+  <div class="alert alert-success">{{ notice() }}</div>
   }
-  @if (invoice; as inv) {
+  @if (invoice(); as inv) {
 
 
     <!-- Header -->
@@ -95,7 +95,7 @@
       }
 
       @if (isPaid) {
-      <button type="button" class="btn-ghost" (click)="sendReceipt()" [disabled]="busy">
+      <button type="button" class="btn-ghost" (click)="sendReceipt()" [disabled]="busy()">
         Send receipt
       </button>
       }
@@ -105,7 +105,7 @@
               (click)="copyLink()">Copy invoice link</button>
       }
 
-      <button type="button" class="btn-ghost" (click)="duplicate()" [disabled]="busy">Duplicate</button>
+      <button type="button" class="btn-ghost" (click)="duplicate()" [disabled]="busy()">Duplicate</button>
 
       <!-- ONE entry point for the three end-of-life choices. Void, Archive and Full delete mean
            genuinely different things, and offering only Void is what made admins void test
@@ -114,12 +114,12 @@
            nothing to refuse. -->
       @if (inv.canVoid || inv.canDelete || canHardDelete) {
       <button type="button" class="btn-danger"
-              (click)="openDispose()" [disabled]="busy">Void, archive or delete</button>
+              (click)="openDispose()" [disabled]="busy()">Void, archive or delete</button>
       }
 
       @if (inv.isArchived) {
       <button type="button" class="btn-ghost"
-              (click)="unarchiveInvoice()" [disabled]="busy">Unarchive</button>
+              (click)="unarchiveInvoice()" [disabled]="busy()">Unarchive</button>
       }
     </div>
 
@@ -451,13 +451,13 @@
 
   <!-- ── Modals ──────────────────────────────────────────────────────────────────────── -->
 
-  @if (modal !== 'none') {
+  @if (modal() !== 'none') {
   <div class="modal-backdrop" (click)="closeModal()">
     <div class="modal" (click)="$event.stopPropagation()">
 
       <!-- Record payment -->
-      @if (modal === 'payment') {
-        <h3>{{ markingAsPaid ? 'Mark as Paid' : 'Record Payment' }}</h3>
+      @if (modal() === 'payment') {
+        <h3>{{ markingAsPaid() ? 'Mark as Paid' : 'Record Payment' }}</h3>
         <p class="modal-hint">
           Records money that arrived OUTSIDE Stripe — a bank transfer, a cheque, cash. Record it
           here once you have confirmed it on the statement; the invoice becomes paid because the
@@ -489,7 +489,7 @@
         <div class="field">
           <label for="payAmount">Amount received *</label>
           <input id="payAmount" type="number" [(ngModel)]="payAmount" min="0.01" step="0.01">
-          @if (invoice) {
+          @if (invoice(); as invoice) {
           <span class="hint">
             Balance due is {{ invoice.balanceDue | currency:'USD' }}.
           </span>
@@ -534,14 +534,14 @@
         <div class="modal-actions">
           <button type="button" class="btn-ghost" (click)="closeModal()">Cancel</button>
           <button type="button" class="btn-primary" (click)="recordPayment()"
-                  [disabled]="busy || !payAmount || payAmount <= 0 || paymentBlocked">
-            {{ busy ? 'Saving…' : (markingAsPaid ? 'Mark as paid' : 'Record payment') }}
+                  [disabled]="busy() || !payAmount() || payAmount()! <= 0 || paymentBlocked">
+            {{ busy() ? 'Saving…' : (markingAsPaid() ? 'Mark as paid' : 'Record payment') }}
           </button>
         </div>
       }
 
       <!-- Reverse payment -->
-      @if (modal === 'reverse') {
+      @if (modal() === 'reverse') {
         <h3>Reverse Payment</h3>
         <p class="modal-hint">
           The original payment is kept exactly as it is and a reversing entry is added, so the
@@ -557,15 +557,15 @@
         <div class="modal-actions">
           <button type="button" class="btn-ghost" (click)="closeModal()">Cancel</button>
           <button type="button" class="btn-danger" (click)="reversePayment()"
-                  [disabled]="busy || !reverseReason.trim()">
-            {{ busy ? 'Saving…' : 'Reverse payment' }}
+                  [disabled]="busy() || !reverseReason().trim()">
+            {{ busy() ? 'Saving…' : 'Reverse payment' }}
           </button>
         </div>
       }
 
       <!-- Send / resend -->
-      @if (modal === 'send') {
-        <h3>{{ invoice?.firstSentAt ? 'Resend Invoice' : 'Send Invoice' }}</h3>
+      @if (modal() === 'send') {
+        <h3>{{ invoice()?.firstSentAt ? 'Resend Invoice' : 'Send Invoice' }}</h3>
 
         <div class="field">
           <label for="sendEmail">Send to *</label>
@@ -586,14 +586,14 @@
 
         <div class="modal-actions">
           <button type="button" class="btn-ghost" (click)="closeModal()">Cancel</button>
-          <button type="button" class="btn-primary" (click)="send()" [disabled]="busy">
-            {{ busy ? 'Sending…' : 'Send invoice' }}
+          <button type="button" class="btn-primary" (click)="send()" [disabled]="busy()">
+            {{ busy() ? 'Sending…' : 'Send invoice' }}
           </button>
         </div>
       }
 
       <!-- Reminder -->
-      @if (modal === 'reminder') {
+      @if (modal() === 'reminder') {
         <h3>Send Payment Reminder</h3>
 
         <div class="field">
@@ -608,35 +608,35 @@
 
         <div class="modal-actions">
           <button type="button" class="btn-ghost" (click)="closeModal()">Cancel</button>
-          <button type="button" class="btn-primary" (click)="sendReminder()" [disabled]="busy">
-            {{ busy ? 'Sending…' : 'Send reminder' }}
+          <button type="button" class="btn-primary" (click)="sendReminder()" [disabled]="busy()">
+            {{ busy() ? 'Sending…' : 'Send reminder' }}
           </button>
         </div>
       }
 
       <!-- CHOOSE WHAT TO DO WITH THIS INVOICE. Three outcomes, visually distinct, with the
            destructive one last and hardest to reach. -->
-      @if (modal === 'dispose') {
+      @if (modal() === 'dispose') {
         <h3>Choose what to do with this invoice</h3>
-        <p class="modal-sub">{{ invoice?.invoiceNumber }} — {{ invoice?.clientName }}</p>
+        <p class="modal-sub">{{ invoice()?.invoiceNumber }} — {{ invoice()?.clientName }}</p>
 
         <!-- A: Void. Unchanged in meaning and behaviour; still the right answer for a real
              invoice that should not be collected. -->
-        @if (invoice?.canVoid) {
+        @if (invoice()?.canVoid) {
         <div class="choice">
           <div class="choice-head"><strong>Void</strong><span class="choice-tag">Financial record</span></div>
           <p>
             Cancels the invoice and keeps it. Its number stays permanently reserved, the payment
             and email history is preserved, and any cleanings it claimed are released.
           </p>
-          <button type="button" class="btn-ghost" (click)="chooseVoid()" [disabled]="busy">
+          <button type="button" class="btn-ghost" (click)="chooseVoid()" [disabled]="busy()">
             Void invoice…
           </button>
         </div>
         }
 
         <!-- B: Archive. The safe filing action; states nothing about the money. -->
-        @if (!invoice?.isArchived) {
+        @if (!invoice()?.isArchived) {
         <div class="choice">
           <div class="choice-head">
             <strong>Archive</strong><span class="choice-tag safe">Recommended</span>
@@ -646,7 +646,7 @@
             entry is preserved, the client's copy keeps working, and you can unarchive it from the
             Archived filter at any time.
           </p>
-          <button type="button" class="btn-primary" (click)="archiveInvoice()" [disabled]="busy">
+          <button type="button" class="btn-primary" (click)="archiveInvoice()" [disabled]="busy()">
             Archive invoice
           </button>
         </div>
@@ -673,7 +673,7 @@
                    [attr.placeholder]="hardDeleteConfirmationPhrase"
                    autocomplete="off" spellcheck="false" />
             <button type="button" class="btn-danger" (click)="permanentlyDeleteInvoice()"
-                    [disabled]="busy || !hardDeleteConfirmed">
+                    [disabled]="busy() || !hardDeleteConfirmed">
               Permanently delete
             </button>
           } @else {
@@ -687,7 +687,7 @@
         </div>
       }
       <!-- Void -->
-      @if (modal === 'void') {
+      @if (modal() === 'void') {
         <h3>Void Invoice</h3>
         <p class="modal-hint">
           The invoice is kept and its number stays permanently reserved — an issued invoice is
@@ -703,8 +703,8 @@
         <div class="modal-actions">
           <button type="button" class="btn-ghost" (click)="closeModal()">Cancel</button>
           <button type="button" class="btn-danger" (click)="voidInvoice()"
-                  [disabled]="busy || !voidReason.trim()">
-            {{ busy ? 'Voiding…' : 'Void invoice' }}
+                  [disabled]="busy() || !voidReason().trim()">
+            {{ busy() ? 'Voiding…' : 'Void invoice' }}
           </button>
         </div>
       }

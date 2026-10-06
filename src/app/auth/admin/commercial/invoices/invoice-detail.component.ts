@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, inject, ChangeDetectionStrategy, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -31,7 +31,7 @@ type ModalKind = 'none' | 'payment' | 'void' | 'send' | 'reminder' | 'reverse' |
   standalone: true,
   imports: [CommonModule, FormsModule, RouterLink],
   templateUrl: './invoice-detail.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./invoice-detail.component.scss']
 })
 export class InvoiceDetailComponent implements OnInit {
@@ -44,21 +44,21 @@ export class InvoiceDetailComponent implements OnInit {
   readonly statusClass = invoiceStatusClass;
   readonly paymentMethods = PAYMENT_RECORD_METHODS;
 
-  invoice?: InvoiceDetail;
-  loading = true;
-  busy = false;
-  error = '';
-  notice = '';
+  readonly invoice = signal<InvoiceDetail | undefined>(undefined, { equal: () => false });
+  readonly loading = signal(true);
+  readonly busy = signal(false);
+  readonly error = signal('');
+  readonly notice = signal('');
 
-  modal: ModalKind = 'none';
+  readonly modal = signal<ModalKind>('none');
 
   // Record payment
-  payAmount: number | null = null;
-  payDate = this.today();
-  payMethod: InvoicePaymentRecordMethod = InvoicePaymentRecordMethod.AchBankTransfer;
-  payReference = '';
-  payNote = '';
-  payAllowOverpayment = false;
+  readonly payAmount = signal<number | null>(null);
+  readonly payDate = signal(this.today());
+  readonly payMethod = signal<InvoicePaymentRecordMethod>(InvoicePaymentRecordMethod.AchBankTransfer);
+  readonly payReference = signal('');
+  readonly payNote = signal('');
+  readonly payAllowOverpayment = signal(false);
 
   /**
    * The admin has read the "a bank payment is already settling" warning and wants to record a
@@ -69,23 +69,23 @@ export class InvoiceDetailComponent implements OnInit {
    * server refuses without this, and records the override on the payment's own note so a later
    * duplicate is explainable rather than mysterious.
    */
-  payAcknowledgeProcessing = false;
+  readonly payAcknowledgeProcessing = signal(false);
 
   /** True when this modal was opened by "Mark as Paid" rather than "Record payment". */
-  markingAsPaid = false;
+  readonly markingAsPaid = signal(false);
 
   // Void
-  voidReason = '';
+  readonly voidReason = signal('');
 
   // Send / reminder
-  sendEmail = '';
-  sendMessage = '';
-  sendAttachPdf = true;
-  reminderForce = false;
+  readonly sendEmail = signal('');
+  readonly sendMessage = signal('');
+  readonly sendAttachPdf = signal(true);
+  readonly reminderForce = signal(false);
 
   // Reverse
   reversingPayment?: InvoicePayment;
-  reverseReason = '';
+  readonly reverseReason = signal('');
 
   ngOnInit(): void {
     const id = Number(this.route.snapshot.paramMap.get('id'));
@@ -93,23 +93,23 @@ export class InvoiceDetailComponent implements OnInit {
     // Save & Send hands over a send failure here rather than stranding the form: the invoice IS
     // saved, only the mail failed, and this is the page that can retry it.
     const sendError = this.route.snapshot.queryParamMap.get('sendError');
-    if (sendError) this.error = sendError;
+    if (sendError) this.error.set(sendError);
 
     this.load(id);
   }
 
   load(id: number): void {
-    this.loading = true;
+    this.loading.set(true);
     this.invoiceService.get(id)
-      .pipe(finalize(() => this.loading = false))
+      .pipe(finalize(() => this.loading.set(false)))
       .subscribe({
-        next: inv => this.invoice = inv,
-        error: err => this.error = extractApiErrorMessage(err, 'Could not load the invoice.')
+        next: inv => this.invoice.set(inv),
+        error: err => this.error.set(extractApiErrorMessage(err, 'Could not load the invoice.'))
       });
   }
 
   private refresh(updated: InvoiceDetail): void {
-    this.invoice = updated;
+    this.invoice.set(updated);
     this.closeModal();
   }
 
@@ -129,27 +129,27 @@ export class InvoiceDetailComponent implements OnInit {
    * a Stripe-provider row.
    */
   openPayment(markPaid: boolean): void {
-    if (!this.invoice) return;
+    if (!this.invoice()) return;
 
-    this.markingAsPaid = markPaid;
-    this.payAmount = markPaid ? this.invoice.balanceDue : null;
-    this.payDate = this.today();
-    this.payMethod = InvoicePaymentRecordMethod.AchBankTransfer;
-    this.payReference = '';
-    this.payNote = '';
-    this.payAllowOverpayment = false;
-    this.payAcknowledgeProcessing = false;
-    this.modal = 'payment';
+    this.markingAsPaid.set(markPaid);
+    this.payAmount.set(markPaid ? this.invoice()!.balanceDue : null);
+    this.payDate.set(this.today());
+    this.payMethod.set(InvoicePaymentRecordMethod.AchBankTransfer);
+    this.payReference.set('');
+    this.payNote.set('');
+    this.payAllowOverpayment.set(false);
+    this.payAcknowledgeProcessing.set(false);
+    this.modal.set('payment');
   }
 
   /** Whether the ACH-still-settling warning applies to this invoice right now. */
   get processingPaymentWarning(): boolean {
-    return !!this.invoice?.hasProcessingStripePayment;
+    return !!this.invoice()?.hasProcessingStripePayment;
   }
 
   /** The in-flight Stripe attempt, so the warning can name the amount and the date. */
   get processingAttempt(): InvoicePaymentAttempt | undefined {
-    return this.invoice?.paymentAttempts
+    return this.invoice()?.paymentAttempts
       ?.find(a => a.status === InvoicePaymentAttemptStatus.Processing);
   }
 
@@ -162,7 +162,7 @@ export class InvoiceDetailComponent implements OnInit {
    */
   get paymentBlocked(): boolean {
     return this.overpaymentBlocked
-      || (this.processingPaymentWarning && !this.payAcknowledgeProcessing);
+      || (this.processingPaymentWarning && !this.payAcknowledgeProcessing());
   }
 
   /**
@@ -175,71 +175,71 @@ export class InvoiceDetailComponent implements OnInit {
    * was the only option, and permanently reserving a number for something that never existed.
    */
   openDispose(): void {
-    this.hardDeleteConfirmation = '';
-    this.modal = 'dispose';
+    this.hardDeleteConfirmation.set('');
+    this.modal.set('dispose');
   }
 
   /** From the choice dialog into the existing Void reason form, whose behaviour is unchanged. */
   chooseVoid(): void {
-    this.voidReason = '';
-    this.modal = 'void';
+    this.voidReason.set('');
+    this.modal.set('void');
   }
 
   /** What the admin has to type to unlock Full delete: `DELETE DCI-2026-48392175`. */
   get hardDeleteConfirmationPhrase(): string {
-    return `DELETE ${this.invoice?.invoiceNumber ?? ''}`;
+    return `DELETE ${this.invoice()?.invoiceNumber ?? ''}`;
   }
 
-  hardDeleteConfirmation = '';
+  readonly hardDeleteConfirmation = signal('');
 
   /** Trimmed and case-insensitive, matching the server's own check. */
   get hardDeleteConfirmed(): boolean {
-    return this.hardDeleteConfirmation.trim().toLowerCase()
+    return this.hardDeleteConfirmation().trim().toLowerCase()
       === this.hardDeleteConfirmationPhrase.toLowerCase();
   }
 
   /** Server-decided. Absent on an older backend, which then simply does not offer the option. */
   get canHardDelete(): boolean {
-    return this.invoice?.canHardDelete === true;
+    return this.invoice()?.canHardDelete === true;
   }
 
   get hardDeleteBlockedReason(): string | null {
-    return this.invoice?.cannotHardDeleteReason ?? null;
+    return this.invoice()?.cannotHardDeleteReason ?? null;
   }
 
   /** Option B — archive. Preserves everything; reversible from the Archived tab. */
   archiveInvoice(): void {
-    if (!this.invoice) return;
+    if (!this.invoice()) return;
 
-    this.busy = true;
-    this.error = '';
+    this.busy.set(true);
+    this.error.set('');
     this.closeModal();
 
-    this.invoiceService.archive(this.invoice.id)
-      .pipe(finalize(() => this.busy = false))
+    this.invoiceService.archive(this.invoice()!.id)
+      .pipe(finalize(() => this.busy.set(false)))
       .subscribe({
         next: updated => {
           this.refresh(updated);
           this.flash('Invoice archived. Find it again under the Archived filter.');
         },
-        error: err => this.error = extractApiErrorMessage(err, 'Could not archive the invoice.')
+        error: err => this.error.set(extractApiErrorMessage(err, 'Could not archive the invoice.'))
       });
   }
 
   unarchiveInvoice(): void {
-    if (!this.invoice) return;
+    if (!this.invoice()) return;
 
-    this.busy = true;
-    this.error = '';
+    this.busy.set(true);
+    this.error.set('');
 
-    this.invoiceService.unarchive(this.invoice.id)
-      .pipe(finalize(() => this.busy = false))
+    this.invoiceService.unarchive(this.invoice()!.id)
+      .pipe(finalize(() => this.busy.set(false)))
       .subscribe({
         next: updated => {
           this.refresh(updated);
           this.flash('Invoice unarchived.');
         },
-        error: err => this.error = extractApiErrorMessage(err, 'Could not unarchive the invoice.')
+        error: err => this.error.set(extractApiErrorMessage(err, 'Could not unarchive the invoice.'))
       });
   }
 
@@ -249,70 +249,70 @@ export class InvoiceDetailComponent implements OnInit {
    * whole request if either fails.
    */
   permanentlyDeleteInvoice(): void {
-    if (!this.invoice || !this.canHardDelete || !this.hardDeleteConfirmed) return;
+    if (!this.invoice() || !this.canHardDelete || !this.hardDeleteConfirmed) return;
 
-    const confirmation = this.hardDeleteConfirmation.trim();
-    this.busy = true;
-    this.error = '';
+    const confirmation = this.hardDeleteConfirmation().trim();
+    this.busy.set(true);
+    this.error.set('');
     this.closeModal();
 
-    this.invoiceService.permanentlyDelete(this.invoice.id, confirmation)
-      .pipe(finalize(() => this.busy = false))
+    this.invoiceService.permanentlyDelete(this.invoice()!.id, confirmation)
+      .pipe(finalize(() => this.busy.set(false)))
       .subscribe({
         // Nothing left to refresh — the invoice this panel is showing no longer exists.
         next: () => this.router.navigate(['/admin/commercial/invoices']),
-        error: err => this.error = extractApiErrorMessage(err, 'Could not delete the invoice.')
+        error: err => this.error.set(extractApiErrorMessage(err, 'Could not delete the invoice.'))
       });
   }
 
   openSend(): void {
-    this.sendEmail = this.invoice?.billingEmail ?? '';
-    this.sendMessage = '';
-    this.sendAttachPdf = true;
-    this.modal = 'send';
+    this.sendEmail.set(this.invoice()?.billingEmail ?? '');
+    this.sendMessage.set('');
+    this.sendAttachPdf.set(true);
+    this.modal.set('send');
   }
 
   openReminder(): void {
-    this.sendEmail = this.invoice?.billingEmail ?? '';
-    this.reminderForce = false;
-    this.modal = 'reminder';
+    this.sendEmail.set(this.invoice()?.billingEmail ?? '');
+    this.reminderForce.set(false);
+    this.modal.set('reminder');
   }
 
   openReverse(payment: InvoicePayment): void {
     this.reversingPayment = payment;
-    this.reverseReason = '';
-    this.modal = 'reverse';
+    this.reverseReason.set('');
+    this.modal.set('reverse');
   }
 
   closeModal(): void {
-    this.modal = 'none';
+    this.modal.set('none');
     this.reversingPayment = undefined;
   }
 
   // ── Actions ──
 
   get overpaymentBlocked(): boolean {
-    return !!this.invoice
-      && (this.payAmount ?? 0) > this.invoice.balanceDue
-      && !this.payAllowOverpayment;
+    return !!this.invoice()
+      && (this.payAmount() ?? 0) > this.invoice()!.balanceDue
+      && !this.payAllowOverpayment();
   }
 
   recordPayment(): void {
-    if (!this.invoice || !this.payAmount || this.payAmount <= 0) return;
+    if (!this.invoice() || !this.payAmount() || this.payAmount()! <= 0) return;
 
-    this.busy = true;
-    this.error = '';
+    this.busy.set(true);
+    this.error.set('');
 
-    this.invoiceService.recordPayment(this.invoice.id, {
-      amount: this.payAmount,
-      paymentDate: this.payDate,
-      paymentMethod: this.payMethod,
-      transactionReference: this.payReference.trim() || undefined,
-      internalNote: this.payNote.trim() || undefined,
-      allowOverpayment: this.payAllowOverpayment,
-      acknowledgeProcessingPayment: this.payAcknowledgeProcessing
+    this.invoiceService.recordPayment(this.invoice()!.id, {
+      amount: this.payAmount()!,
+      paymentDate: this.payDate(),
+      paymentMethod: this.payMethod(),
+      transactionReference: this.payReference().trim() || undefined,
+      internalNote: this.payNote().trim() || undefined,
+      allowOverpayment: this.payAllowOverpayment(),
+      acknowledgeProcessingPayment: this.payAcknowledgeProcessing()
     })
-      .pipe(finalize(() => this.busy = false))
+      .pipe(finalize(() => this.busy.set(false)))
       .subscribe({
         next: updated => {
           const nowPaid = updated.status === InvoiceStatus.Paid;
@@ -321,151 +321,151 @@ export class InvoiceDetailComponent implements OnInit {
             ? 'Payment recorded. This invoice is now paid in full.'
             : 'Payment recorded.');
         },
-        error: err => this.error = extractApiErrorMessage(err, 'Could not record the payment.')
+        error: err => this.error.set(extractApiErrorMessage(err, 'Could not record the payment.'))
       });
   }
 
   reversePayment(): void {
-    if (!this.invoice || !this.reversingPayment || !this.reverseReason.trim()) return;
+    if (!this.invoice() || !this.reversingPayment || !this.reverseReason().trim()) return;
 
-    this.busy = true;
-    this.error = '';
+    this.busy.set(true);
+    this.error.set('');
 
     this.invoiceService.reversePayment(
-      this.invoice.id, this.reversingPayment.id, this.reverseReason.trim())
-      .pipe(finalize(() => this.busy = false))
+      this.invoice()!.id, this.reversingPayment.id, this.reverseReason().trim())
+      .pipe(finalize(() => this.busy.set(false)))
       .subscribe({
         next: updated => { this.refresh(updated); this.flash('Payment reversed.'); },
-        error: err => this.error = extractApiErrorMessage(err, 'Could not reverse the payment.')
+        error: err => this.error.set(extractApiErrorMessage(err, 'Could not reverse the payment.'))
       });
   }
 
   send(): void {
-    if (!this.invoice) return;
+    if (!this.invoice()) return;
 
-    this.busy = true;
-    this.error = '';
+    this.busy.set(true);
+    this.error.set('');
 
-    this.invoiceService.send(this.invoice.id, {
-      recipientEmail: this.sendEmail.trim() || undefined,
-      attachPdf: this.sendAttachPdf,
-      message: this.sendMessage.trim() || undefined
+    this.invoiceService.send(this.invoice()!.id, {
+      recipientEmail: this.sendEmail().trim() || undefined,
+      attachPdf: this.sendAttachPdf(),
+      message: this.sendMessage().trim() || undefined
     })
-      .pipe(finalize(() => this.busy = false))
+      .pipe(finalize(() => this.busy.set(false)))
       .subscribe({
         next: updated => {
           this.refresh(updated);
-          this.flash(`Invoice sent to ${this.sendEmail || 'the billing contact'}.`);
+          this.flash(`Invoice sent to ${this.sendEmail() || 'the billing contact'}.`);
         },
-        error: err => this.error = extractApiErrorMessage(err, 'Could not send the invoice.')
+        error: err => this.error.set(extractApiErrorMessage(err, 'Could not send the invoice.'))
       });
   }
 
   sendReminder(): void {
-    if (!this.invoice) return;
+    if (!this.invoice()) return;
 
-    this.busy = true;
-    this.error = '';
+    this.busy.set(true);
+    this.error.set('');
 
-    this.invoiceService.sendReminder(this.invoice.id, {
-      recipientEmail: this.sendEmail.trim() || undefined,
-      force: this.reminderForce
+    this.invoiceService.sendReminder(this.invoice()!.id, {
+      recipientEmail: this.sendEmail().trim() || undefined,
+      force: this.reminderForce()
     })
-      .pipe(finalize(() => this.busy = false))
+      .pipe(finalize(() => this.busy.set(false)))
       .subscribe({
         next: updated => { this.refresh(updated); this.flash('Reminder sent.'); },
-        error: err => this.error = extractApiErrorMessage(err, 'Could not send the reminder.')
+        error: err => this.error.set(extractApiErrorMessage(err, 'Could not send the reminder.'))
       });
   }
 
   sendReceipt(): void {
-    if (!this.invoice) return;
+    if (!this.invoice()) return;
 
-    this.busy = true;
-    this.error = '';
+    this.busy.set(true);
+    this.error.set('');
 
-    this.invoiceService.sendReceipt(this.invoice.id)
-      .pipe(finalize(() => this.busy = false))
+    this.invoiceService.sendReceipt(this.invoice()!.id)
+      .pipe(finalize(() => this.busy.set(false)))
       .subscribe({
-        next: updated => { this.invoice = updated; this.flash('Payment receipt sent.'); },
-        error: err => this.error = extractApiErrorMessage(err, 'Could not send the receipt.')
+        next: updated => { this.invoice.set(updated); this.flash('Payment receipt sent.'); },
+        error: err => this.error.set(extractApiErrorMessage(err, 'Could not send the receipt.'))
       });
   }
 
   voidInvoice(): void {
-    if (!this.invoice || !this.voidReason.trim()) return;
+    if (!this.invoice() || !this.voidReason().trim()) return;
 
-    this.busy = true;
-    this.error = '';
+    this.busy.set(true);
+    this.error.set('');
 
-    this.invoiceService.void(this.invoice.id, this.voidReason.trim())
-      .pipe(finalize(() => this.busy = false))
+    this.invoiceService.void(this.invoice()!.id, this.voidReason().trim())
+      .pipe(finalize(() => this.busy.set(false)))
       .subscribe({
         next: updated => {
           this.refresh(updated);
           this.flash('Invoice voided. Its number stays permanently reserved.');
         },
-        error: err => this.error = extractApiErrorMessage(err, 'Could not void the invoice.')
+        error: err => this.error.set(extractApiErrorMessage(err, 'Could not void the invoice.'))
       });
   }
 
   duplicate(): void {
-    if (!this.invoice) return;
+    if (!this.invoice()) return;
 
-    this.busy = true;
-    this.invoiceService.duplicate(this.invoice.id)
-      .pipe(finalize(() => this.busy = false))
+    this.busy.set(true);
+    this.invoiceService.duplicate(this.invoice()!.id)
+      .pipe(finalize(() => this.busy.set(false)))
       .subscribe({
         next: created => this.router.navigate(['/admin/commercial/invoices', created.id, 'edit']),
-        error: err => this.error = extractApiErrorMessage(err, 'Could not duplicate the invoice.')
+        error: err => this.error.set(extractApiErrorMessage(err, 'Could not duplicate the invoice.'))
       });
   }
 
   deleteDraft(): void {
-    if (!this.invoice) return;
+    if (!this.invoice()) return;
     if (!confirm('Delete this draft invoice? Its number will not be reused.')) return;
 
-    this.busy = true;
-    this.invoiceService.deleteDraft(this.invoice.id)
-      .pipe(finalize(() => this.busy = false))
+    this.busy.set(true);
+    this.invoiceService.deleteDraft(this.invoice()!.id)
+      .pipe(finalize(() => this.busy.set(false)))
       .subscribe({
         next: () => this.router.navigate(['/admin/commercial/invoices']),
-        error: err => this.error = extractApiErrorMessage(err, 'Could not delete the draft.')
+        error: err => this.error.set(extractApiErrorMessage(err, 'Could not delete the draft.'))
       });
   }
 
   downloadPdf(): void {
-    if (!this.invoice) return;
+    if (!this.invoice()) return;
 
-    this.invoiceService.downloadPdf(this.invoice.id).subscribe({
+    this.invoiceService.downloadPdf(this.invoice()!.id).subscribe({
       next: blob => {
         const url = URL.createObjectURL(blob);
         const anchor = document.createElement('a');
         anchor.href = url;
-        anchor.download = `Dream-Cleaning-Invoice-${this.invoice!.invoiceNumber}.pdf`;
+        anchor.download = `Dream-Cleaning-Invoice-${this.invoice()!.invoiceNumber}.pdf`;
         anchor.click();
         URL.revokeObjectURL(url);
       },
-      error: err => this.error = extractApiErrorMessage(err, 'Could not download the PDF.')
+      error: err => this.error.set(extractApiErrorMessage(err, 'Could not download the PDF.'))
     });
   }
 
   copyLink(): void {
-    if (!this.invoice) return;
-    navigator.clipboard?.writeText(this.invoice.publicUrl).then(
+    if (!this.invoice()) return;
+    navigator.clipboard?.writeText(this.invoice()!.publicUrl).then(
       () => this.flash('Invoice link copied.'),
-      () => this.error = 'Could not copy the link to the clipboard.');
+      () => this.error.set('Could not copy the link to the clipboard.'));
   }
 
   edit(): void {
-    if (this.invoice) this.router.navigate(['/admin/commercial/invoices', this.invoice.id, 'edit']);
+    if (this.invoice()) this.router.navigate(['/admin/commercial/invoices', this.invoice()!.id, 'edit']);
   }
 
   // ── Helpers ──
 
   private flash(message: string): void {
-    this.notice = message;
-    setTimeout(() => this.notice = '', 5000);
+    this.notice.set(message);
+    setTimeout(() => this.notice.set(''), 5000);
   }
 
   private today(): string {
@@ -481,16 +481,16 @@ export class InvoiceDetailComponent implements OnInit {
    * and "September 7" on another. The fallback below only fires for an older cached response.
    */
   get serviceDateLabel(): string {
-    return this.invoice?.serviceDateLabel ?? 'Service period';
+    return this.invoice()?.serviceDateLabel ?? 'Service period';
   }
 
   get servicePeriod(): string | null {
-    if (this.invoice?.serviceDateText) return this.invoice.serviceDateText;
+    if (this.invoice()?.serviceDateText) return this.invoice()!.serviceDateText!;
 
-    if (!this.invoice?.serviceStartDate && !this.invoice?.serviceEndDate) return null;
+    if (!this.invoice()?.serviceStartDate && !this.invoice()?.serviceEndDate) return null;
 
-    const start = new Date(this.invoice.serviceStartDate ?? this.invoice.serviceEndDate!);
-    const end = new Date(this.invoice.serviceEndDate ?? this.invoice.serviceStartDate!);
+    const start = new Date(this.invoice()!.serviceStartDate ?? this.invoice()!.serviceEndDate!);
+    const end = new Date(this.invoice()!.serviceEndDate ?? this.invoice()!.serviceStartDate!);
 
     const fmt = (d: Date) => d.toLocaleDateString('en-US',
       { month: 'long', day: 'numeric', year: 'numeric' });
@@ -505,8 +505,8 @@ export class InvoiceDetailComponent implements OnInit {
     return `${fmt(start)} – ${fmt(end)}`;
   }
 
-  get isVoid(): boolean { return this.invoice?.status === InvoiceStatus.Void; }
-  get isPaid(): boolean { return this.invoice?.status === InvoiceStatus.Paid; }
+  get isVoid(): boolean { return this.invoice()?.status === InvoiceStatus.Void; }
+  get isPaid(): boolean { return this.invoice()?.status === InvoiceStatus.Paid; }
 
   /**
    * A failed send is shown as a failure, not silently omitted. An admin who believes the client

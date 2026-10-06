@@ -65,7 +65,7 @@ describe('CleanersDashboardComponent', () => {
       asRole('Admin');
       fixture.detectChanges();
 
-      expect(component.activeTab).toBe('dashboard');
+      expect(component.activeTab()).toBe('dashboard');
       expect(component.canSeePortal).toBe(true);
     });
 
@@ -86,7 +86,7 @@ describe('CleanersDashboardComponent', () => {
       expect(component.canSeePortal).toBe(false);
 
       component.setTab('portal');
-      expect(component.activeTab).toBe('dashboard');
+      expect(component.activeTab()).toBe('dashboard');
       expect(navigate).not.toHaveBeenCalled();
     });
 
@@ -96,7 +96,7 @@ describe('CleanersDashboardComponent', () => {
       queryParams$.next(convertToParamMap({ tab: 'portal' }));
       fixture.detectChanges();
 
-      expect(component.activeTab).toBe('portal');
+      expect(component.activeTab()).toBe('portal');
     });
 
     it('ignores that param for somebody who may not read it', () => {
@@ -104,7 +104,7 @@ describe('CleanersDashboardComponent', () => {
       queryParams$.next(convertToParamMap({ tab: 'portal' }));
       fixture.detectChanges();
 
-      expect(component.activeTab).toBe('dashboard');
+      expect(component.activeTab()).toBe('dashboard');
     });
 
     /**
@@ -129,15 +129,15 @@ describe('CleanersDashboardComponent', () => {
       asRole('Admin');
       fixture.detectChanges();
 
-      component.selectedDetail = { id: 4, firstName: 'Nino' } as any;
-      component.formOpen = true;
+      component.selectedDetail.set({ id: 4, firstName: 'Nino' } as any);
+      component.formOpen.set(true);
 
       component.setTab('portal');
 
       // A detail panel or a half-filled form still sitting there on the way back is state nobody
       // asked to keep.
-      expect(component.selectedDetail).toBeNull();
-      expect(component.formOpen).toBe(false);
+      expect(component.selectedDetail()).toBeNull();
+      expect(component.formOpen()).toBe(false);
     });
   });
 
@@ -163,16 +163,16 @@ describe('CleanersDashboardComponent', () => {
         isEmailManagedByAccount: true
       }));
 
-      expect(component.emailLockedByAccount).toBe(true);
-      expect(component.lockedAccountEmail).toBe('nino@example.com');
+      expect(component.emailLockedByAccount()).toBe(true);
+      expect(component.lockedAccountEmail()).toBe('nino@example.com');
       // The value still round-trips - the server compares it against what it holds, so a blanked
       // payload would read as an attempt to clear the address.
-      expect(component.formModel.email).toBe('nino@example.com');
+      expect(component.formModel().email).toBe('nino@example.com');
     });
 
     it('leaves it editable for a cleaner with no account', () => {
       component.openEdit(detail());
-      expect(component.emailLockedByAccount).toBe(false);
+      expect(component.emailLockedByAccount()).toBe(false);
     });
 
     /**
@@ -184,21 +184,21 @@ describe('CleanersDashboardComponent', () => {
       component.openEdit(detail({
         linkedUserId: 11, linkedAccountEmail: null, isEmailManagedByAccount: false
       }));
-      expect(component.emailLockedByAccount).toBe(false);
+      expect(component.emailLockedByAccount()).toBe(false);
     });
 
     it('never carries the lock into another form', () => {
       component.openEdit(detail({ linkedUserId: 11, linkedAccountEmail: 'a@b.com', isEmailManagedByAccount: true }));
-      expect(component.emailLockedByAccount).toBe(true);
+      expect(component.emailLockedByAccount()).toBe(true);
 
       component.closeForm();
-      expect(component.emailLockedByAccount).toBe(false);
+      expect(component.emailLockedByAccount()).toBe(false);
 
       // A brand-new cleaner has no account at all.
       component.openEdit(detail({ linkedUserId: 11, linkedAccountEmail: 'a@b.com', isEmailManagedByAccount: true }));
       component.openCreate();
-      expect(component.emailLockedByAccount).toBe(false);
-      expect(component.lockedAccountEmail).toBeNull();
+      expect(component.emailLockedByAccount()).toBe(false);
+      expect(component.lockedAccountEmail()).toBeNull();
     });
 
     it('names who signs in, however much of the account we know', () => {
@@ -214,8 +214,8 @@ describe('CleanersDashboardComponent', () => {
 
   describe('the payment fields', () => {
     it('starts blank — a cleaner with no recorded payout method is normal', () => {
-      expect(component.formModel.paymentMethod).toBeNull();
-      expect(component.formModel.paymentDetails).toBeNull();
+      expect(component.formModel().paymentMethod).toBeNull();
+      expect(component.formModel().paymentDetails).toBeNull();
     });
 
     /**
@@ -225,10 +225,12 @@ describe('CleanersDashboardComponent', () => {
     it('labels the details box after the chosen method', () => {
       expect(component.paymentDetailsLabel).toBe('Payment details');
 
-      component.formModel.paymentMethod = 'Zelle';
+      component.formModel().paymentMethod = 'Zelle';
+      component.formModel.set(component.formModel());
       expect(component.paymentDetailsLabel).toBe('Zelle number or email');
 
-      component.formModel.paymentMethod = 'Check';
+      component.formModel().paymentMethod = 'Check';
+      component.formModel.set(component.formModel());
       expect(component.paymentDetailsLabel).toBe('Check payable to');
     });
 
@@ -244,24 +246,27 @@ describe('CleanersDashboardComponent', () => {
       const writeText = vi.fn().mockName('writeText').mockReturnValue(Promise.resolve());
       Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
 
-      component.formModel.paymentMethod = 'Zelle';
-      component.formModel.paymentDetails = '6465550134';
+      component.formModel().paymentMethod = 'Zelle';
+      component.formModel.set(component.formModel());
+      component.formModel().paymentDetails = '6465550134';
+      component.formModel.set(component.formModel());
       component.copyFormPaymentDetails();
       await Promise.resolve();
 
       expect(writeText).toHaveBeenCalledWith('6465550134');
-      expect(component.paymentDetailsCopied).toBe(true);
+      expect(component.paymentDetailsCopied()).toBe(true);
     });
 
     it('does nothing when the box is empty', () => {
       const writeText = vi.fn().mockName('writeText');
       Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
 
-      component.formModel.paymentDetails = null;
+      component.formModel().paymentDetails = null;
+      component.formModel.set(component.formModel());
       component.copyFormPaymentDetails();
 
       expect(writeText).not.toHaveBeenCalled();
-      expect(component.paymentDetailsCopied).toBe(false);
+      expect(component.paymentDetailsCopied()).toBe(false);
     });
   });
 
@@ -281,8 +286,8 @@ describe('CleanersDashboardComponent', () => {
     });
 
     const mountEmbedded = () => {
-      component.embedded = true;
-      component.focusCleanerId = 80;
+      fixture.componentRef.setInput('embedded', true);
+      fixture.componentRef.setInput('focusCleanerId', 80);
       fixture.detectChanges();
       return httpMock.expectOne(r => r.url.endsWith('/admin/cleaners/80'));
     };
@@ -292,7 +297,7 @@ describe('CleanersDashboardComponent', () => {
 
       // The host has its own table; a roster fetch here would be a second list nobody renders.
       expect(httpMock.match(r => r.url.endsWith('/admin/cleaners')).length).toBe(0);
-      expect(component.selectedDetail?.id).toBe(80);
+      expect(component.selectedDetail()?.id).toBe(80);
     });
 
     it('brings its own Edit button rather than opening the form for the host', () => {
@@ -300,11 +305,11 @@ describe('CleanersDashboardComponent', () => {
 
       // The host clicks a ROW and gets the DETAILS; Edit is the panel's own button, sitting next
       // to the record it edits, exactly as on the dashboard. Nothing opens the form on arrival.
-      expect(component.formOpen).toBe(false);
+      expect(component.formOpen()).toBe(false);
 
-      component.openEdit(component.selectedDetail!);
+      component.openEdit(component.selectedDetail()!);
 
-      expect(component.formMode).toBe('edit');
+      expect(component.formMode()).toBe('edit');
       expect(component.editingId).toBe(80);
     });
 
@@ -315,7 +320,7 @@ describe('CleanersDashboardComponent', () => {
      */
     it('renders the edit form IN the panel, not in a modal over it', () => {
       mountEmbedded().flush(detail());
-      component.openEdit(component.selectedDetail!);
+      component.openEdit(component.selectedDetail()!);
       fixture.detectChanges();
 
       expect(component.showsInlineForm).toBe(true);
@@ -374,7 +379,7 @@ describe('CleanersDashboardComponent', () => {
       asRole('SuperAdmin');
       mountEmbedded().flush(detail());
 
-      expect(component.activeTab).toBe('dashboard');
+      expect(component.activeTab()).toBe('dashboard');
     });
 
     it('still loads the whole list when NOT embedded', () => {

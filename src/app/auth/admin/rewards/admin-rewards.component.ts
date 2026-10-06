@@ -115,8 +115,9 @@ export class AdminRewardsComponent implements OnInit {
           const s = group.settings.find(s => s.settingKey === u.key);
           if (s) s.settingValue = u.value;
         });
+        this.categoryGroups.update(groups => [...groups]);
       },
-      error: () => { group.saving = false; }
+      error: () => { group.saving = false; this.categoryGroups.update(groups => [...groups]); }
     });
   }
 

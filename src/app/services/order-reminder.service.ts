@@ -6,6 +6,7 @@ import { AdminService } from './admin.service';
 import { SignalRService } from './signalr.service';
 import { setIntervalOutsideZone } from '../shared/zone-free-timers';
 import { debugTimersPaused } from '../shared/debug-timers';
+import { ReactiveMap } from '../shared/reactive-map';
 
 export interface OrderReminder {
   orderId: number;
@@ -45,7 +46,8 @@ export class OrderReminderService {
   private timerWorker: Worker | null = null;
 
   /** All currently active (unacknowledged) reminders, keyed by "orderId_type" */
-  private remindersMap = new Map<string, OrderReminder>();
+  /** Reactive: the orders list reads it through hasActiveReminder() while rendering. */
+  private remindersMap = new ReactiveMap<string, OrderReminder>();
 
   /** Keys that have been acknowledged — prevents re-triggering */
   private acknowledgedKeys = new Set<string>();

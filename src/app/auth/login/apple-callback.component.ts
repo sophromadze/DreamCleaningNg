@@ -1,4 +1,4 @@
-import { Component, OnInit, PLATFORM_ID, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, OnInit, PLATFORM_ID, ChangeDetectionStrategy, inject, signal } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
@@ -13,15 +13,15 @@ declare const AppleID: any;
   template: `
     @if (isBrowser) {
     <div class="callback-container">
-      @if (isProcessing) {
+      @if (isProcessing()) {
       <div class="loading-spinner">
         <div class="spinner"></div>
         <p>Completing sign in...</p>
       </div>
       }
-      @if (errorMessage) {
+      @if (errorMessage()) {
       <div class="error-message">
-        <p>{{ errorMessage }}</p>
+        <p>{{ errorMessage() }}</p>
         <button (click)="goToLogin()">Return to Login</button>
       </div>
       }
@@ -75,8 +75,8 @@ export class AppleCallbackComponent implements OnInit {
   private authService = inject(AuthService);
 
   isBrowser = false;
-  isProcessing = true;
-  errorMessage: string | null = null;
+  readonly isProcessing = signal(true);
+  readonly errorMessage = signal<string | null>(null);
 
   constructor() {
     this.isBrowser = isPlatformBrowser(this.platformId);
@@ -94,8 +94,8 @@ export class AppleCallbackComponent implements OnInit {
       const errorDescription = urlParams.get('error_description');
       
       if (error) {
-        this.isProcessing = false;
-        this.errorMessage = errorDescription || error || 'Apple sign in failed. Please try again.';
+        this.isProcessing.set(false);
+        this.errorMessage.set(errorDescription || error || 'Apple sign in failed. Please try again.');
         return;
       }
 
@@ -152,8 +152,8 @@ export class AppleCallbackComponent implements OnInit {
       }
     } catch (error: any) {
       console.error('Apple callback error:', error);
-      this.isProcessing = false;
-      this.errorMessage = error?.error?.message || error?.message || 'Apple sign in failed. Please try again.';
+      this.isProcessing.set(false);
+      this.errorMessage.set(error?.error?.message || error?.message || 'Apple sign in failed. Please try again.');
     }
   }
 

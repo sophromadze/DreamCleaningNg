@@ -1,6 +1,6 @@
 import { MyInvoicesTabComponent } from './invoices/my-invoices-tab.component';
 import { MyGiftCardsTabComponent } from './gift-cards/my-gift-cards-tab.component';
-import { Component, OnInit, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
@@ -53,7 +53,7 @@ export const ORDERS_PER_PAGE = 10;
     ReferAFriendComponent, MyInvoicesTabComponent, MyGiftCardsTabComponent
   ],
   templateUrl: './profile.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./profile.component.scss']
 })
 
@@ -87,23 +87,23 @@ export class ProfileComponent implements OnInit {
     { key: 'gift-cards', label: 'Gift Cards', icon: 'fas fa-gift' },
     { key: 'security', label: 'Security', icon: 'fas fa-shield-alt' }
   ];
-  activeTab: ProfileTab = 'overview';
+  readonly activeTab = signal<ProfileTab>('overview');
   /** Unresolved payment problems — the Billing tab's badge and the Overview banner. */
-  billingIssueCount = 0;
+  readonly billingIssueCount = signal(0);
 
-  profile: Profile | null = null;
-  isLoading = true;
-  isEditingProfile = false;
-  isAddingApartment = false;
-  editingApartmentId: number | null = null;
-  errorMessage = '';
-  successMessage = '';
-  updatingComms = false;
-  specialOffers: UserSpecialOffer[] | null = null; // null = loading, [] = none, [...] = has offers
+  readonly profile = signal<Profile | null>(null, { equal: () => false });
+  readonly isLoading = signal(true);
+  readonly isEditingProfile = signal(false);
+  readonly isAddingApartment = signal(false);
+  readonly editingApartmentId = signal<number | null>(null);
+  readonly errorMessage = signal('');
+  readonly successMessage = signal('');
+  readonly updatingComms = signal(false);
+  readonly specialOffers = signal<UserSpecialOffer[] | null>(null); // null = loading, [] = none, [...] = has offers
 
   // ── The customer's cleanings, on Overview ────────────────────────────────────────────
-  orders: OrderList[] | null = null;   // null = not loaded yet, [] = loaded and empty
-  ordersError = '';
+  readonly orders = signal<OrderList[] | null>(null);   // null = not loaded yet, [] = loaded and empty
+  readonly ordersError = signal('');
 
   /**
    * "Your cleanings (N)": REAL orders only - not cancelled, not fully refunded (owner's rule,
@@ -111,34 +111,34 @@ export class ProfileComponent implements OnInit {
    * with its status; a partly refunded order keeps its status, so it still counts.
    */
   get realOrderCount(): number {
-    return (this.orders ?? []).filter(o => !isCancelledOrRefundedStatus(o.status)).length;
+    return (this.orders() ?? []).filter(o => !isCancelledOrRefundedStatus(o.status)).length;
   }
-  ordersPage = 1;
+  readonly ordersPage = signal(1);
   readonly ordersPerPage = ORDERS_PER_PAGE;
 
   // ── "My invoices" / "My contracts" ───────────────────────────────────────────────────
   // Both are business-customer areas. A residential customer has neither, and a link to an
   // empty page reads as something broken, so each one is drawn only once the cheap boolean
   // behind it comes back true. Same two endpoints the header menu uses.
-  hasInvoices = false;
-  hasContracts = false;
+  readonly hasInvoices = signal(false);
+  readonly hasContracts = signal(false);
 
   // ── Refer a Friend (Overview) ────────────────────────────────────────────────────────
   // Empty until `GET api/referral/my-code` answers; the shared card hides itself while so.
-  referralCode = '';
-  referralShareUrl = '';
+  readonly referralCode = signal('');
+  readonly referralShareUrl = signal('');
 
   // ── Plan tab ─────────────────────────────────────────────────────────────────────────
-  plan: PlanOverview | null = null;
-  planLoading = false;
-  planError = '';
-  planSavingId: number | null | undefined = undefined;  // undefined = idle, null = clearing
+  readonly plan = signal<PlanOverview | null>(null);
+  readonly planLoading = signal(false);
+  readonly planError = signal('');
+  readonly planSavingId = signal<number | null | undefined>(undefined);  // undefined = idle, null = clearing
 
   get hasActiveSubscription(): boolean {
-    if (!this.profile?.subscriptionId) return false;
+    if (!this.profile()?.subscriptionId) return false;
 
     // Backend may return `subscriptionExpiryDate` as string; normalize to Date.
-    const rawExpiry = this.profile.subscriptionExpiryDate as any;
+    const rawExpiry = this.profile()!.subscriptionExpiryDate as any;
     if (!rawExpiry) return true; // If no expiry is provided, assume active.
 
     const expiryMs = new Date(rawExpiry).getTime();
@@ -159,19 +159,19 @@ export class ProfileComponent implements OnInit {
   }
 
   // Profile edit form
-  editProfileForm = {
+  readonly editProfileForm = signal({
     firstName: '',
     lastName: '',
     email: '',
     phone: ''
-  };
+  }, { equal: () => false });
 
   // Location data
-  states: string[] = [];
-  cities: string[] = [];
+  readonly states = signal<string[]>([]);
+  readonly cities = signal<string[]>([]);
 
   // New apartment form
-  newApartment: CreateApartment = {
+  readonly newApartment = signal<CreateApartment>({
     name: '',
     address: '',
     aptSuite: '',
@@ -179,10 +179,10 @@ export class ProfileComponent implements OnInit {
     state: '',
     postalCode: '',
     specialInstructions: ''
-  };
+  }, { equal: () => false });
 
   // Edit apartment form
-  editingApartment: Apartment | null = null;
+  readonly editingApartment = signal<Apartment | null>(null);
 
   /** Offer badge colours are chosen by an admin; the label adapts so it stays readable on any of them. */
   readonly badgeLabelColor = readableLabelColor;
@@ -193,7 +193,7 @@ export class ProfileComponent implements OnInit {
     this.route.queryParamMap.subscribe(params => {
       const requested = params.get('tab') as ProfileTab | null;
       if (requested && this.tabs.some(t => t.key === requested)) {
-        this.activeTab = requested;
+        this.activeTab.set(requested);
         if (requested === 'plan') this.loadPlan();
       }
     });
@@ -208,9 +208,9 @@ export class ProfileComponent implements OnInit {
   }
 
   setTab(tab: ProfileTab): void {
-    if (this.activeTab === tab) return;
-    this.activeTab = tab;
-    this.errorMessage = '';
+    if (this.activeTab() === tab) return;
+    this.activeTab.set(tab);
+    this.errorMessage.set('');
     this.router.navigate([], {
       relativeTo: this.route,
       queryParams: { tab: tab === 'overview' ? null : tab },
@@ -226,7 +226,7 @@ export class ProfileComponent implements OnInit {
     const keys = ['ArrowRight', 'ArrowLeft', 'Home', 'End'];
     if (!keys.includes(event.key)) return;
     event.preventDefault();
-    const index = this.tabs.findIndex(t => t.key === this.activeTab);
+    const index = this.tabs.findIndex(t => t.key === this.activeTab());
     const next = event.key === 'Home' ? 0
       : event.key === 'End' ? this.tabs.length - 1
       : (index + (event.key === 'ArrowRight' ? 1 : -1) + this.tabs.length) % this.tabs.length;
@@ -240,10 +240,10 @@ export class ProfileComponent implements OnInit {
   private loadBillingIssues(): void {
     if (!isPlatformBrowser(this.platformId)) return;
     this.billingService.savedCardsEnabled().subscribe(enabled => {
-      if (!enabled) { this.billingIssueCount = 0; return; }
+      if (!enabled) { this.billingIssueCount.set(0); return; }
       this.billingService.getNotifications().subscribe({
-        next: (notices) => this.billingIssueCount = notices.filter(n => !n.isResolved && n.severity === 'critical').length,
-        error: () => this.billingIssueCount = 0
+        next: (notices) => this.billingIssueCount.set(notices.filter(n => !n.isResolved && n.severity === 'critical').length),
+        error: () => this.billingIssueCount.set(0)
       });
     });
   }
@@ -256,12 +256,12 @@ export class ProfileComponent implements OnInit {
   private loadCommercialLinks(): void {
     if (!isPlatformBrowser(this.platformId)) return;
     this.invoiceService.hasMyInvoices().subscribe({
-      next: res => this.hasInvoices = res?.hasInvoices ?? false,
-      error: () => this.hasInvoices = false
+      next: res => this.hasInvoices.set(res?.hasInvoices ?? false),
+      error: () => this.hasInvoices.set(false)
     });
     this.contractService.hasMyContracts().subscribe({
-      next: res => this.hasContracts = res?.hasContracts ?? false,
-      error: () => this.hasContracts = false
+      next: res => this.hasContracts.set(res?.hasContracts ?? false),
+      error: () => this.hasContracts.set(false)
     });
   }
 
@@ -274,12 +274,12 @@ export class ProfileComponent implements OnInit {
     if (!isPlatformBrowser(this.platformId)) return;
     this.bubbleRewardsService.getMyReferralCode().subscribe({
       next: res => {
-        this.referralCode = res?.code ?? '';
-        this.referralShareUrl = res?.shareUrl ?? '';
+        this.referralCode.set(res?.code ?? '');
+        this.referralShareUrl.set(res?.shareUrl ?? '');
       },
       error: () => {
-        this.referralCode = '';
-        this.referralShareUrl = '';
+        this.referralCode.set('');
+        this.referralShareUrl.set('');
       }
     });
   }
@@ -287,7 +287,7 @@ export class ProfileComponent implements OnInit {
   loadLocationData() {
     this.locationService.getStates().subscribe({
       next: (states) => {
-        this.states = states;
+        this.states.set(states);
         if (states.length > 0) {
           this.loadCities(states[0]);
         }
@@ -298,7 +298,7 @@ export class ProfileComponent implements OnInit {
   loadCities(state: string) {
     this.locationService.getCities(state).subscribe({
       next: (cities) => {
-        this.cities = cities;
+        this.cities.set(cities);
       }
     });
   }
@@ -306,99 +306,100 @@ export class ProfileComponent implements OnInit {
   onStateChange(state: string) {
     this.loadCities(state);
     // Only reset city if we're adding a new apartment
-    if (this.isAddingApartment) {
-      this.newApartment.city = '';
+    if (this.isAddingApartment()) {
+      this.newApartment().city = '';
+      this.newApartment.set(this.newApartment());
     }
     // Don't reset city when editing - it should keep its value
   }
 
   loadProfile() {
-    this.isLoading = true;
+    this.isLoading.set(true);
     this.profileService.getProfile().subscribe({
       next: (profile) => {
-        this.profile = profile;
-        this.isLoading = false;
+        this.profile.set(profile);
+        this.isLoading.set(false);
       },
       error: (error) => {
-        this.errorMessage = 'Failed to load profile';
-        this.isLoading = false;
+        this.errorMessage.set('Failed to load profile');
+        this.isLoading.set(false);
       }
     });
   }
 
   startEditProfile() {
-    if (this.profile) {
-      this.editProfileForm = {
-        firstName: this.profile.firstName,
-        lastName: this.profile.lastName,
-        email: this.profile.email,
-        phone: this.profile.phone || ''
-      };
-      this.isEditingProfile = true;
+    if (this.profile()) {
+      this.editProfileForm.set({
+        firstName: this.profile()!.firstName,
+        lastName: this.profile()!.lastName,
+        email: this.profile()!.email,
+        phone: this.profile()!.phone || ''
+      });
+      this.isEditingProfile.set(true);
     }
   }
 
   cancelEditProfile() {
-    this.isEditingProfile = false;
-    this.errorMessage = '';
+    this.isEditingProfile.set(false);
+    this.errorMessage.set('');
   }
 
   /** Current email preference (falls back to canReceiveCommunications if backend omits it). */
   get canReceiveEmails(): boolean {
-    if (!this.profile) return true;
-    return this.profile.canReceiveEmails ?? this.profile.canReceiveCommunications;
+    if (!this.profile()) return true;
+    return this.profile()!.canReceiveEmails ?? this.profile()!.canReceiveCommunications;
   }
 
   /** Current messages preference (falls back to canReceiveCommunications if backend omits it). */
   get canReceiveMessages(): boolean {
-    if (!this.profile) return true;
-    return this.profile.canReceiveMessages ?? this.profile.canReceiveCommunications;
+    if (!this.profile()) return true;
+    return this.profile()!.canReceiveMessages ?? this.profile()!.canReceiveCommunications;
   }
 
   setEmailsPreference(checked: boolean): void {
-    if (!this.profile) return;
-    this.updatingComms = true;
-    this.errorMessage = '';
+    if (!this.profile()) return;
+    this.updatingComms.set(true);
+    this.errorMessage.set('');
     this.profileService.updateProfile({
-      firstName: this.profile.firstName,
-      lastName: this.profile.lastName,
-      email: this.profile.email,
-      phone: this.profile.phone ?? '',
+      firstName: this.profile()!.firstName,
+      lastName: this.profile()!.lastName,
+      email: this.profile()!.email,
+      phone: this.profile()!.phone ?? '',
       canReceiveEmails: checked
     }).subscribe({
       next: (updated) => {
-        this.profile = updated;
-        this.updatingComms = false;
-        this.successMessage = checked ? 'You will receive our emails.' : 'You will not receive our emails.';
-        setTimeout(() => this.successMessage = '', 3000);
+        this.profile.set(updated);
+        this.updatingComms.set(false);
+        this.successMessage.set(checked ? 'You will receive our emails.' : 'You will not receive our emails.');
+        setTimeout(() => this.successMessage.set(''), 3000);
       },
       error: () => {
-        this.updatingComms = false;
-        this.errorMessage = 'Failed to update email preference. Please try again.';
+        this.updatingComms.set(false);
+        this.errorMessage.set('Failed to update email preference. Please try again.');
       }
     });
   }
 
   setMessagesPreference(checked: boolean): void {
-    if (!this.profile) return;
-    this.updatingComms = true;
-    this.errorMessage = '';
+    if (!this.profile()) return;
+    this.updatingComms.set(true);
+    this.errorMessage.set('');
     this.profileService.updateProfile({
-      firstName: this.profile.firstName,
-      lastName: this.profile.lastName,
-      email: this.profile.email,
-      phone: this.profile.phone ?? '',
+      firstName: this.profile()!.firstName,
+      lastName: this.profile()!.lastName,
+      email: this.profile()!.email,
+      phone: this.profile()!.phone ?? '',
       canReceiveMessages: checked
     }).subscribe({
       next: (updated) => {
-        this.profile = updated;
-        this.updatingComms = false;
-        this.successMessage = checked ? 'You will receive our messages.' : 'You will not receive our messages.';
-        setTimeout(() => this.successMessage = '', 3000);
+        this.profile.set(updated);
+        this.updatingComms.set(false);
+        this.successMessage.set(checked ? 'You will receive our messages.' : 'You will not receive our messages.');
+        setTimeout(() => this.successMessage.set(''), 3000);
       },
       error: () => {
-        this.updatingComms = false;
-        this.errorMessage = 'Failed to update messages preference. Please try again.';
+        this.updatingComms.set(false);
+        this.errorMessage.set('Failed to update messages preference. Please try again.');
       }
     });
   }
@@ -410,93 +411,98 @@ export class ProfileComponent implements OnInit {
 
   // Getters for displaying capitalized names in profile
   get displayFirstName(): string {
-    return this.profile ? this.capitalizeName(this.profile.firstName) : '';
+    return this.profile() ? this.capitalizeName(this.profile()!.firstName) : '';
   }
 
   get displayLastName(): string {
-    return this.profile ? this.capitalizeName(this.profile.lastName) : '';
+    return this.profile() ? this.capitalizeName(this.profile()!.lastName) : '';
   }
 
   onNameBlur(fieldName: 'firstName' | 'lastName') {
-    if (fieldName === 'firstName' && this.editProfileForm.firstName) {
-      this.editProfileForm.firstName = this.capitalizeName(this.editProfileForm.firstName);
-    } else if (fieldName === 'lastName' && this.editProfileForm.lastName) {
-      this.editProfileForm.lastName = this.capitalizeName(this.editProfileForm.lastName);
+    if (fieldName === 'firstName' && this.editProfileForm().firstName) {
+      this.editProfileForm().firstName = this.capitalizeName(this.editProfileForm().firstName);
+      this.editProfileForm.set(this.editProfileForm());
+    } else if (fieldName === 'lastName' && this.editProfileForm().lastName) {
+      this.editProfileForm().lastName = this.capitalizeName(this.editProfileForm().lastName);
+      this.editProfileForm.set(this.editProfileForm());
     }
   }
 
   saveProfile() {
     // Capitalize names before saving
-    if (this.editProfileForm.firstName) {
-      this.editProfileForm.firstName = this.capitalizeName(this.editProfileForm.firstName);
+    if (this.editProfileForm().firstName) {
+      this.editProfileForm().firstName = this.capitalizeName(this.editProfileForm().firstName);
+      this.editProfileForm.set(this.editProfileForm());
     }
-    if (this.editProfileForm.lastName) {
-      this.editProfileForm.lastName = this.capitalizeName(this.editProfileForm.lastName);
+    if (this.editProfileForm().lastName) {
+      this.editProfileForm().lastName = this.capitalizeName(this.editProfileForm().lastName);
+      this.editProfileForm.set(this.editProfileForm());
     }
 
     // Validate phone number format
-    if (this.editProfileForm.phone && !/^\d{10}$/.test(this.editProfileForm.phone)) {
-      this.errorMessage = 'Please enter a valid 10-digit phone number';
+    if (this.editProfileForm().phone && !/^\d{10}$/.test(this.editProfileForm().phone)) {
+      this.errorMessage.set('Please enter a valid 10-digit phone number');
       return;
     }
 
-    this.profileService.updateProfile(this.editProfileForm).subscribe({
+    this.profileService.updateProfile(this.editProfileForm()).subscribe({
       next: (updatedProfile) => {
-        this.profile = updatedProfile;
-        this.isEditingProfile = false;
-        this.successMessage = 'Profile updated successfully';
-        setTimeout(() => this.successMessage = '', 3000);
+        this.profile.set(updatedProfile);
+        this.isEditingProfile.set(false);
+        this.successMessage.set('Profile updated successfully');
+        setTimeout(() => this.successMessage.set(''), 3000);
       },
       error: (error) => {
-        this.errorMessage = 'Failed to update profile';
+        this.errorMessage.set('Failed to update profile');
       }
     });
   }
 
   startAddApartment() {
-    if (this.profile && this.profile.apartments.length >= 10) {
-      this.errorMessage = 'You have reached the maximum limit of 10 saved addresses';
-      setTimeout(() => this.errorMessage = '', 3000);
+    if (this.profile() && this.profile()!.apartments.length >= 10) {
+      this.errorMessage.set('You have reached the maximum limit of 10 saved addresses');
+      setTimeout(() => this.errorMessage.set(''), 3000);
       return;
     }
 
-    this.isAddingApartment = true;
-    this.newApartment = {
+    this.isAddingApartment.set(true);
+    this.newApartment.set({
       name: '',
       address: '',
       aptSuite: '',
       city: '',
-      state: this.states.length > 0 ? this.states[0] : '',
+      state: this.states().length > 0 ? this.states()[0] : '',
       postalCode: '',
       specialInstructions: ''
-    };
-    if (this.newApartment.state) {
-      this.onStateChange(this.newApartment.state);
+    });
+    if (this.newApartment().state) {
+      this.onStateChange(this.newApartment().state);
     }
   }
 
   addApartment() {
     // Clear any previous error messages
-    this.errorMessage = '';
+    this.errorMessage.set('');
 
     // Validate for duplicates
-    const validationError = this.validateApartment(this.newApartment);
+    const validationError = this.validateApartment(this.newApartment());
     if (validationError) {
-      this.errorMessage = validationError;
+      this.errorMessage.set(validationError);
       return;
     }
 
-    this.profileService.addApartment(this.newApartment).subscribe({
+    this.profileService.addApartment(this.newApartment()).subscribe({
       next: (apartment) => {
-        if (this.profile) {
-          this.profile.apartments.push(apartment);
+        if (this.profile()) {
+          this.profile()!.apartments.push(apartment);
+          this.profile.set(this.profile());
         }
-        this.isAddingApartment = false;
-        this.successMessage = 'Apartment added successfully';
-        setTimeout(() => this.successMessage = '', 3000);
+        this.isAddingApartment.set(false);
+        this.successMessage.set('Apartment added successfully');
+        setTimeout(() => this.successMessage.set(''), 3000);
       },
       error: (error) => {
-        this.errorMessage = extractApiErrorMessage(error, 'Failed to add apartment');
+        this.errorMessage.set(extractApiErrorMessage(error, 'Failed to add apartment'));
       }
     });
   }
@@ -504,10 +510,10 @@ export class ProfileComponent implements OnInit {
 
   // Add this method to check for duplicate apartments
   validateApartment(apartment: CreateApartment | Apartment, excludeId?: number): string | null {
-    if (!this.profile || !this.profile.apartments) return null;
+    if (!this.profile() || !this.profile()!.apartments) return null;
 
     // Check only active apartments
-    const activeApartments = this.profile.apartments.filter(a => a.id !== excludeId);
+    const activeApartments = this.profile()!.apartments.filter(a => a.id !== excludeId);
 
     // Check for duplicate name (case-insensitive)
     const duplicateName = activeApartments.find(a =>
@@ -532,47 +538,48 @@ export class ProfileComponent implements OnInit {
 
 
   startEditApartment(apartment: Apartment) {
-    this.editingApartmentId = apartment.id;
-    this.editingApartment = { ...apartment };
+    this.editingApartmentId.set(apartment.id);
+    this.editingApartment.set({ ...apartment });
     // Load cities for the current state without resetting the city
-    if (this.editingApartment.state) {
-      this.loadCities(this.editingApartment.state);
+    if (this.editingApartment()!.state) {
+      this.loadCities(this.editingApartment()!.state);
     }
   }
 
   saveApartment() {
-    if (this.editingApartment && this.editingApartmentId) {
+    if (this.editingApartment() && this.editingApartmentId()) {
       // Validate required fields
-      if (!this.editingApartment.name || !this.editingApartment.address ||
-          !this.editingApartment.city || !this.editingApartment.state ||
-          !this.editingApartment.postalCode) {
-        this.errorMessage = 'Please fill in all required fields';
+      if (!this.editingApartment()!.name || !this.editingApartment()!.address ||
+          !this.editingApartment()!.city || !this.editingApartment()!.state ||
+          !this.editingApartment()!.postalCode) {
+        this.errorMessage.set('Please fill in all required fields');
         return;
       }
 
       // Validate for duplicates before making the API call
-      const validationError = this.validateApartment(this.editingApartment, this.editingApartmentId);
+      const validationError = this.validateApartment(this.editingApartment()!, this.editingApartmentId()!);
       if (validationError) {
-        this.errorMessage = validationError;
+        this.errorMessage.set(validationError);
         return;
       }
 
-      this.profileService.updateApartment(this.editingApartmentId, this.editingApartment).subscribe({
+      this.profileService.updateApartment(this.editingApartmentId()!, this.editingApartment()!).subscribe({
         next: (updatedApartment) => {
-          if (this.profile) {
-            const index = this.profile.apartments.findIndex(a => a.id === updatedApartment.id);
+          if (this.profile()) {
+            const index = this.profile()!.apartments.findIndex(a => a.id === updatedApartment.id);
             if (index !== -1) {
-              this.profile.apartments[index] = updatedApartment;
+              this.profile()!.apartments[index] = updatedApartment;
+              this.profile.set(this.profile());
             }
           }
-          this.editingApartmentId = null;
-          this.editingApartment = null;
-          this.successMessage = 'Apartment updated successfully';
-          setTimeout(() => this.successMessage = '', 3000);
+          this.editingApartmentId.set(null);
+          this.editingApartment.set(null);
+          this.successMessage.set('Apartment updated successfully');
+          setTimeout(() => this.successMessage.set(''), 3000);
         },
         error: (error) => {
-          this.errorMessage = extractApiErrorMessage(
-            error, 'Failed to update apartment. Please try again.');
+          this.errorMessage.set(extractApiErrorMessage(
+            error, 'Failed to update apartment. Please try again.'));
         }
       });
     }
@@ -581,14 +588,14 @@ export class ProfileComponent implements OnInit {
   // Optional: Add real-time validation on form input
   onApartmentNameChange() {
     // Clear error first
-    this.errorMessage = '';
+    this.errorMessage.set('');
 
-    if (this.isAddingApartment && this.newApartment.name) {
-      const duplicateName = this.profile?.apartments.find(a =>
-        a.name.toLowerCase() === this.newApartment.name.toLowerCase()
+    if (this.isAddingApartment() && this.newApartment().name) {
+      const duplicateName = this.profile()?.apartments.find(a =>
+        a.name.toLowerCase() === this.newApartment().name.toLowerCase()
       );
       if (duplicateName) {
-        this.errorMessage = `An apartment with the name '${this.newApartment.name}' already exists`;
+        this.errorMessage.set(`An apartment with the name '${this.newApartment().name}' already exists`);
         return;
       }
     }
@@ -596,37 +603,37 @@ export class ProfileComponent implements OnInit {
 
   // Add the cancel methods to clear errors
   cancelAddApartment() {
-    this.isAddingApartment = false;
-    this.errorMessage = '';
+    this.isAddingApartment.set(false);
+    this.errorMessage.set('');
     // Reset the form
-    this.newApartment = {
+    this.newApartment.set({
       name: '',
       address: '',
       aptSuite: '',
       city: '',
-      state: this.states.length > 0 ? this.states[0] : '',
+      state: this.states().length > 0 ? this.states()[0] : '',
       postalCode: '',
       specialInstructions: ''
-    };
+    });
   }
 
   cancelEditApartment() {
-    this.editingApartmentId = null;
-    this.editingApartment = null;
-    this.errorMessage = '';
+    this.editingApartmentId.set(null);
+    this.editingApartment.set(null);
+    this.errorMessage.set('');
   }
 
   onApartmentAddressChange() {
     // Clear error first
-    this.errorMessage = '';
+    this.errorMessage.set('');
 
     // Check for duplicate name first
-    if (this.isAddingApartment && this.newApartment.address) {
-      const duplicateName = this.profile?.apartments.find(a =>
-        a.address.toLowerCase() === this.newApartment.address.toLowerCase()
+    if (this.isAddingApartment() && this.newApartment().address) {
+      const duplicateName = this.profile()?.apartments.find(a =>
+        a.address.toLowerCase() === this.newApartment().address.toLowerCase()
       );
       if (duplicateName) {
-        this.errorMessage = `An apartment with the address '${this.newApartment.address}' already exists`;
+        this.errorMessage.set(`An apartment with the address '${this.newApartment().address}' already exists`);
         return;
       }
     }
@@ -636,14 +643,15 @@ export class ProfileComponent implements OnInit {
     if (confirm(`Are you sure you want to delete "${apartment.name}"?`)) {
       this.profileService.deleteApartment(apartment.id).subscribe({
         next: () => {
-          if (this.profile) {
-            this.profile.apartments = this.profile.apartments.filter(a => a.id !== apartment.id);
+          if (this.profile()) {
+            this.profile()!.apartments = this.profile()!.apartments.filter(a => a.id !== apartment.id);
+            this.profile.set(this.profile());
           }
-          this.successMessage = 'Apartment deleted successfully';
-          setTimeout(() => this.successMessage = '', 3000);
+          this.successMessage.set('Apartment deleted successfully');
+          setTimeout(() => this.successMessage.set(''), 3000);
         },
         error: (error) => {
-          this.errorMessage = 'Failed to delete apartment';
+          this.errorMessage.set('Failed to delete apartment');
         }
       });
     }
@@ -656,11 +664,11 @@ export class ProfileComponent implements OnInit {
   loadSpecialOffers() {
     this.specialOfferService.getMySpecialOffers().subscribe({
       next: (offers) => {
-        this.specialOffers = offers ?? [];
+        this.specialOffers.set(offers ?? []);
       },
       error: (error) => {
         console.error('Error loading special offers:', error);
-        this.specialOffers = [];
+        this.specialOffers.set([]);
       }
     });
   }
@@ -674,44 +682,44 @@ export class ProfileComponent implements OnInit {
   // BookingCreationService.ResolveDiscountsAsync.
 
   loadPlan(force = false): void {
-    if (this.planLoading) return;
-    if (this.plan && !force) return;
-    this.planLoading = true;
-    this.planError = '';
+    if (this.planLoading()) return;
+    if (this.plan() && !force) return;
+    this.planLoading.set(true);
+    this.planError.set('');
     this.profileService.getPlan().subscribe({
-      next: overview => { this.plan = overview; this.planLoading = false; },
+      next: overview => { this.plan.set(overview); this.planLoading.set(false); },
       error: err => {
-        this.planError = extractApiErrorMessage(err, 'We could not load the plans right now.');
-        this.planLoading = false;
+        this.planError.set(extractApiErrorMessage(err, 'We could not load the plans right now.'));
+        this.planLoading.set(false);
       }
     });
   }
 
   choosePlan(plan: PlanOption): void {
-    if (this.planSavingId !== undefined) return;
+    if (this.planSavingId() !== undefined) return;
     // Tapping the plan you already prefer clears it, so "no plan" is reachable without a
     // separate control the rest of the time.
     const target = plan.isPreferred ? null : plan.id;
-    this.planSavingId = target;
-    this.planError = '';
+    this.planSavingId.set(target);
+    this.planError.set('');
     this.profileService.selectPlan(target).subscribe({
       next: overview => {
-        this.plan = overview;
-        this.planSavingId = undefined;
-        this.successMessage = target === null
+        this.plan.set(overview);
+        this.planSavingId.set(undefined);
+        this.successMessage.set(target === null
           ? 'Plan preference cleared.'
-          : `${plan.name} saved. We will pre-select it when you book — nothing has been charged.`;
-        setTimeout(() => this.successMessage = '', 4000);
+          : `${plan.name} saved. We will pre-select it when you book — nothing has been charged.`);
+        setTimeout(() => this.successMessage.set(''), 4000);
       },
       error: err => {
-        this.planSavingId = undefined;
-        this.planError = extractApiErrorMessage(err, 'We could not save that. Please try again.');
+        this.planSavingId.set(undefined);
+        this.planError.set(extractApiErrorMessage(err, 'We could not save that. Please try again.'));
       }
     });
   }
 
   isPlanSaving(plan: PlanOption): boolean {
-    return this.planSavingId === plan.id;
+    return this.planSavingId() === plan.id;
   }
 
   /** "Every 2 weeks" from the configured cadence, so the copy follows the admin's own tiers. */
@@ -725,37 +733,37 @@ export class ProfileComponent implements OnInit {
   // ══ The customer's cleanings ═══════════════════════════════════════════════════════════
 
   loadOrders() {
-    this.ordersError = '';
+    this.ordersError.set('');
     this.orderService.getUserOrders().subscribe({
       next: (orders: OrderList[]) => {
-        this.orders = orders;
+        this.orders.set(orders);
         // A cancellation can empty the last page. Step back rather than showing a blank list.
-        if (this.ordersPage > this.orderPageCount) this.ordersPage = this.orderPageCount;
+        if (this.ordersPage() > this.orderPageCount) this.ordersPage.set(this.orderPageCount);
       },
       error: (error: any) => {
-        this.ordersError = extractApiErrorMessage(error, 'Failed to load your cleanings.');
-        this.orders = [];
+        this.ordersError.set(extractApiErrorMessage(error, 'Failed to load your cleanings.'));
+        this.orders.set([]);
       }
     });
   }
 
   get orderPageCount(): number {
-    const total = this.orders?.length ?? 0;
+    const total = this.orders()?.length ?? 0;
     return Math.max(1, Math.ceil(total / this.ordersPerPage));
   }
 
   /** The slice on screen. A pure getter — nothing here may assign component state (NG0100). */
   get pagedOrders(): OrderList[] {
-    if (!this.orders) return [];
-    const start = (this.ordersPage - 1) * this.ordersPerPage;
-    return this.orders.slice(start, start + this.ordersPerPage);
+    if (!this.orders()) return [];
+    const start = (this.ordersPage() - 1) * this.ordersPerPage;
+    return this.orders()!.slice(start, start + this.ordersPerPage);
   }
 
   /** Page numbers to draw: a window around the current page, never the whole run. */
   get orderPageNumbers(): number[] {
     const count = this.orderPageCount;
     const window = 5;
-    let first = Math.max(1, this.ordersPage - Math.floor(window / 2));
+    let first = Math.max(1, this.ordersPage() - Math.floor(window / 2));
     const last = Math.min(count, first + window - 1);
     first = Math.max(1, last - window + 1);
     const pages: number[] = [];
@@ -765,8 +773,8 @@ export class ProfileComponent implements OnInit {
 
   goToOrderPage(page: number): void {
     const target = Math.min(Math.max(1, page), this.orderPageCount);
-    if (target === this.ordersPage) return;
-    this.ordersPage = target;
+    if (target === this.ordersPage()) return;
+    this.ordersPage.set(target);
     if (isPlatformBrowser(this.platformId)) {
       document.getElementById('profile-orders')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
@@ -849,15 +857,15 @@ export class ProfileComponent implements OnInit {
   }
 
   // ── Reorder ────────────────────────────────────────────────────────────────────────────
-  reorderingOrderId: number | null = null;
+  readonly reorderingOrderId = signal<number | null>(null);
 
   isReordering(orderId: number): boolean {
-    return this.reorderingOrderId === orderId;
+    return this.reorderingOrderId() === orderId;
   }
 
   reorder(orderId: number) {
-    this.reorderingOrderId = orderId;
-    this.ordersError = '';
+    this.reorderingOrderId.set(orderId);
+    this.ordersError.set('');
 
     this.orderService.getOrderById(orderId).subscribe({
       next: (order: Order) => {
@@ -896,52 +904,52 @@ export class ProfileComponent implements OnInit {
         this.router.navigate(['/booking']);
       },
       error: (error) => {
-        this.ordersError = extractApiErrorMessage(
-          error, 'Failed to load order details. Please try again.');
-        this.reorderingOrderId = null;
+        this.ordersError.set(extractApiErrorMessage(
+          error, 'Failed to load order details. Please try again.'));
+        this.reorderingOrderId.set(null);
       }
     });
   }
 
   // ── Cancelling ─────────────────────────────────────────────────────────────────────────
-  cancellingOrderId: number | null = null;
-  showCancelModal = false;
-  cancelModalOrderId: number | null = null;
-  cancelReason = '';
+  readonly cancellingOrderId = signal<number | null>(null);
+  readonly showCancelModal = signal(false);
+  readonly cancelModalOrderId = signal<number | null>(null);
+  readonly cancelReason = signal('');
 
   openCancelModal(orderId: number) {
-    this.cancelModalOrderId = orderId;
-    this.showCancelModal = true;
-    this.cancelReason = '';
+    this.cancelModalOrderId.set(orderId);
+    this.showCancelModal.set(true);
+    this.cancelReason.set('');
   }
 
   closeCancelModal() {
-    this.showCancelModal = false;
-    this.cancelModalOrderId = null;
-    this.cancelReason = '';
+    this.showCancelModal.set(false);
+    this.cancelModalOrderId.set(null);
+    this.cancelReason.set('');
   }
 
   getCancelModalOrder(): OrderList | undefined {
-    return this.orders?.find(o => o.id === this.cancelModalOrderId);
+    return this.orders()?.find(o => o.id === this.cancelModalOrderId());
   }
 
   confirmCancelOrder() {
-    if (!this.cancelModalOrderId || !this.cancelReason.trim()) return;
+    if (!this.cancelModalOrderId() || !this.cancelReason().trim()) return;
 
-    this.cancellingOrderId = this.cancelModalOrderId;
-    this.ordersError = '';
+    this.cancellingOrderId.set(this.cancelModalOrderId());
+    this.ordersError.set('');
 
-    this.orderService.cancelOrder(this.cancelModalOrderId, { reason: this.cancelReason }).subscribe({
+    this.orderService.cancelOrder(this.cancelModalOrderId()!, { reason: this.cancelReason() }).subscribe({
       next: () => {
-        this.cancellingOrderId = null;
+        this.cancellingOrderId.set(null);
         this.closeCancelModal();
         this.loadOrders();
         this.notifyOrdersChanged();
       },
       error: (error) => {
-        this.cancellingOrderId = null;
-        this.ordersError = extractApiErrorMessage(
-          error, 'Failed to cancel order. Please try again.');
+        this.cancellingOrderId.set(null);
+        this.ordersError.set(extractApiErrorMessage(
+          error, 'Failed to cancel order. Please try again.'));
       }
     });
   }
@@ -951,25 +959,25 @@ export class ProfileComponent implements OnInit {
       return;
     }
 
-    this.cancellingOrderId = orderId;
-    this.ordersError = '';
+    this.cancellingOrderId.set(orderId);
+    this.ordersError.set('');
 
     this.orderService.cancelOrder(orderId, { reason: 'Customer cancelled unpaid order' }).subscribe({
       next: () => {
-        this.cancellingOrderId = null;
+        this.cancellingOrderId.set(null);
         this.loadOrders();
         this.notifyOrdersChanged();
       },
       error: (error) => {
-        this.cancellingOrderId = null;
-        this.ordersError = extractApiErrorMessage(
-          error, 'Failed to cancel order. Please try again.');
+        this.cancellingOrderId.set(null);
+        this.ordersError.set(extractApiErrorMessage(
+          error, 'Failed to cancel order. Please try again.'));
       }
     });
   }
 
   isCancellingOrder(orderId: number): boolean {
-    return this.cancellingOrderId === orderId;
+    return this.cancellingOrderId() === orderId;
   }
 
   /** Tells the header to re-check for unpaid orders. */
@@ -1003,6 +1011,7 @@ export class ProfileComponent implements OnInit {
     // Remove any non-digit characters
     input.value = input.value.replace(/\D/g, '');
     // Update the model
-    this.editProfileForm.phone = input.value;
+    this.editProfileForm().phone = input.value;
+    this.editProfileForm.set(this.editProfileForm());
   }
 }

@@ -1,5 +1,5 @@
 // src/app/auth/profile/order-edit/order-edit.component.ts
-import { Component, OnDestroy, OnInit, PLATFORM_ID, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, OnDestroy, OnInit, PLATFORM_ID, ChangeDetectionStrategy, inject, signal, computed } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, FormArray, FormControl, Validators } from '@angular/forms';
 import { RouterModule, ActivatedRoute, Router } from '@angular/router';
@@ -61,6 +61,7 @@ import {
   getAllServiceTimeSlots
 } from '../../../shared/booking/service-time-slots';
 import { isCleanersLine } from '../../../shared/booking/order-service-keys';
+import { formViewRefresher } from '../../../shared/forms/form-view-refresher';
 
 interface SelectedService {
   service: Service;
@@ -80,10 +81,12 @@ interface SelectedExtraService {
   templateUrl: './order-edit.component.html',
   // Booking's stylesheet is the single source of truth for the shared look; the local
   // file only styles order-edit-specific elements (back link, additional amount, modal).
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['../../../booking/booking.component.scss', './order-edit.component.scss']
 })
 export class OrderEditComponent implements OnInit, OnDestroy {
+  /** Re-renders when a form changes outside a template event (see form-view-refresher). */
+  private readonly watchForm = formViewRefresher();
   private fb = inject(FormBuilder);
   private orderService = inject(OrderService);
   private bookingService = inject(BookingService);
@@ -95,36 +98,36 @@ export class OrderEditComponent implements OnInit, OnDestroy {
   private bubbleRewardsService = inject(BubbleRewardsService);
   private platformId = inject<Object>(PLATFORM_ID);
 
-  order: Order | null = null;
+  readonly order = signal<Order | null>(null);
   orderForm: FormGroup;
   private isBrowser: boolean;
   
   // Service data
-  serviceType: ServiceType | null = null;
-  selectedServices: SelectedService[] = [];
-  selectedExtraServices: SelectedExtraService[] = [];
+  readonly serviceType = signal<ServiceType | null>(null);
+  readonly selectedServices = signal<SelectedService[]>([], { equal: () => false });
+  readonly selectedExtraServices = signal<SelectedExtraService[]>([], { equal: () => false });
   
   // Location data
-  states: string[] = [];
-  cities: string[] = [];
+  readonly states = signal<string[]>([]);
+  readonly cities = signal<string[]>([]);
   
   // UI state
-  isLoading = true;
-  isSaving = false;
+  readonly isLoading = signal(true);
+  readonly isSaving = signal(false);
   readonly specialInstructionsMaxLength = 2000;
   // Must match Order.EntryMethod (500) on the backend.
   readonly entryMethodMaxLength = 500;
-  errorMessage = '';
-  successMessage = '';
-  additionalAmount = 0;
-  showPaymentModal = false;
-  showApplePay = false;
+  readonly errorMessage = signal('');
+  readonly successMessage = signal('');
+  readonly additionalAmount = signal(0);
+  readonly showPaymentModal = signal(false);
+  readonly showApplePay = signal(false);
   isSameDaySelected = false;
   
   // Blocked time slots (scheduling restrictions)
   blockedTimeSlots: BlockedTimeSlot[] = [];
-  blockedFullDays: Set<string> = new Set();
-  blockedHoursMap: Map<string, Set<string>> = new Map();
+  readonly blockedFullDays = signal<Set<string>>(new Set(), { equal: () => false });
+  readonly blockedHoursMap = signal<Map<string, Set<string>>>(new Map(), { equal: () => false });
   isUserAdmin = false;
   /**
    * Admin or SuperAdmin, NOT Moderator — deliberately narrower than `isUserAdmin`, which also
@@ -143,11 +146,11 @@ export class OrderEditComponent implements OnInit, OnDestroy {
   ];
   
   // Floor types
-  floorTypes: string[] = [];
-  floorTypeOther: string = '';
+  readonly floorTypes = signal<string[]>([]);
+  readonly floorTypeOther = signal<string>('');
 
   // Original values for comparison
-  originalTotal = 0;
+  readonly originalTotal = signal(0);
   originalDiscountAmount = 0;
   originalSubscriptionDiscountAmount = 0;
   /** Raw subtotal from order (before discount). Used to compute discount ratio. */
@@ -155,40 +158,40 @@ export class OrderEditComponent implements OnInit, OnDestroy {
   /** Discount as ratio of raw subtotal (0..1). Applied to new raw subtotal when recalculating. */
   discountRatio = 0;
   /** Recalculated discount amount (from discountRatio * new raw subtotal). */
-  appliedDiscountAmount = 0;
-  appliedSubscriptionDiscountAmount = 0;
+  readonly appliedDiscountAmount = signal(0);
+  readonly appliedSubscriptionDiscountAmount = signal(0);
   /** Loyalty Discount snapshot from the order at load time. Percentage is invariant during
    *  edits — it locks in the user's % at booking moment, so the only thing that changes when
    *  subtotal moves is the dollar amount (newSubTotal * pct / 100). */
   originalLoyaltyDiscountAmount = 0;
   originalLoyaltyDiscountPercentage = 0;
   /** Recalculated loyalty amount = round(newSubTotal * originalLoyaltyDiscountPercentage / 100, 2). */
-  appliedLoyaltyDiscountAmount = 0;
+  readonly appliedLoyaltyDiscountAmount = signal(0);
   /** Bubble points discount already applied to this order (must be subtracted from new total). */
-  originalPointsRedeemedDiscount = 0;
-  originalPointsRedeemed = 0;
+  readonly originalPointsRedeemedDiscount = signal(0);
+  readonly originalPointsRedeemed = signal(0);
   /** Reward balance (credits) already applied to this order. */
-  originalRewardBalanceUsed = 0;
+  readonly originalRewardBalanceUsed = signal(0);
   
   // Calculated values
-  newSubTotal = 0;
-  newTotal = 0;
-  newTax = 0;
-  totalDuration: number = 0;
+  readonly newSubTotal = signal(0);
+  readonly newTotal = signal(0);
+  readonly newTax = signal(0);
+  readonly totalDuration = signal<number>(0);
   actualTotalDuration: number = 0;
 
   // Points preview
   pointsPerDollar = 0;
-  pointsEnabled = false;
-  estimatedPoints = 0;
+  readonly pointsEnabled = signal(false);
+  readonly estimatedPoints = signal(0);
 
   // Gift card specific properties
-  giftCardApplied = false;
-  giftCardBalance = 0;
-  giftCardAmountToUse = 0;
+  readonly giftCardApplied = signal(false);
+  readonly giftCardBalance = signal(0);
+  readonly giftCardAmountToUse = signal(0);
   isGiftCard = false;
-  originalGiftCardCode: string | null = null;
-  originalGiftCardAmountUsed = 0;
+  readonly originalGiftCardCode = signal<string | null>(null);
+  readonly originalGiftCardAmountUsed = signal(0);
   
   // Mobile tooltip state — shared machinery in shared/booking/extra-service-display.utils
   // Public: passed into ExtraServicesGridComponent, which reads visibility from it.
@@ -196,34 +199,34 @@ export class OrderEditComponent implements OnInit, OnDestroy {
   isMobileDevice = false; // Will be updated in ngOnInit
   
   // Order summary collapse state
-  isSummaryCollapsed = false;
+  readonly isSummaryCollapsed = signal(false);
 
   // Tip dropdown state
-  tipDropdownOpen = false;
+  readonly tipDropdownOpen = signal(false);
 
   // Extra services show-more toggle (same UX as booking)
   showAllExtraServices = false;
 
   // Entry method dropdown state (same dropdown UI as booking)
-  entryMethodDropdownOpen = false;
+  readonly entryMethodDropdownOpen = signal(false);
 
   // If the order was originally deep cleaned, keep option visible even if later deactivated
-  private originallyHadDeepCleaning = false;
+  private readonly originallyHadDeepCleaning = signal(false);
   
   // Constants
   salesTaxRate = SALES_TAX_RATE;
 
-  calculatedMaidsCount = 1;
+  readonly calculatedMaidsCount = signal(1);
   originalMaidsCount = 1;
 
   originalServiceQuantities: Map<number, number> = new Map();
   serviceControls: FormArray;
 
   // Payment related properties
-  isProcessingPayment = false;
+  readonly isProcessingPayment = signal(false);
   paymentClientSecret: string | null = null;
-  cardError: string | null = null;
-  paymentErrorMessage: string = '';
+  readonly cardError = signal<string | null>(null);
+  readonly paymentErrorMessage = signal<string>('');
   private updateData: UpdateOrder | null = null;
 
 
@@ -249,9 +252,11 @@ export class OrderEditComponent implements OnInit, OnDestroy {
       tips: [0],
       cleaningType: ['normal', Validators.required]
     });
+    this.watchForm(this.orderForm);
 
     // Initialize service controls array
     this.serviceControls = this.fb.array([]);
+    this.watchForm(this.serviceControls);
   }
 
   private getNowInNewYork(): Date {
@@ -269,7 +274,7 @@ export class OrderEditComponent implements OnInit, OnDestroy {
     // Load points-per-dollar for the earn preview
     this.bubbleRewardsService.getSummary().subscribe({
       next: (s) => {
-        this.pointsEnabled = !!s.pointsSystemEnabled;
+        this.pointsEnabled.set(!!s.pointsSystemEnabled);
         this.pointsPerDollar = s.guide?.pointsPerDollar ?? 0;
         this.updateEstimatedPoints();
       },
@@ -323,12 +328,12 @@ export class OrderEditComponent implements OnInit, OnDestroy {
         
         // If the selected date is not today, unselect same day service
         if (value !== todayFormatted) {
-          const sameDayService = this.selectedExtraServices.find(s => s.extraService.isSameDayService);
+          const sameDayService = this.selectedExtraServices().find(s => s.extraService.isSameDayService);
           if (sameDayService) {
             // Remove same day service from selected extra services
-            this.selectedExtraServices = this.selectedExtraServices.filter(
+            this.selectedExtraServices.set(this.selectedExtraServices().filter(
               s => !s.extraService.isSameDayService
-            );
+            ));
             this.isSameDaySelected = false;
             this.calculateNewTotal();
           }
@@ -347,7 +352,7 @@ export class OrderEditComponent implements OnInit, OnDestroy {
   loadLocationData() {
     this.locationService.getStates().subscribe({
       next: (states) => {
-        this.states = states;
+        this.states.set(states);
       }
     });
   }
@@ -355,7 +360,7 @@ export class OrderEditComponent implements OnInit, OnDestroy {
   loadCities(state: string) {
     this.locationService.getCities(state).subscribe({
       next: (cities) => {
-        this.cities = cities;
+        this.cities.set(cities);
       }
     });
   }
@@ -366,25 +371,25 @@ export class OrderEditComponent implements OnInit, OnDestroy {
   }
 
   loadOrder(orderId: number) {
-    this.isLoading = true;
+    this.isLoading.set(true);
     this.orderService.getOrderById(orderId).subscribe({
       next: (order) => {
         if (order.recurringSeriesId) {
-          this.isLoading = false;
+          this.isLoading.set(false);
           this.router.navigate(['/order', orderId]);
           return;
         }
-        this.order = order;
-        this.originalTotal = order.total;
+        this.order.set(order);
+        this.originalTotal.set(order.total);
         this.originalDiscountAmount = order.discountAmount;
         this.originalSubscriptionDiscountAmount = order.subscriptionDiscountAmount || 0;
         this.originalLoyaltyDiscountAmount = order.loyaltyDiscountAmount || 0;
         this.originalLoyaltyDiscountPercentage = order.loyaltyDiscountPercentage || 0;
         this.originalMaidsCount = order.maidsCount;
         this.originalRawSubTotal = order.subTotal;
-        this.originalPointsRedeemed = order.pointsRedeemed || 0;
-        this.originalPointsRedeemedDiscount = order.pointsRedeemedDiscount || 0;
-        this.originalRewardBalanceUsed = order.rewardBalanceUsed || 0;
+        this.originalPointsRedeemed.set(order.pointsRedeemed || 0);
+        this.originalPointsRedeemedDiscount.set(order.pointsRedeemedDiscount || 0);
+        this.originalRewardBalanceUsed.set(order.rewardBalanceUsed || 0);
         if (order.subTotal > 0) {
           this.discountRatio = (order.discountAmount + (order.subscriptionDiscountAmount || 0)) / order.subTotal;
         } else {
@@ -394,8 +399,8 @@ export class OrderEditComponent implements OnInit, OnDestroy {
         this.loadServiceType(order.serviceTypeId);
       },
       error: (error) => {
-        this.errorMessage = 'Failed to load order';
-        this.isLoading = false;
+        this.errorMessage.set('Failed to load order');
+        this.isLoading.set(false);
       }
     });
   }
@@ -432,18 +437,18 @@ export class OrderEditComponent implements OnInit, OnDestroy {
 
     // Initialize gift card data if present
   if (order.giftCardCode) {
-    this.originalGiftCardCode = order.giftCardCode;
-    this.originalGiftCardAmountUsed = order.giftCardAmountUsed || 0;
+    this.originalGiftCardCode.set(order.giftCardCode);
+    this.originalGiftCardAmountUsed.set(order.giftCardAmountUsed || 0);
     
     // Validate the gift card to get current balance
     this.bookingService.validatePromoCode(order.giftCardCode).subscribe({
       next: (validation) => {
         if (validation.isValid && validation.isGiftCard) {
           this.isGiftCard = true;
-          this.giftCardApplied = true;
-          this.giftCardBalance = validation.availableBalance || 0;
+          this.giftCardApplied.set(true);
+          this.giftCardBalance.set(validation.availableBalance || 0);
           // Add back the originally used amount to get total available
-          this.giftCardBalance += this.originalGiftCardAmountUsed;
+          this.giftCardBalance.update(v => v + (this.originalGiftCardAmountUsed()));
           this.calculateNewTotal();
         }
       }
@@ -454,8 +459,8 @@ export class OrderEditComponent implements OnInit, OnDestroy {
   loadServiceType(serviceTypeId: number) {
     this.bookingService.getServiceTypes().subscribe({
       next: (serviceTypes) => {
-        this.serviceType = serviceTypes.find(st => st.id === serviceTypeId) || null;
-        if (this.serviceType && this.order) {
+        this.serviceType.set(serviceTypes.find(st => st.id === serviceTypeId) || null);
+        if (this.serviceType() && this.order()) {
           this.initializeServices();
           // After the services exist, so the levels row is present to read a count back from.
           this.initializePropertyTypeSelection();
@@ -463,11 +468,11 @@ export class OrderEditComponent implements OnInit, OnDestroy {
           // Calculate initial total
           this.calculateNewTotal();
         }
-        this.isLoading = false;
+        this.isLoading.set(false);
       },
       error: (error) => {
-        this.errorMessage = 'Failed to load service details';
-        this.isLoading = false;
+        this.errorMessage.set('Failed to load service details');
+        this.isLoading.set(false);
       }
     });
   }
@@ -481,10 +486,10 @@ export class OrderEditComponent implements OnInit, OnDestroy {
    * the customer may answer it now, but leaving it alone is also fine. Saving an old order must
    * not be blocked by a question that did not exist when it was booked.
    */
-  propertyType: PropertyType | null = null;
+  readonly propertyType = signal<PropertyType | null>(null);
 
   /** Levels for a house; null until chosen. */
-  levelsQuantity: number | null = null;
+  readonly levelsQuantity = signal<number | null>(null);
 
   readonly levelOptions = LEVEL_OPTIONS;
   readonly propertyTypeApartment = PROPERTY_TYPE_APARTMENT;
@@ -492,7 +497,7 @@ export class OrderEditComponent implements OnInit, OnDestroy {
 
   /** One shared exclusion rule for every surface. See property-type.utils. */
   showPropertyTypeSelector(): boolean {
-    return serviceTypeCollectsPropertyType(this.serviceType);
+    return serviceTypeCollectsPropertyType(this.serviceType());
   }
 
   /**
@@ -501,20 +506,20 @@ export class OrderEditComponent implements OnInit, OnDestroy {
    * on Order.LevelsQuantity. See the booking page's showLevelsSelector for the full rationale.
    */
   showLevelsSelector(): boolean {
-    return isHouse(this.propertyType);
+    return isHouse(this.propertyType());
   }
 
   /** True when the order's service type actually charges for levels. */
   levelsArePriced(): boolean {
-    return findLevelsService(this.serviceType) != null;
+    return findLevelsService(this.serviceType()) != null;
   }
 
   isPropertyTypeSelected(type: PropertyType): boolean {
-    return this.propertyType === type;
+    return this.propertyType() === type;
   }
 
   isLevelsSelected(levels: number): boolean {
-    return this.levelsQuantity === levels;
+    return this.levelsQuantity() === levels;
   }
 
   /** Template helper: levels has its own block, never the generic service grid. */
@@ -527,12 +532,12 @@ export class OrderEditComponent implements OnInit, OnDestroy {
    * A legacy order with no property type at all saves exactly as it always did.
    */
   isPropertyTypeAnswerIncomplete(): boolean {
-    return this.showLevelsSelector() && this.levelsQuantity === null;
+    return this.showLevelsSelector() && this.levelsQuantity() === null;
   }
 
   selectPropertyType(type: PropertyType): void {
-    if (this.propertyType === type) return;
-    this.propertyType = type;
+    if (this.propertyType() === type) return;
+    this.propertyType.set(type);
 
     if (type === PROPERTY_TYPE_HOUSE) {
       // No-op on a service type with no bedrooms input - the lookup simply finds nothing.
@@ -540,7 +545,7 @@ export class OrderEditComponent implements OnInit, OnDestroy {
     } else {
       // Back to apartment: forget the count AND reset the priced line to the included level, or
       // the stair charge survives a change that was supposed to remove it.
-      this.levelsQuantity = null;
+      this.levelsQuantity.set(null);
       this.writeLevelsQuantity(1);
     }
 
@@ -548,7 +553,7 @@ export class OrderEditComponent implements OnInit, OnDestroy {
   }
 
   selectLevels(levels: number): void {
-    this.levelsQuantity = levels;
+    this.levelsQuantity.set(levels);
     this.writeLevelsQuantity(levels);
     this.calculateNewTotal();
   }
@@ -563,51 +568,51 @@ export class OrderEditComponent implements OnInit, OnDestroy {
    * included count, which prices to exactly zero.
    */
   private writeLevelsQuantity(levels: number): void {
-    const index = this.selectedServices.findIndex(s => isLevelsService(s.service));
+    const index = this.selectedServices().findIndex(s => isLevelsService(s.service));
     if (index < 0) return;
 
-    this.selectedServices[index].quantity = levels;
+    this.selectedServices()[index].quantity = levels;
+    this.selectedServices.set(this.selectedServices());
     this.getServiceControl(index)?.setValue(levels);
   }
 
   /** A house has no studio; raising bedrooms drags the included sq.ft up through the same rule. */
   private raiseBedroomsToHouseMinimum(): void {
-    const bedrooms = this.selectedServices.find(s => s.service.serviceKey === 'bedrooms');
+    const bedrooms = this.selectedServices().find(s => s.service.serviceKey === 'bedrooms');
     if (!bedrooms || bedrooms.quantity >= 1) return;
     this.updateServiceQuantity(bedrooms.service, 1);
   }
 
   /** Seeds both answers from the stored order. Legacy orders land on null and stay editable. */
   private initializePropertyTypeSelection(): void {
-    this.propertyType = normalizePropertyType(this.order?.propertyType);
+    this.propertyType.set(normalizePropertyType(this.order()?.propertyType));
 
     if (!this.showLevelsSelector()) {
-      this.levelsQuantity = null;
+      this.levelsQuantity.set(null);
       return;
     }
 
-    const stored = this.order?.levelsQuantity;
-    this.levelsQuantity =
-      stored != null && LEVEL_OPTIONS.includes(stored) ? stored : null;
+    const stored = this.order()?.levelsQuantity;
+    this.levelsQuantity.set(stored != null && LEVEL_OPTIONS.includes(stored) ? stored : null);
   }
 
   initializeServices() {
-    if (!this.serviceType || !this.order) return;
+    if (!this.serviceType() || !this.order()) return;
   
     // Clear existing controls
     this.serviceControls.clear();
     
     // Initialize selected services with quantities from the order (like booking component)
-    this.selectedServices = [];
+    this.selectedServices.set([]);
     
     // Sort services by displayOrder before processing (like booking component)
-    const sortedServices = [...this.serviceType.services].sort((a, b) => 
+    const sortedServices = [...this.serviceType()!.services].sort((a, b) => 
       (a.displayOrder || 999) - (b.displayOrder || 999)
     );
     
     sortedServices.forEach(service => {
       if (service.isActive !== false) {
-        const orderService = this.order!.services.find(s => s.serviceId === service.id);
+        const orderService = this.order()!.services.find(s => s.serviceId === service.id);
         
         let quantity = orderService ? orderService.quantity : (service.minValue ?? 0);
         
@@ -615,7 +620,7 @@ export class OrderEditComponent implements OnInit, OnDestroy {
         if (service.serviceRelationType === 'hours' && !orderService) {
           // Try to calculate hours from cleaner service duration
           // The order's Cleaners line: by serviceKey, the name only for an unkeyed line.
-          const cleanerService = this.order!.services.find(s => isCleanersLine(s));
+          const cleanerService = this.order()!.services.find(s => isCleanersLine(s));
           if (cleanerService && cleanerService.duration) {
             // Calculate hours from duration (duration is in minutes)
             quantity = Math.floor(cleanerService.duration / 60);
@@ -626,7 +631,7 @@ export class OrderEditComponent implements OnInit, OnDestroy {
         }
         
         // Use the actual database value, don't override with defaults
-        this.selectedServices.push({
+        this.selectedServices().push({
           service: service,
           quantity: quantity
         });
@@ -638,31 +643,33 @@ export class OrderEditComponent implements OnInit, OnDestroy {
         this.serviceControls.push(this.fb.control(quantity));
       }
     });
+    this.selectedServices.set(this.selectedServices());
   }
 
   initializeExtraServices() {
-    if (!this.serviceType || !this.order) return;
+    if (!this.serviceType() || !this.order()) return;
     
     // Initialize selected extra services from the order
-    this.selectedExtraServices = [];
+    this.selectedExtraServices.set([]);
     
-    this.order.extraServices.forEach(orderExtraService => {
-      const extraService = this.serviceType!.extraServices.find(es => es.id === orderExtraService.extraServiceId);
+    this.order()!.extraServices.forEach(orderExtraService => {
+      const extraService = this.serviceType()!.extraServices.find(es => es.id === orderExtraService.extraServiceId);
       if (extraService) {
-        this.selectedExtraServices.push({
+        this.selectedExtraServices().push({
           extraService: extraService,
           quantity: orderExtraService.quantity,
           hours: orderExtraService.hours
         });
       }
     });
+    this.selectedExtraServices.set(this.selectedExtraServices());
 
     // Sync cleaning type with restored extra services
     const currentCleaningType = this.getCurrentCleaningType();
     this.cleaningType.setValue(currentCleaningType);
 
     // Remember original state so we don't hide the option mid-edit
-    this.originallyHadDeepCleaning = this.selectedExtraServices.some(s => s.extraService.isDeepCleaning);
+    this.originallyHadDeepCleaning.set(this.selectedExtraServices().some(s => s.extraService.isDeepCleaning));
   }
 
   getServiceControl(index: number): FormControl {
@@ -670,36 +677,39 @@ export class OrderEditComponent implements OnInit, OnDestroy {
   }
 
   updateServiceQuantity(service: Service, quantity: number) {
-    const index = this.selectedServices.findIndex(s => s.service.id === service.id);
+    const index = this.selectedServices().findIndex(s => s.service.id === service.id);
     if (index !== -1) {
       // Captured BEFORE the write below — the bedrooms→sqft rule needs the floor of the
       // OUTGOING bedroom count to tell an inherited sqft from a chosen one.
-      const previousQuantity = this.selectedServices[index].quantity;
-      this.selectedServices[index].quantity = quantity;
+      const previousQuantity = this.selectedServices()[index].quantity;
+      this.selectedServices()[index].quantity = quantity;
+      this.selectedServices.set(this.selectedServices());
       this.serviceControls.at(index).setValue(quantity);
 
       // Bedrooms→sqft linkage (same behavior as the booking page): a Sq.ft still sitting on
       // the old bedroom's included amount follows the new one; anything the customer raised
       // above it is preserved, and only lifted if the new floor overtakes it.
       if (service.serviceKey === 'bedrooms') {
-        const sqftIndex = this.selectedServices.findIndex(s => s.service.serviceKey === 'sqft');
+        const sqftIndex = this.selectedServices().findIndex(s => s.service.serviceKey === 'sqft');
         if (sqftIndex !== -1) {
-          this.selectedServices[sqftIndex].quantity = resolveSquareFeetForBedroomChange(
-            this.selectedServices[sqftIndex].quantity,
+          this.selectedServices()[sqftIndex].quantity = resolveSquareFeetForBedroomChange(
+            this.selectedServices()[sqftIndex].quantity,
             this.getSquareFeetForBedroomsConfigured(previousQuantity),
             this.getSquareFeetForBedroomsConfigured(quantity)
           );
-          this.serviceControls.at(sqftIndex).setValue(this.selectedServices[sqftIndex].quantity);
+          this.selectedServices.set(this.selectedServices());
+          this.serviceControls.at(sqftIndex).setValue(this.selectedServices()[sqftIndex].quantity);
         }
       }
 
       // Editing sqft directly: enforce the minimum for the current bedroom count.
       if (service.serviceKey === 'sqft') {
-        const bedroomsService = this.selectedServices.find(s => s.service.serviceKey === 'bedrooms');
+        const bedroomsService = this.selectedServices().find(s => s.service.serviceKey === 'bedrooms');
         if (bedroomsService) {
           const minSquareFeet = this.getSquareFeetForBedroomsConfigured(bedroomsService.quantity);
           if (quantity < minSquareFeet) {
-            this.selectedServices[index].quantity = minSquareFeet;
+            this.selectedServices()[index].quantity = minSquareFeet;
+            this.selectedServices.set(this.selectedServices());
             this.serviceControls.at(index).setValue(minSquareFeet);
           }
         }
@@ -707,13 +717,13 @@ export class OrderEditComponent implements OnInit, OnDestroy {
 
       // If this is a cleaner service, we need to update the related hours service
       if (service.serviceRelationType === 'cleaner') {
-        const hoursService = this.selectedServices.find(s =>
+        const hoursService = this.selectedServices().find(s =>
           s.service.serviceRelationType === 'hours' &&
           s.service.serviceTypeId === service.serviceTypeId
         );
         if (hoursService) {
           // Update the form control for hours service too
-          const hoursIndex = this.selectedServices.findIndex(s => s.service.id === hoursService.service.id);
+          const hoursIndex = this.selectedServices().findIndex(s => s.service.id === hoursService.service.id);
           if (hoursIndex !== -1) {
             this.serviceControls.at(hoursIndex).setValue(hoursService.quantity);
           }
@@ -724,7 +734,7 @@ export class OrderEditComponent implements OnInit, OnDestroy {
   }
 
   incrementServiceQuantity(service: Service) {
-    const selectedService = this.selectedServices.find(s => s.service.id === service.id);
+    const selectedService = this.selectedServices().find(s => s.service.id === service.id);
     if (selectedService) {
       const maxValue = service.maxValue || 10;
       const stepValue = service.stepValue || 1;
@@ -734,7 +744,7 @@ export class OrderEditComponent implements OnInit, OnDestroy {
   }
 
   decrementServiceQuantity(service: Service) {
-    const selectedService = this.selectedServices.find(s => s.service.id === service.id);
+    const selectedService = this.selectedServices().find(s => s.service.id === service.id);
     if (selectedService) {
       const minValue = service.minValue || 0;
       const stepValue = service.stepValue || 1;
@@ -744,11 +754,12 @@ export class OrderEditComponent implements OnInit, OnDestroy {
   }
 
   toggleExtraService(extraService: ExtraService) {
-    const index = this.selectedExtraServices.findIndex(s => s.extraService.id === extraService.id);
+    const index = this.selectedExtraServices().findIndex(s => s.extraService.id === extraService.id);
     
     if (index > -1) {
       // Remove if already selected
-      this.selectedExtraServices.splice(index, 1);
+      this.selectedExtraServices().splice(index, 1);
+      this.selectedExtraServices.set(this.selectedExtraServices());
       
       // Clear mobile tooltip for this service immediately
       this.clearMobileTooltip(extraService.id);
@@ -764,17 +775,18 @@ export class OrderEditComponent implements OnInit, OnDestroy {
       // If selecting a cleaning type, remove other cleaning types
       if (extraService.isDeepCleaning || extraService.isSuperDeepCleaning) {
         // Remove any existing deep cleaning or super deep cleaning
-        this.selectedExtraServices = this.selectedExtraServices.filter(
+        this.selectedExtraServices.set(this.selectedExtraServices().filter(
           s => !s.extraService.isDeepCleaning && !s.extraService.isSuperDeepCleaning
-        );
+        ));
       }
       
       // Add new selection
-      this.selectedExtraServices.push({
+      this.selectedExtraServices().push({
         extraService: extraService,
         quantity: 1,
         hours: extraService.hasHours ? 0.5 : 0
       });
+      this.selectedExtraServices.set(this.selectedExtraServices());
       
       // Show mobile tooltip for this service after a brief delay to ensure state is set
       setTimeout(() => {
@@ -836,37 +848,39 @@ export class OrderEditComponent implements OnInit, OnDestroy {
   }
 
   updateExtraServiceQuantity(extraService: ExtraService, quantity: number) {
-    const selected = this.selectedExtraServices.find(s => s.extraService.id === extraService.id);
+    const selected = this.selectedExtraServices().find(s => s.extraService.id === extraService.id);
     if (selected && quantity >= 1) {
       selected.quantity = quantity;
+      this.selectedExtraServices.set(this.selectedExtraServices());
       this.calculateNewTotal();
     }
   }
 
   updateExtraServiceHours(extraService: ExtraService, hours: number) {
-    const selected = this.selectedExtraServices.find(s => s.extraService.id === extraService.id);
+    const selected = this.selectedExtraServices().find(s => s.extraService.id === extraService.id);
     if (selected && hours >= 0.5) {
       selected.hours = hours;
+      this.selectedExtraServices.set(this.selectedExtraServices());
       this.calculateNewTotal();
     }
   }
 
   isExtraServiceSelected(extraService: ExtraService): boolean {
-    return this.selectedExtraServices.some(s => s.extraService.id === extraService.id);
+    return this.selectedExtraServices().some(s => s.extraService.id === extraService.id);
   }
 
   getExtraServiceQuantity(extraService: ExtraService): number {
-    const selected = this.selectedExtraServices.find(s => s.extraService.id === extraService.id);
+    const selected = this.selectedExtraServices().find(s => s.extraService.id === extraService.id);
     return selected ? selected.quantity : 1;
   }
 
   getExtraServiceHours(extraService: ExtraService): number {
-    const selected = this.selectedExtraServices.find(s => s.extraService.id === extraService.id);
+    const selected = this.selectedExtraServices().find(s => s.extraService.id === extraService.id);
     return selected ? selected.hours : 0.5;
   }
 
   getExtraServicePrice(extraService: ExtraService): number {
-    const selected = this.selectedExtraServices.find(s => s.extraService.id === extraService.id);
+    const selected = this.selectedExtraServices().find(s => s.extraService.id === extraService.id);
     // Defaults for not-yet-selected cards: 0.5h / qty 1. Math lives in the shared calculator.
     const hours = selected ? selected.hours : 0.5;
     const quantity = selected ? selected.quantity : 1;
@@ -874,7 +888,7 @@ export class OrderEditComponent implements OnInit, OnDestroy {
   }
 
   getExtraServiceDuration(extraService: ExtraService): number {
-    const selected = this.selectedExtraServices.find(s => s.extraService.id === extraService.id);
+    const selected = this.selectedExtraServices().find(s => s.extraService.id === extraService.id);
     
     // Calculate duration based on type
     if (extraService.hasHours) {
@@ -894,16 +908,16 @@ export class OrderEditComponent implements OnInit, OnDestroy {
     // Zero-quantity rule, thresholds, tiers and the multiplier all live in the shared
     // calculator. selectedServices is passed so threshold sources (e.g. bedrooms for sqft)
     // resolve exactly as they do in the summary.
-    return getServiceDisplayPrice(service, quantity, this.getSelectedPriceMultiplier(), this.selectedServices);
+    return getServiceDisplayPrice(service, quantity, this.getSelectedPriceMultiplier(), this.selectedServices());
   }
 
   getServiceQuantity(service: Service): number {
-    const selected = this.selectedServices.find(s => s.service.id === service.id);
+    const selected = this.selectedServices().find(s => s.service.id === service.id);
     return selected ? selected.quantity : (service.minValue || 0);
   }
 
   getServiceHours(service: Service): number {
-    const selected = this.selectedServices.find(s => s.service.id === service.id);
+    const selected = this.selectedServices().find(s => s.service.id === service.id);
     return selected?.quantity || 0;
   }
 
@@ -913,25 +927,26 @@ export class OrderEditComponent implements OnInit, OnDestroy {
 
   /** Extra services that belong to this service type (excluding deep/super deep – those are in cleaning type). */
   getFilteredExtraServices(): ExtraService[] {
-    if (!this.serviceType || !this.serviceType.extraServices) {
+    if (!this.serviceType() || !this.serviceType()!.extraServices) {
       return [];
     }
-    return this.serviceType.extraServices.filter(extra => {
+    return this.serviceType()!.extraServices.filter(extra => {
       if (extra.isDeepCleaning || extra.isSuperDeepCleaning) return false;
       // Extra Cleaners is admin-only now (the team decides staffing) — hide it
       // unless it's already on this order, so an existing selection stays editable
       // instead of silently vanishing from the price.
       if (isExtraCleaners(extra)) {
-        return this.selectedExtraServices.some(s => s.extraService.id === extra.id);
+        return this.selectedExtraServices().some(s => s.extraService.id === extra.id);
       }
       return true;
     });
   }
 
   removeExtraService(extraService: ExtraService) {
-    const index = this.selectedExtraServices.findIndex(s => s.extraService.id === extraService.id);
+    const index = this.selectedExtraServices().findIndex(s => s.extraService.id === extraService.id);
     if (index > -1) {
-      this.selectedExtraServices.splice(index, 1);
+      this.selectedExtraServices().splice(index, 1);
+      this.selectedExtraServices.set(this.selectedExtraServices());
       if (extraService.isSameDayService) {
         this.isSameDaySelected = false;
         this.updateDateRestrictions();
@@ -942,22 +957,22 @@ export class OrderEditComponent implements OnInit, OnDestroy {
   }
 
   getOriginalServiceHours(service: Service): number {
-    if (!this.order || service.serviceRelationType !== 'cleaner') return 0;
+    if (!this.order() || service.serviceRelationType !== 'cleaner') return 0;
     
     // Find the hours service for this service type
-    const hoursService = this.serviceType?.services.find(s => 
+    const hoursService = this.serviceType()?.services.find(s => 
       s.serviceRelationType === 'hours' && s.serviceTypeId === service.serviceTypeId
     );
     
     if (hoursService) {
-      const orderHoursService = this.order.services.find(s => s.serviceId === hoursService.id);
+      const orderHoursService = this.order()!.services.find(s => s.serviceId === hoursService.id);
       if (orderHoursService) {
         return orderHoursService.quantity;
       }
     }
     
     // Fallback: check if duration is stored with cleaner service
-    const orderService = this.order.services.find(s => s.serviceId === service.id);
+    const orderService = this.order()!.services.find(s => s.serviceId === service.id);
     if (orderService && orderService.duration) {
       return Math.floor(orderService.duration / 60);
     }
@@ -969,23 +984,23 @@ export class OrderEditComponent implements OnInit, OnDestroy {
   // ALL price math AND the selection→input mapping live in
   // shared/pricing/order-pricing.calculator.ts (mirrored by the backend).
   private buildQuoteInput(): QuoteInput {
-    return buildQuoteInputFromSelections(this.serviceType, this.selectedServices, this.selectedExtraServices);
+    return buildQuoteInputFromSelections(this.serviceType(), this.selectedServices(), this.selectedExtraServices());
   }
 
   /** Current cleaning-type multiplier (super deep > deep > 1) from the shared calculator. */
   getSelectedPriceMultiplier(): number {
-    return resolvePriceMultiplier(mapSelectedExtraInputs(this.selectedExtraServices)).multiplier;
+    return resolvePriceMultiplier(mapSelectedExtraInputs(this.selectedExtraServices())).multiplier;
   }
 
   calculateNewTotal() {
-    if (!this.serviceType) return;
+    if (!this.serviceType()) return;
 
     // Single source of truth: the shared pricing calculator (mirrored by the backend).
     const quote = calculateQuote(this.buildQuoteInput());
 
-    this.calculatedMaidsCount = quote.maidsCount;
+    this.calculatedMaidsCount.set(quote.maidsCount);
     this.actualTotalDuration = quote.totalDuration;
-    this.totalDuration = quote.displayDuration;
+    this.totalDuration.set(quote.displayDuration);
 
     const rawSubTotal = quote.subTotal;
 
@@ -997,24 +1012,24 @@ export class OrderEditComponent implements OnInit, OnDestroy {
       originalSubTotal: this.originalRawSubTotal,
       newSubTotal: rawSubTotal,
       discountAmount: this.originalDiscountAmount,
-      discountPercent: this.order?.discountPercent,
-      discountFixedAmount: this.order?.discountFixedAmount,
+      discountPercent: this.order()?.discountPercent,
+      discountFixedAmount: this.order()?.discountFixedAmount,
       subscriptionDiscountAmount: this.originalSubscriptionDiscountAmount,
-      subscriptionDiscountPercent: this.order?.subscriptionDiscountPercent,
+      subscriptionDiscountPercent: this.order()?.subscriptionDiscountPercent,
       loyaltyDiscountPercentage: this.originalLoyaltyDiscountPercentage,
       loyaltyDiscountAmount: this.originalLoyaltyDiscountAmount
     });
-    this.appliedSubscriptionDiscountAmount = edited.subscriptionDiscountAmount;
-    this.appliedDiscountAmount = edited.discountAmount;
-    this.appliedLoyaltyDiscountAmount = edited.loyaltyDiscountAmount;
+    this.appliedSubscriptionDiscountAmount.set(edited.subscriptionDiscountAmount);
+    this.appliedDiscountAmount.set(edited.discountAmount);
+    this.appliedLoyaltyDiscountAmount.set(edited.loyaltyDiscountAmount);
 
     const tips = this.tipsAmount;
 
     const totals = calculateTotals({
       subTotal: rawSubTotal,
-      discountAmount: this.appliedDiscountAmount,
-      subscriptionDiscountAmount: this.appliedSubscriptionDiscountAmount,
-      loyaltyDiscountAmount: this.appliedLoyaltyDiscountAmount,
+      discountAmount: this.appliedDiscountAmount(),
+      subscriptionDiscountAmount: this.appliedSubscriptionDiscountAmount(),
+      loyaltyDiscountAmount: this.appliedLoyaltyDiscountAmount(),
       tips,
       // Company tips are retired and always 0 on new orders, but a legacy order that carries
       // one still had it in the total the customer paid. Carry the STORED value through
@@ -1023,34 +1038,34 @@ export class OrderEditComponent implements OnInit, OnDestroy {
       companyDevelopmentTips: this.legacyCompanyDevelopmentTips
     });
 
-    this.newSubTotal = totals.discountedSubTotal;
-    this.newTax = totals.tax;
-    this.newTotal = totals.totalBeforeGiftCard;
+    this.newSubTotal.set(totals.discountedSubTotal);
+    this.newTax.set(totals.tax);
+    this.newTotal.set(totals.totalBeforeGiftCard);
 
     // Gift card / bubble points / reward balance come off the very end.
-    let finalTotal = this.newTotal;
-    if (this.giftCardApplied && this.isGiftCard) {
-      this.giftCardAmountToUse = resolveGiftCardAmountToUse(this.giftCardBalance, this.newTotal);
-      finalTotal = Math.max(0, this.newTotal - this.giftCardAmountToUse);
+    let finalTotal = this.newTotal();
+    if (this.giftCardApplied() && this.isGiftCard) {
+      this.giftCardAmountToUse.set(resolveGiftCardAmountToUse(this.giftCardBalance(), this.newTotal()));
+      finalTotal = Math.max(0, this.newTotal() - this.giftCardAmountToUse());
     }
-    finalTotal = Math.max(0, finalTotal - this.originalPointsRedeemedDiscount - this.originalRewardBalanceUsed);
+    finalTotal = Math.max(0, finalTotal - this.originalPointsRedeemedDiscount() - this.originalRewardBalanceUsed());
 
-    this.newTotal = round2(finalTotal);
+    this.newTotal.set(round2(finalTotal));
 
     // Calculate the additional amount needed
-    this.additionalAmount = this.newTotal - this.originalTotal;
+    this.additionalAmount.set(this.newTotal() - this.originalTotal());
 
-    if (Math.abs(this.additionalAmount) < 0.01) {
-      this.additionalAmount = 0;
+    if (Math.abs(this.additionalAmount()) < 0.01) {
+      this.additionalAmount.set(0);
     }
 
     this.updateEstimatedPoints();
   }
 
   updateEstimatedPoints(): void {
-    if (!this.pointsEnabled || this.pointsPerDollar <= 0) { this.estimatedPoints = 0; return; }
-    const base = this.newTotal - this.newTax - this.tipsAmount - this.legacyCompanyDevelopmentTips;
-    this.estimatedPoints = Math.floor(Math.max(0, base) * this.pointsPerDollar);
+    if (!this.pointsEnabled() || this.pointsPerDollar <= 0) { this.estimatedPoints.set(0); return; }
+    const base = this.newTotal() - this.newTax() - this.tipsAmount - this.legacyCompanyDevelopmentTips;
+    this.estimatedPoints.set(Math.floor(Math.max(0, base) * this.pointsPerDollar));
   }
 
   prepareUpdateData(): UpdateOrder {
@@ -1069,7 +1084,7 @@ export class OrderEditComponent implements OnInit, OnDestroy {
     // Prepare services with special handling for cleaner/hours relationship
     const services: { serviceId: number; quantity: number }[] = [];
     
-    this.selectedServices.forEach(selectedService => {
+    this.selectedServices().forEach(selectedService => {
       const { service, quantity } = selectedService;
       
       // Add all services normally (like booking component)
@@ -1086,7 +1101,7 @@ export class OrderEditComponent implements OnInit, OnDestroy {
         formValue.customEntryMethod : formValue.entryMethod,
       specialInstructions: formValue.specialInstructions || '',
       floorTypes: this.buildFloorTypesString(),
-      floorTypeOther: this.floorTypeOther || null,
+      floorTypeOther: this.floorTypeOther() || null,
       contactFirstName: formValue.contactFirstName,
       contactLastName: formValue.contactLastName,
       contactEmail: formValue.contactEmail,
@@ -1097,84 +1112,84 @@ export class OrderEditComponent implements OnInit, OnDestroy {
       state: formValue.state,
       zipCode: formValue.zipCode,
       services: services,
-      extraServices: this.selectedExtraServices.map(s => ({
+      extraServices: this.selectedExtraServices().map(s => ({
         extraServiceId: s.extraService.id,
         quantity: s.quantity,
         hours: s.hours
       })),
       tips: this.tipsAmount,
       totalDuration: this.actualTotalDuration,
-      maidsCount: this.calculatedMaidsCount,
-      calculatedSubTotal: this.newSubTotal + this.appliedDiscountAmount + this.appliedSubscriptionDiscountAmount + this.appliedLoyaltyDiscountAmount,
-      calculatedTax: this.newTax,
-      calculatedTotal: this.newTotal,
-      discountAmount: this.appliedDiscountAmount,
-      subscriptionDiscountAmount: this.appliedSubscriptionDiscountAmount,
+      maidsCount: this.calculatedMaidsCount(),
+      calculatedSubTotal: this.newSubTotal() + this.appliedDiscountAmount() + this.appliedSubscriptionDiscountAmount() + this.appliedLoyaltyDiscountAmount(),
+      calculatedTax: this.newTax(),
+      calculatedTotal: this.newTotal(),
+      discountAmount: this.appliedDiscountAmount(),
+      subscriptionDiscountAmount: this.appliedSubscriptionDiscountAmount(),
       // Loyalty Discount: persist the rescaled $ amount so the order snapshot survives the edit.
       // Backend keeps the original LoyaltyDiscountPercentage untouched (see OrderService.UpdateOrder).
-      loyaltyDiscountAmount: this.appliedLoyaltyDiscountAmount,
-      bedroomsQuantity: this.order?.bedroomsQuantity,
-      bathroomsQuantity: this.order?.bathroomsQuantity,
+      loyaltyDiscountAmount: this.appliedLoyaltyDiscountAmount(),
+      bedroomsQuantity: this.order()?.bedroomsQuantity,
+      bathroomsQuantity: this.order()?.bathroomsQuantity,
       // The level COUNT rides along in `services` like any other line; this only records what
       // kind of building it is. Sending anything other than "House" makes the server clear the
       // level count, so a customer who re-declares a house as a flat stops paying for stairs.
-      propertyType: this.propertyType,
+      propertyType: this.propertyType(),
       // Informational fallback only; a priced levels line in `services` always wins server-side.
-      levelsQuantity: this.levelsQuantity
+      levelsQuantity: this.levelsQuantity()
     };
   }
 
   hasActualChanges(): boolean {
-    if (!this.order) return false;
+    if (!this.order()) return false;
     
     const formValue = this.orderForm.value;
     
     // Format times for comparison
-    const orderServiceTime = this.formatTimeForComparison(this.order.serviceTime);
+    const orderServiceTime = this.formatTimeForComparison(this.order()!.serviceTime);
     const formServiceTime = this.formatTimeForComparison(formValue.serviceTime);
     
     // Check if basic fields changed
     const basicFieldsChanged = 
-      this.formatDateForComparison(this.order.serviceDate) !== formValue.serviceDate ||
+      this.formatDateForComparison(this.order()!.serviceDate) !== formValue.serviceDate ||
       orderServiceTime !== formServiceTime ||
-      this.order.entryMethod !== (formValue.entryMethod === 'Other' ? formValue.customEntryMethod : formValue.entryMethod) ||
-      this.order.specialInstructions !== (formValue.specialInstructions || '') ||
-      (this.order.floorTypes || null) !== (this.buildFloorTypesString() || null) ||
-      this.order.contactFirstName !== formValue.contactFirstName ||
-      this.order.contactLastName !== formValue.contactLastName ||
-      this.order.contactEmail !== formValue.contactEmail ||
-      this.order.contactPhone !== formValue.contactPhone ||
-      this.order.serviceAddress !== formValue.serviceAddress ||
-      this.order.aptSuite !== (formValue.aptSuite || '') ||
-      this.order.city !== formValue.city ||
-      this.order.state !== formValue.state ||
-      this.order.zipCode !== formValue.zipCode ||
-      this.order.tips !== this.tipsAmount;
+      this.order()!.entryMethod !== (formValue.entryMethod === 'Other' ? formValue.customEntryMethod : formValue.entryMethod) ||
+      this.order()!.specialInstructions !== (formValue.specialInstructions || '') ||
+      (this.order()!.floorTypes || null) !== (this.buildFloorTypesString() || null) ||
+      this.order()!.contactFirstName !== formValue.contactFirstName ||
+      this.order()!.contactLastName !== formValue.contactLastName ||
+      this.order()!.contactEmail !== formValue.contactEmail ||
+      this.order()!.contactPhone !== formValue.contactPhone ||
+      this.order()!.serviceAddress !== formValue.serviceAddress ||
+      this.order()!.aptSuite !== (formValue.aptSuite || '') ||
+      this.order()!.city !== formValue.city ||
+      this.order()!.state !== formValue.state ||
+      this.order()!.zipCode !== formValue.zipCode ||
+      this.order()!.tips !== this.tipsAmount;
   
     if (basicFieldsChanged) return true;
   
     // Check if services changed
-    const currentServiceIds = this.order.services.map(s => s.serviceId).sort();
-    const newServiceIds = this.selectedServices
+    const currentServiceIds = this.order()!.services.map(s => s.serviceId).sort();
+    const newServiceIds = this.selectedServices()
       .filter(s => s.service.serviceRelationType !== 'hours')
       .map(s => s.service.id).sort();
     
     if (JSON.stringify(currentServiceIds) !== JSON.stringify(newServiceIds)) return true;
   
     // Check if extra services changed
-    const currentExtraServiceIds = this.order.extraServices.map(s => s.extraServiceId).sort();
-    const newExtraServiceIds = this.selectedExtraServices.map(s => s.extraService.id).sort();
+    const currentExtraServiceIds = this.order()!.extraServices.map(s => s.extraServiceId).sort();
+    const newExtraServiceIds = this.selectedExtraServices().map(s => s.extraService.id).sort();
     
     if (JSON.stringify(currentExtraServiceIds) !== JSON.stringify(newExtraServiceIds)) return true;
   
     // Check quantities and hours
-    for (const service of this.order.services) {
-      const selected = this.selectedServices.find(s => s.service.id === service.serviceId);
+    for (const service of this.order()!.services) {
+      const selected = this.selectedServices().find(s => s.service.id === service.serviceId);
       if (!selected || selected.quantity !== service.quantity) return true;
     }
   
-    for (const extraService of this.order.extraServices) {
-      const selected = this.selectedExtraServices.find(s => s.extraService.id === extraService.extraServiceId);
+    for (const extraService of this.order()!.extraServices) {
+      const selected = this.selectedExtraServices().find(s => s.extraService.id === extraService.extraServiceId);
       if (!selected || selected.quantity !== extraService.quantity || selected.hours !== extraService.hours) return true;
     }
   
@@ -1250,8 +1265,8 @@ export class OrderEditComponent implements OnInit, OnDestroy {
   }
 
   onSubmit() {
-    if (!this.orderForm.valid || !this.order) {
-      this.errorMessage = 'Please fill in all required fields';
+    if (!this.orderForm.valid || !this.order()) {
+      this.errorMessage.set('Please fill in all required fields');
       return;
     }
 
@@ -1260,8 +1275,8 @@ export class OrderEditComponent implements OnInit, OnDestroy {
     }
 
     // Check if the total is being reduced
-    if (this.additionalAmount < 0) {
-      this.errorMessage = `Cannot reduce order total. The new total would be $${Math.abs(this.additionalAmount).toFixed(2)} less than the original amount paid.`;
+    if (this.additionalAmount() < 0) {
+      this.errorMessage.set(`Cannot reduce order total. The new total would be $${Math.abs(this.additionalAmount()).toFixed(2)} less than the original amount paid.`);
       window.scrollTo(0, 0);
       return;
     }
@@ -1270,8 +1285,8 @@ export class OrderEditComponent implements OnInit, OnDestroy {
     this.updateData = this.prepareUpdateData();
 
     // Check if additional payment is needed
-    if (this.additionalAmount > 0) {
-      this.showPaymentModal = true;
+    if (this.additionalAmount() > 0) {
+      this.showPaymentModal.set(true);
       // Initialize Stripe elements when modal opens
       setTimeout(() => this.initializeStripeElements(), 100);
     } else {
@@ -1286,28 +1301,28 @@ export class OrderEditComponent implements OnInit, OnDestroy {
       
       if (cardElement) {
         cardElement.on('change', (event: any) => {
-          this.cardError = event.error ? event.error.message : null;
+          this.cardError.set(event.error ? event.error.message : null);
         });
       }
       this.initApplePay();
     } catch (error) {
       console.error('Failed to initialize Stripe elements:', error);
-      this.paymentErrorMessage = 'Failed to initialize payment form';
+      this.paymentErrorMessage.set('Failed to initialize payment form');
     }
   }
 
   private async initApplePay() {
-    if (!this.order || !this.updateData || this.additionalAmount <= 0) return;
-    const pr = await this.stripeService.createPaymentRequest(this.additionalAmount, 'Dream Cleaning NYC');
+    if (!this.order() || !this.updateData || this.additionalAmount() <= 0) return;
+    const pr = await this.stripeService.createPaymentRequest(this.additionalAmount(), 'Dream Cleaning NYC');
     if (!pr) return;
-    this.showApplePay = true;
+    this.showApplePay.set(true);
     setTimeout(() => this.stripeService.createPaymentRequestButton(pr, 'payment-request-button-order-edit'), 0);
 
     pr.on('paymentmethod', (ev: any) => {
-      if (this.isProcessingPayment) { ev.complete('fail'); return; }
-      this.isProcessingPayment = true;
-      this.paymentErrorMessage = '';
-      this.orderService.createUpdatePaymentIntent(this.order!.id, this.updateData!).subscribe({
+      if (this.isProcessingPayment()) { ev.complete('fail'); return; }
+      this.isProcessingPayment.set(true);
+      this.paymentErrorMessage.set('');
+      this.orderService.createUpdatePaymentIntent(this.order()!.id, this.updateData!).subscribe({
         next: async (response: any) => {
           try {
             const paymentIntent = await this.stripeService.confirmPaymentRequest(
@@ -1316,46 +1331,46 @@ export class OrderEditComponent implements OnInit, OnDestroy {
             ev.complete('success');
             // Mirror processAdditionalPayment's confirm step exactly.
             this.orderService.confirmUpdatePayment(
-              this.order!.id,
+              this.order()!.id,
               paymentIntent.id,
               this.updateData!
             ).subscribe({
               next: () => {
-                this.showPaymentModal = false;
-                this.successMessage = 'Order updated successfully';
+                this.showPaymentModal.set(false);
+                this.successMessage.set('Order updated successfully');
                 this.authService.refreshUserProfile().subscribe({ next: () => {} });
-                setTimeout(() => this.router.navigate(['/order', this.order!.id]), 1500);
+                setTimeout(() => this.router.navigate(['/order', this.order()!.id]), 1500);
               },
               error: (err: any) => {
-                this.paymentErrorMessage = err.error?.message || 'Failed to update order after payment';
-                this.isProcessingPayment = false;
+                this.paymentErrorMessage.set(err.error?.message || 'Failed to update order after payment');
+                this.isProcessingPayment.set(false);
               }
             });
           } catch (payErr: any) {
             ev.complete('fail');
-            this.paymentErrorMessage = payErr.message || 'Payment failed. Please try again.';
-            this.isProcessingPayment = false;
+            this.paymentErrorMessage.set(payErr.message || 'Payment failed. Please try again.');
+            this.isProcessingPayment.set(false);
           }
         },
         error: (err: any) => {
           ev.complete('fail');
-          this.paymentErrorMessage = err.error?.message || 'Failed to create payment';
-          this.isProcessingPayment = false;
+          this.paymentErrorMessage.set(err.error?.message || 'Failed to create payment');
+          this.isProcessingPayment.set(false);
         }
       });
     });
   }
 
   saveOrder() {
-    if (!this.order) return;
+    if (!this.order()) return;
 
-    this.isSaving = true;
-    this.errorMessage = '';
+    this.isSaving.set(true);
+    this.errorMessage.set('');
     const updateData = this.updateData || this.prepareUpdateData();
 
-    this.orderService.updateOrder(this.order.id, updateData).subscribe({
+    this.orderService.updateOrder(this.order()!.id, updateData).subscribe({
       next: (updatedOrder) => {
-        this.successMessage = 'Order updated successfully';
+        this.successMessage.set('Order updated successfully');
         
         // Refresh user profile to ensure phone is updated if changed
         this.authService.refreshUserProfile().subscribe({
@@ -1364,27 +1379,27 @@ export class OrderEditComponent implements OnInit, OnDestroy {
         });
         
         setTimeout(() => {
-          this.router.navigate(['/order', this.order!.id]);
+          this.router.navigate(['/order', this.order()!.id]);
         }, 1500);
       },
       error: (error) => {
         console.error('Update error:', error);
-        this.errorMessage = error.error?.message || error.error || 'Failed to update order';
-        this.isSaving = false;
+        this.errorMessage.set(error.error?.message || error.error || 'Failed to update order');
+        this.isSaving.set(false);
         window.scrollTo(0, 0);
       }
     });
   }
 
   async processAdditionalPayment() {
-    if (!this.order || !this.updateData || this.isProcessingPayment || this.cardError) return;
+    if (!this.order() || !this.updateData || this.isProcessingPayment() || this.cardError()) return;
 
-    this.isProcessingPayment = true;
-    this.paymentErrorMessage = '';
+    this.isProcessingPayment.set(true);
+    this.paymentErrorMessage.set('');
 
     try {
       // Step 1: Create payment intent for the additional amount
-      this.orderService.createUpdatePaymentIntent(this.order.id, this.updateData).subscribe({
+      this.orderService.createUpdatePaymentIntent(this.order()!.id, this.updateData).subscribe({
         next: async (response) => {
           this.paymentClientSecret = response.paymentClientSecret;
 
@@ -1397,13 +1412,13 @@ export class OrderEditComponent implements OnInit, OnDestroy {
 
             // Step 3: Confirm with backend and update the order
             this.orderService.confirmUpdatePayment(
-              this.order!.id, 
+              this.order()!.id, 
               paymentIntent.id,
               this.updateData!
             ).subscribe({
               next: (updatedOrder) => {
-                this.showPaymentModal = false;
-                this.successMessage = 'Order updated successfully';
+                this.showPaymentModal.set(false);
+                this.successMessage.set('Order updated successfully');
                 
                 // Refresh user profile to ensure phone is updated if changed
                 this.authService.refreshUserProfile().subscribe({
@@ -1412,28 +1427,28 @@ export class OrderEditComponent implements OnInit, OnDestroy {
                 });
                 
                 setTimeout(() => {
-                  this.router.navigate(['/order', this.order!.id]);
+                  this.router.navigate(['/order', this.order()!.id]);
                 }, 1500);
               },
               error: (error) => {
-                this.paymentErrorMessage = error.error?.message || 'Failed to update order after payment';
-                this.isProcessingPayment = false;
+                this.paymentErrorMessage.set(error.error?.message || 'Failed to update order after payment');
+                this.isProcessingPayment.set(false);
               }
             });
           } catch (paymentError: any) {
             // Payment failed
-            this.paymentErrorMessage = paymentError.message || 'Payment failed. Please try again.';
-            this.isProcessingPayment = false;
+            this.paymentErrorMessage.set(paymentError.message || 'Payment failed. Please try again.');
+            this.isProcessingPayment.set(false);
           }
         },
         error: (error) => {
-          this.paymentErrorMessage = error.error?.message || 'Failed to create payment';
-          this.isProcessingPayment = false;
+          this.paymentErrorMessage.set(error.error?.message || 'Failed to create payment');
+          this.isProcessingPayment.set(false);
         }
       });
     } catch (error: any) {
-      this.paymentErrorMessage = 'An unexpected error occurred';
-      this.isProcessingPayment = false;
+      this.paymentErrorMessage.set('An unexpected error occurred');
+      this.isProcessingPayment.set(false);
     }
   }
 
@@ -1455,11 +1470,11 @@ export class OrderEditComponent implements OnInit, OnDestroy {
 
 
   closePaymentModal() {
-    if (!this.isProcessingPayment) {
-      this.showPaymentModal = false;
-      this.paymentErrorMessage = '';
-      this.cardError = null;
-      this.showApplePay = false;
+    if (!this.isProcessingPayment()) {
+      this.showPaymentModal.set(false);
+      this.paymentErrorMessage.set('');
+      this.cardError.set(null);
+      this.showApplePay.set(false);
       // Clean up Stripe elements
       this.stripeService.destroyCardElement();
       this.stripeService.destroyPaymentRequestButton();
@@ -1484,7 +1499,7 @@ export class OrderEditComponent implements OnInit, OnDestroy {
     const baseFormat = DurationUtils.formatDurationRounded(minutes);
     
     // Add "per maid" logic (like booking component)
-    if (this.calculatedMaidsCount > 1) {
+    if (this.calculatedMaidsCount() > 1) {
       return `${baseFormat}`;
     }
     return baseFormat;
@@ -1500,13 +1515,13 @@ export class OrderEditComponent implements OnInit, OnDestroy {
   getSummaryDetailLines(): SummaryLine[] {
     const dateValue = this.orderForm.get('serviceDate')?.value;
     const lines: SummaryLine[] = [
-      { label: 'Service Type:', value: this.serviceType?.name || '—' },
-      { label: 'Duration:', value: this.formatDuration(this.totalDurationDisplay) }
+      { label: 'Service Type:', value: this.serviceType()?.name || '—' },
+      { label: 'Duration:', value: this.formatDuration(this.totalDurationDisplay()) }
     ];
     // Cleaner count is only a customer-facing concept for cleaner+hours service
     // types; for regular types the team decides staffing (admin-set, never shown).
     if (this.hasCleanerServices()) {
-      lines.push({ label: 'Number of Cleaners:', value: `${this.calculatedMaidsCount}` });
+      lines.push({ label: 'Number of Cleaners:', value: `${this.calculatedMaidsCount()}` });
     }
     lines.push({
       label: 'Date & Time:',
@@ -1520,42 +1535,42 @@ export class OrderEditComponent implements OnInit, OnDestroy {
 
     lines.push({
       label: 'Subtotal:',
-      value: `$${(this.newSubTotal + this.appliedDiscountAmount + this.appliedSubscriptionDiscountAmount + this.appliedLoyaltyDiscountAmount).toFixed(2)}`
+      value: `$${(this.newSubTotal() + this.appliedDiscountAmount() + this.appliedSubscriptionDiscountAmount() + this.appliedLoyaltyDiscountAmount()).toFixed(2)}`
     });
 
-    if (this.appliedSubscriptionDiscountAmount > 0) {
-      lines.push({ label: 'Plan discount:', value: `-$${this.appliedSubscriptionDiscountAmount.toFixed(2)}`, rowClass: 'subscription-discount', valueClass: 'discount' });
+    if (this.appliedSubscriptionDiscountAmount() > 0) {
+      lines.push({ label: 'Plan discount:', value: `-$${this.appliedSubscriptionDiscountAmount().toFixed(2)}`, rowClass: 'subscription-discount', valueClass: 'discount' });
     }
 
-    if (this.appliedLoyaltyDiscountAmount > 0) {
-      lines.push({ label: 'Loyalty Discount:', value: `-$${this.appliedLoyaltyDiscountAmount.toFixed(2)}`, valueClass: 'discount' });
+    if (this.appliedLoyaltyDiscountAmount() > 0) {
+      lines.push({ label: 'Loyalty Discount:', value: `-$${this.appliedLoyaltyDiscountAmount().toFixed(2)}`, valueClass: 'discount' });
     }
 
-    if (this.appliedDiscountAmount > 0) {
-      lines.push({ label: 'Discount:', value: `-$${this.appliedDiscountAmount.toFixed(2)}`, valueClass: 'discount' });
+    if (this.appliedDiscountAmount() > 0) {
+      lines.push({ label: 'Discount:', value: `-$${this.appliedDiscountAmount().toFixed(2)}`, valueClass: 'discount' });
     }
 
-    if (this.originalPointsRedeemedDiscount > 0) {
+    if (this.originalPointsRedeemedDiscount() > 0) {
       lines.push({
-        label: `Points (${formatNumber(this.originalPointsRedeemed, 'en-US')} pts):`,
-        value: `-$${this.originalPointsRedeemedDiscount.toFixed(2)}`,
+        label: `Points (${formatNumber(this.originalPointsRedeemed(), 'en-US')} pts):`,
+        value: `-$${this.originalPointsRedeemedDiscount().toFixed(2)}`,
         rowClass: 'points-discount', valueClass: 'discount'
       });
     }
 
-    if (this.originalRewardBalanceUsed > 0) {
-      lines.push({ label: 'Reward Balance:', value: `-$${this.originalRewardBalanceUsed.toFixed(2)}`, rowClass: 'points-discount', valueClass: 'discount' });
+    if (this.originalRewardBalanceUsed() > 0) {
+      lines.push({ label: 'Reward Balance:', value: `-$${this.originalRewardBalanceUsed().toFixed(2)}`, rowClass: 'points-discount', valueClass: 'discount' });
     }
 
-    if (this.giftCardApplied && this.originalGiftCardCode) {
-      lines.push({ label: 'Gift Card Discount:', value: `-$${this.giftCardAmountToUse.toFixed(2)}`, rowClass: 'gift-card-discount', valueClass: 'discount' });
+    if (this.giftCardApplied() && this.originalGiftCardCode()) {
+      lines.push({ label: 'Gift Card Discount:', value: `-$${this.giftCardAmountToUse().toFixed(2)}`, rowClass: 'gift-card-discount', valueClass: 'discount' });
     }
 
-    if (this.giftCardApplied && (this.giftCardBalance - this.giftCardAmountToUse) > 0) {
-      lines.push({ label: 'Remaining balance:', value: `$${(this.giftCardBalance - this.giftCardAmountToUse).toFixed(2)}` });
+    if (this.giftCardApplied() && (this.giftCardBalance() - this.giftCardAmountToUse()) > 0) {
+      lines.push({ label: 'Remaining balance:', value: `$${(this.giftCardBalance() - this.giftCardAmountToUse()).toFixed(2)}` });
     }
 
-    lines.push({ label: 'Sales Tax (8.875%):', value: `$${this.newTax.toFixed(2)}` });
+    lines.push({ label: 'Sales Tax (8.875%):', value: `$${this.newTax().toFixed(2)}` });
 
     if (this.tipsAmount > 0) {
       lines.push({ label: 'Tips for Cleaners:', value: `$${this.tipsAmount.toFixed(2)}` });
@@ -1566,8 +1581,8 @@ export class OrderEditComponent implements OnInit, OnDestroy {
 
   /** Pts-earn preview value for the summary card; null hides the block. */
   getEstimatedPointsDisplay(): string | null {
-    return this.pointsEnabled && this.estimatedPoints > 0
-      ? formatNumber(this.estimatedPoints, 'en-US')
+    return this.pointsEnabled() && this.estimatedPoints() > 0
+      ? formatNumber(this.estimatedPoints(), 'en-US')
       : null;
   }
 
@@ -1620,22 +1635,20 @@ export class OrderEditComponent implements OnInit, OnDestroy {
    * of what the customer already paid, so the edit math must keep counting it.
    */
   get legacyCompanyDevelopmentTips(): number {
-    return normalizeTipAmount(this.order?.companyDevelopmentTips);
+    return normalizeTipAmount(this.order()?.companyDevelopmentTips);
   }
 
 
-  get totalDurationDisplay(): number {
-    return this.totalDuration;
-  }
+  readonly totalDurationDisplay = computed<number>(() => this.totalDuration());
 
   getSelectedServiceQuantity(service: Service): number {
-    const selected = this.selectedServices.find(s => s.service.id === service.id);
+    const selected = this.selectedServices().find(s => s.service.id === service.id);
     return selected ? selected.quantity : 0;
   }
 
   getCleaningTypeText(): string {
-    const deepCleaning = this.selectedExtraServices.find(s => s.extraService.isDeepCleaning);
-    const superDeepCleaning = this.selectedExtraServices.find(s => s.extraService.isSuperDeepCleaning);
+    const deepCleaning = this.selectedExtraServices().find(s => s.extraService.isDeepCleaning);
+    const superDeepCleaning = this.selectedExtraServices().find(s => s.extraService.isSuperDeepCleaning);
     
     if (superDeepCleaning) {
       return 'Super Deep Cleaning';
@@ -1649,34 +1662,36 @@ export class OrderEditComponent implements OnInit, OnDestroy {
     // Per-service display duration is NOT multiplier-scaled (bug B1) — it now matches the
     // summary exactly, same behavior as the booking page.
     const quantity = this.getServiceQuantity(service);
-    return getServiceDisplayDuration(service, quantity, this.getSelectedPriceMultiplier(), this.selectedServices);
+    return getServiceDisplayDuration(service, quantity, this.getSelectedPriceMultiplier(), this.selectedServices());
   }
 
   loadBlockedTimeSlots() {
     this.bookingService.getBlockedTimeSlots().subscribe({
       next: (slots) => {
         this.blockedTimeSlots = slots;
-        this.blockedFullDays = new Set<string>();
-        this.blockedHoursMap = new Map<string, Set<string>>();
+        this.blockedFullDays.set(new Set<string>());
+        this.blockedHoursMap.set(new Map<string, Set<string>>());
         for (const slot of slots) {
           if (slot.isFullDay) {
-            this.blockedFullDays.add(slot.date);
+            this.blockedFullDays().add(slot.date);
           } else if (slot.blockedHours) {
-            this.blockedHoursMap.set(slot.date, new Set(slot.blockedHours.split(',')));
+            this.blockedHoursMap().set(slot.date, new Set(slot.blockedHours.split(',')));
           }
         }
+        this.blockedFullDays.set(this.blockedFullDays());
+        this.blockedHoursMap.set(this.blockedHoursMap());
       }
     });
   }
 
   getBlockedDates(): string[] {
     if (this.isUserAdmin) return [];
-    return Array.from(this.blockedFullDays);
+    return Array.from(this.blockedFullDays());
   }
 
   getPartiallyBlockedDates(): string[] {
     if (this.isUserAdmin) return [];
-    return Array.from(this.blockedHoursMap.keys());
+    return Array.from(this.blockedHoursMap().keys());
   }
 
   /**
@@ -1697,7 +1712,7 @@ export class OrderEditComponent implements OnInit, OnDestroy {
       this.parseServiceDate(selectedDate),
       this.hasExtendedBookingHours
     );
-    const currentTime = this.order?.serviceTime?.substring(0, 5);
+    const currentTime = this.order()?.serviceTime?.substring(0, 5);
     if (currentTime && !slots.includes(currentTime)) {
       return [...slots, currentTime].sort();
     }
@@ -1750,10 +1765,10 @@ export class OrderEditComponent implements OnInit, OnDestroy {
     const dateStr = this.orderForm.get('serviceDate')?.value;
     if (!dateStr) return [];
     const cleanDate = typeof dateStr === 'string' ? dateStr.split('T')[0] : dateStr;
-    if (this.blockedFullDays.has(cleanDate)) {
+    if (this.blockedFullDays().has(cleanDate)) {
       return getAllServiceTimeSlots(this.hasExtendedBookingHours);
     }
-    const blockedHours = this.blockedHoursMap.get(cleanDate);
+    const blockedHours = this.blockedHoursMap().get(cleanDate);
     return blockedHours ? Array.from(blockedHours) : [];
   }
 
@@ -1765,46 +1780,47 @@ export class OrderEditComponent implements OnInit, OnDestroy {
   }
 
   private getActiveDeepCleaningExtraService(): ExtraService | null {
-    if (!this.serviceType?.extraServices) return null;
+    if (!this.serviceType()?.extraServices) return null;
     return (
-      this.serviceType.extraServices.find(
+      this.serviceType()!.extraServices.find(
         (extra) => extra.isDeepCleaning && extra.isActive !== false
       ) || null
     );
   }
 
   get canShowDeepCleaningOption(): boolean {
-    return this.originallyHadDeepCleaning || !!this.getActiveDeepCleaningExtraService();
+    return this.originallyHadDeepCleaning() || !!this.getActiveDeepCleaningExtraService();
   }
 
   // Handle cleaning type selection
   onCleaningTypeChange(cleaningType: string) {
     // Remove any existing deep cleaning or super deep cleaning services
-    this.selectedExtraServices = this.selectedExtraServices.filter(
+    this.selectedExtraServices.set(this.selectedExtraServices().filter(
       s => !s.extraService.isDeepCleaning && !s.extraService.isSuperDeepCleaning
-    );
+    ));
 
     // Add the selected cleaning type if not normal
-    if (cleaningType !== 'normal' && this.serviceType) {
+    if (cleaningType !== 'normal' && this.serviceType()) {
       let cleaningService: ExtraService | undefined;
 
       if (cleaningType === 'deep') {
         // Prefer active deep cleaning; if the order originally had deep cleaning, allow re-selecting it
         cleaningService =
           this.getActiveDeepCleaningExtraService() ||
-          (this.originallyHadDeepCleaning
-            ? this.serviceType.extraServices.find(extra => extra.isDeepCleaning)
+          (this.originallyHadDeepCleaning()
+            ? this.serviceType()!.extraServices.find(extra => extra.isDeepCleaning)
             : undefined);
       } else if (cleaningType === 'super-deep') {
-        cleaningService = this.serviceType.extraServices.find(extra => extra.isSuperDeepCleaning);
+        cleaningService = this.serviceType()!.extraServices.find(extra => extra.isSuperDeepCleaning);
       }
 
       if (cleaningService) {
-        this.selectedExtraServices.push({
+        this.selectedExtraServices().push({
           extraService: cleaningService,
           quantity: 1,
           hours: cleaningService.hasHours ? 0.5 : 0
         });
+        this.selectedExtraServices.set(this.selectedExtraServices());
       }
     }
 
@@ -1813,8 +1829,8 @@ export class OrderEditComponent implements OnInit, OnDestroy {
 
   // Get current cleaning type from form
   getCurrentCleaningType(): string {
-    const deepCleaning = this.selectedExtraServices.find(s => s.extraService.isDeepCleaning);
-    const superDeepCleaning = this.selectedExtraServices.find(s => s.extraService.isSuperDeepCleaning);
+    const deepCleaning = this.selectedExtraServices().find(s => s.extraService.isDeepCleaning);
+    const superDeepCleaning = this.selectedExtraServices().find(s => s.extraService.isSuperDeepCleaning);
     
     if (superDeepCleaning) {
       return 'super-deep';
@@ -1825,7 +1841,7 @@ export class OrderEditComponent implements OnInit, OnDestroy {
   }
 
   getExtraCleanersCount(): number {
-    const extraCleanersService = this.selectedExtraServices.find(s => isExtraCleaners(s.extraService));
+    const extraCleanersService = this.selectedExtraServices().find(s => isExtraCleaners(s.extraService));
     return extraCleanersService ? extraCleanersService.quantity : 0;
   }
 
@@ -1841,13 +1857,13 @@ export class OrderEditComponent implements OnInit, OnDestroy {
   }
 
   toggleEntryMethodDropdown(): void {
-    this.entryMethodDropdownOpen = !this.entryMethodDropdownOpen;
+    this.entryMethodDropdownOpen.set(!this.entryMethodDropdownOpen());
   }
 
   selectEntryMethod(method: string): void {
     this.orderForm.get('entryMethod')?.setValue(method);
     this.orderForm.get('entryMethod')?.markAsDirty();
-    this.entryMethodDropdownOpen = false;
+    this.entryMethodDropdownOpen.set(false);
   }
 
   /**
@@ -1856,8 +1872,8 @@ export class OrderEditComponent implements OnInit, OnDestroy {
    * allowance can never disagree. Falls back to the shared defaults before the catalog loads.
    */
   private getSquareFeetForBedroomsConfigured(bedrooms: number): number {
-    const sqftService = this.selectedServices.find(s => s.service.serviceKey === 'sqft');
-    const bedroomsService = this.selectedServices.find(s => s.service.serviceKey === 'bedrooms');
+    const sqftService = this.selectedServices().find(s => s.service.serviceKey === 'sqft');
+    const bedroomsService = this.selectedServices().find(s => s.service.serviceKey === 'bedrooms');
     return getSquareFeetForBedrooms(
       bedrooms,
       sqftService?.service?.thresholds,
@@ -1867,7 +1883,7 @@ export class OrderEditComponent implements OnInit, OnDestroy {
 
   /** Sq.ft slider minimum follows the current bedroom count (shared mapping with booking). */
   getSquareFeetMinForBedrooms(): number {
-    const bedroomsService = this.selectedServices.find(s => s.service.serviceKey === 'bedrooms');
+    const bedroomsService = this.selectedServices().find(s => s.service.serviceKey === 'bedrooms');
     if (bedroomsService) {
       return this.getSquareFeetForBedroomsConfigured(bedroomsService.quantity);
     }
@@ -1886,7 +1902,7 @@ export class OrderEditComponent implements OnInit, OnDestroy {
     if (this.sqftOptionsCache?.key !== key) {
       this.sqftOptionsCache = { key, options: getSquareFeetOptions(min, max, step) };
     }
-    return this.sqftOptionsCache.options;
+    return this.sqftOptionsCache!.options;
   }
 
   getSquareFeetSliderMaxIndex(service: Service): number {
@@ -1911,12 +1927,12 @@ export class OrderEditComponent implements OnInit, OnDestroy {
   }
 
   hasCleanerServices(): boolean {
-    return this.selectedServices.some(s => s.service.serviceRelationType === 'cleaner');
+    return this.selectedServices().some(s => s.service.serviceRelationType === 'cleaner');
   }
 
   getCleanerPricingText(): string {
-    const deepCleaning = this.selectedExtraServices.find(s => s.extraService.isDeepCleaning);
-    const superDeepCleaning = this.selectedExtraServices.find(s => s.extraService.isSuperDeepCleaning);
+    const deepCleaning = this.selectedExtraServices().find(s => s.extraService.isDeepCleaning);
+    const superDeepCleaning = this.selectedExtraServices().find(s => s.extraService.isSuperDeepCleaning);
     const pricePerHour = this.getCleanerPricePerHour();
     
     if (superDeepCleaning) {
@@ -1928,11 +1944,11 @@ export class OrderEditComponent implements OnInit, OnDestroy {
   }
 
   getCleanerPricePerHour(): number {
-    const deepCleaning = this.selectedExtraServices.find(s => s.extraService.isDeepCleaning);
-    const superDeepCleaning = this.selectedExtraServices.find(s => s.extraService.isSuperDeepCleaning);
+    const deepCleaning = this.selectedExtraServices().find(s => s.extraService.isDeepCleaning);
+    const superDeepCleaning = this.selectedExtraServices().find(s => s.extraService.isSuperDeepCleaning);
     
     // Get the actual cleaner service cost from the selected services
-    const cleanerService = this.selectedServices.find(s => s.service.serviceRelationType === 'cleaner');
+    const cleanerService = this.selectedServices().find(s => s.service.serviceRelationType === 'cleaner');
     const basePrice = cleanerService ? cleanerService.service.cost : 40; // fallback to 40 if no cleaner service found
     
     if (superDeepCleaning) {
@@ -1976,7 +1992,7 @@ export class OrderEditComponent implements OnInit, OnDestroy {
   }
 
   toggleOrderSummary() {
-    this.isSummaryCollapsed = !this.isSummaryCollapsed;
+    this.isSummaryCollapsed.set(!this.isSummaryCollapsed());
     
     // Scroll to the order summary only in browser (wrapper renamed to match booking)
     if (this.isBrowser) {
@@ -1994,19 +2010,19 @@ export class OrderEditComponent implements OnInit, OnDestroy {
 
   private updateSummaryCollapseState() {
     if (this.isBrowser && window.innerWidth <= 1200) {
-      this.isSummaryCollapsed = true;
+      this.isSummaryCollapsed.set(true);
     } else {
-      this.isSummaryCollapsed = false;
+      this.isSummaryCollapsed.set(false);
     }
   }
 
   toggleTipDropdown() {
-    this.tipDropdownOpen = !this.tipDropdownOpen;
+    this.tipDropdownOpen.set(!this.tipDropdownOpen());
   }
 
   selectTipPreset(amount: number) {
     this.tips.setValue(amount);
-    this.tipDropdownOpen = false;
+    this.tipDropdownOpen.set(false);
     this.calculateNewTotal();
   }
 
@@ -2017,15 +2033,15 @@ export class OrderEditComponent implements OnInit, OnDestroy {
     document.addEventListener('click', (event) => {
       const target = event.target as HTMLElement;
       if (!target.closest('.tip-dropdown')) {
-        this.tipDropdownOpen = false;
+        this.tipDropdownOpen.set(false);
       }
     });
   }
 
   parseFloorTypesFromOrder(order: Order): void {
     if (!order.floorTypes) {
-      this.floorTypes = [];
-      this.floorTypeOther = '';
+      this.floorTypes.set([]);
+      this.floorTypeOther.set('');
       return;
     }
     const types: string[] = [];
@@ -2039,19 +2055,19 @@ export class OrderEditComponent implements OnInit, OnDestroy {
         types.push(trimmed);
       }
     });
-    this.floorTypes = types;
-    this.floorTypeOther = otherText;
+    this.floorTypes.set(types);
+    this.floorTypeOther.set(otherText);
   }
 
   onFloorTypeSelectionChange(selection: FloorTypeSelection): void {
-    this.floorTypes = selection.types;
-    this.floorTypeOther = selection.otherText;
+    this.floorTypes.set(selection.types);
+    this.floorTypeOther.set(selection.otherText);
   }
 
   buildFloorTypesString(): string | null {
-    if (!this.floorTypes.length) return null;
-    return this.floorTypes.map(t => {
-      if (t === 'other' && this.floorTypeOther) return `other:${this.floorTypeOther}`;
+    if (!this.floorTypes().length) return null;
+    return this.floorTypes().map(t => {
+      if (t === 'other' && this.floorTypeOther()) return `other:${this.floorTypeOther()}`;
       return t;
     }).join(',');
   }

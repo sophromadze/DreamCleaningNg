@@ -21,7 +21,7 @@ import { StructuredDataService } from '../../../services/structured-data.service
   standalone: true,
   imports: [RouterModule, ServiceAreaMapComponent, HomeHeroComponent, CardImageDirective],
   templateUrl: './queens-cleaning.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./queens-cleaning.component.scss']
 })
 export class QueensCleaningComponent implements OnInit, OnDestroy {

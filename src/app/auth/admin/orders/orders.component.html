@@ -2,23 +2,23 @@
   <div class="section-header">
     <h2>Orders Management</h2>
     <div class="header-actions">
-      @if (isSuperAdmin) {
+      @if (isSuperAdmin()) {
       <button class="action-btn export-orders"
               (click)="openExportModal()"
-              [disabled]="loadingStates.orders">
+              [disabled]="loadingStates().orders">
         Export
       </button>
       }
       <button class="action-btn refresh"
               (click)="loadOrders()"
-              [disabled]="loadingStates.orders">
-        {{ loadingStates.orders ? 'Loading...' : 'Refresh' }}
+              [disabled]="loadingStates().orders">
+        {{ loadingStates().orders ? 'Loading...' : 'Refresh' }}
       </button>
     </div>
   </div>
 
   <!-- Statistics Section for SuperAdmin -->
-  @if (isSuperAdmin && !loadingStates.orders) {
+  @if (isSuperAdmin() && !loadingStates().orders) {
   <div class="stats-section">
     <div class="stats-cards">
       <div class="stat-card">
@@ -51,11 +51,11 @@
 
   <!-- Reviewers (SuperAdmin, or an Admin granted direct saves): global list of pending order
        edits submitted by admins who still need approval. -->
-  @if (canSaveOrderEditsDirectly && !loadingStates.orders && pendingOrderEdits.length > 0) {
+  @if (canSaveOrderEditsDirectly() && !loadingStates().orders && pendingOrderEdits().length > 0) {
   <div class="pending-edits-global">
-    <h3><i class="fas fa-clock"></i> Pending order edits ({{ pendingOrderEdits.length }}) — confirm or reject</h3>
+    <h3><i class="fas fa-clock"></i> Pending order edits ({{ pendingOrderEdits().length }}) — confirm or reject</h3>
     <div class="pending-edits-list">
-      @for (pe of pendingOrderEdits; track pe.id) {
+      @for (pe of pendingOrderEdits(); track pe.id) {
       <div class="pending-edit-row">
         <span class="pending-summary">{{ pe.orderSummary }}</span>
         <span class="pending-meta">Requested by {{ pe.requestedByName }} · {{ formatUtcDateTime(pe.requestedAt) }}</span>
@@ -67,7 +67,7 @@
   }
 
   <!-- Loading Indicator for Orders -->
-  @if (loadingStates.orders) {
+  @if (loadingStates().orders) {
   <div class="loading-indicator">
     <div class="spinner"></div>
     <span>Loading orders...</span>
@@ -75,7 +75,7 @@
   }
 
   <!-- Filters Section -->
-  @if (!loadingStates.orders) {
+  @if (!loadingStates().orders) {
   <div class="filters-section">
     <div class="search-box">
       <input type="text" 
@@ -103,7 +103,7 @@
       </select>
 
       <!-- Specific-days window (both bounds inclusive; same date twice = one day) -->
-      @if (dateFilter === 'custom') {
+      @if (dateFilter() === 'custom') {
         <input type="date" class="filter-select date-input"
                [(ngModel)]="customDateFrom" title="From (inclusive)" aria-label="From date (inclusive)">
         <span class="date-range-sep">–</span>
@@ -148,7 +148,7 @@
            follow the visible rows. -->
       <label class="show-hidden-toggle" title="Include orders that were hidden from this list">
         <input type="checkbox"
-               [checked]="showHiddenOrders"
+               [checked]="showHiddenOrders()"
                (change)="toggleShowHiddenOrders()">
         <span>Show hidden orders</span>
       </label>
@@ -157,45 +157,45 @@
   }
 
   <!-- Orders Table -->
-  @if (!loadingStates.orders) {
+  @if (!loadingStates().orders) {
   <div class="orders-list">
     <div class="table-container">
       <div class="table-wrapper" #tableWrapper>
         <table class="data-table">
           <thead #tableHeader>
             <tr>
-              <th class="sortable" (click)="setSort('id')">ID @if (sortColumn === 'id') {
-              <span class="sort-icon">{{ sortDirection === 'asc' ? '↑' : '↓' }}</span>
+              <th class="sortable" (click)="setSort('id')">ID @if (sortColumn() === 'id') {
+              <span class="sort-icon">{{ sortDirection() === 'asc' ? '↑' : '↓' }}</span>
               }</th>
-              <th class="sortable" (click)="setSort('email')">Email @if (sortColumn === 'email') {
-              <span class="sort-icon">{{ sortDirection === 'asc' ? '↑' : '↓' }}</span>
+              <th class="sortable" (click)="setSort('email')">Email @if (sortColumn() === 'email') {
+              <span class="sort-icon">{{ sortDirection() === 'asc' ? '↑' : '↓' }}</span>
               }</th>
-              <th class="sortable" (click)="setSort('serviceDate')">Service Date @if (sortColumn === 'serviceDate') {
-              <span class="sort-icon">{{ sortDirection === 'asc' ? '↑' : '↓' }}</span>
+              <th class="sortable" (click)="setSort('serviceDate')">Service Date @if (sortColumn() === 'serviceDate') {
+              <span class="sort-icon">{{ sortDirection() === 'asc' ? '↑' : '↓' }}</span>
               }</th>
-              <th class="sortable" (click)="setSort('serviceType')">Service Type @if (sortColumn === 'serviceType') {
-              <span class="sort-icon">{{ sortDirection === 'asc' ? '↑' : '↓' }}</span>
+              <th class="sortable" (click)="setSort('serviceType')">Service Type @if (sortColumn() === 'serviceType') {
+              <span class="sort-icon">{{ sortDirection() === 'asc' ? '↑' : '↓' }}</span>
               }</th>
-              <th class="sortable" (click)="setSort('city')">City @if (sortColumn === 'city') {
-              <span class="sort-icon">{{ sortDirection === 'asc' ? '↑' : '↓' }}</span>
+              <th class="sortable" (click)="setSort('city')">City @if (sortColumn() === 'city') {
+              <span class="sort-icon">{{ sortDirection() === 'asc' ? '↑' : '↓' }}</span>
               }</th>
-              <th class="sortable" (click)="setSort('total')">Total @if (sortColumn === 'total') {
-              <span class="sort-icon">{{ sortDirection === 'asc' ? '↑' : '↓' }}</span>
+              <th class="sortable" (click)="setSort('total')">Total @if (sortColumn() === 'total') {
+              <span class="sort-icon">{{ sortDirection() === 'asc' ? '↑' : '↓' }}</span>
               }</th>
-              <th class="sortable" (click)="setSort('status')">Status @if (sortColumn === 'status') {
-              <span class="sort-icon">{{ sortDirection === 'asc' ? '↑' : '↓' }}</span>
+              <th class="sortable" (click)="setSort('status')">Status @if (sortColumn() === 'status') {
+              <span class="sort-icon">{{ sortDirection() === 'asc' ? '↑' : '↓' }}</span>
               }</th>
-              <th class="sortable" (click)="setSort('cleaners')">Cleaners @if (sortColumn === 'cleaners') {
-              <span class="sort-icon">{{ sortDirection === 'asc' ? '↑' : '↓' }}</span>
+              <th class="sortable" (click)="setSort('cleaners')">Cleaners @if (sortColumn() === 'cleaners') {
+              <span class="sort-icon">{{ sortDirection() === 'asc' ? '↑' : '↓' }}</span>
               }</th>
-              @if (userPermissions.permissions.canUpdate) {
+              @if (userPermissions().permissions.canUpdate) {
               <th>Actions</th>
               }
             </tr>
           </thead>
           <tbody>
           @for (order of filteredOrders; track order.id) {
-            <tr [class.expanded]="viewingOrderId === order.id"
+            <tr [class.expanded]="viewingOrderId() === order.id"
                 [class.has-reminder]="orderReminderService.hasActiveReminder(order.id)"
                 [class.is-new-order]="newOrderNotificationService.isUnviewed(order.id)"
                 [class.row-flagged-red]="order.flag === 'Red'"
@@ -279,7 +279,7 @@
                 </div>
                 }
               </td>
-              @if (userPermissions.permissions.canUpdate) {
+              @if (userPermissions().permissions.canUpdate) {
               <td class="actions" (click)="$event.stopPropagation()">
                 <div class="row-actions">
                   <!-- Mark as Done (Active/Pending orders) -->
@@ -313,20 +313,20 @@
                        Eye-off = hide, eye = restore. Hide is offered ONLY for cancelled or fully
                        refunded orders, so live/completed work can't be tidied out of sight;
                        restore is always available so a reactivated order can come back. -->
-                  @if (isSuperAdmin && !order.isHidden && canHideOrder(order)) {
+                  @if (isSuperAdmin() && !order.isHidden && canHideOrder(order)) {
                   <button
                           class="icon-btn muted"
                           (click)="openHideConfirm(order)"
-                          [disabled]="isHidingOrder"
+                          [disabled]="isHidingOrder()"
                           title="Hide from list (reversible)">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
                   </button>
                   }
-                  @if (isSuperAdmin && order.isHidden) {
+                  @if (isSuperAdmin() && order.isHidden) {
                   <button
                           class="icon-btn ok"
                           (click)="unhideOrder(order)"
-                          [disabled]="isHidingOrder"
+                          [disabled]="isHidingOrder()"
                           title="Restore to list">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                   </button>
@@ -334,21 +334,21 @@
                   <!-- SuperAdmin-only refund. Money icon (not a ban/trash) so it reads as
                        "give money back", not "destroy". The modal checks what's actually
                        refundable before it opens. -->
-                  @if (isSuperAdmin) {
+                  @if (isSuperAdmin()) {
                   <button
                           class="icon-btn refund"
                           (click)="openRefundModalForOrder(order)"
-                          [disabled]="loadingRefunds || isRefunding"
+                          [disabled]="loadingRefunds() || isRefunding()"
                           title="Refund money to customer">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 14 4 9 9 4"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg>
                   </button>
                   }
                   <!-- SuperAdmin-only hard delete (no refund) -->
-                  @if (isSuperAdmin) {
+                  @if (isSuperAdmin()) {
                   <button
                           class="icon-btn danger"
                           (click)="deleteOrder(order)"
-                          [disabled]="deletingOrder"
+                          [disabled]="deletingOrder()"
                           title="Delete Order (permanent, no refund)">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
                   </button>
@@ -366,66 +366,66 @@
     <!-- Pagination (matches audit-history) -->
     @if (totalPages > 1) {
     <div class="pagination">
-      <button class="page-btn" (click)="previousPage()" [disabled]="currentPage === 1">‹ Previous</button>
-      <button class="page-btn" (click)="goToPage(1)" [class.active]="currentPage === 1">1</button>
-      @if (totalPages > 5 && currentPage > 3) {
+      <button class="page-btn" (click)="previousPage()" [disabled]="currentPage() === 1">‹ Previous</button>
+      <button class="page-btn" (click)="goToPage(1)" [class.active]="currentPage() === 1">1</button>
+      @if (totalPages > 5 && currentPage() > 3) {
       <span class="page-ellipsis">...</span>
       }
       @for (page of getVisiblePages(); track page) {
       <button
               class="page-btn"
               (click)="goToPage(page)"
-              [class.active]="currentPage === page">
+              [class.active]="currentPage() === page">
         {{ page }}
       </button>
       }
-      @if (totalPages > 5 && currentPage < totalPages - 2) {
+      @if (totalPages > 5 && currentPage() < totalPages - 2) {
       <span class="page-ellipsis">...</span>
       }
       @if (totalPages > 1) {
       <button
               class="page-btn"
               (click)="goToPage(totalPages)"
-              [class.active]="currentPage === totalPages">
+              [class.active]="currentPage() === totalPages">
         {{ totalPages }}
       </button>
       }
-      <button class="page-btn" (click)="nextPage()" [disabled]="currentPage === totalPages">Next ›</button>
+      <button class="page-btn" (click)="nextPage()" [disabled]="currentPage() === totalPages">Next ›</button>
     </div>
     }
   </div>
   }
 
   <!-- Global Messages for Table Actions -->
-  @if (errorMessage && !viewingOrderId) {
+  @if (errorMessage() && !viewingOrderId()) {
   <div class="error-message">
-    {{errorMessage}}
+    {{errorMessage()}}
     <button class="close-btn" (click)="clearMessages()">×</button>
   </div>
   }
-  @if (successMessage && !viewingOrderId) {
+  @if (successMessage() && !viewingOrderId()) {
   <div class="success-message">
-    {{successMessage}}
+    {{successMessage()}}
     <button class="close-btn" (click)="clearMessages()">×</button>
   </div>
   }
 </div>
 
 <!-- Slide-in order detail panel (mirrors the users tab) -->
-@if (viewingOrderId !== null) {
+@if (viewingOrderId() !== null) {
 <div class="detail-overlay" (click)="closeOrderDetails()"></div>
 }
-<aside class="detail-panel order-detail-panel" [class.open]="viewingOrderId !== null">
-  @if (viewingOrderId !== null) {
-    <div class="order-panel-header" [class.is-editing]="editingOrder">
-      <h3>Order #{{ selectedOrder?.id }}</h3>
+<aside class="detail-panel order-detail-panel" [class.open]="viewingOrderId() !== null">
+  @if (viewingOrderId() !== null) {
+    <div class="order-panel-header" [class.is-editing]="editingOrder()">
+      <h3>Order #{{ selectedOrder()?.id }}</h3>
       <!-- The figures an admin reaches for first, in the header so they never scroll away. Total
            is tip-free, and Tips sits beside it (the old separate summary bar, 2026-09). -->
-      @if (!loadingStates.orderDetails && selectedOrder) {
+      @if (!loadingStates().orderDetails && selectedOrder()) {
       <div class="order-panel-header__summary">
         <span class="header-figure">
           <span class="header-figure__label">Duration</span>
-          <span class="header-figure__value">{{ formatDuration(editingOrder ? (editOrderForm.totalDuration || 0) : selectedOrder.totalDuration) }}</span>
+          <span class="header-figure__value">{{ formatDuration(editingOrder() ? (editOrderForm().totalDuration || 0) : selectedOrder()!.totalDuration) }}</span>
         </span>
         <span class="header-figure">
           <span class="header-figure__label">Tips</span>
@@ -433,10 +433,10 @@
         </span>
         <span class="header-figure">
           <span class="header-figure__label">Total</span>
-          @if (selectedOrder.billedByContractLabel && !editingOrder) {
-          <span class="header-figure__value billed-by-contract">{{ selectedOrder.billedByContractLabel }}</span>
+          @if (selectedOrder()!.billedByContractLabel && !editingOrder()) {
+          <span class="header-figure__value billed-by-contract">{{ selectedOrder()!.billedByContractLabel }}</span>
           }
-          @if (!selectedOrder.billedByContractLabel || editingOrder) {
+          @if (!selectedOrder()!.billedByContractLabel || editingOrder()) {
           <span class="header-figure__value">${{ formatCurrency(getSummaryTotalWithoutTips()) }}</span>
           }
         </span>
@@ -446,7 +446,7 @@
           <span class="header-figure__label">Payment</span>
           <span class="header-figure__value">
             {{ headerPaymentLabel }}
-            @if (canEditPaymentMethod && !editingPaymentMethod) {
+            @if (canEditPaymentMethod && !editingPaymentMethod()) {
             <button type="button" class="header-figure__more"
                     (click)="startEditPaymentMethod()"
                     title="Change how this order is (or will be) paid — SuperAdmin only"
@@ -459,22 +459,22 @@
       <div class="order-panel-header__actions">
         <!-- Admin-only customer flag. Flags the ORDER'S OWNER (single source of truth on the
              User), so every one of that customer's orders picks up the same tint. Internal. -->
-        @if (userPermissions.permissions.canUpdate && selectedOrder) {
+        @if (userPermissions().permissions.canUpdate && selectedOrder()) {
         <span class="flag-toggle"
               (click)="$event.stopPropagation()">
-          <span class="flag-btn none" [class.active]="(selectedOrder.flag || 'None') === 'None'"
-                [class.disabled]="flaggingOrderUserId === selectedOrder.userId"
+          <span class="flag-btn none" [class.active]="(selectedOrder()!.flag || 'None') === 'None'"
+                [class.disabled]="flaggingOrderUserId() === selectedOrder()!.userId"
                 (click)="setOrderFlag('None')" title="No flag">⚐</span>
-          <span class="flag-btn yellow" [class.active]="selectedOrder.flag === 'Yellow'"
-                [class.disabled]="flaggingOrderUserId === selectedOrder.userId"
+          <span class="flag-btn yellow" [class.active]="selectedOrder()!.flag === 'Yellow'"
+                [class.disabled]="flaggingOrderUserId() === selectedOrder()!.userId"
                 (click)="setOrderFlag('Yellow')" title="Flag customer yellow (caution)">⚑</span>
-          <span class="flag-btn red" [class.active]="selectedOrder.flag === 'Red'"
-                [class.disabled]="flaggingOrderUserId === selectedOrder.userId"
+          <span class="flag-btn red" [class.active]="selectedOrder()!.flag === 'Red'"
+                [class.disabled]="flaggingOrderUserId() === selectedOrder()!.userId"
                 (click)="setOrderFlag('Red')" title="Flag customer red (serious)">⚑</span>
         </span>
         }
         <!-- View mode: Edit -->
-        @if (canEditOrder && !editingOrder && !loadingStates.orderDetails && selectedOrder) {
+        @if (canEditOrder && !editingOrder() && !loadingStates().orderDetails && selectedOrder()) {
         <button class="action-btn small edit"
                 (click)="startEditOrder()">
           Edit
@@ -482,17 +482,17 @@
         }
         <!-- Edit mode: Save (left) + Discard. A direct save opens the review modal first, so the
              label promises a review rather than an immediate write. -->
-        @if (canEditOrder && editingOrder) {
+        @if (canEditOrder && editingOrder()) {
         <button class="action-btn small save"
                 (click)="saveOrderEdit()"
-                [disabled]="savingOrder">
-          {{ savingOrder ? 'Saving…' : (canSaveOrderEditsDirectly ? 'Review & save' : 'Send for approval') }}
+                [disabled]="savingOrder()">
+          {{ savingOrder() ? 'Saving…' : (canSaveOrderEditsDirectly() ? 'Review & save' : 'Send for approval') }}
         </button>
         }
-        @if (canEditOrder && editingOrder) {
+        @if (canEditOrder && editingOrder()) {
         <button class="action-btn small discard"
                 (click)="cancelEditOrder()"
-                [disabled]="savingOrder">
+                [disabled]="savingOrder()">
           Discard
         </button>
         }
@@ -504,7 +504,7 @@
            optional, and sits under the header buttons rather than in the form, because it is about
            the REQUEST rather than about the order. A full-width row of its own, so it can never
            push the flags / Save / ✕ out of the top-right corner. -->
-      @if (canEditOrder && editingOrder && !canSaveOrderEditsDirectly) {
+      @if (canEditOrder && editingOrder() && !canSaveOrderEditsDirectly()) {
       <input aria-label="Reason for the change"
              class="edit-request-reason order-panel-header__reason"
              type="text"
@@ -512,26 +512,26 @@
              [(ngModel)]="orderEditRequestReason"
              [ngModelOptions]="{ standalone: true }"
              placeholder="Why is this change needed? (optional)"
-             [disabled]="savingOrder">
+             [disabled]="savingOrder()">
       }
     </div>
 
     <!-- Loading Indicator for Order Details -->
-    @if (loadingStates.orderDetails) {
+    @if (loadingStates().orderDetails) {
     <div class="loading-small">
       <div class="spinner-small"></div>
       <span>Loading order details...</span>
     </div>
     }
 
-    @if (!loadingStates.orderDetails && selectedOrder) {
+    @if (!loadingStates().orderDetails && selectedOrder()) {
     <div class="order-details-content">
                   <!-- The payment-method editor, opened from the ⋮ beside "Payment" in the header.
                        It used to sit under Current Pricing on its own "Payment:" line. -->
-                  @if (editingPaymentMethod) {
+                  @if (editingPaymentMethod()) {
                   <div class="pm-editor-card">
                     <h4>Change payment method</h4>
-                        @if (editingPaymentMethod) {
+                        @if (editingPaymentMethod()) {
                         <div class="manual-pay-form pm-editor">
                           <div class="manual-pay-row">
                             <label>Method</label>
@@ -544,7 +544,7 @@
                           <!-- Reference and notes record money that has ALREADY changed hands,
                                so they are offered for cash/Zelle/cheque/other and not for
                                Invoice, which is unpaid by definition until its invoice settles. -->
-                          @if (isSettledPaymentMethod(paymentMethodEdit)) {
+                          @if (isSettledPaymentMethod(paymentMethodEdit())) {
                             <div class="manual-pay-row">
                               <label>Reference</label>
                               <input type="text" [(ngModel)]="paymentMethodEditReference"
@@ -561,12 +561,12 @@
                           <!-- Invoice: who is billed. Required — the server refuses an Invoice
                                order with no client, because a cleaning no invoice can pick up
                                would sit Pending forever with nothing able to settle it. -->
-                          @if (paymentMethodEdit === 'Invoice') {
+                          @if (paymentMethodEdit() === 'Invoice') {
                             <div class="manual-pay-row">
                               <label>Billed to</label>
                               <select aria-label="Billed to" [(ngModel)]="paymentMethodEditClientId">
                                 <option [ngValue]="null">— Choose a commercial client —</option>
-                                @for (c of commercialClients; track c.id) {
+                                @for (c of commercialClients(); track c.id) {
                                 <option [ngValue]="c.id">
                                   {{ c.legalEntityName }}
                                 </option>
@@ -575,13 +575,13 @@
                             </div>
                           }
 
-                          @if (isSettledPaymentMethod(paymentMethodEdit)) {
+                          @if (isSettledPaymentMethod(paymentMethodEdit())) {
                           <p class="pm-editor-hint">
                             The order moves to the manual-payment flow: treated as paid outside the
                             website, no Stripe fees in statistics, and a Pending order becomes Active.
                           </p>
                           }
-                          @if (paymentMethodEdit === 'RegularInvoice') {
+                          @if (paymentMethodEdit() === 'RegularInvoice') {
                           <p class="pm-editor-hint">
                             The customer is billed by a regular invoice (email with PDF + text) and
                             pays it online by card or bank transfer (ACH), or you record a bank
@@ -589,14 +589,14 @@
                             until you send it there.
                           </p>
                           }
-                          @if (paymentMethodEdit === 'Invoice') {
+                          @if (paymentMethodEdit() === 'Invoice') {
                           <p class="pm-editor-hint">
                             The order is billed by commercial invoice and stays Pending Payment. It
                             becomes Active when an invoice covering it is paid in full — choosing
                             this method settles nothing on its own.
                           </p>
                           }
-                          @if (paymentMethodEdit === 'Normal' && (selectedOrder.paymentMethod || 'Normal') !== 'Normal') {
+                          @if (paymentMethodEdit() === 'Normal' && (selectedOrder()!.paymentMethod || 'Normal') !== 'Normal') {
                           <p class="pm-editor-hint">
                             The order returns to the Stripe flow: it counts as awaiting online payment
                             again (an Active unpaid order goes back to Pending).
@@ -605,12 +605,12 @@
                           <div class="manual-pay-actions">
                             <button type="button" class="action-btn primary"
                                     (click)="savePaymentMethod()"
-                                    [disabled]="savingPaymentMethod">
-                              {{ savingPaymentMethod ? 'Saving...' : 'Save payment method' }}
+                                    [disabled]="savingPaymentMethod()">
+                              {{ savingPaymentMethod() ? 'Saving...' : 'Save payment method' }}
                             </button>
                             <button type="button" class="action-btn"
                                     (click)="cancelEditPaymentMethod()"
-                                    [disabled]="savingPaymentMethod">Cancel</button>
+                                    [disabled]="savingPaymentMethod()">Cancel</button>
                           </div>
                         </div>
                         }
@@ -618,7 +618,7 @@
                   }
 
                   <!-- Reviewers only: pending edits for this order (quick link) -->
-                  @if (canSaveOrderEditsDirectly && !editingOrder && getPendingEditsForSelectedOrder().length > 0) {
+                  @if (canSaveOrderEditsDirectly() && !editingOrder() && getPendingEditsForSelectedOrder().length > 0) {
                   <div class="pending-edits-inline">
                     <h4>Pending edit(s) for this order</h4>
                     @for (pe of getPendingEditsForSelectedOrder(); track pe.id) {
@@ -631,34 +631,34 @@
                   }
 
                   <!-- Order Edit Form (SuperAdmin: direct save; Admin: submit for approval) -->
-                  @if (editingOrder && canEditOrder) {
+                  @if (editingOrder() && canEditOrder) {
                   <div class="superadmin-order-edit">
-                    <h4>Edit Order @if (isSuperAdmin) {
+                    <h4>Edit Order @if (isSuperAdmin()) {
                     <span>— all changes are recorded in Audit logs</span>
-                    }@if (!isSuperAdmin) {
+                    }@if (!isSuperAdmin()) {
                     <span>— your changes will be sent to SAdmin for approval</span>
                     }</h4>
                     <div class="edit-group edit-group--contact">
                         <h5>Contact</h5>
-                        <div class="edit-row"><label>First Name</label><input aria-label="First Name" [(ngModel)]="editOrderForm.contactFirstName"></div>
-                        <div class="edit-row"><label>Last Name</label><input aria-label="Last Name" [(ngModel)]="editOrderForm.contactLastName"></div>
-                        <div class="edit-row"><label>Email</label><input aria-label="Email" type="email" [(ngModel)]="editOrderForm.contactEmail"></div>
-                        <div class="edit-row"><label>Phone</label><input aria-label="Phone" type="tel" inputmode="numeric" [(ngModel)]="editOrderForm.contactPhone" (input)="onEditOrderPhoneInput($event)" placeholder="10-digit number"></div>
+                        <div class="edit-row"><label>First Name</label><input aria-label="First Name" [(ngModel)]="editOrderForm().contactFirstName"></div>
+                        <div class="edit-row"><label>Last Name</label><input aria-label="Last Name" [(ngModel)]="editOrderForm().contactLastName"></div>
+                        <div class="edit-row"><label>Email</label><input aria-label="Email" type="email" [(ngModel)]="editOrderForm().contactEmail"></div>
+                        <div class="edit-row"><label>Phone</label><input aria-label="Phone" type="tel" inputmode="numeric" [(ngModel)]="editOrderForm().contactPhone" (input)="onEditOrderPhoneInput($event)" placeholder="10-digit number"></div>
                       </div>
                       <div class="edit-group edit-group--address">
                         <h5>Address</h5>
-                        <div class="edit-row"><label>Address</label><input aria-label="Address" [(ngModel)]="editOrderForm.serviceAddress"></div>
-                        <div class="edit-row"><label>Apt/Suite</label><input aria-label="Apt/Suite" [(ngModel)]="editOrderForm.aptSuite"></div>
-                        <div class="edit-row"><label>City</label><input aria-label="City" [(ngModel)]="editOrderForm.city"></div>
-                        <div class="edit-row"><label>State</label><input aria-label="State" [(ngModel)]="editOrderForm.state"></div>
-                        <div class="edit-row"><label>Zip</label><input aria-label="Zip" [(ngModel)]="editOrderForm.zipCode"></div>
+                        <div class="edit-row"><label>Address</label><input aria-label="Address" [(ngModel)]="editOrderForm().serviceAddress"></div>
+                        <div class="edit-row"><label>Apt/Suite</label><input aria-label="Apt/Suite" [(ngModel)]="editOrderForm().aptSuite"></div>
+                        <div class="edit-row"><label>City</label><input aria-label="City" [(ngModel)]="editOrderForm().city"></div>
+                        <div class="edit-row"><label>State</label><input aria-label="State" [(ngModel)]="editOrderForm().state"></div>
+                        <div class="edit-row"><label>Zip</label><input aria-label="Zip" [(ngModel)]="editOrderForm().zipCode"></div>
                       </div>
                       <div class="edit-group edit-group--service">
                         <h5>Service</h5>
                         @if (selectedOrderIsCustomServiceType) {
                         <div class="edit-row">
                           <label>Service Type Name</label>
-                          <select aria-label="Service Type Name" [(ngModel)]="editOrderForm.customServiceDisplayName">
+                          <select aria-label="Service Type Name" [(ngModel)]="editOrderForm().customServiceDisplayName">
                             <option [ngValue]="null">— Not set (Arranged) —</option>
                             @for (name of customServiceNameOptions; track name) {
                             <option [ngValue]="name">{{ name }}</option>
@@ -666,7 +666,7 @@
                           </select>
                         </div>
                         }
-                        <div class="edit-row"><label>Service Date</label><input aria-label="Service Date" type="date" [(ngModel)]="editOrderForm.serviceDate"></div>
+                        <div class="edit-row"><label>Service Date</label><input aria-label="Service Date" type="date" [(ngModel)]="editOrderForm().serviceDate"></div>
                         <div class="edit-row">
                           <label>Service Time</label>
                           <div class="time-parts">
@@ -678,7 +678,7 @@
                             </select>
                             <span class="time-parts-sep">:</span>
                             <select [(ngModel)]="editTimeMinute" (ngModelChange)="onEditServiceTimeChange()" aria-label="Minute">
-                              @for (m of editTimeMinuteOptions; track m) {
+                              @for (m of editTimeMinuteOptions(); track m) {
                               <option [ngValue]="m">{{ formatMinuteOption(m) }}</option>
                               }
                             </select>
@@ -691,26 +691,26 @@
                         <!-- Cleaners Count is NOT edited here: it is a staffing / wages fact, set from
                              the Wages card beside the hourly rate and the per-cleaner hours. On a
                              cleaner+hours order it still follows the "Cleaners" service row below. -->
-                        <div class="edit-row"><label>Duration (min)</label><input aria-label="Duration (minutes)" type="number" [(ngModel)]="editOrderForm.totalDuration" (ngModelChange)="onEditDurationChange()" min="60" placeholder="min"> <span class="duration-hint">{{ getEditDurationHintText() }}</span></div>
-                        <div class="edit-row"><label>Entry</label><input aria-label="Entry" [(ngModel)]="editOrderForm.entryMethod"></div>
+                        <div class="edit-row"><label>Duration (min)</label><input aria-label="Duration (minutes)" type="number" [(ngModel)]="editOrderForm().totalDuration" (ngModelChange)="onEditDurationChange()" min="60" placeholder="min"> <span class="duration-hint">{{ getEditDurationHintText() }}</span></div>
+                        <div class="edit-row"><label>Entry</label><input aria-label="Entry" [(ngModel)]="editOrderForm().entryMethod"></div>
                         <div class="edit-row edit-row--full">
-                          <label>{{ isCustomServiceType(selectedOrder) ? 'Description' : 'Instructions' }}</label>
+                          <label>{{ isCustomServiceType(selectedOrder()) ? 'Description' : 'Instructions' }}</label>
                           <div>
-                            <textarea aria-label="Instructions" [(ngModel)]="editOrderForm.specialInstructions"
+                            <textarea aria-label="Instructions" [(ngModel)]="editOrderForm().specialInstructions"
                                       rows="2"
                                       [maxlength]="specialInstructionsMaxLength"></textarea>
                             <small class="char-counter"
-                                   [class.char-counter--limit]="(editOrderForm.specialInstructions?.length || 0) >= specialInstructionsMaxLength">
-                              {{ editOrderForm.specialInstructions?.length || 0 }} / {{ specialInstructionsMaxLength }} characters
+                                   [class.char-counter--limit]="(editOrderForm().specialInstructions?.length || 0) >= specialInstructionsMaxLength">
+                              {{ editOrderForm().specialInstructions?.length || 0 }} / {{ specialInstructionsMaxLength }} characters
                             </small>
                           </div>
                         </div>
                         <div class="edit-row edit-row--floortype">
                           <label>Floor Types</label>
                           <div class="floortype-edit">
-                            @if (editFloorTypes.length > 0) {
+                            @if (editFloorTypes().length > 0) {
                             <div class="floortype-chips">
-                              @for (t of editFloorTypes; track t) {
+                              @for (t of editFloorTypes(); track t) {
                               <span class="floortype-chip">
                                 {{ getFloorTypeLabel(t) }}
                                 <button type="button" class="floortype-chip__remove" (click)="removeEditFloorType(t)" title="Remove">×</button>
@@ -718,7 +718,7 @@
                               }
                             </div>
                             }
-                            @if (editFloorTypes.includes('other')) {
+                            @if (editFloorTypes().includes('other')) {
                             <input aria-label="Other floor type"
                                    type="text"
                                    class="floortype-other"
@@ -746,9 +746,9 @@
                         <!-- Typing a subtotal MOVES the subtotal, so the discounts re-scale (same rule as a
                              quantity change). The Discount / Subscription Discount inputs below deliberately
                              do not, or they would overwrite what the admin is typing into them. -->
-                        <div class="edit-row"><label>SubTotal</label><input aria-label="SubTotal" type="number" step="1" [(ngModel)]="editOrderForm.subTotal" (ngModelChange)="onEditSubTotalChange()"></div>
-                        <div class="edit-row"><label>Tax</label><input aria-label="Tax" type="number" step="1" [(ngModel)]="editOrderForm.tax" readonly></div>
-                        <div class="edit-row"><label>Tips</label><input aria-label="Tips" type="number" step="1" [(ngModel)]="editOrderForm.tips" (ngModelChange)="recalculateEditPricing()"></div>
+                        <div class="edit-row"><label>SubTotal</label><input aria-label="SubTotal" type="number" step="1" [(ngModel)]="editOrderForm().subTotal" (ngModelChange)="onEditSubTotalChange()"></div>
+                        <div class="edit-row"><label>Tax</label><input aria-label="Tax" type="number" step="1" [(ngModel)]="editOrderForm().tax" readonly></div>
+                        <div class="edit-row"><label>Tips</label><input aria-label="Tips" type="number" step="1" [(ngModel)]="editOrderForm().tips" (ngModelChange)="recalculateEditPricing()"></div>
                         <!-- Company Tips is RETIRED: no form field, no editOrderForm entry, and it is
                              no longer sent on save. The stored value on a legacy order is read-only
                              (see legacyCompanyDevelopmentTips) and the backend preserves it. -->
@@ -756,52 +756,52 @@
                              read-only; they still RE-SCALE with the subtotal like the loyalty row
                              below, and the server refuses a typed figure from an Admin
                              (OrderDiscountEditPolicy). -->
-                        <div class="edit-row" [class.edit-row--readonly-discount]="!canEditOrderDiscounts">
+                        <div class="edit-row" [class.edit-row--readonly-discount]="!canEditOrderDiscounts()">
                           <label>Discount (promo/special)</label>
-                          @if (canEditOrderDiscounts) {
-                          <input aria-label="Discount (promo/special)" type="number" step="1" [(ngModel)]="editOrderForm.discountAmount" (ngModelChange)="onEditDiscountChange()">
+                          @if (canEditOrderDiscounts()) {
+                          <input aria-label="Discount (promo/special)" type="number" step="1" [(ngModel)]="editOrderForm().discountAmount" (ngModelChange)="onEditDiscountChange()">
                           }
-                          @if (!canEditOrderDiscounts) {
-                          <input aria-label="Discount (promo/special)" type="number" [value]="editOrderForm.discountAmount || 0" readonly title="Only a SuperAdmin can change discounts">
+                          @if (!canEditOrderDiscounts()) {
+                          <input aria-label="Discount (promo/special)" type="number" [value]="editOrderForm().discountAmount || 0" readonly title="Only a SuperAdmin can change discounts">
                           }
                         </div>
-                        <div class="edit-row" [class.edit-row--readonly-discount]="!canEditOrderDiscounts">
+                        <div class="edit-row" [class.edit-row--readonly-discount]="!canEditOrderDiscounts()">
                           <label>Subscription Discount</label>
-                          @if (canEditOrderDiscounts) {
-                          <input aria-label="Subscription Discount" type="number" step="1" [(ngModel)]="editOrderForm.subscriptionDiscountAmount" (ngModelChange)="onEditDiscountChange()">
+                          @if (canEditOrderDiscounts()) {
+                          <input aria-label="Subscription Discount" type="number" step="1" [(ngModel)]="editOrderForm().subscriptionDiscountAmount" (ngModelChange)="onEditDiscountChange()">
                           }
-                          @if (!canEditOrderDiscounts) {
-                          <input aria-label="Subscription discount" type="number" [value]="editOrderForm.subscriptionDiscountAmount || 0" readonly title="Only a SuperAdmin can change discounts">
+                          @if (!canEditOrderDiscounts()) {
+                          <input aria-label="Subscription discount" type="number" [value]="editOrderForm().subscriptionDiscountAmount || 0" readonly title="Only a SuperAdmin can change discounts">
                           }
                         </div>
                         <!-- Loyalty Discount in admin edit: read-only display because the $ amount
                              is mechanically derived from the locked percentage × current subtotal.
                              To change the underlying percentage admin uses the Account section on
                              the user's detail page (Phase 7), not this per-order form. -->
-                        @if (editOrderFormOriginalLoyaltyPercentage > 0) {
+                        @if (editOrderFormOriginalLoyaltyPercentage() > 0) {
                         <div class="edit-row edit-row--readonly-discount">
-                          <label>Loyalty Discount ({{editOrderFormOriginalLoyaltyPercentage}}%)</label>
-                          <input type="number" [value]="editOrderForm.loyaltyDiscountAmount || 0" readonly>
+                          <label>Loyalty Discount ({{editOrderFormOriginalLoyaltyPercentage()}}%)</label>
+                          <input type="number" [value]="editOrderForm().loyaltyDiscountAmount || 0" readonly>
                         </div>
                         }
-                        @if ((selectedOrder.pointsRedeemed || 0) > 0) {
+                        @if ((selectedOrder()!.pointsRedeemed || 0) > 0) {
                         <div class="edit-row edit-row--readonly-discount">
-                          <label>Bubble Points ({{selectedOrder.pointsRedeemed}} pts)</label>
-                          <input type="number" [value]="selectedOrder.pointsRedeemedDiscount || 0" readonly>
+                          <label>Bubble Points ({{selectedOrder()!.pointsRedeemed}} pts)</label>
+                          <input type="number" [value]="selectedOrder()!.pointsRedeemedDiscount || 0" readonly>
                         </div>
                         }
-                        @if ((selectedOrder.rewardBalanceUsed || 0) > 0) {
+                        @if ((selectedOrder()!.rewardBalanceUsed || 0) > 0) {
                         <div class="edit-row edit-row--readonly-discount">
                           <label>Reward Balance</label>
-                          <input aria-label="Reward Balance" type="number" [value]="selectedOrder.rewardBalanceUsed || 0" readonly>
+                          <input aria-label="Reward Balance" type="number" [value]="selectedOrder()!.rewardBalanceUsed || 0" readonly>
                         </div>
                         }
                         <!-- Gift card on edit: re-resolved against the live balance so an increased
                              total is absorbed by leftover funds before charging the customer. -->
-                        @if (editGiftCardCode && editGiftCardOriginalUsed > 0) {
+                        @if (editGiftCardCode() && editGiftCardOriginalUsed() > 0) {
                         <div class="edit-row edit-row--readonly-discount">
-                          <label>Gift Card{{ editGiftCardAvailableBalance > 0 ? ' (bal. $' + (editGiftCardAvailableBalance - editGiftCardAmountToUse).toFixed(2) + ' left)' : '' }}</label>
-                          <input type="number" [value]="editGiftCardAmountToUse.toFixed(2)" readonly>
+                          <label>Gift Card{{ editGiftCardAvailableBalance() > 0 ? ' (bal. $' + (editGiftCardAvailableBalance() - editGiftCardAmountToUse()).toFixed(2) + ' left)' : '' }}</label>
+                          <input type="number" [value]="editGiftCardAmountToUse().toFixed(2)" readonly>
                         </div>
                         }
                         <!-- Editable: type what the CUSTOMER PAYS - tax included, this order's
@@ -824,10 +824,10 @@
                                  title="Not editable while a gift card applies: the card's draw depends on the total itself, so a typed figure would be ambiguous.">
                           }
                         </div>
-                        @if (pointsEnabled && editEstimatedPoints > 0) {
+                        @if (pointsEnabled() && editEstimatedPoints() > 0) {
                         <div class="edit-row edit-row--pts-preview">
                           <label>🫧 Est. Points Earned</label>
-                          <span class="pts-preview-val">~{{ editEstimatedPoints | number }} pts</span>
+                          <span class="pts-preview-val">~{{ editEstimatedPoints() | number }} pts</span>
                         </div>
                         }
                         <!-- Blank stays selectable and is the default for a legacy order: it
@@ -836,7 +836,7 @@
                         @if (showEditPropertyType()) {
                         <div class="edit-row">
                           <label>Property Type</label>
-                          <select aria-label="Property Type" [(ngModel)]="editOrderForm.propertyType" (ngModelChange)="onEditPropertyTypeChange()">
+                          <select aria-label="Property Type" [(ngModel)]="editOrderForm().propertyType" (ngModelChange)="onEditPropertyTypeChange()">
                             <option [ngValue]="null">— not set —</option>
                             <option [ngValue]="propertyTypeApartment">Apartment / Condo</option>
                             <option [ngValue]="propertyTypeHouse">House / Townhouse</option>
@@ -856,22 +856,22 @@
                                actually holds is onEditInformationalLevelsChange, because a typed
                                value bypasses both attributes entirely. -->
                           <input id="edit-order-levels" type="number" min="1" max="4" step="1"
-                                 [(ngModel)]="editOrderForm.levelsQuantity"
+                                 [(ngModel)]="editOrderForm().levelsQuantity"
                                  (ngModelChange)="onEditInformationalLevelsChange()"
                                  [title]="editLevelsArePriced()
                                    ? '1-4 levels. Changing this adds the priced Levels line to the order.'
                                    : '1-4 levels. Informational only: does not affect price or duration.'">
                         </div>
                         }
-                        <div class="edit-row"><label>Status</label><select aria-label="Status" [(ngModel)]="editOrderForm.status"><option value="Pending">Pending</option><option value="Active">Active</option><option value="Done">Done</option><option value="Cancelled">Cancelled</option></select></div>
-                        <div class="edit-row"><label>Cancellation Reason</label><input [(ngModel)]="editOrderForm.cancellationReason" placeholder="If status=Cancelled"></div>
+                        <div class="edit-row"><label>Status</label><select aria-label="Status" [(ngModel)]="editOrderForm().status"><option value="Pending">Pending</option><option value="Active">Active</option><option value="Done">Done</option><option value="Cancelled">Cancelled</option></select></div>
+                        <div class="edit-row"><label>Cancellation Reason</label><input [(ngModel)]="editOrderForm().cancellationReason" placeholder="If status=Cancelled"></div>
                         <!-- Cleaner $/hr and Cleaners Total Salary are NOT edited here. The Wages card
                              owns them ("Edit all cleaners" / per-cleaner rows), writing through
                              CleanerPayrollEditService without going through order-edit approval.
                              The form keeps the stored rate only to re-estimate an unstaffed order's
                              salary when its duration moves (recalcCleanerTotalSalary). -->
                       </div>
-                    @if (editOrderForm.services && editOrderForm.services.length > 0) {
+                    @if (editOrderForm().services && editOrderForm().services!.length > 0) {
                     <div class="edit-group edit-group--services">
                       <h5>Services (Qty, Hours, Duration, Cost)</h5>
                       <div class="mini-table">
@@ -879,7 +879,7 @@
                              through the shared calculator like any other row. It is hidden only
                              when the order is not a house, so the panel can never show an
                              editable stair charge on an order it labels an apartment. -->
-                        @for (s of editOrderForm.services; track $index; let i = $index) {
+                        @for (s of editOrderForm().services; track $index; let i = $index) {
                         @if (isEditLevelsRowVisible(i)) {
                         <div class="mini-row">
                           <span class="minilabel">{{ getEditServiceDisplayName(s, i) }}</span>
@@ -921,11 +921,11 @@
                            cost — they exist so this panel and the cleaner's job email know what
                            work was agreed, so both fields are hidden rather than shown as 0. -->
                       <h5>{{ isCustomModeOrder() ? 'Extra Services (informational — no time or price)' : 'Extra Services (Qty or Hrs, Duration, Cost)' }}</h5>
-                      @if (editOrderForm.extraServices && editOrderForm.extraServices.length > 0) {
+                      @if (editOrderForm().extraServices && editOrderForm().extraServices!.length > 0) {
                       <div class="mini-table">
-                        @for (e of editOrderForm.extraServices; track $index; let i = $index) {
+                        @for (e of editOrderForm().extraServices; track $index; let i = $index) {
                         <div class="mini-row">
-                          <span class="minilabel">{{ getExtraServiceName(selectedOrder, i, e) }}</span>
+                          <span class="minilabel">{{ getExtraServiceName(selectedOrder(), i, e) }}</span>
                           <div class="mini-controls">
                             @if (getEditExtraHasHours(e, i)) {
                             <label class="mini-field">
@@ -977,15 +977,15 @@
                   }
 
                   <!-- Messages for Order Details -->
-                  @if (errorMessage && viewingOrderId) {
+                  @if (errorMessage() && viewingOrderId()) {
                   <div class="error-message order-detail-message">
-                    {{errorMessage}}
+                    {{errorMessage()}}
                     <button class="close-btn" (click)="clearMessages()">×</button>
                   </div>
                   }
-                  @if (successMessage && viewingOrderId) {
+                  @if (successMessage() && viewingOrderId()) {
                   <div class="success-message order-detail-message">
-                    {{successMessage}}
+                    {{successMessage()}}
                     <button class="close-btn" (click)="clearMessages()">×</button>
                   </div>
                   }
@@ -993,29 +993,29 @@
                   <!-- TABS (2026-09). The panel had grown to one long scroll where nothing could be
                        found quickly; it is now four views of the same order. Hidden while editing:
                        the edit form is the whole panel then. -->
-                  @if (!editingOrder) {
+                  @if (!editingOrder()) {
                   <nav class="order-panel-tabs" role="tablist" aria-label="Order sections">
-                    <button type="button" role="tab" [class.active]="orderPanelTab === 'details'"
-                            [attr.aria-selected]="orderPanelTab === 'details'" (click)="setOrderPanelTab('details')">Details</button>
-                    <button type="button" role="tab" [class.active]="orderPanelTab === 'payments'"
-                            [attr.aria-selected]="orderPanelTab === 'payments'" (click)="setOrderPanelTab('payments')">
+                    <button type="button" role="tab" [class.active]="orderPanelTab() === 'details'"
+                            [attr.aria-selected]="orderPanelTab() === 'details'" (click)="setOrderPanelTab('details')">Details</button>
+                    <button type="button" role="tab" [class.active]="orderPanelTab() === 'payments'"
+                            [attr.aria-selected]="orderPanelTab() === 'payments'" (click)="setOrderPanelTab('payments')">
                       Payments
                       @if (panelAmountOwed > 0) {
                       <span class="tab-badge owed">${{ panelAmountOwed.toFixed(2) }} owed</span>
                       }
                     </button>
-                    <button type="button" role="tab" [class.active]="orderPanelTab === 'cleaners'"
-                            [attr.aria-selected]="orderPanelTab === 'cleaners'" (click)="setOrderPanelTab('cleaners')">
+                    <button type="button" role="tab" [class.active]="orderPanelTab() === 'cleaners'"
+                            [attr.aria-selected]="orderPanelTab() === 'cleaners'" (click)="setOrderPanelTab('cleaners')">
                       Cleaners
-                      <span class="tab-badge">{{ getAssignedCleanersWithIds(selectedOrder.id).length }}/{{ selectedOrder.maidsCount }}</span>
+                      <span class="tab-badge">{{ getAssignedCleanersWithIds(selectedOrder()!.id).length }}/{{ selectedOrder()!.maidsCount }}</span>
                     </button>
-                    <button type="button" role="tab" [class.active]="orderPanelTab === 'changes'"
-                            [attr.aria-selected]="orderPanelTab === 'changes'" (click)="setOrderPanelTab('changes')">Changes</button>
+                    <button type="button" role="tab" [class.active]="orderPanelTab() === 'changes'"
+                            [attr.aria-selected]="orderPanelTab() === 'changes'" (click)="setOrderPanelTab('changes')">Changes</button>
                   </nav>
                   }
 
                   <!-- ═══════════════ DETAILS ═══════════════ -->
-                  @if (!editingOrder && orderPanelTab === 'details') {
+                  @if (!editingOrder() && orderPanelTab() === 'details') {
                   <div class="order-details-header-row">
                     <div class="order-provenance">
                     <!-- Marketing origin: first-touch channel, plus the converting-session channel
@@ -1024,15 +1024,15 @@
                          heading was a duplicate. Hidden entirely for orders with no attribution,
                          which is why the pills push themselves right with margin-left:auto rather
                          than the row relying on space-between. -->
-                    @if (originFirstTouch(selectedOrder)) {
+                    @if (originFirstTouch(selectedOrder())) {
                     <div class="order-origin"
-                         [title]="originTooltip(selectedOrder)">
+                         [title]="originTooltip(selectedOrder())">
                       <span class="origin-dot" aria-hidden="true"></span>
                       <span class="origin-label">Origin</span>
-                      <span class="origin-first">{{ originFirstTouch(selectedOrder) }}</span>
-                      @if (originConverted(selectedOrder)) {
+                      <span class="origin-first">{{ originFirstTouch(selectedOrder()) }}</span>
+                      @if (originConverted(selectedOrder())) {
                         <span class="origin-arrow" aria-hidden="true">&rarr;</span>
-                        <span class="origin-converted">{{ originConverted(selectedOrder) }}</span>
+                        <span class="origin-converted">{{ originConverted(selectedOrder()) }}</span>
                       }
                     </div>
                     }
@@ -1042,21 +1042,21 @@
                          self-booked). SuperAdmin clicks to toggle — exists to backfill orders that
                          predate BookedByAdminUserId (2026-07); new orders are stamped automatically. -->
                     <div class="assigned-admin-pill booked-by-pill" (click)="$event.stopPropagation()">
-                      @if (isSuperAdmin) {
+                      @if (isSuperAdmin()) {
                       <button
                               type="button"
                               class="assigned-admin-trigger"
                               (click)="toggleBookedByAdmin()"
-                              [disabled]="isSavingBookedBy"
+                              [disabled]="isSavingBookedBy()"
                               title="Toggle who booked this order">
                         <span class="assigned-admin-by">Booked:</span>
-                        <span class="assigned-admin-name">{{ isSavingBookedBy ? 'Saving…' : bookedByAdminLabel() }}</span>
+                        <span class="assigned-admin-name">{{ isSavingBookedBy() ? 'Saving…' : bookedByAdminLabel() }}</span>
                         <span class="assigned-admin-caret" aria-hidden="true">⇄</span>
                       </button>
                       }
 
                       <!-- Read-only variant for non-SuperAdmins -->
-                      @if (!isSuperAdmin) {
+                      @if (!isSuperAdmin()) {
                       <span class="assigned-admin-trigger assigned-admin-readonly">
                         <span class="assigned-admin-by">Booked:</span>
                         <span class="assigned-admin-name">{{ bookedByAdminLabel() }}</span>
@@ -1069,14 +1069,14 @@
                          "F. LastName". `selectedOrder` is already narrowed to non-null by the
                          outer *ngIf on the details row. -->
                     <div class="assigned-admin-pill"
-                         [class.is-empty]="!selectedOrder.assignedAdminId"
+                         [class.is-empty]="!selectedOrder()!.assignedAdminId"
                          (click)="$event.stopPropagation()">
-                      @if (isSuperAdmin) {
+                      @if (isSuperAdmin()) {
                       <button
                               type="button"
                               class="assigned-admin-trigger"
                               (click)="toggleAssignedAdminEditor()"
-                              [disabled]="isSavingAssignedAdmin"
+                              [disabled]="isSavingAssignedAdmin()"
                               title="Change assigned admin">
                         <span class="assigned-admin-by">By:</span>
                         <span class="assigned-admin-name">{{ assignedAdminLabel() }}</span>
@@ -1085,30 +1085,30 @@
                       }
 
                       <!-- Read-only variant for non-SuperAdmins -->
-                      @if (!isSuperAdmin) {
+                      @if (!isSuperAdmin()) {
                       <span class="assigned-admin-trigger assigned-admin-readonly">
                         <span class="assigned-admin-by">By:</span>
                         <span class="assigned-admin-name">{{ assignedAdminLabel() }}</span>
                       </span>
                       }
 
-                      @if (isSuperAdmin && showAssignedAdminEditor) {
+                      @if (isSuperAdmin() && showAssignedAdminEditor()) {
                       <div class="assigned-admin-menu" role="listbox">
                         <button type="button"
                                 class="assigned-admin-option"
-                                [class.is-selected]="!selectedOrder.assignedAdminId"
+                                [class.is-selected]="!selectedOrder()!.assignedAdminId"
                                 (click)="selectAssignedAdminForOrder(null)">
                           Unassigned
                         </button>
-                        @for (a of availableAdmins; track a.id) {
+                        @for (a of availableAdmins(); track a.id) {
                         <button type="button"
                                 class="assigned-admin-option"
-                                [class.is-selected]="selectedOrder.assignedAdminId === a.id"
+                                [class.is-selected]="selectedOrder()!.assignedAdminId === a.id"
                                 (click)="selectAssignedAdminForOrder(a.id)">
                           {{ a.firstName }} {{ a.lastName }}
                         </button>
                         }
-                        @if (availableAdmins.length === 0) {
+                        @if (availableAdmins().length === 0) {
                         <div class="assigned-admin-empty">No admins available</div>
                         }
                       </div>
@@ -1122,38 +1122,38 @@
                        customer's corrected confirmation. Manual by design — admins edit orders
                        for internal reasons that shouldn't generate customer mail. Shares the
                        provenance row (right side) rather than a centred row of its own. -->
-                  @if (userPermissions.permissions.canView && selectedOrder.status !== 'Cancelled') {
+                  @if (userPermissions().permissions.canView && selectedOrder()!.status !== 'Cancelled') {
                   <div class="order-top-actions order-details-header-row__action">
                     <button type="button"
                             class="action-btn resend-confirmation"
                             (click)="resendConfirmation()"
-                            [disabled]="loadingStates.resendingConfirmation"
+                            [disabled]="loadingStates().resendingConfirmation"
                             [title]="customerHasNoAccountEmail
                               ? 'No email on this account — the updated confirmation goes by text message only'
                               : 'Email and text an updated confirmation showing the current date, time and address'">
-                      {{ loadingStates.resendingConfirmation ? 'Sending…' : 'Updated Booking Confirmation' }}
+                      {{ loadingStates().resendingConfirmation ? 'Sending…' : 'Updated Booking Confirmation' }}
                     </button>
                   </div>
                   }
                   </div>
 
-                  @if (!editingOrder) {
+                  @if (!editingOrder()) {
                   <div class="details-grid">
                     <!-- Customer Information -->
                     <div class="detail-section">
                       <h4>Customer Information</h4>
-                      <p><strong>User ID:</strong> {{selectedOrder.userId}}</p>
-                      <p><strong>Name:</strong> {{selectedOrder.contactFirstName}} {{selectedOrder.contactLastName}}</p>
-                      <p><strong>Email:</strong> {{selectedOrder.contactEmail || '— (no email)'}}</p>
+                      <p><strong>User ID:</strong> {{selectedOrder()!.userId}}</p>
+                      <p><strong>Name:</strong> {{selectedOrder()!.contactFirstName}} {{selectedOrder()!.contactLastName}}</p>
+                      <p><strong>Email:</strong> {{selectedOrder()!.contactEmail || '— (no email)'}}</p>
                       <!-- The order's contact email is a snapshot; the ACCOUNT is what the send
                            paths resolve. Show the difference instead of leaving admins to guess. -->
                       @if (customerHasNoAccountEmail) {
                       <p class="account-email-note">
                         <span class="tag-chip no-email">No account email</span>
-                        @if (selectedOrder.contactEmail) {
+                        @if (selectedOrder()!.contactEmail) {
                         Saved on this order only — the customer's account has no email address.
                         }
-                        @if (!selectedOrder.contactEmail) {
+                        @if (!selectedOrder()!.contactEmail) {
                         The customer's account has no email address either.
                         }
                       </p>
@@ -1164,18 +1164,18 @@
                         {{ differingAccountEmail }} — the payment link goes here, not to the address above.
                       </p>
                       }
-                      <p><strong>Phone:</strong> {{selectedOrder.contactPhone}}</p>
+                      <p><strong>Phone:</strong> {{selectedOrder()!.contactPhone}}</p>
 
                       <!-- Opens the record this ORDER is about: the business client for a
                            commercially billed cleaning, the customer account otherwise. Both
                            panels show the other half, so either landing is recoverable. -->
-                      @if (selectedOrder.userId || invoiceClientForOrder) {
+                      @if (selectedOrder()!.userId || invoiceClientForOrder()) {
                       <button type="button" class="view-user-btn"
                               (click)="viewOrderCustomer()">
-                        {{ invoiceClientForOrder ? 'View Business Client' : 'View User' }}
+                        {{ invoiceClientForOrder() ? 'View Business Client' : 'View User' }}
                       </button>
                       }
-                      @if (invoiceClientForOrder) {
+                      @if (invoiceClientForOrder(); as invoiceClientForOrder) {
                       <p class="account-email-note">
                         <span class="tag-chip">Business client</span>
                         {{ invoiceClientForOrder.name }}
@@ -1183,29 +1183,29 @@
                       }
 
                       <!-- SuperAdmin-only: move this order (and everything it earned) to another customer -->
-                      @if (isSuperAdmin) {
+                      @if (isSuperAdmin()) {
                       <div class="order-transfer">
                         <button type="button" class="action-btn small transfer-toggle" (click)="toggleTransferPanel()">
-                          {{ showTransferPanel ? 'Close transfer' : 'Transfer to another customer…' }}
+                          {{ showTransferPanel() ? 'Close transfer' : 'Transfer to another customer…' }}
                         </button>
 
-                        @if (showTransferPanel) {
+                        @if (showTransferPanel()) {
                         <div class="transfer-panel">
-                          @if (transferError) {
-                          <div class="transfer-error">{{ transferError }}</div>
+                          @if (transferError()) {
+                          <div class="transfer-error">{{ transferError() }}</div>
                           }
-                          @if (!transferTargetUser) {
+                          @if (!transferTargetUser()) {
 
                             <input aria-label="Search customers to transfer to" type="text" class="transfer-search"
-                                   [ngModel]="transferSearchTerm"
+                                   [ngModel]="transferSearchTerm()"
                                    (ngModelChange)="onTransferSearchInput($event)"
                                    placeholder="Search customer by name, email, or ID…">
-                            @if (loadingTransferCandidates) {
+                            @if (loadingTransferCandidates()) {
                             <div class="transfer-results">Loading customers…</div>
                             }
-                            @if (!loadingTransferCandidates && transferSearchResults.length > 0) {
+                            @if (!loadingTransferCandidates() && transferSearchResults().length > 0) {
                             <div class="transfer-results">
-                              @for (u of transferSearchResults; track u.id) {
+                              @for (u of transferSearchResults(); track u.id) {
                               <button type="button" class="transfer-result" (click)="selectTransferTarget(u)">
                                 {{ transferUserLabel(u) }}
                               </button>
@@ -1214,9 +1214,9 @@
                             }
                           }
 
-                          @if (transferTargetUser) {
+                          @if (transferTargetUser()) {
                           <div class="transfer-selected">
-                            <span>→ {{ transferUserLabel(transferTargetUser) }}</span>
+                            <span>→ {{ transferUserLabel(transferTargetUser()!) }}</span>
                             <button type="button" class="link-btn" (click)="clearTransferTarget()">change</button>
                           </div>
                           }
@@ -1225,18 +1225,18 @@
                                  placeholder="Note (optional, shown in history)" maxlength="500">
 
                           <button type="button" class="action-btn primary small"
-                                  [disabled]="!transferTargetUser || isTransferring"
+                                  [disabled]="!transferTargetUser() || isTransferring()"
                                   (click)="submitTransfer()">
-                            {{ isTransferring ? 'Transferring…' : 'Transfer order' }}
+                            {{ isTransferring() ? 'Transferring…' : 'Transfer order' }}
                           </button>
                           <p class="transfer-hint">Moves the order, its photos, earned points/spent amount and the service address to the selected customer. Recorded in Audit logs; undoable below.</p>
                         </div>
                         }
 
-                        @if (orderTransfers.length > 0) {
+                        @if (orderTransfers().length > 0) {
                         <div class="transfer-history">
                           <h5>Transfer history</h5>
-                          @for (t of orderTransfers; track t.id) {
+                          @for (t of orderTransfers(); track t.id) {
                           <div class="transfer-entry" [class.is-undone]="t.isUndone">
                             <span class="transfer-line">
                               {{ formatUtcDateTime(t.createdAt) }} — {{ t.fromUserName }} → {{ t.toUserName }}
@@ -1253,9 +1253,9 @@
                             }
                             @if (!t.isUndone) {
                             <button type="button" class="action-btn small ghost"
-                                    [disabled]="undoingTransferId !== null"
+                                    [disabled]="undoingTransferId() !== null"
                                     (click)="undoTransfer(t)">
-                              {{ undoingTransferId === t.id ? 'Undoing…' : 'Undo' }}
+                              {{ undoingTransferId() === t.id ? 'Undoing…' : 'Undo' }}
                             </button>
                             }
                           </div>
@@ -1269,25 +1269,25 @@
                     <!-- Service Details -->
                     <div class="detail-section">
                       <h4>Service Details</h4>
-                      <p><strong>Service Type:</strong> {{selectedOrder.serviceTypeName}}</p>
+                      <p><strong>Service Type:</strong> {{selectedOrder()!.serviceTypeName}}</p>
 
                       <!-- Custom ("Pre-Arranged") orders: SuperAdmin and Admins can change the
                            service-type name. Lets staff re-label legacy "Arranged" orders to a
                            real type (Deep, Office, …). -->
                       @if (selectedOrderIsCustomServiceType) {
                       <div class="custom-service-name-edit">
-                        @if (canEditCustomServiceName) {
+                        @if (canEditCustomServiceName()) {
                           <label class="custom-service-name-label"><strong>Change service type:</strong></label>
                           <select aria-label="Change service type" class="custom-service-name-select"
-                                  [disabled]="isSavingCustomServiceName"
-                                  [ngModel]="selectedOrder.customServiceDisplayName || ''"
+                                  [disabled]="isSavingCustomServiceName()"
+                                  [ngModel]="selectedOrder()!.customServiceDisplayName || ''"
                                   (ngModelChange)="selectCustomServiceNameForOrder($event || null)">
                             <option value="">— Not set (Arranged) —</option>
                             @for (name of customServiceNameOptions; track name) {
                             <option [value]="name">{{ name }}</option>
                             }
                           </select>
-                          @if (isSavingCustomServiceName) {
+                          @if (isSavingCustomServiceName()) {
                           <span class="custom-service-name-saving">Saving…</span>
                           }
                         } @else {
@@ -1295,91 +1295,91 @@
                       </div>
                       }
 
-                      <p><strong>Service Date:</strong> {{formatDateTime((selectedOrder.serviceDate || '1970-01-01'), selectedOrder.serviceTime)}}</p>
-                      <p><strong>Booked On:</strong> {{formatUtcDateTime(selectedOrder.orderDate)}}</p>
+                      <p><strong>Service Date:</strong> {{formatDateTime((selectedOrder()!.serviceDate || '1970-01-01'), selectedOrder()!.serviceTime)}}</p>
+                      <p><strong>Booked On:</strong> {{formatUtcDateTime(selectedOrder()!.orderDate)}}</p>
                       <p><strong>Duration:</strong>
                         @if (hasCleanersService()) {
-                          {{formatDuration(selectedOrder.totalDuration)}}
+                          {{formatDuration(selectedOrder()!.totalDuration)}}
                         } @else {
                           {{getSelectedOrderDurationText()}}
                         }
                       </p>
-                      @if (selectedOrder.bedroomsQuantity != null || selectedOrder.bathroomsQuantity != null) {
-                      <p><strong>Bedrooms:</strong> {{ (selectedOrder.bedroomsQuantity ?? 0) === 0 ? 'Studio' : (selectedOrder.bedroomsQuantity ?? 'N/A') }}</p>
+                      @if (selectedOrder()!.bedroomsQuantity != null || selectedOrder()!.bathroomsQuantity != null) {
+                      <p><strong>Bedrooms:</strong> {{ (selectedOrder()!.bedroomsQuantity ?? 0) === 0 ? 'Studio' : (selectedOrder()!.bedroomsQuantity ?? 'N/A') }}</p>
                       }
-                      @if (selectedOrder.bedroomsQuantity != null || selectedOrder.bathroomsQuantity != null) {
-                      <p><strong>Bathrooms:</strong> {{ selectedOrder.bathroomsQuantity ?? 'N/A' }}</p>
+                      @if (selectedOrder()!.bedroomsQuantity != null || selectedOrder()!.bathroomsQuantity != null) {
+                      <p><strong>Bathrooms:</strong> {{ selectedOrder()!.bathroomsQuantity ?? 'N/A' }}</p>
                       }
                       <!-- Custom orders only: whether those counts appear on the customer's own order page (set at booking). -->
-                      @if (selectedOrder.isCustomServiceType && (selectedOrder.bedroomsQuantity != null || selectedOrder.bathroomsQuantity != null)) {
-                      <p><strong>Rooms shown to customer:</strong> {{ selectedOrder.showRoomCountsToCustomer ? 'Yes' : 'No' }}</p>
+                      @if (selectedOrder()!.isCustomServiceType && (selectedOrder()!.bedroomsQuantity != null || selectedOrder()!.bathroomsQuantity != null)) {
+                      <p><strong>Rooms shown to customer:</strong> {{ selectedOrder()!.showRoomCountsToCustomer ? 'Yes' : 'No' }}</p>
                       }
                       <!-- Both rows disappear entirely on a legacy order (null property type) and
                            the Levels row also disappears for an apartment. An empty "Property
                            type: -" row would suggest we lost the answer rather than never asked. -->
-                      @if (getOrderPropertyTypeLabel(selectedOrder)) {
-                      <p><strong>Property type:</strong> {{ getOrderPropertyTypeLabel(selectedOrder) }}</p>
+                      @if (getOrderPropertyTypeLabel(selectedOrder())) {
+                      <p><strong>Property type:</strong> {{ getOrderPropertyTypeLabel(selectedOrder()) }}</p>
                       }
-                      @if (getOrderLevelsLabel(selectedOrder)) {
-                      <p><strong>Levels:</strong> {{ getOrderLevelsLabel(selectedOrder) }}</p>
+                      @if (getOrderLevelsLabel(selectedOrder())) {
+                      <p><strong>Levels:</strong> {{ getOrderLevelsLabel(selectedOrder()) }}</p>
                       }
                     </div>
                     
                     <!-- Address -->
                     <div class="detail-section">
                       <h4>Service Address</h4>
-                      <p>{{selectedOrder.serviceAddress}}</p>
-                      @if (selectedOrder.aptSuite) {
-                      <p>{{selectedOrder.aptSuite}}</p>
+                      <p>{{selectedOrder()!.serviceAddress}}</p>
+                      @if (selectedOrder()!.aptSuite) {
+                      <p>{{selectedOrder()!.aptSuite}}</p>
                       }
-                      <p>{{selectedOrder.state}}, {{selectedOrder.city}}</p>
-                      <p>{{selectedOrder.zipCode}}</p>
+                      <p>{{selectedOrder()!.state}}, {{selectedOrder()!.city}}</p>
+                      <p>{{selectedOrder()!.zipCode}}</p>
                       <!-- Same link the cleaner portal offers, built from the same address parts —
                            saves retyping the address into a map app to see where the job is. -->
-                      @if (serviceAddressMapsUrl(selectedOrder)) {
+                      @if (serviceAddressMapsUrl(selectedOrder())) {
                       <a class="address-maps-link"
-                         [href]="serviceAddressMapsUrl(selectedOrder)"
+                         [href]="serviceAddressMapsUrl(selectedOrder())"
                          target="_blank"
                          rel="noopener">
                         <span class="address-maps-icon" aria-hidden="true">📍</span>
                         <span class="address-maps-text">Open in Maps</span>
                       </a>
                       }
-                      @if (selectedOrder.entryMethod) {
-                      <p><strong>Entry Method:</strong> {{selectedOrder.entryMethod}}</p>
+                      @if (selectedOrder()!.entryMethod) {
+                      <p><strong>Entry Method:</strong> {{selectedOrder()!.entryMethod}}</p>
                       }
                     </div>
                   </div>
                   }
 
                   <!-- Services and Instructions Row -->
-                  @if (!editingOrder) {
+                  @if (!editingOrder()) {
                   <div class="services-instructions-row">
                     <!-- Services Column -->
-                    @if (selectedOrder.services.length > 0) {
+                    @if (selectedOrder()!.services.length > 0) {
                     <div class="services-column">
                       <h4>Services</h4>
                       <div class="services-content">
                         <ul class="services-list">
-                          @for (service of selectedOrder.services; track $index) {
+                          @for (service of selectedOrder()!.services; track $index) {
                           <li>
                             @if (isBedroomsServiceLine(service) && service.quantity === 0) {
                             <span>
-                              Studio@if (!selectedOrder.billedByContractLabel) {
+                              Studio@if (!selectedOrder()!.billedByContractLabel) {
  - {{formatCurrency(service.cost)}}
                               }
                             </span>
                             }
                             @if (!(isBedroomsServiceLine(service) && service.quantity === 0)) {
                             <span>
-                              {{service.serviceName}} - Qty: {{service.quantity}}@if (!selectedOrder.billedByContractLabel) {
+                              {{service.serviceName}} - Qty: {{service.quantity}}@if (!selectedOrder()!.billedByContractLabel) {
  - ${{formatCurrency(service.cost)}}
                               }
                             </span>
                             }
                             @if (isCleanersServiceLine(service)) {
                             <span>
-                              - Hours: {{(selectedOrder.totalDuration / 60) | number:'1.0-0'}}h
+                              - Hours: {{(selectedOrder()!.totalDuration / 60) | number:'1.0-0'}}h
                             </span>
                             }
                           </li>
@@ -1390,26 +1390,26 @@
                     }
 
                     <!-- Extra Services Column -->
-                    @if (selectedOrder.extraServices.length > 0) {
+                    @if (selectedOrder()!.extraServices.length > 0) {
                     <div class="services-column">
                       <h4>Extra Services</h4>
                       <div class="services-content">
                         <ul class="services-list">
                           <!-- Custom Pricing orders price every extra at $0 (informational only),
                                so the cost is omitted there rather than printing "- $0.00". -->
-                          @for (extra of selectedOrder.extraServices; track $index) {
+                          @for (extra of selectedOrder()!.extraServices; track $index) {
                           <li>
                             @if (extra.hours > 0 && extra.quantity > 0) {
-                              {{extra.extraServiceName}} - Qty: {{extra.quantity}} - Hours: {{extra.hours}}@if (!isCustomServiceType(selectedOrder) && !selectedOrder.billedByContractLabel) {
+                              {{extra.extraServiceName}} - Qty: {{extra.quantity}} - Hours: {{extra.hours}}@if (!isCustomServiceType(selectedOrder()) && !selectedOrder()!.billedByContractLabel) {
  - ${{formatCurrency(extra.cost)}}
                               }
                             } @else {
                               @if (extra.hours > 0) {
-                                {{extra.extraServiceName}} - Hours: {{extra.hours}}@if (!isCustomServiceType(selectedOrder) && !selectedOrder.billedByContractLabel) {
+                                {{extra.extraServiceName}} - Hours: {{extra.hours}}@if (!isCustomServiceType(selectedOrder()) && !selectedOrder()!.billedByContractLabel) {
  - ${{formatCurrency(extra.cost)}}
                                 }
                               } @else {
-                                {{extra.extraServiceName}} - Qty: {{extra.quantity}}@if (!isCustomServiceType(selectedOrder) && !selectedOrder.billedByContractLabel) {
+                                {{extra.extraServiceName}} - Qty: {{extra.quantity}}@if (!isCustomServiceType(selectedOrder()) && !selectedOrder()!.billedByContractLabel) {
  - ${{formatCurrency(extra.cost)}}
                                 }
                               }
@@ -1422,21 +1422,21 @@
                     }
 
                     <!-- Special Instructions Column -->
-                    @if (selectedOrder.specialInstructions) {
+                    @if (selectedOrder()!.specialInstructions) {
                     <div class="services-column">
-                      <h4>{{ isCustomServiceType(selectedOrder) ? 'Service Description' : 'Special Instructions' }}</h4>
+                      <h4>{{ isCustomServiceType(selectedOrder()) ? 'Service Description' : 'Special Instructions' }}</h4>
                       <div class="services-content">
-                        <p>{{selectedOrder.specialInstructions}}</p>
+                        <p>{{selectedOrder()!.specialInstructions}}</p>
                       </div>
                     </div>
                     }
 
                     <!-- Floor Types Column -->
-                    @if (selectedOrder.floorTypes) {
+                    @if (selectedOrder()!.floorTypes) {
                     <div class="services-column">
                       <h4>Floor Types</h4>
                       <div class="services-content">
-                        <p>{{ formatFloorTypes(selectedOrder.floorTypes, selectedOrder.floorTypeOther) }}</p>
+                        <p>{{ formatFloorTypes(selectedOrder()!.floorTypes, selectedOrder()!.floorTypeOther) }}</p>
                       </div>
                     </div>
                     }
@@ -1444,12 +1444,12 @@
                   }
 
                   <!-- Cancellation Reason -->
-                  @if (!editingOrder && selectedOrder.status === 'Cancelled' && selectedOrder.cancellationReason) {
+                  @if (!editingOrder() && selectedOrder()!.status === 'Cancelled' && selectedOrder()!.cancellationReason) {
                   <div class="cancellation-reason-section">
                     <h4>Cancellation Reason</h4>
                     <div class="cancellation-reason-content">
-                      <p class="cancellation-reason-text">{{ selectedOrder.cancellationReason }}</p>
-                      @if (selectedOrder.isLateCancellation) {
+                      <p class="cancellation-reason-text">{{ selectedOrder()!.cancellationReason }}</p>
+                      @if (selectedOrder()!.isLateCancellation) {
                       <span class="late-fee-badge">Late Cancellation - $70 Fee</span>
                       }
                     </div>
@@ -1457,71 +1457,71 @@
                   }
 
                   <!-- Internal note: staff-only free text, never shown to the customer -->
-                  @if (!editingOrder) {
+                  @if (!editingOrder()) {
                   <div class="order-note-section">
                     <h4>
                       Notes
                       <span class="hint">— internal only, the customer never sees this</span>
                     </h4>
 
-                    @if (loadingOrderNote) {
+                    @if (loadingOrderNote()) {
                     <div class="loading-small">
                       <div class="spinner-small"></div>
                       <span>Loading note...</span>
                     </div>
                     }
-                    @if (!loadingOrderNote) {
+                    @if (!loadingOrderNote()) {
                     <div class="order-note-content">
                       @if (canEditOrderNote) {
 
                         <textarea aria-label="Internal note" class="order-note-input"
                                   [(ngModel)]="orderNoteDraft"
                                   [maxlength]="orderNoteMaxLength"
-                                  [disabled]="savingOrderNote"
+                                  [disabled]="savingOrderNote()"
                                   rows="4"
                                   placeholder="Anything the team should know about this order — gate codes, parking, pets, what the customer asked for on the phone..."></textarea>
                         <div class="order-note-footer">
                           <small class="char-counter"
-                                 [class.char-counter--limit]="orderNoteDraft.length >= orderNoteMaxLength">
-                            {{ orderNoteDraft.length }} / {{ orderNoteMaxLength }} characters
+                                 [class.char-counter--limit]="orderNoteDraft().length >= orderNoteMaxLength">
+                            {{ orderNoteDraft().length }} / {{ orderNoteMaxLength }} characters
                           </small>
                           <div class="order-note-actions">
-                            @if (orderNoteDirty) {
+                            @if (orderNoteDirty()) {
                             <button type="button"
                                     class="order-note-cancel-btn"
                                     (click)="cancelOrderNoteEdit()"
-                                    [disabled]="savingOrderNote">
+                                    [disabled]="savingOrderNote()">
                               Cancel
                             </button>
                             }
                             <button type="button"
                                     class="order-note-save-btn"
                                     (click)="saveOrderNote()"
-                                    [disabled]="savingOrderNote || !orderNoteDirty">
-                              {{ savingOrderNote ? 'Saving...' : 'Save note' }}
+                                    [disabled]="savingOrderNote() || !orderNoteDirty()">
+                              {{ savingOrderNote() ? 'Saving...' : 'Save note' }}
                             </button>
                           </div>
                         </div>
                       } @else {
-                        @if (orderNoteDraft) {
-                        <p class="order-note-readonly">{{ orderNoteDraft }}</p>
+                        @if (orderNoteDraft()) {
+                        <p class="order-note-readonly">{{ orderNoteDraft() }}</p>
                         }
-                        @if (!orderNoteDraft) {
+                        @if (!orderNoteDraft()) {
                         <p class="no-order-note-message">No note on this order yet.</p>
                         }
                       }
-                      @if (orderNoteUpdatedAt) {
+                      @if (orderNoteUpdatedAt()) {
                       <div class="order-note-meta">
-                        Last saved {{ formatOrderNoteTimestamp(orderNoteUpdatedAt) }}@if (orderNoteUpdatedByName) {
-                        <span> by {{ orderNoteUpdatedByName }}</span>
+                        Last saved {{ formatOrderNoteTimestamp(orderNoteUpdatedAt()) }}@if (orderNoteUpdatedByName()) {
+                        <span> by {{ orderNoteUpdatedByName() }}</span>
                         }
                       </div>
                       }
-                      @if (orderNoteError) {
-                      <div class="error-message inline">{{ orderNoteError }}</div>
+                      @if (orderNoteError()) {
+                      <div class="error-message inline">{{ orderNoteError() }}</div>
                       }
-                      @if (orderNoteSuccess) {
-                      <div class="success-message inline">{{ orderNoteSuccess }}</div>
+                      @if (orderNoteSuccess()) {
+                      <div class="success-message inline">{{ orderNoteSuccess() }}</div>
                       }
                     </div>
                     }
@@ -1529,57 +1529,57 @@
                   }
 
                   <!-- Cleaning Photos for this order (shared per-user library) -->
-                  @if (!editingOrder) {
+                  @if (!editingOrder()) {
                   <div class="order-photos-section">
                     <h4>Cleaning Photos <span class="hint">— last 2 cleanings per customer are kept</span></h4>
-                    @if (loadingOrderPhotos) {
+                    @if (loadingOrderPhotos()) {
                     <div class="muted center">Loading photos…</div>
                     }
-                    @if (!loadingOrderPhotos && orderPhotos.length === 0) {
+                    @if (!loadingOrderPhotos() && orderPhotos().length === 0) {
                     <div class="muted center">No photos for this order yet.</div>
                     }
-                    @if (orderPhotos.length > 0) {
+                    @if (orderPhotos().length > 0) {
                     <div class="order-photo-grid">
-                      @for (p of orderPhotos; track $index) {
+                      @for (p of orderPhotos(); track $index) {
                       <div class="order-photo-thumb">
                         <img [src]="resolvePhotoUrl(p)" [alt]="p.caption || 'Cleaning photo'" (click)="openOrderLightbox(p)">
-                        @if (userPermissions.permissions.canUpdate) {
+                        @if (userPermissions().permissions.canUpdate) {
                         <button class="thumb-remove" (click)="removeOrderPhoto(p)" title="Remove">×</button>
                         }
                       </div>
                       }
                     </div>
                     }
-                    @if (userPermissions.permissions.canUpdate) {
+                    @if (userPermissions().permissions.canUpdate) {
                     <div class="order-photo-upload">
-                      <label class="file-button" [class.disabled]="uploadingOrderPhoto">
-                        <input type="file" accept="image/*" multiple (change)="onOrderPhotoSelected($event)" [disabled]="uploadingOrderPhoto" hidden>
-                        {{ uploadingOrderPhoto ? (orderPhotoProgress || 'Uploading…') : '+ Upload photos' }}
+                      <label class="file-button" [class.disabled]="uploadingOrderPhoto()">
+                        <input type="file" accept="image/*" multiple (change)="onOrderPhotoSelected($event)" [disabled]="uploadingOrderPhoto()" hidden>
+                        {{ uploadingOrderPhoto() ? (orderPhotoProgress() || 'Uploading…') : '+ Upload photos' }}
                       </label>
                     </div>
                     }
-                    @if (orderPhotoError) {
-                    <div class="error-message inline">{{ orderPhotoError }}</div>
+                    @if (orderPhotoError()) {
+                    <div class="error-message inline">{{ orderPhotoError() }}</div>
                     }
-                    @if (orderPhotoSuccess) {
-                    <div class="success-message inline">{{ orderPhotoSuccess }}</div>
+                    @if (orderPhotoSuccess()) {
+                    <div class="success-message inline">{{ orderPhotoSuccess() }}</div>
                     }
                   </div>
                   }
                   }
 
                   <!-- ═══════════════ PAYMENTS ═══════════════ -->
-                  @if (!editingOrder && orderPanelTab === 'payments') {
+                  @if (!editingOrder() && orderPanelTab() === 'payments') {
                   <!-- The OWNER'S ACCOUNT has no email. Stated right above the send buttons because
                        the order's own contact email is frozen at booking time and can look perfectly
                        real — that disagreement is what made a skipped send read as a bug. Each line
                        says what the action next to it actually does for this customer. -->
-                  @if (!editingOrder && customerHasNoAccountEmail && userPermissions.permissions.canView) {
+                  @if (!editingOrder() && customerHasNoAccountEmail && userPermissions().permissions.canView) {
                   <div class="no-account-email-alert">
                     <div class="alert-title">⚠ This customer has no email address on their account</div>
-                    @if (selectedOrder.contactEmail) {
+                    @if (selectedOrder()!.contactEmail) {
                     <p class="alert-line">
-                      <strong>{{ selectedOrder.contactEmail }}</strong> was typed on this order when it was booked —
+                      <strong>{{ selectedOrder()!.contactEmail }}</strong> was typed on this order when it was booked —
                       it is not saved on the customer's account.
                     </p>
                     }
@@ -1597,8 +1597,8 @@
                       </li>
                       }
                     </ul>
-                    @if (selectedOrder.userId) {
-                    <button type="button" class="link-btn" (click)="openUserInAdmin(selectedOrder.userId)">
+                    @if (selectedOrder()!.userId) {
+                    <button type="button" class="link-btn" (click)="openUserInAdmin(selectedOrder()!.userId)">
                       Add an email on the customer's account →
                     </button>
                     }
@@ -1606,7 +1606,7 @@
                   }
 
                   <!-- Every button that asks the customer for money, with the amount it asks for. -->
-                  @if (userPermissions.permissions.canView) {
+                  @if (userPermissions().permissions.canView) {
                   <div class="order-top-actions">
                     <!-- Re-send the original payment-link email/SMS to the customer's current
                          account email/phone (after fixing a mistyped contact).
@@ -1618,25 +1618,25 @@
                     <button type="button"
                             class="action-btn send-payment-link"
                             (click)="openSendPaymentLinkModal()"
-                            [disabled]="loadingStates.sendPaymentLink"
+                            [disabled]="loadingStates().sendPaymentLink"
                             [title]="customerHasNoAccountEmail
                               ? 'No email on this account — the payment link can only be texted'
                               : 'Re-send the payment link to the current account email / phone on file'">
-                      {{ loadingStates.sendPaymentLink ? 'Sending…' : 'Send Payment Link' }}@if (!loadingStates.sendPaymentLink && (partialBalance?.amountDue ?? 0) > 0) {
- — ${{ partialBalance!.amountDue | number:'1.2-2' }}
+                      {{ loadingStates().sendPaymentLink ? 'Sending…' : 'Send Payment Link' }}@if (!loadingStates().sendPaymentLink && (partialBalance()?.amountDue ?? 0) > 0) {
+ — ${{ partialBalance()!.amountDue | number:'1.2-2' }}
                       }
                     </button>
                     }
 
                     <!-- The commercial counterpart. Opens a panel listing the invoices that cover
                          this cleaning; it never sends anything on its own. -->
-                    @if (isInvoiceBilledOrder || (invoiceClientForOrder && !isSettledOffline)) {
+                    @if (isInvoiceBilledOrder || (invoiceClientForOrder() && !isSettledOffline)) {
                     <button type="button"
                             class="action-btn send-invoice"
                             (click)="openSendInvoiceModal()"
-                            [disabled]="loadingOrderInvoices"
+                            [disabled]="loadingOrderInvoices()"
                             title="Email this cleaning's commercial invoice, or start a draft for it">
-                      {{ loadingOrderInvoices ? 'Loading…' : 'Send Invoice' }}
+                      {{ loadingOrderInvoices() ? 'Loading…' : 'Send Invoice' }}
                     </button>
                     }
                     <!-- REGULAR invoice (DCR-…): switch a Stripe pay-link booking to an invoice or
@@ -1647,19 +1647,19 @@
                             class="action-btn send-invoice"
                             (click)="openCustomerInvoiceModal()"
                             title="Create and send an invoice (with PDF) — whole or split — or manage this order's invoices">
-                      {{ orderCustomerInvoices.length > 0 ? 'Invoices' : 'Send Invoice' }}
+                      {{ orderCustomerInvoices().length > 0 ? 'Invoices' : 'Send Invoice' }}
                     </button>
                     }
                     <!-- Charge the owner's Primary card for the BALANCE DUE. Offered only when the
                          customer authorised charges for office-booked orders; fires only on this click. -->
-                    @if (canChargeSavedCard() && (isSuperAdmin || userPermissions.permissions.canUpdate)) {
+                    @if (canChargeSavedCard() && (isSuperAdmin() || userPermissions().permissions.canUpdate)) {
                     <button
                             type="button"
                             class="action-btn charge-saved-card"
                             (click)="chargeSavedCard()"
-                            [disabled]="loadingStates.chargingSavedCard"
-                            [title]="'Charge the balance due to the customer\'s saved card ending ' + (orderSavedCardInfo?.last4 || '')">
-                      {{ loadingStates.chargingSavedCard ? 'Charging…' : ('Charge $' + ($safeNavigationMigration(orderSavedCardInfo?.amountDue) | number:'1.2-2') + ' to card •••• ' + (orderSavedCardInfo?.last4 || '')) }}
+                            [disabled]="loadingStates().chargingSavedCard"
+                            [title]="'Charge the balance due to the customer\'s saved card ending ' + (orderSavedCardInfo()?.last4 || '')">
+                      {{ loadingStates().chargingSavedCard ? 'Charging…' : ('Charge $' + ($safeNavigationMigration(orderSavedCardInfo()?.amountDue) | number:'1.2-2') + ' to card •••• ' + (orderSavedCardInfo()?.last4 || '')) }}
                     </button>
                     }
                     @if (!canChargeSavedCard() && savedCardUnavailableReason(); as reason) {
@@ -1682,7 +1682,7 @@
                     slices, or slices can still be asked for. A plain settled order shows nothing
                     here that the payment rows above don't already say.
                   -->
-                  @if (!editingOrder && partialBalance) {
+                  @if (!editingOrder() && partialBalance()) {
                   <div
                        class="assigned-cleaners-section order-payments-card">
                     <h4>Payments</h4>
@@ -1693,11 +1693,11 @@
                     <div class="payments-summary">
                       <div class="payments-summary__cell">
                         <span class="payments-summary__label">Total</span>
-                        <span class="payments-summary__value">${{ partialBalance!.total.toFixed(2) }}</span>
+                        <span class="payments-summary__value">${{ partialBalance()!.total.toFixed(2) }}</span>
                       </div>
                       <div class="payments-summary__cell paid">
                         <span class="payments-summary__label">Paid</span>
-                        <span class="payments-summary__value">${{ partialBalance!.amountPaid.toFixed(2) }}</span>
+                        <span class="payments-summary__value">${{ partialBalance()!.amountPaid.toFixed(2) }}</span>
                       </div>
                       @if (panelAmountOwed > 0) {
                       <div class="payments-summary__cell due">
@@ -1705,7 +1705,7 @@
                         <span class="payments-summary__value">${{ panelAmountOwed.toFixed(2) }}</span>
                       </div>
                       }
-                      @if (partialBalance!.isPartiallyPaid) {
+                      @if (partialBalance()!.isPartiallyPaid) {
                       <span class="partially-paid-pill">Partially paid</span>
                       }
                     </div>
@@ -1735,39 +1735,39 @@
                           @if (hasUnnotifiedAdditionalPayment()) {
                           <button type="button" class="pay-action pay-action--link"
                                   (click)="sendUpdatedPayment()"
-                                  [disabled]="sendingUpdatedPayment"
+                                  [disabled]="sendingUpdatedPayment()"
                                   [title]="'Email and text the customer the card payment link for $' + formatCurrency(getUnpaidAdditionalAmount())">
-                            {{ sendingUpdatedPayment ? 'Sending...' : 'Send Updated Payment' }}
+                            {{ sendingUpdatedPayment() ? 'Sending...' : 'Send Updated Payment' }}
                           </button>
                           }
                           @if (!hasUnnotifiedAdditionalPayment()) {
                           <button type="button" class="pay-action pay-action--link"
                                   (click)="sendPaymentReminder()"
-                                  [disabled]="sendingReminder"
+                                  [disabled]="sendingReminder()"
                                   [title]="'Send an email and text reminder about the unpaid $' + formatCurrency(getUnpaidAdditionalAmount())">
-                            {{ sendingReminder ? 'Sending...' : 'Send Payment Reminder' }}
+                            {{ sendingReminder() ? 'Sending...' : 'Send Payment Reminder' }}
                           </button>
                           }
                         }
                         @if (canCreateAdditionalInvoice) {
                         <button type="button" class="pay-action pay-action--invoice"
                                 (click)="createAdditionalInvoiceNow()"
-                                [disabled]="customerInvoiceBusy"
+                                [disabled]="customerInvoiceBusy()"
                                 [title]="'Create and send an invoice (email with PDF + text) for the $' + additionalAmountDue.toFixed(2) + ' added after payment'">
-                          {{ customerInvoiceBusy ? 'Creating…' : 'Send Updated Invoice' }}
+                          {{ customerInvoiceBusy() ? 'Creating…' : 'Send Updated Invoice' }}
                         </button>
                         }
                         @if (!canCreateAdditionalInvoice && canOfferCustomerInvoice && openAdditionalInvoice; as open) {
                         <button type="button" class="pay-action pay-action--invoice"
                                 (click)="sendAdditionalInvoiceReminder(open)"
-                                [disabled]="sendingInvoiceReminder"
+                                [disabled]="sendingInvoiceReminder()"
                                 [title]="'Email and text the customer invoice ' + open.invoiceNumber + ' again'">
-                          {{ sendingInvoiceReminder ? 'Sending…' : 'Send Invoice Reminder' }}
+                          {{ sendingInvoiceReminder() ? 'Sending…' : 'Send Invoice Reminder' }}
                         </button>
                         }
                         @for (update of unpaidEditRows; track update.id) {
                         <button type="button" class="pay-action pay-action--manual"
-                                [disabled]="recordingManualPaymentForId === update.id"
+                                [disabled]="recordingManualPaymentForId() === update.id"
                                 (click)="openManualPaymentForm(update)"
                                 [title]="'The customer paid $' + formatCurrency(update.additionalAmount) + ' by Zelle / Cash / Check / bank transfer'">
                           Manual Payment@if (unpaidEditRows.length > 1) {
@@ -1784,7 +1784,7 @@
 
                       <!-- The manual-payment form, for the amount chosen above. -->
                       @for (update of unpaidEditRows; track update.id) {
-                        @if (recordingManualPaymentForId === update.id) {
+                        @if (recordingManualPaymentForId() === update.id) {
                         <div class="manual-pay-form">
                           <div class="manual-pay-row">
                             <label>Method</label>
@@ -1806,12 +1806,12 @@
                           <div class="manual-pay-actions">
                             <button type="button" class="action-btn primary"
                                     (click)="confirmManualPayment(update)"
-                                    [disabled]="savingManualPayment">
-                              {{ savingManualPayment ? 'Saving...' : 'Confirm ' + methodLabel(manualPaymentMethod) + ' payment of $' + formatCurrency(update.additionalAmount) }}
+                                    [disabled]="savingManualPayment()">
+                              {{ savingManualPayment() ? 'Saving...' : 'Confirm ' + methodLabel(manualPaymentMethod()) + ' payment of $' + formatCurrency(update.additionalAmount) }}
                             </button>
                             <button type="button" class="action-btn"
                                     (click)="cancelManualPayment()"
-                                    [disabled]="savingManualPayment">Cancel</button>
+                                    [disabled]="savingManualPayment()">Cancel</button>
                           </div>
                         </div>
                         }
@@ -1855,12 +1855,12 @@
 
                         <!-- An open regular invoice the customer paid OUTSIDE the website (a bank
                              transfer, most often): record it here. No Stripe fee is counted for it. -->
-                        @if (canMarkInvoicePaid(row) && markingInvoicePaidKey !== row.key) {
+                        @if (canMarkInvoicePaid(row) && markingInvoicePaidKey() !== row.key) {
                         <button type="button" class="payment-row__edit payment-row__mark-paid"
                                 (click)="startMarkInvoicePaid(row)"
                                 title="The customer paid this invoice by bank transfer, Zelle, cash or check">Mark paid</button>
                         }
-                        @if (markingInvoicePaidKey === row.key) {
+                        @if (markingInvoicePaidKey() === row.key) {
                         <div class="manual-pay-form">
                           <div class="manual-pay-row">
                             <label>Method</label>
@@ -1879,22 +1879,22 @@
                             <input type="text" [(ngModel)]="markInvoicePaidNotes" maxlength="1000" placeholder="Optional" />
                           </div>
                           <div class="manual-pay-actions">
-                            <button type="button" class="action-btn primary" (click)="confirmMarkInvoicePaid(row)" [disabled]="savingMarkInvoicePaid">
-                              {{ savingMarkInvoicePaid ? 'Saving...' : 'Confirm ' + methodLabel(markInvoicePaidMethod) + ' payment of $' + row.amount.toFixed(2) }}
+                            <button type="button" class="action-btn primary" (click)="confirmMarkInvoicePaid(row)" [disabled]="savingMarkInvoicePaid()">
+                              {{ savingMarkInvoicePaid() ? 'Saving...' : 'Confirm ' + methodLabel(markInvoicePaidMethod()) + ' payment of $' + row.amount.toFixed(2) }}
                             </button>
-                            <button type="button" class="action-btn" (click)="markingInvoicePaidKey = null" [disabled]="savingMarkInvoicePaid">Cancel</button>
+                            <button type="button" class="action-btn" (click)="markingInvoicePaidKey.set(null)" [disabled]="savingMarkInvoicePaid()">Cancel</button>
                           </div>
                         </div>
                         }
 
                         <!-- A payment made ONLINE can have its official receipt emailed to the
                              customer, again if needed. Which rows qualify is the server's call. -->
-                        @if (canSendReceipt(row) && sendingReceiptKey !== row.key) {
+                        @if (canSendReceipt(row) && sendingReceiptKey() !== row.key) {
                         <button type="button" class="payment-row__edit payment-row__receipt"
                                 (click)="startSendReceipt(row)"
                                 title="Email the customer the official receipt for this payment">Send Receipt</button>
                         }
-                        @if (sendingReceiptKey === row.key) {
+                        @if (sendingReceiptKey() === row.key) {
                         <div class="manual-pay-form">
                           <div class="manual-pay-row">
                             <label>Send to</label>
@@ -1902,22 +1902,22 @@
                           </div>
                           <div class="manual-pay-actions">
                             <button type="button" class="action-btn primary" (click)="confirmSendReceipt(row)"
-                                    [disabled]="savingReceipt || !receiptEmailInput.trim()">
-                              {{ savingReceipt ? 'Sending...' : 'Send receipt' }}
+                                    [disabled]="savingReceipt() || !receiptEmailInput().trim()">
+                              {{ savingReceipt() ? 'Sending...' : 'Send receipt' }}
                             </button>
-                            <button type="button" class="action-btn" (click)="sendingReceiptKey = null" [disabled]="savingReceipt">Cancel</button>
+                            <button type="button" class="action-btn" (click)="sendingReceiptKey.set(null)" [disabled]="savingReceipt()">Cancel</button>
                           </div>
                         </div>
                         }
 
                         <!-- A payment an admin RECORDED (Zelle / cash / check) can be corrected, and an
                              edit amount confirmed by mistake can be marked unpaid again. -->
-                        @if (canEditManualPayment(row) && editingManualPaymentKey !== row.key) {
+                        @if (canEditManualPayment(row) && editingManualPaymentKey() !== row.key) {
                         <button type="button" class="payment-row__edit"
                                 (click)="startEditManualPayment(row)"
                                 title="Correct this manually recorded payment">Edit</button>
                         }
-                        @if (editingManualPaymentKey === row.key) {
+                        @if (editingManualPaymentKey() === row.key) {
                         <div class="manual-pay-form">
                           <div class="manual-pay-row">
                             <label>Method</label>
@@ -1936,17 +1936,17 @@
                             <input type="text" [(ngModel)]="manualEditNotes" placeholder="Optional" />
                           </div>
                           <div class="manual-pay-actions">
-                            <button type="button" class="action-btn primary" (click)="saveManualPaymentEdit(row)" [disabled]="savingManualEdit">
-                              {{ savingManualEdit ? 'Saving...' : 'Save' }}
+                            <button type="button" class="action-btn primary" (click)="saveManualPaymentEdit(row)" [disabled]="savingManualEdit()">
+                              {{ savingManualEdit() ? 'Saving...' : 'Save' }}
                             </button>
                             @if (row.update) {
                             <button type="button" class="action-btn danger"
-                                    (click)="revertManualPayment(row)" [disabled]="savingManualEdit"
+                                    (click)="revertManualPayment(row)" [disabled]="savingManualEdit()"
                                     title="It was not actually paid — the amount is owed again">
                               Mark as unpaid
                             </button>
                             }
-                            <button type="button" class="action-btn" (click)="cancelManualPaymentEdit()" [disabled]="savingManualEdit">Cancel</button>
+                            <button type="button" class="action-btn" (click)="cancelManualPaymentEdit()" [disabled]="savingManualEdit()">Cancel</button>
                           </div>
                         </div>
                         }
@@ -1958,9 +1958,9 @@
 
                     <!-- Only reachable when the price was lowered after a deposit. Reported for a
                          person to refund; nothing refunds it automatically. -->
-                    @if (partialBalance!.overpaidAmount > 0) {
+                    @if (partialBalance()!.overpaidAmount > 0) {
                     <div class="payments-warning">
-                      ⚠ This order has taken ${{ partialBalance!.overpaidAmount.toFixed(2) }} more than
+                      ⚠ This order has taken ${{ partialBalance()!.overpaidAmount.toFixed(2) }} more than
                       it now costs. Refund the difference from the Refund action above.
                     </div>
                     }
@@ -1988,18 +1988,18 @@
                       <div class="pending-request-actions">
                         <button type="button" class="action-btn small"
                                 (click)="resendPartialPaymentLink(pending)"
-                                [disabled]="loadingStates.partialPayment">
+                                [disabled]="loadingStates().partialPayment">
                           {{ pending.notificationSentAt ? 'Send again' : 'Send link' }}
                         </button>
                         <button type="button" class="action-btn small danger"
                                 (click)="cancelPartialPaymentRequest(pending)"
-                                [disabled]="loadingStates.partialPayment">
+                                [disabled]="loadingStates().partialPayment">
                           Cancel request
                         </button>
-                        @if (canRecordPartialManualPayment() && recordingManualPartialPaymentForId !== pending.id) {
+                        @if (canRecordPartialManualPayment() && recordingManualPartialPaymentForId() !== pending.id) {
                         <button type="button" class="action-btn small"
                                 (click)="openPartialManualPaymentForm(pending)"
-                                [disabled]="loadingStates.partialPayment"
+                                [disabled]="loadingStates().partialPayment"
                                 title="Mark this slice as paid by Zelle / Cash / Check / Invoice — the alternative to sending the card link">
                           Record manual payment
                         </button>
@@ -2010,7 +2010,7 @@
                            it's going on a commercial invoice. This is what makes a split "part
                            card, part something else" possible: request a slice, then record it
                            here instead of sending the Stripe link. -->
-                      @if (recordingManualPartialPaymentForId === pending.id) {
+                      @if (recordingManualPartialPaymentForId() === pending.id) {
                       <div class="manual-pay-form">
                         <div class="manual-pay-row">
                           <label>Method</label>
@@ -2032,12 +2032,12 @@
                         <div class="manual-pay-actions">
                           <button type="button" class="action-btn primary"
                                   (click)="confirmPartialManualPayment(pending)"
-                                  [disabled]="savingPartialManualPayment">
-                            {{ savingPartialManualPayment ? 'Saving...' : 'Confirm ' + methodLabel(partialManualPaymentMethod) + ' payment of $' + pending.requestedAmount.toFixed(2) }}
+                                  [disabled]="savingPartialManualPayment()">
+                            {{ savingPartialManualPayment() ? 'Saving...' : 'Confirm ' + methodLabel(partialManualPaymentMethod()) + ' payment of $' + pending.requestedAmount.toFixed(2) }}
                           </button>
                           <button type="button" class="action-btn"
                                   (click)="cancelPartialManualPayment()"
-                                  [disabled]="savingPartialManualPayment">Cancel</button>
+                                  [disabled]="savingPartialManualPayment()">Cancel</button>
                         </div>
                       </div>
                       }
@@ -2046,7 +2046,7 @@
 
                     <!-- Ask for the next amount. Hidden while a request is live, and while the
                          order can't take one at all — the server says which, and why. -->
-                    @if (partialBalance!.canRequestPartialPayment) {
+                    @if (partialBalance()!.canRequestPartialPayment) {
                     <div class="request-payment-form">
                       <label class="request-payment-label" for="partial-amount">
                         Ask the customer for
@@ -2055,32 +2055,32 @@
                         <div class="amount-input">
                           <span class="currency">$</span>
                           <input id="partial-amount" type="number" min="0.50" step="0.01"
-                                 [max]="partialBalance!.amountDue"
+                                 [max]="partialBalance()!.amountDue"
                                  [(ngModel)]="partialAmountInput"
-                                 [disabled]="loadingStates.partialPayment"
+                                 [disabled]="loadingStates().partialPayment"
                                  placeholder="0.00">
                         </div>
                         <button type="button" class="action-btn small primary"
                                 (click)="requestPartialPayment()"
-                                [disabled]="loadingStates.partialPayment">
-                          {{ loadingStates.partialPayment ? 'Sending…' : 'Request & send link' }}
+                                [disabled]="loadingStates().partialPayment">
+                          {{ loadingStates().partialPayment ? 'Sending…' : 'Request & send link' }}
                         </button>
                       </div>
 
                       <input type="text" class="request-payment-note"
                              [(ngModel)]="partialNoteInput"
-                             [disabled]="loadingStates.partialPayment"
+                             [disabled]="loadingStates().partialPayment"
                              maxlength="500"
                              placeholder="Internal note (optional) — e.g. deposit agreed on the phone">
 
                       <div class="request-payment-channels">
                         <label>
-                          <input type="checkbox" [(ngModel)]="partialChannels.email"
-                                 [disabled]="loadingStates.partialPayment"> Email
+                          <input type="checkbox" [(ngModel)]="partialChannels().email"
+                                 [disabled]="loadingStates().partialPayment"> Email
                         </label>
                         <label>
-                          <input type="checkbox" [(ngModel)]="partialChannels.sms"
-                                 [disabled]="loadingStates.partialPayment"> Text message
+                          <input type="checkbox" [(ngModel)]="partialChannels().sms"
+                                 [disabled]="loadingStates().partialPayment"> Text message
                         </label>
                         <span class="request-payment-hint">
                           Leave both unticked to create the request without telling the customer,
@@ -2091,7 +2091,7 @@
                       <!-- The account-email warning the other send actions carry: this one sends to
                            the ORDER's contact address, falling back to the account, so it can still
                            go out when the account has none. -->
-                      @if (customerHasNoAccountEmail && partialChannels.email) {
+                      @if (customerHasNoAccountEmail && partialChannels().email) {
                       <div class="request-payment-hint warn">
                         This customer's account has no email address. The request will go to the
                         order's contact address if it has one, otherwise only the text is sent.
@@ -2105,42 +2105,42 @@
                       {{ refusal }}
                     </p>
                     }
-                    @if (partialPaymentMessage) {
-                    <div class="payments-message">{{ partialPaymentMessage }}</div>
+                    @if (partialPaymentMessage()) {
+                    <div class="payments-message">{{ partialPaymentMessage() }}</div>
                     }
-                    @if (partialPaymentError) {
-                    <div class="payments-error">{{ partialPaymentError }}</div>
+                    @if (partialPaymentError()) {
+                    <div class="payments-error">{{ partialPaymentError() }}</div>
                     }
                   </div>
                   }
 
                   <!-- A weekly-flat-fee operational cleaning has no price of its own: the contract's
                        weekly invoice is the charge. Said instead of a breakdown of $0.00s. -->
-                  @if (!editingOrder && selectedOrder.billedByContractLabel) {
+                  @if (!editingOrder() && selectedOrder()!.billedByContractLabel) {
                   <div class="billed-by-contract-note">
-                    <strong>{{ selectedOrder.billedByContractLabel }}.</strong>
+                    <strong>{{ selectedOrder()!.billedByContractLabel }}.</strong>
                     This cleaning is an operational service record; the customer is charged through
                     the contract's weekly invoice, not per cleaning.
                   </div>
                   }
 
                   <!-- Pricing Breakdown - New Row with 3 Columns -->
-                  @if (!editingOrder && !selectedOrder.billedByContractLabel) {
+                  @if (!editingOrder() && !selectedOrder()!.billedByContractLabel) {
                   <div class="pricing-breakdown-row">
                     <!-- Original Pricing Column -->
-                    @if ((selectedOrder.initialTotal && selectedOrder.initialTotal > 0 && selectedOrder.initialTotal !== selectedOrder.total) || 
-                                (orderUpdateHistory && orderUpdateHistory.length > 0)) {
+                    @if ((selectedOrder()!.initialTotal && selectedOrder()!.initialTotal > 0 && selectedOrder()!.initialTotal !== selectedOrder()!.total) || 
+                                (orderUpdateHistory() && orderUpdateHistory().length > 0)) {
                   <div class="pricing-column original-pricing" 
                         >
                       <h4>Original Pricing</h4>
                       <div class="pricing-content">
                         <p><strong>Subtotal:</strong>
-                          ${{formatCurrency(selectedOrder.initialTotal > 0 ? selectedOrder.initialSubTotal :
-                                           (orderUpdateHistory && orderUpdateHistory.length > 0 ? orderUpdateHistory[0].originalSubTotal : 0))}}
+                          ${{formatCurrency(selectedOrder()!.initialTotal > 0 ? selectedOrder()!.initialSubTotal :
+                                           (orderUpdateHistory() && orderUpdateHistory().length > 0 ? orderUpdateHistory()[0].originalSubTotal : 0))}}
                         </p>
                         <p><strong>Tax:</strong>
-                          ${{formatCurrency(selectedOrder.initialTotal > 0 ? selectedOrder.initialTax :
-                                           (orderUpdateHistory && orderUpdateHistory.length > 0 ? orderUpdateHistory[0].originalTax : 0))}}
+                          ${{formatCurrency(selectedOrder()!.initialTotal > 0 ? selectedOrder()!.initialTax :
+                                           (orderUpdateHistory() && orderUpdateHistory().length > 0 ? orderUpdateHistory()[0].originalTax : 0))}}
                         </p>
                         <!-- Tips for Cleaners is intentionally NOT shown here — it lives in the
                              summary bar at the top of the panel. -->
@@ -2156,7 +2156,7 @@
                         <!-- Original subscription discount (derived from discount rate × original subtotal) -->
                         @if (getOriginalSubscriptionDiscountAmount() > 0) {
                         <p>
-                          <strong>Subscription Discount ({{selectedOrder.subscriptionName}}):</strong>
+                          <strong>Subscription Discount ({{selectedOrder()!.subscriptionName}}):</strong>
                           <span class="discount">-${{formatCurrency(getOriginalSubscriptionDiscountAmount())}}</span>
                         </p>
                         }
@@ -2170,101 +2170,101 @@
 
                     <!-- Current Pricing Column -->
                     <div class="pricing-column current-pricing">
-                      <h4>{{ (selectedOrder.initialTotal && selectedOrder.initialTotal !== selectedOrder.total) || 
-                             (orderUpdateHistory && orderUpdateHistory.length > 0) ? 'Current Pricing' : 'Order Pricing' }}</h4>
+                      <h4>{{ (selectedOrder()!.initialTotal && selectedOrder()!.initialTotal !== selectedOrder()!.total) || 
+                             (orderUpdateHistory() && orderUpdateHistory().length > 0) ? 'Current Pricing' : 'Order Pricing' }}</h4>
                       <div class="pricing-content">
-                        <p><strong>Subtotal:</strong> ${{formatCurrency(selectedOrder.subTotal)}}</p>
-                        <p><strong>Tax:</strong> ${{formatCurrency(selectedOrder.tax)}}</p>
+                        <p><strong>Subtotal:</strong> ${{formatCurrency(selectedOrder()!.subTotal)}}</p>
+                        <p><strong>Tax:</strong> ${{formatCurrency(selectedOrder()!.tax)}}</p>
                         <!-- Tips for Cleaners is intentionally NOT shown here — it lives in the
                              summary bar at the top of the panel. -->
                         <!-- Tips for Company is RETIRED and never displayed. Any stored value on a
                              legacy order is still excluded from the tip-free total below. -->
 
                         <!-- Subscription Discount -->
-                        @if (selectedOrder.subscriptionDiscountAmount && selectedOrder.subscriptionDiscountAmount > 0) {
+                        @if (selectedOrder()!.subscriptionDiscountAmount && selectedOrder()!.subscriptionDiscountAmount! > 0) {
                         <p>
-                          <strong>Subscription Discount ({{selectedOrder.subscriptionName}}):</strong>
-                          <span class="discount">-${{formatCurrency(selectedOrder.subscriptionDiscountAmount)}}</span>
+                          <strong>Subscription Discount ({{selectedOrder()!.subscriptionName}}):</strong>
+                          <span class="discount">-${{formatCurrency(selectedOrder()!.subscriptionDiscountAmount!)}}</span>
                         </p>
                         }
 
                         <!-- Loyalty Discount — show alongside other admin breakdown rows so the
                              admin can see what was applied on this order. -->
-                        @if (selectedOrder.loyaltyDiscountAmount && selectedOrder.loyaltyDiscountAmount > 0) {
+                        @if (selectedOrder()!.loyaltyDiscountAmount && selectedOrder()!.loyaltyDiscountAmount! > 0) {
                         <p>
-                          <strong>Loyalty Discount ({{selectedOrder.loyaltyDiscountPercentage}}%):</strong>
-                          <span class="discount">-${{formatCurrency(selectedOrder.loyaltyDiscountAmount)}}</span>
+                          <strong>Loyalty Discount ({{selectedOrder()!.loyaltyDiscountPercentage}}%):</strong>
+                          <span class="discount">-${{formatCurrency(selectedOrder()!.loyaltyDiscountAmount!)}}</span>
                         </p>
                         }
 
                         <!-- Special Offer Discount -->
-                        @if (selectedOrder.specialOfferName && selectedOrder.discountAmount > 0) {
+                        @if (selectedOrder()!.specialOfferName && selectedOrder()!.discountAmount > 0) {
                         <p>
-                          <strong>{{selectedOrder.specialOfferName}}:</strong>
-                          <span class="discount">-${{formatCurrency(selectedOrder.discountAmount)}}</span>
+                          <strong>{{selectedOrder()!.specialOfferName}}:</strong>
+                          <span class="discount">-${{formatCurrency(selectedOrder()!.discountAmount)}}</span>
                         </p>
                         }
 
                         <!-- Promo Code Discount -->
-                        @if (!selectedOrder.specialOfferName && selectedOrder.promoCodeDetails && selectedOrder.discountAmount > 0) {
+                        @if (!selectedOrder()!.specialOfferName && selectedOrder()!.promoCodeDetails && selectedOrder()!.discountAmount > 0) {
                         <p>
-                          <strong>Promo Code {{selectedOrder.promoCodeDetails}}:</strong>
-                          <span class="discount">-${{formatCurrency(selectedOrder.discountAmount)}}</span>
+                          <strong>Promo Code {{selectedOrder()!.promoCodeDetails}}:</strong>
+                          <span class="discount">-${{formatCurrency(selectedOrder()!.discountAmount)}}</span>
                         </p>
                         }
 
                         <!-- Legacy Discount (fallback) -->
-                        @if (!selectedOrder.specialOfferName && !selectedOrder.promoCodeDetails && selectedOrder.discountAmount > 0) {
+                        @if (!selectedOrder()!.specialOfferName && !selectedOrder()!.promoCodeDetails && selectedOrder()!.discountAmount > 0) {
                         <p>
                           <strong>Discount:</strong>
-                          <span class="discount">-${{formatCurrency(selectedOrder.discountAmount)}}</span>
+                          <span class="discount">-${{formatCurrency(selectedOrder()!.discountAmount)}}</span>
                         </p>
                         }
 
                         <!-- Gift Card -->
-                        @if (selectedOrder.giftCardDetails && (selectedOrder.giftCardAmountUsed || 0) > 0) {
+                        @if (selectedOrder()!.giftCardDetails && (selectedOrder()!.giftCardAmountUsed || 0) > 0) {
                         <p>
-                          <strong>Gift Card {{selectedOrder.giftCardDetails}}:</strong>
-                          <span class="discount">-${{formatCurrency(selectedOrder.giftCardAmountUsed || 0)}}</span>
+                          <strong>Gift Card {{selectedOrder()!.giftCardDetails}}:</strong>
+                          <span class="discount">-${{formatCurrency(selectedOrder()!.giftCardAmountUsed || 0)}}</span>
                         </p>
                         }
 
                         <!-- Bubble Points -->
-                        @if ((selectedOrder.pointsRedeemed || 0) > 0) {
+                        @if ((selectedOrder()!.pointsRedeemed || 0) > 0) {
                         <p>
-                          <strong>Bubble Points ({{selectedOrder.pointsRedeemed}} pts):</strong>
-                          <span class="discount">-${{formatCurrency(selectedOrder.pointsRedeemedDiscount || 0)}}</span>
+                          <strong>Bubble Points ({{selectedOrder()!.pointsRedeemed}} pts):</strong>
+                          <span class="discount">-${{formatCurrency(selectedOrder()!.pointsRedeemedDiscount || 0)}}</span>
                         </p>
                         }
 
                         <!-- Reward Balance -->
-                        @if ((selectedOrder.rewardBalanceUsed || 0) > 0) {
+                        @if ((selectedOrder()!.rewardBalanceUsed || 0) > 0) {
                         <p>
                           <strong>Reward Balance:</strong>
-                          <span class="discount">-${{formatCurrency(selectedOrder.rewardBalanceUsed || 0)}}</span>
+                          <span class="discount">-${{formatCurrency(selectedOrder()!.rewardBalanceUsed || 0)}}</span>
                         </p>
                         }
 
                         <div class="total-line">
                           <strong>Current Total (no tips):</strong> ${{formatCurrency(getCurrentTotalWithoutTips())}}
                         </div>
-                        @if ((selectedOrder.pointsEarned || 0) > 0) {
+                        @if ((selectedOrder()!.pointsEarned || 0) > 0) {
                         <p class="pts-earned-line">
                           <strong>🫧 Points earned:</strong>
-                          <span class="pts-earned-val">+{{ selectedOrder.pointsEarned | number }} pts</span>
+                          <span class="pts-earned-val">+{{ selectedOrder()!.pointsEarned | number }} pts</span>
                         </p>
                         }
 
-                        @if (selectedOrder.paymentNotes) {
+                        @if (selectedOrder()!.paymentNotes) {
                         <p class="payment-notes-line">
-                          <strong>Payment Notes:</strong> {{ selectedOrder.paymentNotes }}
+                          <strong>Payment Notes:</strong> {{ selectedOrder()!.paymentNotes }}
                         </p>
                         }
                       </div>
                     </div>
 
                     <!-- Loading indicator for update history -->
-                    @if (loadingUpdateHistory) {
+                    @if (loadingUpdateHistory()) {
                     <div class="loading-history">
                       <small>Loading update history...</small>
                     </div>
@@ -2276,13 +2276,13 @@
                        than a control buried in the edit form: a schedule is a fact about the
                        CUSTOMER'S arrangement, not a property of this one order, and it creates
                        real bookings weeks ahead that somebody has to be able to see. -->
-                  @if (!editingOrder) {
+                  @if (!editingOrder()) {
                   <app-recurring-series-panel
                     class="assigned-cleaners-section"
-                    [orderId]="selectedOrder.id"
-                    [orderServiceDate]="selectedOrder.serviceDate"
-                    [canCreate]="userPermissions.permissions.canCreate"
-                    [canUpdate]="userPermissions.permissions.canUpdate"
+                    [orderId]="selectedOrder()!.id"
+                    [orderServiceDate]="selectedOrder()!.serviceDate"
+                    [canCreate]="userPermissions().permissions.canCreate"
+                    [canUpdate]="userPermissions().permissions.canUpdate"
                     (ordersGenerated)="onRecurringOrdersGenerated()">
                   </app-recurring-series-panel>
                   }
@@ -2291,7 +2291,7 @@
                        NOT gated on there being something left to refund, because a fully-refunded
                        order with no history rows is exactly the case "Sync from Stripe" exists to
                        repair. "Available to refund" is read live from the payment provider. -->
-                  @if (!editingOrder && isSuperAdmin && refundSummaryMatchesPanel && refundSummary && (refundSummary.totalCharged > 0 || refundSummary.refunds.length > 0)) {
+                  @if (!editingOrder() && isSuperAdmin() && refundSummaryMatchesPanel && refundSummary() && (refundSummary()!.totalCharged > 0 || refundSummary()!.refunds.length > 0)) {
                   <div
                        class="refund-section">
                     <div class="refund-header">
@@ -2299,9 +2299,9 @@
                       <div class="refund-header-actions">
                         <button type="button" class="action-btn small refund-sync-btn"
                                 (click)="syncRefundsFromStripe()"
-                                [disabled]="isSyncingRefunds"
+                                [disabled]="isSyncingRefunds()"
                                 title="Check Stripe for refunds that were issued outside this panel and record them here">
-                          {{ isSyncingRefunds ? 'Checking Stripe…' : 'Sync from Stripe' }}
+                          {{ isSyncingRefunds() ? 'Checking Stripe…' : 'Sync from Stripe' }}
                         </button>
                         @if (canRefundSelectedOrder) {
                         <button type="button" class="action-btn danger refund-btn"
@@ -2314,7 +2314,7 @@
 
                     <!-- A chargeback never shows up in Stripe's refunded amount, so without this
                          the order would read as "nothing refunded, all settled". -->
-                    @if (refundSummary.hasDispute) {
+                    @if (refundSummary()!.hasDispute) {
                     <div class="refund-dispute-warning">
                       ⚠ This order has a <strong>disputed charge (chargeback)</strong>. A dispute is not a
                       refund — it is not counted in the totals below and was not imported. Review it in the
@@ -2323,36 +2323,36 @@
                     }
 
                     <!-- Money refunded at Stripe with no record here — the prompt to hit Sync. -->
-                    @if (refundSummary.unrecordedRefundAmount > 0) {
+                    @if (refundSummary()!.unrecordedRefundAmount > 0) {
                     <div class="refund-unrecorded-note">
-                      ${{ formatCurrency(refundSummary.unrecordedRefundAmount) }} was refunded in Stripe but
+                      ${{ formatCurrency(refundSummary()!.unrecordedRefundAmount) }} was refunded in Stripe but
                       isn't recorded here yet. Click <strong>Sync from Stripe</strong> to import it.
                     </div>
                     }
 
                     <div class="refund-totals">
-                      <span><strong>Paid by card:</strong> ${{ formatCurrency(refundSummary.totalCharged) }}</span>
-                      @if (refundSummary.totalRefunded > 0) {
+                      <span><strong>Paid by card:</strong> ${{ formatCurrency(refundSummary()!.totalCharged) }}</span>
+                      @if (refundSummary()!.totalRefunded > 0) {
                       <span>
-                        <strong>Already refunded:</strong> ${{ formatCurrency(refundSummary.totalRefunded) }}
+                        <strong>Already refunded:</strong> ${{ formatCurrency(refundSummary()!.totalRefunded) }}
                       </span>
                       }
-                      @if (refundSummary.canRefund) {
+                      @if (refundSummary()!.canRefund) {
                       <span class="refund-available">
-                        <strong>Available to refund:</strong> ${{ formatCurrency(refundSummary.remainingRefundable) }}
+                        <strong>Available to refund:</strong> ${{ formatCurrency(refundSummary()!.remainingRefundable) }}
                       </span>
                       }
-                      @if (!refundSummary.canRefund) {
+                      @if (!refundSummary()!.canRefund) {
                       <span class="refund-unavailable">
-                        {{ refundSummary.unavailableReason }}
+                        {{ refundSummary()!.unavailableReason }}
                       </span>
                       }
                     </div>
 
-                    @if (refundSummary.refunds.length > 0) {
+                    @if (refundSummary()!.refunds.length > 0) {
                     <div class="refund-history">
                       <h5>Refund history</h5>
-                      @for (r of refundSummary.refunds; track r.id) {
+                      @for (r of refundSummary()!.refunds; track r.id) {
                       <div class="refund-entry"
                            [class.is-failed]="r.status === 'Failed'">
                         <span class="refund-line">
@@ -2379,9 +2379,9 @@
                           @if (!r.emailSent && r.status !== 'Failed') {
                           <button type="button" class="refund-send-email-btn"
                                   (click)="sendRefundEmail(r)"
-                                  [disabled]="sendingRefundEmailId !== null"
+                                  [disabled]="sendingRefundEmailId() !== null"
                                   title="Send the customer a refund confirmation email now">
-                            {{ sendingRefundEmailId === r.id ? 'Sending…' : 'Send email' }}
+                            {{ sendingRefundEmailId() === r.id ? 'Sending…' : 'Send email' }}
                           </button>
                           }
                         </span>
@@ -2399,21 +2399,21 @@
     }
 
                   <!-- ═══════════════ CLEANERS ═══════════════ -->
-                  @if (!editingOrder && orderPanelTab === 'cleaners') {
-                  @if (userPermissions.permissions.canView) {
+                  @if (!editingOrder() && orderPanelTab() === 'cleaners') {
+                  @if (userPermissions().permissions.canView) {
                   <div class="order-top-actions">
                     <button class="action-btn assign-cleaners"
-                            (click)="openCleanerAssignmentModal(selectedOrder.id)"
-                            [disabled]="loadingStates.assigningCleaners">
-                      {{ loadingStates.assigningCleaners ? 'Assigning...' : 'Assign Cleaners' }}
+                            (click)="openCleanerAssignmentModal(selectedOrder()!.id)"
+                            [disabled]="loadingStates().assigningCleaners">
+                      {{ loadingStates().assigningCleaners ? 'Assigning...' : 'Assign Cleaners' }}
                     </button>
-                    @if (getAssignedCleanersWithIds(selectedOrder.id).length > 0) {
+                    @if (getAssignedCleanersWithIds(selectedOrder()!.id).length > 0) {
                     <button
                             type="button"
                             class="action-btn send-assignment-mail"
-                            (click)="sendCleanerAssignmentMailsForOrder(selectedOrder.id)"
-                            [disabled]="loadingStates.sendAssignmentMails || getPendingAssignmentEmailCleaners(selectedOrder.id).length === 0">
-                      {{ loadingStates.sendAssignmentMails ? 'Sending…' : (getPendingAssignmentEmailCleaners(selectedOrder.id).length > 0 ? 'Send assignment email (' + getPendingAssignmentEmailCleaners(selectedOrder.id).length + ' pending)' : 'All cleaners notified') }}
+                            (click)="sendCleanerAssignmentMailsForOrder(selectedOrder()!.id)"
+                            [disabled]="loadingStates().sendAssignmentMails || getPendingAssignmentEmailCleaners(selectedOrder()!.id).length === 0">
+                      {{ loadingStates().sendAssignmentMails ? 'Sending…' : (getPendingAssignmentEmailCleaners(selectedOrder()!.id).length > 0 ? 'Send assignment email (' + getPendingAssignmentEmailCleaners(selectedOrder()!.id).length + ' pending)' : 'All cleaners notified') }}
                     </button>
                     }
                   </div>
@@ -2430,7 +2430,7 @@
                     list far below the pricing tables — so answering "who is on this and what does
                     it cost" meant scrolling past everything twice.
                   -->
-                  @if (!editingOrder) {
+                  @if (!editingOrder()) {
                   <div class="assigned-cleaners-section cleaners-wages-card">
                     <h4>Wages</h4>
 
@@ -2440,29 +2440,29 @@
                          line in Edit Order — so it gets no Edit button (canEditMaidsCountFromWages). -->
                     <p class="cleaners-count-row">
                       <strong>Cleaners Count:</strong>
-                      @if (!editingMaidsCount) {
-                        {{selectedOrder.maidsCount}}@if (getSuggestedMaidsCountForOrder(selectedOrder); as suggested) {
+                      @if (!editingMaidsCount()) {
+                        {{selectedOrder()!.maidsCount}}@if (getSuggestedMaidsCountForOrder(selectedOrder()!); as suggested) {
  <span class="suggested-maids-hint">(suggested: {{suggested}})</span>
                         }
                         @if (canEditMaidsCountFromWages()) {
                         <button type="button" class="action-btn small edit"
-                                [disabled]="savingPayroll"
+                                [disabled]="savingPayroll()"
                                 (click)="startEditMaidsCount()"
                                 title="Set how many cleaners this job is staffed for">
                           Edit
                         </button>
                         }
                       }
-                      @if (editingMaidsCount) {
+                      @if (editingMaidsCount()) {
                         <input type="number" min="1" step="1" class="maids-count-input"
                                [(ngModel)]="maidsCountInput"
                                (keydown.enter)="saveMaidsCount()"
                                (keydown.escape)="cancelEditMaidsCount()"
                                aria-label="Cleaners count">
-                        <button type="button" class="action-btn small save" [disabled]="savingPayroll" (click)="saveMaidsCount()">
-                          {{ savingPayroll ? 'Saving…' : 'Save' }}
+                        <button type="button" class="action-btn small save" [disabled]="savingPayroll()" (click)="saveMaidsCount()">
+                          {{ savingPayroll() ? 'Saving…' : 'Save' }}
                         </button>
-                        <button type="button" class="action-btn small discard" [disabled]="savingPayroll" (click)="cancelEditMaidsCount()">Cancel</button>
+                        <button type="button" class="action-btn small discard" [disabled]="savingPayroll()" (click)="cancelEditMaidsCount()">Cancel</button>
                       }
                       @if (needsStaffingReviewForSelected()) {
                       <span class="staffing-review-badge" title="Over 6h per cleaner with the current count">⚠ Long job — review cleaner count</span>
@@ -2470,8 +2470,8 @@
                     </p>
                     <!-- The payroll block below prints payrollError itself; this line covers the
                          moment it is not on screen (breakdown not loaded yet). -->
-                    @if (payrollError && editingMaidsCount && !(canViewCleanerPayroll && selectedOrderPayroll)) {
-                    <p class="cleaner-payroll-error">⚠ {{ payrollError }}</p>
+                    @if (payrollError() && editingMaidsCount() && !(canViewCleanerPayroll() && selectedOrderPayroll())) {
+                    <p class="cleaner-payroll-error">⚠ {{ payrollError() }}</p>
                     }
 
                     <!-- The same staffing warnings Outgoing Payments prints for this job —
@@ -2504,13 +2504,13 @@
                            already see it, and widening the block below is about showing Admins
                            MORE, not about taking a field away from anybody. -->
                       <div class="wages-summary">
-                        <span class="wages-figure"><strong>Hourly Price:</strong> ${{selectedOrder.cleanerHourlyRate.toFixed(2)}}/hr</span>
-                        @if (canViewCleanerPayroll) {
+                        <span class="wages-figure"><strong>Hourly Price:</strong> ${{selectedOrder()!.cleanerHourlyRate.toFixed(2)}}/hr</span>
+                        @if (canViewCleanerPayroll()) {
                         <span class="wages-figure"><strong>Total Wages:</strong> ${{getDisplayCleanerTotalSalary().toFixed(2)}}</span>
                         }
-                        @if (canEditCleanerPayroll && selectedOrderPayroll && !editingPayrollForAll) {
+                        @if (canEditCleanerPayroll && selectedOrderPayroll() && !editingPayrollForAll()) {
                         <button type="button" class="action-btn small edit"
-                                [disabled]="savingPayroll"
+                                [disabled]="savingPayroll()"
                                 (click)="startEditPayrollForAll()"
                                 title="Set the hours and rate for every cleaner on this order">
                           Edit all cleaners
@@ -2526,14 +2526,14 @@
                            edited: an override lives on the assignment row and there is nobody
                            behind them. Labels stay put while the values shimmer (project
                            convention). -->
-                      @if (canViewCleanerPayroll) {
+                      @if (canViewCleanerPayroll()) {
                       <div class="cleaner-payroll">
-                        @if (loadingOrderPayroll && !selectedOrderPayroll) {
+                        @if (loadingOrderPayroll() && !selectedOrderPayroll()) {
                         <div class="cleaner-payroll-loading">
                           <span class="shimmer-loading">Loading breakdown…</span>
                         </div>
                         }
-                        @if (selectedOrderPayroll; as payroll) {
+                        @if (selectedOrderPayroll(); as payroll) {
 
                           <!--
                             ONE order-level editor holding BOTH figures, shaped exactly like the
@@ -2546,7 +2546,7 @@
                           <!-- The button that OPENS this editor lives up in the summary row with
                                the two figures it changes; only the open editor renders here, over
                                the lines it is about to move. -->
-                          @if (canEditCleanerPayroll && editingPayrollForAll) {
+                          @if (canEditCleanerPayroll && editingPayrollForAll()) {
                           <div class="cp-order-controls">
                             <div class="cp-order-row cp-edit">
                               <span class="cp-name">All cleaners</span>
@@ -2560,13 +2560,13 @@
                                 <span>$ / hour</span>
                                 <input type="number" min="0" step="0.5" [(ngModel)]="payrollAllRateInput" name="payrollAllRateInput">
                               </label>
-                              <button type="button" class="action-btn small save" [disabled]="savingPayroll" (click)="savePayrollForAll()">
-                                {{ savingPayroll ? 'Saving…' : 'Save' }}
+                              <button type="button" class="action-btn small save" [disabled]="savingPayroll()" (click)="savePayrollForAll()">
+                                {{ savingPayroll() ? 'Saving…' : 'Save' }}
                               </button>
-                              <button type="button" class="action-btn small discard" [disabled]="savingPayroll" (click)="cancelEditPayrollForAll()">Cancel</button>
+                              <button type="button" class="action-btn small discard" [disabled]="savingPayroll()" (click)="cancelEditPayrollForAll()">Cancel</button>
                               @if (payrollHasHoursOverrides()) {
                               <button type="button" class="btn-link"
-                                      [disabled]="savingPayroll"
+                                      [disabled]="savingPayroll()"
                                       (click)="resetPayrollHoursForAll()"
                                       title="Drop every manual hours figure and go back to the even split">
                                 Reset hours to automatic
@@ -2596,7 +2596,7 @@
                               }
                               @if (canEditCleanerPayroll && !line.isUnassignedSlot) {
                               <button type="button" class="action-btn small edit cp-edit-btn"
-                                      [disabled]="savingPayroll"
+                                      [disabled]="savingPayroll()"
                                       (click)="startEditPayrollLine(line)"
                                       title="Change this cleaner's hours or rate on this order">Edit</button>
                               }
@@ -2621,13 +2621,13 @@
                                 <span>$ / hour</span>
                                 <input type="number" min="0" step="0.5" [(ngModel)]="payrollEditRate" name="payrollEditRate">
                               </label>
-                              <button type="button" class="action-btn small save" [disabled]="savingPayroll" (click)="savePayrollLine(line)">
-                                {{ savingPayroll ? 'Saving…' : 'Save' }}
+                              <button type="button" class="action-btn small save" [disabled]="savingPayroll()" (click)="savePayrollLine(line)">
+                                {{ savingPayroll() ? 'Saving…' : 'Save' }}
                               </button>
-                              <button type="button" class="action-btn small discard" [disabled]="savingPayroll" (click)="cancelEditPayrollLine()">Cancel</button>
+                              <button type="button" class="action-btn small discard" [disabled]="savingPayroll()" (click)="cancelEditPayrollLine()">Cancel</button>
                               @if (line.rateOverridden || line.hoursOverridden) {
                               <button type="button" class="btn-link"
-                                      [disabled]="savingPayroll"
+                                      [disabled]="savingPayroll()"
                                       (click)="resetPayrollLineToAutomatic(line)"
                                       title="Drop the manual values and follow the order again">
                                 Reset to automatic
@@ -2637,8 +2637,8 @@
                             }
                           }
 
-                          @if (payrollError) {
-                          <p class="cleaner-payroll-error">⚠ {{ payrollError }}</p>
+                          @if (payrollError()) {
+                          <p class="cleaner-payroll-error">⚠ {{ payrollError() }}</p>
                           }
 
                           @if (getOrderPayrollLines().length === 0) {
@@ -2677,7 +2677,7 @@
                       }
                     </div>
                     }
-                    @if (!loadingStates.assignedCleaners && getAssignedCleanersWithIds(selectedOrder.id).length === 0) {
+                    @if (!loadingStates().assignedCleaners && getAssignedCleanersWithIds(selectedOrder()!.id).length === 0) {
                     <p class="no-cleaners-message"
                       >
                       No cleaners assigned to this order yet.
@@ -2707,16 +2707,16 @@
                             class="cleaner-mail-pending" title="Assignment email not sent yet">Pending email</span>
                       }
                       <button type="button" class="resend-cleaner-mail-btn"
-                              (click)="resendCleanerAssignmentMail(selectedOrder.id, cleaner)"
-                              [disabled]="loadingStates.removingCleaner || isResendingCleanerAssignmentMail(selectedOrder.id, cleaner.id)"
+                              (click)="resendCleanerAssignmentMail(selectedOrder()!.id, cleaner)"
+                              [disabled]="loadingStates().removingCleaner || isResendingCleanerAssignmentMail(selectedOrder()!.id, cleaner.id)"
                               [title]="cleaner.assignmentNotificationSentAt ? 'Resend assignment email' : 'Send assignment email now'">
-                        {{ isResendingCleanerAssignmentMail(selectedOrder.id, cleaner.id) ? 'Sending...' : (cleaner.assignmentNotificationSentAt ? 'Resend email' : 'Send email') }}
+                        {{ isResendingCleanerAssignmentMail(selectedOrder()!.id, cleaner.id) ? 'Sending...' : (cleaner.assignmentNotificationSentAt ? 'Resend email' : 'Send email') }}
                       </button>
                       <button type="button" class="remove-cleaner-btn"
-                              (click)="removeCleanerFromOrder(selectedOrder.id, cleaner.id, cleaner.name)"
-                              [disabled]="loadingStates.removingCleaner"
+                              (click)="removeCleanerFromOrder(selectedOrder()!.id, cleaner.id, cleaner.name)"
+                              [disabled]="loadingStates().removingCleaner"
                               title="Remove cleaner from this order">
-                        {{ loadingStates.removingCleaner ? 'Removing...' : 'Remove' }}
+                        {{ loadingStates().removingCleaner ? 'Removing...' : 'Remove' }}
                       </button>
                     </span>
                   </ng-template>
@@ -2726,23 +2726,23 @@
                        What changed on this order after it was booked, newest first — the order's
                        audit trail reduced to who / when / what moved. The full before-and-after
                        table is still on the Audits tab. -->
-                  @if (!editingOrder && orderPanelTab === 'changes') {
+                  @if (!editingOrder() && orderPanelTab() === 'changes') {
                   <div class="assigned-cleaners-section order-changes-card">
                     <h4>Changes</h4>
-                    @if (loadingOrderChanges && orderChanges.length === 0) {
+                    @if (loadingOrderChanges() && orderChanges().length === 0) {
                     <div class="loading-small">
                       <div class="spinner-small"></div>
                       <span>Loading changes…</span>
                     </div>
                     }
-                    @if (!loadingOrderChanges && orderChanges.length === 0) {
+                    @if (!loadingOrderChanges() && orderChanges().length === 0) {
                     <p class="no-cleaners-message">
                       Nothing has been changed on this order since it was booked.
                     </p>
                     }
-                    @if (orderChanges.length > 0) {
+                    @if (orderChanges().length > 0) {
                     <ol class="order-changes-list">
-                      @for (c of orderChanges; track trackChange($index, c)) {
+                      @for (c of orderChanges(); track trackChange($index, c)) {
                       <li class="order-change" [class.undone]="c.undone">
                         <div class="order-change-head">
                           <span class="order-change-title">{{ c.title }}</span>
@@ -2778,7 +2778,7 @@
 </aside>
 
 <!-- Order photo lightbox -->
-@if (lightboxOrderPhoto) {
+@if (lightboxOrderPhoto(); as lightboxOrderPhoto) {
 <div class="lightbox" (click)="closeOrderLightbox()">
   <img [src]="resolvePhotoUrl(lightboxOrderPhoto)" [alt]="lightboxOrderPhoto.caption || 'Cleaning photo'">
   <button class="lightbox-close" (click)="closeOrderLightbox()">✕</button>
@@ -2786,14 +2786,14 @@
 }
 
 <!-- Pending order edit review modal (SuperAdmin) -->
-@if (selectedPendingEdit != null) {
+@if (selectedPendingEdit() != null) {
 <div class="modal-overlay pending-edit-modal-overlay" (click)="closePendingEditDetail()">
   <div class="modal-content pending-edit-modal" (click)="$event.stopPropagation()">
     <div class="modal-header">
-      <h3>Review order edit — Order #{{ selectedPendingEdit.orderId }}</h3>
+      <h3>Review order edit — Order #{{ selectedPendingEdit()!.orderId }}</h3>
       <button class="close-btn" (click)="closePendingEditDetail()">×</button>
     </div>
-    @if (selectedPendingEdit) {
+    @if (selectedPendingEdit(); as selectedPendingEdit) {
     <div class="modal-body">
       <p class="pending-edit-meta">Requested by <strong>{{ selectedPendingEdit.requestedByName }}</strong> on {{ formatUtcDateTime(selectedPendingEdit.requestedAt) }}</p>
 
@@ -2848,19 +2848,19 @@
       <!-- Requests submitted before the field-level payload existed (order #296 among them) carry
            only the raw update DTO. Say so, and fall back to diffing it against the live order,
            rather than rendering an empty table or failing the panel. -->
-      @if (pendingEditPayloadUnavailable() && !loadingPendingEditDetail) {
+      @if (pendingEditPayloadUnavailable() && !loadingPendingEditDetail()) {
       <p class="pending-edit-legacy">
         This request predates change-request tracking, so what the requester saw was not recorded.
         The table below compares their proposal against the order as it stands now.
       </p>
       }
-      @if (loadingPendingEditDetail) {
+      @if (loadingPendingEditDetail()) {
       <div class="loading-small"><div class="spinner-small"></div> Loading...</div>
       }
-      @if (!loadingPendingEditDetail && getPendingEditChanges().length === 0) {
+      @if (!loadingPendingEditDetail() && getPendingEditChanges().length === 0) {
       <div class="no-changes">No field changes to show (or invalid data).</div>
       }
-      @if (!loadingPendingEditDetail && getPendingEditChanges().length > 0) {
+      @if (!loadingPendingEditDetail() && getPendingEditChanges().length > 0) {
       <div class="pending-edit-changes">
         <table class="changes-table">
           <thead>
@@ -2890,16 +2890,16 @@
       }
     </div>
     }
-    @if (selectedPendingEdit && !loadingPendingEditDetail) {
+    @if (selectedPendingEdit() && !loadingPendingEditDetail()) {
     <div class="modal-actions">
       @if (!pendingEditIsDecided()) {
-      <button class="action-btn btn-approve" (click)="approvePendingOrderEdit(selectedPendingEdit.id)" [disabled]="approvingPendingId === selectedPendingEdit.id">
-        {{ approvingPendingId === selectedPendingEdit.id ? 'Applying...' : 'Approve & apply' }}
+      <button class="action-btn btn-approve" (click)="approvePendingOrderEdit(selectedPendingEdit()!.id)" [disabled]="approvingPendingId() === selectedPendingEdit()!.id">
+        {{ approvingPendingId() === selectedPendingEdit()!.id ? 'Applying...' : 'Approve & apply' }}
       </button>
       }
       @if (!pendingEditIsDecided()) {
-      <button class="action-btn btn-reject" (click)="rejectPendingOrderEdit(selectedPendingEdit.id)" [disabled]="rejectingPendingId === selectedPendingEdit.id">
-        {{ rejectingPendingId === selectedPendingEdit.id ? 'Rejecting...' : 'Reject' }}
+      <button class="action-btn btn-reject" (click)="rejectPendingOrderEdit(selectedPendingEdit()!.id)" [disabled]="rejectingPendingId() === selectedPendingEdit()!.id">
+        {{ rejectingPendingId() === selectedPendingEdit()!.id ? 'Rejecting...' : 'Reject' }}
       </button>
       }
       <button class="action-btn btn-close" (click)="closePendingEditDetail()">Close</button>
@@ -2912,26 +2912,26 @@
 <!-- Save-confirmation modal: shown to whoever applies an order edit directly (SuperAdmin, or an
      Admin granted direct saves). Deliberately the same change table as the approval modal above,
      so a granted Admin confirms exactly what a SuperAdmin would have approved. -->
-@if (showSaveConfirm) {
+@if (showSaveConfirm()) {
 <div class="modal-overlay pending-edit-modal-overlay" (click)="closeSaveConfirm()">
   <div class="modal-content pending-edit-modal" (click)="$event.stopPropagation()">
     <div class="modal-header">
-      <h3>Confirm changes — Order #{{ selectedOrder?.id }}</h3>
-      <button class="close-btn" (click)="closeSaveConfirm()" [disabled]="savingOrder">×</button>
+      <h3>Confirm changes — Order #{{ selectedOrder()?.id }}</h3>
+      <button class="close-btn" (click)="closeSaveConfirm()" [disabled]="savingOrder()">×</button>
     </div>
     <div class="modal-body">
       <p class="pending-edit-hint">Review every change below. Saving applies them to the order immediately.</p>
-      @if (saveConfirmChanges.length === 0) {
+      @if (saveConfirmChanges().length === 0) {
       <div class="no-changes">Nothing has changed — there is nothing to save.</div>
       }
-      @if (saveConfirmChanges.length > 0) {
+      @if (saveConfirmChanges().length > 0) {
       <div class="pending-edit-changes">
         <table class="changes-table">
           <thead>
             <tr><th>Field</th><th>Current</th><th>New</th><th>Difference</th></tr>
           </thead>
           <tbody>
-            @for (ch of saveConfirmChanges; track $index) {
+            @for (ch of saveConfirmChanges(); track $index) {
             <tr [class.change-row-total]="ch.emphasised">
               <td class="field-name">{{ ch.field }}</td>
               <td class="current-val">{{ ch.current }}</td>
@@ -2949,21 +2949,21 @@
     <div class="modal-actions">
       <button class="action-btn btn-approve"
               (click)="confirmSaveOrderEdit()"
-              [disabled]="savingOrder || saveConfirmChanges.length === 0">
-        {{ savingOrder ? 'Saving…' : 'Save changes' }}
+              [disabled]="savingOrder() || saveConfirmChanges().length === 0">
+        {{ savingOrder() ? 'Saving…' : 'Save changes' }}
       </button>
-      <button class="action-btn btn-close" (click)="closeSaveConfirm()" [disabled]="savingOrder">Back to editing</button>
+      <button class="action-btn btn-close" (click)="closeSaveConfirm()" [disabled]="savingOrder()">Back to editing</button>
     </div>
   </div>
 </div>
 }
 
 <!-- Cleaner Assignment Modal -->
-@if (showCleanerModal) {
+@if (showCleanerModal()) {
 <div class="modal-overlay" (click)="closeCleanerModal()">
   <div class="modal-content cleaner-assignment-modal" (click)="$event.stopPropagation()">
     <div class="modal-header">
-      <h3>Assign Cleaners to Order #{{ assigningOrderId }}</h3>
+      <h3>Assign Cleaners to Order #{{ assigningOrderId() }}</h3>
       <button class="close-btn" (click)="closeCleanerModal()">×</button>
     </div>
     
@@ -2985,7 +2985,7 @@
           <span class="show-busy-count">({{ hiddenBusyCleanersCount }} hidden)</span>
           }
         </label>
-        @if (availableCleaners.length > 0 && availableCleanersFiltered.length === 0) {
+        @if (availableCleaners().length > 0 && availableCleanersFiltered.length === 0) {
         <p
            class="cleaner-search-empty">
           No cleaners match your search.
@@ -3059,7 +3059,7 @@
                  min="0"
                  [(ngModel)]="cleanerHourlySalary"
                  class="salary-input">
-          @if (selectedOrder) {
+          @if (selectedOrder()) {
           <span class="salary-hint">
             Est. Total: ${{ getEstimatedTotalSalary().toFixed(2) }}
             ({{ getEstimatedSalaryBreakdown() }})
@@ -3099,8 +3099,8 @@
       <div class="modal-actions">
         <button class="btn-primary"
                 (click)="assignCleanersToOrder()"
-                [disabled]="selectedCleaners.length === 0 || conflictAcknowledgementOwed || loadingStates.assigningCleaners">
-          {{ loadingStates.assigningCleaners ? 'Assigning...' : `Assign ${selectedCleaners.length} Cleaner(s)` }}
+                [disabled]="selectedCleaners().length === 0 || conflictAcknowledgementOwed || loadingStates().assigningCleaners">
+          {{ loadingStates().assigningCleaners ? 'Assigning...' : `Assign ${selectedCleaners().length} Cleaner(s)` }}
         </button>
         <button class="btn-secondary" (click)="closeCleanerModal()">Cancel</button>
       </div>
@@ -3110,11 +3110,11 @@
 }
 
 <!-- Mark as Done Modal -->
-@if (showDoneModal) {
+@if (showDoneModal()) {
 <div class="modal-overlay" (click)="closeDoneModal()">
   <div class="modal-content done-review-modal" (click)="$event.stopPropagation()">
     <div class="modal-header">
-      <h3>Mark Order #{{ doneModalOrder?.id }} as Done</h3>
+      <h3>Mark Order #{{ doneModalOrder()?.id }} as Done</h3>
       <button class="close-btn" (click)="closeDoneModal()">&times;</button>
     </div>
     <div class="modal-body">
@@ -3134,7 +3134,7 @@
           }
         </div>
 
-        @if (donePaymentMethod !== 'Normal') {
+        @if (donePaymentMethod() !== 'Normal') {
           <div class="field">
             <label>Reference</label>
             <input type="text"
@@ -3164,11 +3164,11 @@
 }
 
 <!-- Admin Cancel Order Modal -->
-@if (showAdminCancelModal) {
+@if (showAdminCancelModal()) {
 <div class="modal-overlay" (click)="closeAdminCancelModal()">
   <div class="modal-content admin-cancel-modal" (click)="$event.stopPropagation()">
     <div class="modal-header">
-      <h3>Cancel Order #{{ adminCancelOrderId }}</h3>
+      <h3>Cancel Order #{{ adminCancelOrderId() }}</h3>
       <button class="close-btn" (click)="closeAdminCancelModal()">×</button>
     </div>
 
@@ -3186,7 +3186,7 @@
       <div class="modal-actions">
         <button class="btn-danger"
                 (click)="confirmAdminCancelOrder()"
-                [disabled]="!adminCancelReason.trim()">
+                [disabled]="!adminCancelReason().trim()">
           Confirm Cancellation
         </button>
         <button class="btn-secondary" (click)="closeAdminCancelModal()">Keep Order</button>
@@ -3198,12 +3198,12 @@
 
 <!-- Hide Order Modal (SuperAdmin). Deliberately plain language — the point is that this is
      NOT a delete and is undoable. -->
-@if (hideConfirmOrder) {
+@if (hideConfirmOrder(); as hideConfirmOrder) {
 <div class="modal-overlay" (click)="closeHideConfirm()">
   <div class="modal-content hide-order-modal" (click)="$event.stopPropagation()">
     <div class="modal-header">
       <h3>Hide Order #{{ hideConfirmOrder.id }}?</h3>
-      <button class="close-btn" (click)="closeHideConfirm()" [disabled]="isHidingOrder">&times;</button>
+      <button class="close-btn" (click)="closeHideConfirm()" [disabled]="isHidingOrder()">&times;</button>
     </div>
     <div class="modal-body">
       <div class="hide-order-box">
@@ -3215,10 +3215,10 @@
         </ul>
       </div>
       <div class="modal-actions">
-        <button class="btn-danger" (click)="confirmHideOrder()" [disabled]="isHidingOrder">
-          {{ isHidingOrder ? 'Hiding…' : 'Hide this order' }}
+        <button class="btn-danger" (click)="confirmHideOrder()" [disabled]="isHidingOrder()">
+          {{ isHidingOrder() ? 'Hiding…' : 'Hide this order' }}
         </button>
-        <button class="btn-secondary" (click)="closeHideConfirm()" [disabled]="isHidingOrder">Keep it visible</button>
+        <button class="btn-secondary" (click)="closeHideConfirm()" [disabled]="isHidingOrder()">Keep it visible</button>
       </div>
     </div>
   </div>
@@ -3228,17 +3228,17 @@
 <!-- Refund Modal (SuperAdmin). Two deliberate steps: choose the amount, then confirm.
      Nothing is sent to the payment provider until the second step is confirmed.
      Opens from either the detail panel or a table row — refundOrderId resolves which. -->
-@if (showRefundModal) {
+@if (showRefundModal()) {
 <div class="modal-overlay" (click)="closeRefundModal()">
   <div class="modal-content refund-modal" (click)="$event.stopPropagation()">
     <div class="modal-header">
       <h3>Refund Order #{{ refundOrderId }}</h3>
-      <button class="close-btn" (click)="closeRefundModal()" [disabled]="isRefunding">&times;</button>
+      <button class="close-btn" (click)="closeRefundModal()" [disabled]="isRefunding()">&times;</button>
     </div>
 
     <div class="modal-body">
       <!-- Step 1: pick the amount -->
-      @if (!refundConfirming) {
+      @if (!refundConfirming()) {
         <p class="refund-modal-max">
           Available to refund: <strong>${{ formatCurrency(maxRefundable) }}</strong>
         </p>
@@ -3246,19 +3246,19 @@
         <div class="refund-mode-group">
           <label class="refund-radio">
             <input type="radio" name="refundMode" value="full"
-                   [checked]="refundMode === 'full'"
+                   [checked]="refundMode() === 'full'"
                    (change)="onRefundModeChange('full')">
             <span>Full refund — give back the entire ${{ formatCurrency(maxRefundable) }}</span>
           </label>
           <label class="refund-radio">
             <input type="radio" name="refundMode" value="partial"
-                   [checked]="refundMode === 'partial'"
+                   [checked]="refundMode() === 'partial'"
                    (change)="onRefundModeChange('partial')">
             <span>Partial refund — give back part of it</span>
           </label>
         </div>
 
-        @if (refundMode === 'partial') {
+        @if (refundMode() === 'partial') {
         <div class="refund-amount-group">
           <label for="refundAmount"><strong>Amount to refund</strong></label>
           <div class="refund-amount-input">
@@ -3284,8 +3284,8 @@
           <span>Send confirmation email to the customer</span>
         </label>
 
-        @if (refundError) {
-        <p class="refund-error">{{ refundError }}</p>
+        @if (refundError()) {
+        <p class="refund-error">{{ refundError() }}</p>
         }
 
         <div class="modal-actions">
@@ -3295,7 +3295,7 @@
       }
 
       <!-- Step 2: confirm. Spells out exactly what is about to happen — this cannot be undone. -->
-      @if (refundConfirming) {
+      @if (refundConfirming()) {
         <div class="refund-confirm-box">
           <p class="refund-confirm-lead">
             Refund <strong>${{ formatCurrency(effectiveRefundAmount) }}</strong>
@@ -3305,7 +3305,7 @@
             <li>The money goes back to the card used for this order.</li>
             <li>It usually reaches the customer in 5–10 business days.</li>
             <li>
-              {{ refundSendEmail
+              {{ refundSendEmail()
                   ? 'A confirmation email will be sent to ' + refundOrderCustomerEmail + '.'
                   : 'No email will be sent to the customer.' }}
             </li>
@@ -3313,15 +3313,15 @@
           </ul>
         </div>
 
-        @if (refundError) {
-        <p class="refund-error">{{ refundError }}</p>
+        @if (refundError()) {
+        <p class="refund-error">{{ refundError() }}</p>
         }
 
         <div class="modal-actions">
-          <button class="btn-danger" (click)="submitRefund()" [disabled]="isRefunding">
-            {{ isRefunding ? 'Refunding…' : 'Yes, refund $' + formatCurrency(effectiveRefundAmount) }}
+          <button class="btn-danger" (click)="submitRefund()" [disabled]="isRefunding()">
+            {{ isRefunding() ? 'Refunding…' : 'Yes, refund $' + formatCurrency(effectiveRefundAmount) }}
           </button>
-          <button class="btn-secondary" (click)="cancelRefundConfirm()" [disabled]="isRefunding">Back</button>
+          <button class="btn-secondary" (click)="cancelRefundConfirm()" [disabled]="isRefunding()">Back</button>
         </div>
       }
     </div>
@@ -3331,11 +3331,11 @@
 
 <!-- Send Payment Link Modal — re-sends the original payment-link email/SMS to the
      customer's CURRENT account email/phone (one-time, fires on click only). -->
-@if (showSendPaymentLinkModal) {
+@if (showSendPaymentLinkModal()) {
 <div class="modal-overlay" (click)="closeSendPaymentLinkModal()">
   <div class="modal-content send-payment-link-modal" (click)="$event.stopPropagation()">
     <div class="modal-header">
-      <h3>Send Payment Link — Order #{{ selectedOrder?.id }}</h3>
+      <h3>Send Payment Link — Order #{{ selectedOrder()?.id }}</h3>
       <button class="close-btn" (click)="closeSendPaymentLinkModal()">&times;</button>
     </div>
     <div class="modal-body">
@@ -3352,21 +3352,21 @@
       }
       <div class="send-payment-link-channels">
         <label class="checkbox-row" [class.disabled]="customerHasNoAccountEmail">
-          <input type="checkbox" [(ngModel)]="sendPaymentLinkChannels.email" [disabled]="customerHasNoAccountEmail">
+          <input type="checkbox" [(ngModel)]="sendPaymentLinkChannels().email" [disabled]="customerHasNoAccountEmail">
           <span>Email @if (customerHasNoAccountEmail) {
           <em>— none on the account</em>
           }</span>
         </label>
         <label class="checkbox-row">
-          <input type="checkbox" [(ngModel)]="sendPaymentLinkChannels.sms">
+          <input type="checkbox" [(ngModel)]="sendPaymentLinkChannels().sms">
           <span>Phone (text message)</span>
         </label>
       </div>
       <div class="modal-actions">
         <button class="btn-primary"
                 (click)="confirmSendPaymentLink()"
-                [disabled]="loadingStates.sendPaymentLink || (!sendPaymentLinkChannels.email && !sendPaymentLinkChannels.sms)">
-          {{ loadingStates.sendPaymentLink ? 'Sending…' : 'Send' }}
+                [disabled]="loadingStates().sendPaymentLink || (!sendPaymentLinkChannels().email && !sendPaymentLinkChannels().sms)">
+          {{ loadingStates().sendPaymentLink ? 'Sending…' : 'Send' }}
         </button>
         <button class="btn-secondary" (click)="closeSendPaymentLinkModal()">Cancel</button>
       </div>
@@ -3383,16 +3383,16 @@
      invoice form, where the admin reads the figures and presses Send there. That gap is the
      safety of the whole flow — an invoice going to a client with numbers nobody checked is the
      one outcome this must not make easy. -->
-@if (showSendInvoiceModal) {
+@if (showSendInvoiceModal()) {
 <div class="modal-overlay" (click)="closeSendInvoiceModal()">
   <div class="modal-content send-invoice-modal" (click)="$event.stopPropagation()">
     <div class="modal-header">
-      <h3>Send Invoice — Order #{{ selectedOrder?.id }}</h3>
+      <h3>Send Invoice — Order #{{ selectedOrder()?.id }}</h3>
       <button class="close-btn" (click)="closeSendInvoiceModal()">&times;</button>
     </div>
     <div class="modal-body">
 
-      @if (invoiceClientForOrder) {
+      @if (invoiceClientForOrder(); as invoiceClientForOrder) {
       <p class="send-payment-link-note">
         This cleaning is billed to <strong>{{ invoiceClientForOrder.name }}</strong>. Commercial
         clients pay an invoice rather than a payment link.
@@ -3446,8 +3446,8 @@
             @if (inv.canSend) {
             <button class="btn-primary"
                     (click)="sendInvoiceForOrder(inv)"
-                    [disabled]="sendingInvoiceId !== null || !inv.billingEmail">
-              {{ sendingInvoiceId === inv.id
+                    [disabled]="sendingInvoiceId() !== null || !inv.billingEmail">
+              {{ sendingInvoiceId() === inv.id
                    ? 'Sending…'
                    : (inv.hasBeenSent ? 'Resend invoice' : 'Send invoice') }}
             </button>
@@ -3470,7 +3470,7 @@
 
       <!-- ── Nothing covers it yet ── -->
       @if (coveringInvoices.length === 0) {
-        @if (orderInvoices?.canBeInvoiced && invoiceClientForOrder) {
+        @if (orderInvoices()?.canBeInvoiced && invoiceClientForOrder()) {
         <p class="send-payment-link-note">
           No invoice covers this cleaning yet. Creating one opens the invoice form as a
           <strong>draft</strong> with this cleaning already selected — nothing is emailed until you
@@ -3478,7 +3478,7 @@
         </p>
         }
 
-        @if (!invoiceClientForOrder) {
+        @if (!invoiceClientForOrder()) {
         <div class="send-payment-link-note warn">
           ⚠ This cleaning is not linked to a commercial client, so there is nothing to invoice it
           under. Tick <strong>Business</strong> on the customer's account, or pick the client on
@@ -3486,15 +3486,15 @@
         </div>
         }
 
-        @if (invoiceClientForOrder && orderInvoices && !orderInvoices.canBeInvoiced) {
+        @if (invoiceClientForOrder() && orderInvoices() && !orderInvoices()!.canBeInvoiced) {
         <div class="send-payment-link-note warn"
             >
-          ⚠ {{ orderInvoices.blockedReason }}
+          ⚠ {{ orderInvoices()!.blockedReason }}
         </div>
         }
 
         <div class="modal-actions">
-          @if (orderInvoices?.canBeInvoiced && invoiceClientForOrder) {
+          @if (orderInvoices()?.canBeInvoiced && invoiceClientForOrder()) {
           <button class="btn-primary"
                   (click)="createInvoiceForOrder()">
             Create invoice for this cleaning
@@ -3519,18 +3519,18 @@
      (resend / copy link / void) and issues new ones — the whole balance, a split into several
      invoices, or the amount an edit added after payment. Each is emailed with its PDF attached.
      The server decides what may be billed; this only reports its answer. -->
-@if (showCustomerInvoiceModal) {
+@if (showCustomerInvoiceModal()) {
 <div class="modal-overlay" (click)="closeCustomerInvoiceModal()">
   <div class="modal-content send-invoice-modal" (click)="$event.stopPropagation()">
     <div class="modal-header">
-      <h3>Send Invoice — Order #{{ selectedOrder?.id }}</h3>
+      <h3>Send Invoice — Order #{{ selectedOrder()?.id }}</h3>
       <button class="close-btn" (click)="closeCustomerInvoiceModal()">&times;</button>
     </div>
     <div class="modal-body">
 
-      @if (orderCustomerInvoices.length > 0) {
+      @if (orderCustomerInvoices().length > 0) {
       <div class="order-invoice-list">
-        @for (inv of orderCustomerInvoices; track inv.id) {
+        @for (inv of orderCustomerInvoices(); track inv.id) {
         <div class="order-invoice-row">
           <div class="order-invoice-main">
             <a class="order-invoice-number" [href]="inv.publicUrl" target="_blank" rel="noopener">{{ inv.invoiceNumber }}</a>
@@ -3554,16 +3554,16 @@
           <div class="order-invoice-actions">
             @if (inv.canSend) {
             <button type="button" class="btn-secondary"
-                    (click)="resendCustomerInvoice(inv)" [disabled]="customerInvoiceActionId !== null">
-              {{ customerInvoiceActionId === inv.id ? 'Sending…' : (inv.sendCount > 0 ? 'Send again' : 'Send') }}
+                    (click)="resendCustomerInvoice(inv)" [disabled]="customerInvoiceActionId() !== null">
+              {{ customerInvoiceActionId() === inv.id ? 'Sending…' : (inv.sendCount > 0 ? 'Send again' : 'Send') }}
             </button>
             }
             <button type="button" class="btn-secondary" (click)="copyCustomerInvoiceLink(inv)">
-              {{ customerInvoiceCopiedId === inv.id ? 'Copied' : 'Copy link' }}
+              {{ customerInvoiceCopiedId() === inv.id ? 'Copied' : 'Copy link' }}
             </button>
             @if (inv.canVoid) {
             <button type="button" class="btn-danger"
-                    (click)="voidCustomerInvoice(inv)" [disabled]="customerInvoiceActionId !== null">Void</button>
+                    (click)="voidCustomerInvoice(inv)" [disabled]="customerInvoiceActionId() !== null">Void</button>
             }
             @if (inv.lastSentAt) {
             <span class="order-invoice-sent">sent {{ inv.lastSentAt | date:'MMM d, h:mm a' }}</span>
@@ -3579,8 +3579,8 @@
         @case ('none') {
         <p class="send-payment-link-note">
           Nothing on this order is waiting to be invoiced right now.
-          @if (partialBalance?.cannotRequestReason) {
- {{ partialBalance?.cannotRequestReason }}
+          @if (partialBalance()?.cannotRequestReason) {
+ {{ partialBalance()?.cannotRequestReason }}
           }
         </p>
         }
@@ -3611,19 +3611,19 @@
             This order is already split — add invoices for what isn't invoiced yet.
           </p>
           }
-          @if (customerInvoiceSplitMode || customerInvoiceMustSplit) {
+          @if (customerInvoiceSplitMode() || customerInvoiceMustSplit) {
           <div class="ci-split">
-            @for (a of customerInvoiceSplitAmounts; track trackByIndex(i); let i = $index) {
+            @for (a of customerInvoiceSplitAmounts(); track trackByIndex(i); let i = $index) {
             <div class="ci-split-row">
               <span>Invoice {{ i + 1 }}</span>
               <span class="currency">$</span>
-              <input aria-label="Invoice amount" type="number" min="0.5" step="0.01" [(ngModel)]="customerInvoiceSplitAmounts[i]" [name]="'ciSplit' + i" placeholder="0.00">
-              @if (customerInvoiceSplitAmounts.length > 1) {
+              <input aria-label="Invoice amount" type="number" min="0.5" step="0.01" [(ngModel)]="customerInvoiceSplitAmounts()[i]" [name]="'ciSplit' + i" placeholder="0.00">
+              @if (customerInvoiceSplitAmounts().length > 1) {
               <button type="button" class="btn-secondary" (click)="removeCustomerInvoiceSplitRow(i)">Remove</button>
               }
             </div>
             }
-            @if (customerInvoiceSplitAmounts.length < 12) {
+            @if (customerInvoiceSplitAmounts().length < 12) {
             <button type="button" class="btn-secondary" (click)="addCustomerInvoiceSplitRow()">+ Add another invoice</button>
             }
             <p class="order-invoice-hint" [class.warn]="customerInvoiceSplitTotal > customerInvoiceAvailable">
@@ -3641,46 +3641,46 @@
       }
 
       <div class="ci-channels">
-        <label><input type="checkbox" [(ngModel)]="customerInvoiceChannels.email"> Email (PDF attached)</label>
-        <label><input type="checkbox" [(ngModel)]="customerInvoiceChannels.sms"> Text message</label>
+        <label><input type="checkbox" [(ngModel)]="customerInvoiceChannels().email"> Email (PDF attached)</label>
+        <label><input type="checkbox" [(ngModel)]="customerInvoiceChannels().sms"> Text message</label>
       </div>
 
-      @if (customerInvoiceMessage) {
-      <div class="payments-message">{{ customerInvoiceMessage }}</div>
+      @if (customerInvoiceMessage()) {
+      <div class="payments-message">{{ customerInvoiceMessage() }}</div>
       }
-      @if (customerInvoiceError) {
-      <div class="payments-error">{{ customerInvoiceError }}</div>
+      @if (customerInvoiceError()) {
+      <div class="payments-error">{{ customerInvoiceError() }}</div>
       }
 
       <div class="modal-actions">
         @if (customerInvoiceBillingMode !== 'none') {
         <button class="btn-primary"
-                (click)="createCustomerInvoice()" [disabled]="customerInvoiceBusy">
-          {{ customerInvoiceBusy ? 'Creating…'
-             : (customerInvoiceChannels.email || customerInvoiceChannels.sms) ? 'Create & send invoice' : 'Create invoice' }}
+                (click)="createCustomerInvoice()" [disabled]="customerInvoiceBusy()">
+          {{ customerInvoiceBusy() ? 'Creating…'
+             : (customerInvoiceChannels().email || customerInvoiceChannels().sms) ? 'Create & send invoice' : 'Create invoice' }}
         </button>
         }
-        <button class="btn-secondary" (click)="closeCustomerInvoiceModal()" [disabled]="customerInvoiceBusy">Close</button>
+        <button class="btn-secondary" (click)="closeCustomerInvoiceModal()" [disabled]="customerInvoiceBusy()">Close</button>
       </div>
     </div>
   </div>
 </div>
 }
 <!-- ──────────────  EXPORT ORDERS MODAL (SuperAdmin)  ────────────── -->
-@if (showExportModal) {
+@if (showExportModal()) {
 <div class="modal-overlay" (click)="closeExportModal()">
   <div class="modal-content export-orders-modal" (click)="$event.stopPropagation()">
     <div class="modal-header">
       <h3>Export Orders</h3>
-      <button class="close-btn" (click)="closeExportModal()" [disabled]="exporting">&times;</button>
+      <button class="close-btn" (click)="closeExportModal()" [disabled]="exporting()">&times;</button>
     </div>
     <div class="modal-body">
       <p class="export-modal-hint">
         Exports the <strong>currently filtered</strong> orders ({{ totalFilteredOrders }}) to an Excel file.
         Pick which columns to include — all are selected by default.
       </p>
-      @if (exportError) {
-      <div class="export-modal-error">{{ exportError }}</div>
+      @if (exportError()) {
+      <div class="export-modal-error">{{ exportError() }}</div>
       }
       <ul class="export-column-list">
         @for (col of exportColumns; track col.key) {
@@ -3689,7 +3689,7 @@
             <input type="checkbox"
                    [checked]="col.selected"
                    (change)="toggleExportColumn(col.key)"
-                   [disabled]="exporting">
+                   [disabled]="exporting()">
             <span>{{ col.label }}</span>
           </label>
         </li>
@@ -3698,10 +3698,10 @@
       <div class="modal-actions">
         <button class="btn-primary"
                 (click)="runExport()"
-                [disabled]="exporting || !hasAnyExportColumnSelected">
-          {{ exporting ? 'Exporting…' : 'Export' }}
+                [disabled]="exporting() || !hasAnyExportColumnSelected">
+          {{ exporting() ? 'Exporting…' : 'Export' }}
         </button>
-        <button class="btn-secondary" (click)="closeExportModal()" [disabled]="exporting">Cancel</button>
+        <button class="btn-secondary" (click)="closeExportModal()" [disabled]="exporting()">Cancel</button>
       </div>
     </div>
   </div>

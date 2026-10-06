@@ -1,4 +1,4 @@
-import { Component, OnInit, ChangeDetectorRef, AfterViewInit, OnDestroy, ViewChild, ElementRef, HostListener, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef, AfterViewInit, OnDestroy, ElementRef, HostListener, ChangeDetectionStrategy, inject, viewChild, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
@@ -35,21 +35,21 @@ export interface CreatePollQuestion {
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './booking-services.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./booking-services.component.scss']
 })
 export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestroy {
   private adminService = inject(AdminService);
   private cdr = inject(ChangeDetectorRef);
 
-  @ViewChild('serviceTypesTableWrapper', { static: false }) serviceTypesTableWrapper!: ElementRef<HTMLDivElement>;
-  @ViewChild('serviceTypesTableHeader', { static: false }) serviceTypesTableHeader!: ElementRef<HTMLTableSectionElement>;
-  @ViewChild('pollTableWrapper', { static: false }) pollTableWrapper!: ElementRef<HTMLDivElement>;
-  @ViewChild('pollTableHeader', { static: false }) pollTableHeader!: ElementRef<HTMLTableSectionElement>;
-  @ViewChild('servicesTableWrapper', { static: false }) servicesTableWrapper!: ElementRef<HTMLDivElement>;
-  @ViewChild('servicesTableHeader', { static: false }) servicesTableHeader!: ElementRef<HTMLTableSectionElement>;
-  @ViewChild('extraServicesTableWrapper', { static: false }) extraServicesTableWrapper!: ElementRef<HTMLDivElement>;
-  @ViewChild('extraServicesTableHeader', { static: false }) extraServicesTableHeader!: ElementRef<HTMLTableSectionElement>;
+  readonly serviceTypesTableWrapper = viewChild<ElementRef<HTMLDivElement>>('serviceTypesTableWrapper');
+  readonly serviceTypesTableHeader = viewChild<ElementRef<HTMLTableSectionElement>>('serviceTypesTableHeader');
+  readonly pollTableWrapper = viewChild<ElementRef<HTMLDivElement>>('pollTableWrapper');
+  readonly pollTableHeader = viewChild<ElementRef<HTMLTableSectionElement>>('pollTableHeader');
+  readonly servicesTableWrapper = viewChild<ElementRef<HTMLDivElement>>('servicesTableWrapper');
+  readonly servicesTableHeader = viewChild<ElementRef<HTMLTableSectionElement>>('servicesTableHeader');
+  readonly extraServicesTableWrapper = viewChild<ElementRef<HTMLDivElement>>('extraServicesTableWrapper');
+  readonly extraServicesTableHeader = viewChild<ElementRef<HTMLTableSectionElement>>('extraServicesTableHeader');
   
   // Sticky header management
   private scrollListener?: () => void;
@@ -65,14 +65,14 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
     return 80;
   }
   // Service Types
-  serviceTypes: ServiceType[] = [];
-  allServices: Service[] = [];
-  allExtraServices: ExtraService[] = [];
-  selectedServiceType: ServiceType | null = null;
-  isEditingServiceType = false;
-  isAddingServiceType = false;
+  readonly serviceTypes = signal<ServiceType[]>([], { equal: () => false });
+  readonly allServices = signal<Service[]>([]);
+  readonly allExtraServices = signal<ExtraService[]>([]);
+  readonly selectedServiceType = signal<ServiceType | null>(null, { equal: () => false });
+  readonly isEditingServiceType = signal(false);
+  readonly isAddingServiceType = signal(false);
   readonly displayPriceUnits = DISPLAY_PRICE_UNITS;
-  newServiceType = {
+  readonly newServiceType = signal({
     name: '',
     basePrice: 0,
     description: '',
@@ -87,12 +87,12 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
     serviceKey: '',
     displayPrice: null as number | null,
     displayPriceUnit: null as DisplayPriceUnit | null
-  };
+  });
 
   // Services
-  isAddingService = false;
-  editingServiceId: number | null = null;
-  newService: CreateService = {
+  readonly isAddingService = signal(false);
+  readonly editingServiceId = signal<number | null>(null);
+  readonly newService = signal<CreateService>({
     name: '',
     serviceKey: '',
     cost: 0,
@@ -109,35 +109,35 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
     chargeAboveThreshold: false,
     zeroQuantityCost: null,
     zeroQuantityDuration: null
-  };
-  selectedExistingServiceId: number | null = null;
-  showExistingServices = false;
+  }, { equal: () => false });
+  readonly selectedExistingServiceId = signal<number | null>(null);
+  readonly showExistingServices = signal(false);
 
   // ===== Pricing configuration: included amounts + rate tiers =====
   // One service row expands at a time; its threshold and tier editors live inside that row.
-  expandedPricingServiceId: number | null = null;
-  pricingRowMessage: { error: string; success: string } = { error: '', success: '' };
+  readonly expandedPricingServiceId = signal<number | null>(null);
+  readonly pricingRowMessage = signal<{ error: string; success: string }>({ error: '', success: '' }, { equal: () => false });
 
-  editingThresholdId: number | null = null;
-  newThreshold: SaveServiceThreshold = { sourceServiceId: 0, sourceQuantity: 0, includedQuantity: 0 };
-  isAddingThreshold = false;
+  readonly editingThresholdId = signal<number | null>(null);
+  readonly newThreshold = signal<SaveServiceThreshold>({ sourceServiceId: 0, sourceQuantity: 0, includedQuantity: 0 });
+  readonly isAddingThreshold = signal(false);
 
-  editingRateTierId: number | null = null;
-  newRateTier: SaveServiceRateTier = { fromQuantity: 0, cost: 0, timeDuration: 0, displayOrder: 0 };
-  isAddingRateTier = false;
+  readonly editingRateTierId = signal<number | null>(null);
+  readonly newRateTier = signal<SaveServiceRateTier>({ fromQuantity: 0, cost: 0, timeDuration: 0, displayOrder: 0 });
+  readonly isAddingRateTier = signal(false);
 
   // ===== Export / import =====
-  showPricingConfigPanel = false;
-  pricingConfigJson = '';
-  pricingConfigDiff: PricingConfigurationDiff | null = null;
-  pricingConfigBusy = false;
-  pricingConfigMessage: { error: string; success: string } = { error: '', success: '' };
+  readonly showPricingConfigPanel = signal(false);
+  readonly pricingConfigJson = signal('');
+  readonly pricingConfigDiff = signal<PricingConfigurationDiff | null>(null);
+  readonly pricingConfigBusy = signal(false);
+  readonly pricingConfigMessage = signal<{ error: string; success: string }>({ error: '', success: '' }, { equal: () => false });
   private pendingPricingConfig: PricingConfiguration | null = null;
   
   // Extra Services  
-  isAddingExtraService = false;
-  editingExtraServiceId: number | null = null;
-  newExtraService: CreateExtraService = {
+  readonly isAddingExtraService = signal(false);
+  readonly editingExtraServiceId = signal<number | null>(null);
+  readonly newExtraService = signal<CreateExtraService>({
     name: '',
     description: '',
     price: 0,
@@ -153,13 +153,13 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
     isAvailableForAll: true,
     displayOrder: 1,
     extraServiceKey: ''
-  };
-  selectedExistingExtraServiceId: number | null = null;
-  showExistingExtraServices = false;
+  }, { equal: () => false });
+  readonly selectedExistingExtraServiceId = signal<number | null>(null);
+  readonly showExistingExtraServices = signal(false);
 
   // Permissions
-  userRole: string = '';
-  userPermissions: UserPermissions = {
+  readonly userRole = signal<string>('');
+  readonly userPermissions = signal<UserPermissions>({
     role: '',
     permissions: {
       canView: false,
@@ -169,25 +169,25 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
       canActivate: false,
       canDeactivate: false
     }
-  };
+  }, { equal: () => false });
 
   // Messages for each section
-  serviceTypeMessage = { error: '', success: '' };
-  serviceMessage = { error: '', success: '' };
-  extraServiceMessage = { error: '', success: '' };
+  readonly serviceTypeMessage = signal({ error: '', success: '' }, { equal: () => false });
+  readonly serviceMessage = signal({ error: '', success: '' }, { equal: () => false });
+  readonly extraServiceMessage = signal({ error: '', success: '' }, { equal: () => false });
 
   // Poll Questions
-  pollQuestions: PollQuestion[] = [];
-  isAddingPollQuestion = false;
-  editingPollQuestionId: number | null = null;
-  newPollQuestion: CreatePollQuestion = {
+  readonly pollQuestions = signal<PollQuestion[]>([], { equal: () => false });
+  readonly isAddingPollQuestion = signal(false);
+  readonly editingPollQuestionId = signal<number | null>(null);
+  readonly newPollQuestion = signal<CreatePollQuestion>({
     question: '',
     questionType: 'text',
     options: '',
     isRequired: false,
     displayOrder: 1,
     serviceTypeId: 0
-  };
+  });
 
   // Question types
   questionTypes = [
@@ -199,13 +199,13 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
   ];
 
   // Messages for poll questions
-  pollQuestionMessage = { success: '', error: '' };
+  readonly pollQuestionMessage = signal({ success: '', error: '' }, { equal: () => false });
 
   // Helper method to clear messages
   private clearMessages() {
-    this.serviceTypeMessage = { error: '', success: '' };
-    this.serviceMessage = { error: '', success: '' };
-    this.extraServiceMessage = { error: '', success: '' };
+    this.serviceTypeMessage.set({ error: '', success: '' });
+    this.serviceMessage.set({ error: '', success: '' });
+    this.extraServiceMessage.set({ error: '', success: '' });
   }
 
   ngOnInit() {
@@ -245,10 +245,10 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
 
   private initializeAllStickyHeaders() {
     const tables = [
-      { key: 'serviceTypes', wrapper: this.serviceTypesTableWrapper, header: this.serviceTypesTableHeader },
-      { key: 'poll', wrapper: this.pollTableWrapper, header: this.pollTableHeader },
-      { key: 'services', wrapper: this.servicesTableWrapper, header: this.servicesTableHeader },
-      { key: 'extraServices', wrapper: this.extraServicesTableWrapper, header: this.extraServicesTableHeader }
+      { key: 'serviceTypes', wrapper: this.serviceTypesTableWrapper(), header: this.serviceTypesTableHeader() },
+      { key: 'poll', wrapper: this.pollTableWrapper(), header: this.pollTableHeader() },
+      { key: 'services', wrapper: this.servicesTableWrapper(), header: this.servicesTableHeader() },
+      { key: 'extraServices', wrapper: this.extraServicesTableWrapper(), header: this.extraServicesTableHeader() }
     ];
 
     tables.forEach(({ key, wrapper, header }) => {
@@ -296,10 +296,10 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
 
   private updateAllStickyHeaders() {
     const tables = [
-      { wrapper: this.serviceTypesTableWrapper, header: this.serviceTypesTableHeader },
-      { wrapper: this.pollTableWrapper, header: this.pollTableHeader },
-      { wrapper: this.servicesTableWrapper, header: this.servicesTableHeader },
-      { wrapper: this.extraServicesTableWrapper, header: this.extraServicesTableHeader }
+      { wrapper: this.serviceTypesTableWrapper(), header: this.serviceTypesTableHeader() },
+      { wrapper: this.pollTableWrapper(), header: this.pollTableHeader() },
+      { wrapper: this.servicesTableWrapper(), header: this.servicesTableHeader() },
+      { wrapper: this.extraServicesTableWrapper(), header: this.extraServicesTableHeader() }
     ];
 
     tables.forEach(({ wrapper, header }) => {
@@ -475,28 +475,29 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
   loadUserPermissions() {
     this.adminService.getUserPermissions().subscribe({
       next: (response) => {
-        this.userRole = response.role;
-        this.userPermissions = response;
+        this.userRole.set(response.role);
+        this.userPermissions.set(response);
       },
       error: (error) => {
         console.error('Error loading permissions:', error);
-        this.serviceTypeMessage.error = 'Failed to load permissions. Please try again.';
+        this.serviceTypeMessage().error = 'Failed to load permissions. Please try again.';
+        this.serviceTypeMessage.set(this.serviceTypeMessage());
       }
     });
   }
 
   // Service Types Methods
   loadServiceTypes() {
-    const previouslySelectedId = this.selectedServiceType?.id ?? null;
+    const previouslySelectedId = this.selectedServiceType()?.id ?? null;
     this.adminService.getServiceTypes().subscribe({
       next: (types) => {       
         // Sort by displayOrder
-        this.serviceTypes = types.sort((a, b) => 
+        this.serviceTypes.set(types.sort((a, b) => 
           (a.displayOrder || 0) - (b.displayOrder || 0)
-        );
+        ));
         
         // Also sort services within each type
-        this.serviceTypes.forEach(type => {
+        this.serviceTypes().forEach(type => {
           if (type.services) {
             type.services.sort((a, b) => 
               (a.displayOrder || 0) - (b.displayOrder || 0)
@@ -512,8 +513,8 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
 
         // Keep selection stable across reloads so we always reflect backend state
         if (previouslySelectedId) {
-          const refreshed = this.serviceTypes.find(t => t.id === previouslySelectedId) || null;
-          this.selectedServiceType = refreshed;
+          const refreshed = this.serviceTypes().find(t => t.id === previouslySelectedId) || null;
+          this.selectedServiceType.set(refreshed);
           // Load poll questions when restoring selection so they are visible after refresh (e.g. when service type is inactive)
           if (refreshed?.hasPoll) {
             this.loadPollQuestions();
@@ -522,39 +523,43 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
       },
       error: (error) => {
         console.error('Error loading service types:', error);
-        this.serviceTypeMessage.error = 'Failed to load service types. Please try again.';
+        this.serviceTypeMessage().error = 'Failed to load service types. Please try again.';
+        this.serviceTypeMessage.set(this.serviceTypeMessage());
       }
     });
   }
 
   loadAllServices() {
-    if (this.serviceTypes.length === 0) {
+    if (this.serviceTypes().length === 0) {
       this.adminService.getServiceTypes().subscribe({
         next: (types) => {
-          this.serviceTypes = types;
+          this.serviceTypes.set(types);
           this.adminService.getServices().subscribe({
             next: (services) => {
-              this.allServices = services;
+              this.allServices.set(services);
             },
             error: (error) => {
               console.error('Error loading services:', error);
-              this.serviceMessage.error = 'Failed to load services. Please try again.';
+              this.serviceMessage().error = 'Failed to load services. Please try again.';
+              this.serviceMessage.set(this.serviceMessage());
             }
           });
         },
         error: (error) => {
           console.error('Error loading service types:', error);
-          this.serviceTypeMessage.error = 'Failed to load service types. Please try again.';
+          this.serviceTypeMessage().error = 'Failed to load service types. Please try again.';
+          this.serviceTypeMessage.set(this.serviceTypeMessage());
         }
       });
     } else {
       this.adminService.getServices().subscribe({
         next: (services) => {
-          this.allServices = services;
+          this.allServices.set(services);
         },
         error: (error) => {
           console.error('Error loading services:', error);
-          this.serviceMessage.error = 'Failed to load services. Please try again.';
+          this.serviceMessage().error = 'Failed to load services. Please try again.';
+          this.serviceMessage.set(this.serviceMessage());
         }
       });
     }
@@ -563,28 +568,29 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
   loadAllExtraServices() {
     this.adminService.getExtraServices().subscribe({
       next: (services) => {
-        this.allExtraServices = services;
+        this.allExtraServices.set(services);
       },
       error: (error) => {
         console.error('Error loading extra services:', error);
-        this.extraServiceMessage.error = 'Failed to load extra services. Please try again.';
+        this.extraServiceMessage().error = 'Failed to load extra services. Please try again.';
+        this.extraServiceMessage.set(this.extraServiceMessage());
       }
     });
   }
 
   getServiceTypeNameById(serviceTypeId: number | undefined | null): string {
     if (!serviceTypeId) return 'Unknown';
-    const serviceType = this.serviceTypes.find(t => t.id === serviceTypeId);
+    const serviceType = this.serviceTypes().find(t => t.id === serviceTypeId);
     return serviceType ? serviceType.name : 'Unknown';
   }
 
   selectServiceType(type: ServiceType) {
-    this.selectedServiceType = type;
-    this.isAddingServiceType = false;
-    this.isAddingService = false;
-    this.isAddingExtraService = false;
-    this.isAddingPollQuestion = false;
-    this.editingPollQuestionId = null;
+    this.selectedServiceType.set(type);
+    this.isAddingServiceType.set(false);
+    this.isAddingService.set(false);
+    this.isAddingExtraService.set(false);
+    this.isAddingPollQuestion.set(false);
+    this.editingPollQuestionId.set(null);
 
     if (type.hasPoll) {
       this.loadPollQuestions();
@@ -592,14 +598,14 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   startAddingServiceType() {
-    this.isAddingServiceType = true;
-    this.isEditingServiceType = false;
-    this.selectedServiceType = null;
-    this.newServiceType = {
+    this.isAddingServiceType.set(true);
+    this.isEditingServiceType.set(false);
+    this.selectedServiceType.set(null);
+    this.newServiceType.set({
       name: '',
       basePrice: 0,
       description: '',
-      displayOrder: this.serviceTypes.length + 1,
+      displayOrder: this.serviceTypes().length + 1,
       timeDuration: 90,
       hasPoll: false,
       isCustom: false,
@@ -608,12 +614,12 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
       serviceKey: '',
       displayPrice: null,
       displayPriceUnit: null
-    };
+    });
   }
 
   cancelAddServiceType() {
-    this.isAddingServiceType = false;
-    this.newServiceType = {
+    this.isAddingServiceType.set(false);
+    this.newServiceType.set({
       name: '',
       basePrice: 0,
       description: '',
@@ -626,15 +632,16 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
       serviceKey: '',
       displayPrice: null,
       displayPriceUnit: null
-    };
+    });
   }
 
   addServiceType() {
-    this.adminService.createServiceType(this.newServiceType).subscribe({
+    this.adminService.createServiceType(this.newServiceType()).subscribe({
       next: (response) => {
-        this.serviceTypes.push(response);
-        this.isAddingServiceType = false;
-        this.newServiceType = {
+        this.serviceTypes().push(response);
+        this.serviceTypes.set(this.serviceTypes());
+        this.isAddingServiceType.set(false);
+        this.newServiceType.set({
           name: '',
           basePrice: 0,
           description: '',
@@ -647,13 +654,15 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
           serviceKey: '',
           displayPrice: null,
           displayPriceUnit: null
-        };
-        this.serviceTypeMessage.success = 'Service type added successfully.';
+        });
+        this.serviceTypeMessage().success = 'Service type added successfully.';
+        this.serviceTypeMessage.set(this.serviceTypeMessage());
       },
       error: (error) => {
         console.error('Error creating service type:', error);
         // Names the actual problem (e.g. a duplicate or badly formatted service key).
-        this.serviceTypeMessage.error = extractApiErrorMessage(error, 'Failed to create service type. Please try again.');
+        this.serviceTypeMessage().error = extractApiErrorMessage(error, 'Failed to create service type. Please try again.');
+        this.serviceTypeMessage.set(this.serviceTypeMessage());
       }
     });
   }
@@ -663,11 +672,11 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   editServiceType() {
-    this.isEditingServiceType = true;
+    this.isEditingServiceType.set(true);
   }
 
   cancelEditServiceType() {
-    this.isEditingServiceType = false;
+    this.isEditingServiceType.set(false);
   }
 
   /**
@@ -678,64 +687,74 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
    * Heavy Conditional) need different answers here.
    */
   setCollectsPropertyType(collects: boolean) {
-    if (!this.selectedServiceType) return;
-    this.selectedServiceType.collectsPropertyType = collects;
+    if (!this.selectedServiceType()) return;
+    this.selectedServiceType()!.collectsPropertyType = collects;
+    this.selectedServiceType.set(this.selectedServiceType());
   }
 
   setServiceTypeMode(mode: 'regular' | 'poll' | 'custom') {
-    if (!this.selectedServiceType) return;
+    if (!this.selectedServiceType()) return;
     
     switch(mode) {
       case 'regular':
-        this.selectedServiceType.hasPoll = false;
-        this.selectedServiceType.isCustom = false;
+        this.selectedServiceType()!.hasPoll = false;
+        this.selectedServiceType.set(this.selectedServiceType());
+        this.selectedServiceType()!.isCustom = false;
+        this.selectedServiceType.set(this.selectedServiceType());
         break;
       case 'poll':
-        this.selectedServiceType.hasPoll = true;
-        this.selectedServiceType.isCustom = false;
+        this.selectedServiceType()!.hasPoll = true;
+        this.selectedServiceType.set(this.selectedServiceType());
+        this.selectedServiceType()!.isCustom = false;
+        this.selectedServiceType.set(this.selectedServiceType());
         break;
       case 'custom':
-        this.selectedServiceType.hasPoll = false;
-        this.selectedServiceType.isCustom = true;
+        this.selectedServiceType()!.hasPoll = false;
+        this.selectedServiceType.set(this.selectedServiceType());
+        this.selectedServiceType()!.isCustom = true;
+        this.selectedServiceType.set(this.selectedServiceType());
         break;
     }
   }
 
   saveServiceType() {
-    if (this.selectedServiceType) {
+    if (this.selectedServiceType()) {
       const updateData = {
-        name: this.selectedServiceType.name,
-        basePrice: this.selectedServiceType.basePrice,
-        description: this.selectedServiceType.description,
-        displayOrder: this.selectedServiceType.displayOrder || 1,
-        timeDuration: this.selectedServiceType.timeDuration,
-        hasPoll: this.selectedServiceType.hasPoll,
-        isCustom: this.selectedServiceType.isCustom,
+        name: this.selectedServiceType()!.name,
+        basePrice: this.selectedServiceType()!.basePrice,
+        description: this.selectedServiceType()!.description,
+        displayOrder: this.selectedServiceType()!.displayOrder || 1,
+        timeDuration: this.selectedServiceType()!.timeDuration,
+        hasPoll: this.selectedServiceType()!.hasPoll,
+        isCustom: this.selectedServiceType()!.isCustom,
         // Must be sent: the update DTO defaults it to true, so leaving it out re-ticked
         // "Ask apartment / house" on every save. Absent on the row still means true.
-        collectsPropertyType: this.selectedServiceType.collectsPropertyType !== false,
-        minimumPrice: this.selectedServiceType.minimumPrice ?? 0,
+        collectsPropertyType: this.selectedServiceType()!.collectsPropertyType !== false,
+        minimumPrice: this.selectedServiceType()!.minimumPrice ?? 0,
         // Always sent: the endpoint treats the value as the full intended key, so leaving it
         // out of an ordinary name/price edit would clear it.
-        serviceKey: this.selectedServiceType.serviceKey ?? null,
+        serviceKey: this.selectedServiceType()!.serviceKey ?? null,
         // Same "full intended value" contract as the key. An emptied number input binds as null
         // (or '' on some browsers), both meaning "no display price".
-        displayPrice: typeof this.selectedServiceType.displayPrice === 'number' ? this.selectedServiceType.displayPrice : null,
-        displayPriceUnit: this.selectedServiceType.displayPriceUnit ?? null
+        displayPrice: typeof this.selectedServiceType()!.displayPrice === 'number' ? this.selectedServiceType()!.displayPrice : null,
+        displayPriceUnit: this.selectedServiceType()!.displayPriceUnit ?? null
       };
-      this.adminService.updateServiceType(this.selectedServiceType.id, updateData).subscribe({
+      this.adminService.updateServiceType(this.selectedServiceType()!.id, updateData).subscribe({
         next: (response) => {
-          const index = this.serviceTypes.findIndex(t => t.id === response.id);
+          const index = this.serviceTypes().findIndex(t => t.id === response.id);
           if (index !== -1) {
-            this.serviceTypes[index] = response;
+            this.serviceTypes()[index] = response;
+            this.serviceTypes.set(this.serviceTypes());
           }
           this.loadServiceTypes();
-          this.isEditingServiceType = false;
-          this.serviceTypeMessage.success = 'Service type updated successfully.';
+          this.isEditingServiceType.set(false);
+          this.serviceTypeMessage().success = 'Service type updated successfully.';
+          this.serviceTypeMessage.set(this.serviceTypeMessage());
         },
         error: (error) => {
           console.error('Error updating service type:', error);
-          this.serviceTypeMessage.error = extractApiErrorMessage(error, 'Failed to update service type. Please try again.');
+          this.serviceTypeMessage().error = extractApiErrorMessage(error, 'Failed to update service type. Please try again.');
+          this.serviceTypeMessage.set(this.serviceTypeMessage());
         }
       });
     }
@@ -745,15 +764,17 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
     if (confirm('Are you sure you want to delete this service type?')) {
       this.adminService.deleteServiceType(type.id).subscribe({
         next: () => {
-          this.serviceTypes = this.serviceTypes.filter(t => t.id !== type.id);
-          if (this.selectedServiceType?.id === type.id) {
-            this.selectedServiceType = null;
+          this.serviceTypes.set(this.serviceTypes().filter(t => t.id !== type.id));
+          if (this.selectedServiceType()?.id === type.id) {
+            this.selectedServiceType.set(null);
           }
-          this.serviceTypeMessage.success = 'Service type deleted successfully.';
+          this.serviceTypeMessage().success = 'Service type deleted successfully.';
+          this.serviceTypeMessage.set(this.serviceTypeMessage());
         },
         error: (error) => {
           console.error('Error deleting service type:', error);
-          this.serviceTypeMessage.error = 'Failed to delete service type. Please try again.';
+          this.serviceTypeMessage().error = 'Failed to delete service type. Please try again.';
+          this.serviceTypeMessage.set(this.serviceTypeMessage());
         }
       });
     }
@@ -762,15 +783,18 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
   deactivateServiceType(type: ServiceType) {
     this.adminService.deactivateServiceType(type.id).subscribe({
       next: (response) => {
-        const index = this.serviceTypes.findIndex(t => t.id === type.id);
+        const index = this.serviceTypes().findIndex(t => t.id === type.id);
         if (index !== -1) {
-          this.serviceTypes[index] = { ...this.serviceTypes[index], isActive: false };
+          this.serviceTypes()[index] = { ...this.serviceTypes()[index], isActive: false };
+          this.serviceTypes.set(this.serviceTypes());
         }
-        this.serviceTypeMessage.success = 'Service type deactivated successfully.';
+        this.serviceTypeMessage().success = 'Service type deactivated successfully.';
+        this.serviceTypeMessage.set(this.serviceTypeMessage());
       },
       error: (error) => {
         console.error('Error deactivating service type:', error);
-        this.serviceTypeMessage.error = 'Failed to deactivate service type. Please try again.';
+        this.serviceTypeMessage().error = 'Failed to deactivate service type. Please try again.';
+        this.serviceTypeMessage.set(this.serviceTypeMessage());
       }
     });
   }
@@ -778,127 +802,142 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
   activateServiceType(type: ServiceType) {
     this.adminService.activateServiceType(type.id).subscribe({
       next: (response) => {
-        const index = this.serviceTypes.findIndex(t => t.id === type.id);
+        const index = this.serviceTypes().findIndex(t => t.id === type.id);
         if (index !== -1) {
-          this.serviceTypes[index] = { ...this.serviceTypes[index], isActive: true };
+          this.serviceTypes()[index] = { ...this.serviceTypes()[index], isActive: true };
+          this.serviceTypes.set(this.serviceTypes());
         }
-        this.serviceTypeMessage.success = 'Service type activated successfully.';
+        this.serviceTypeMessage().success = 'Service type activated successfully.';
+        this.serviceTypeMessage.set(this.serviceTypeMessage());
       },
       error: (error) => {
         console.error('Error activating service type:', error);
-        this.serviceTypeMessage.error = 'Failed to activate service type. Please try again.';
+        this.serviceTypeMessage().error = 'Failed to activate service type. Please try again.';
+        this.serviceTypeMessage.set(this.serviceTypeMessage());
       }
     });
   }
 
   // Services Methods
   startAddingService() {
-    if (!this.userPermissions.permissions.canCreate) {
-      this.serviceMessage.error = 'You do not have permission to create services';
+    if (!this.userPermissions().permissions.canCreate) {
+      this.serviceMessage().error = 'You do not have permission to create services';
+      this.serviceMessage.set(this.serviceMessage());
       return;
     }
-    if (!this.selectedServiceType) return;
+    if (!this.selectedServiceType()) return;
     
-    this.isAddingService = true;
-    this.showExistingServices = false;
-    this.selectedExistingServiceId = null;
-    this.newService = {
+    this.isAddingService.set(true);
+    this.showExistingServices.set(false);
+    this.selectedExistingServiceId.set(null);
+    this.newService.set({
       name: '',
       serviceKey: '',
       cost: 0,
       timeDuration: 0,
-      serviceTypeId: this.selectedServiceType.id,
+      serviceTypeId: this.selectedServiceType()!.id,
       inputType: 'dropdown',
       minValue: 0,
       maxValue: 10,
       stepValue: 1,
       isRangeInput: false,
       unit: '',
-      displayOrder: this.selectedServiceType.services.length + 1
-    };
+      displayOrder: this.selectedServiceType()!.services.length + 1
+    });
   }
 
   toggleExistingServices() {
-    this.showExistingServices = !this.showExistingServices;
+    this.showExistingServices.set(!this.showExistingServices());
   }
 
   onServiceSelectionChange(event: any) {
     // Convert string to number if needed
     if (event.target.value && event.target.value !== '') {
-      this.selectedExistingServiceId = parseInt(event.target.value);
+      this.selectedExistingServiceId.set(parseInt(event.target.value));
     } else {
-      this.selectedExistingServiceId = null;
+      this.selectedExistingServiceId.set(null);
     }
   }
 
   copyExistingService() {
-    if (!this.userPermissions.permissions.canCreate) {
-      this.serviceMessage.error = 'You do not have permission to copy services';
+    if (!this.userPermissions().permissions.canCreate) {
+      this.serviceMessage().error = 'You do not have permission to copy services';
+      this.serviceMessage.set(this.serviceMessage());
       return;
     }
-    if (!this.selectedExistingServiceId || !this.selectedServiceType) return;
+    if (!this.selectedExistingServiceId() || !this.selectedServiceType()) return;
     
     this.adminService.copyService({
-      sourceServiceId: this.selectedExistingServiceId,
-      targetServiceTypeId: this.selectedServiceType.id
+      sourceServiceId: this.selectedExistingServiceId()!,
+      targetServiceTypeId: this.selectedServiceType()!.id
     }).subscribe({
       next: (response) => {
-        if (this.selectedServiceType) {
-          this.selectedServiceType.services.push(response);
+        if (this.selectedServiceType()) {
+          this.selectedServiceType()!.services.push(response);
+          this.selectedServiceType.set(this.selectedServiceType());
         }
-        this.serviceMessage.success = 'Service copied successfully';
-        this.isAddingService = false;
+        this.serviceMessage().success = 'Service copied successfully';
+        this.serviceMessage.set(this.serviceMessage());
+        this.isAddingService.set(false);
         this.loadServiceTypes();
         this.loadAllServices();
       },
       error: () => {
-        this.serviceMessage.error = 'Failed to copy service';
+        this.serviceMessage().error = 'Failed to copy service';
+        this.serviceMessage.set(this.serviceMessage());
       }
     });
   }
 
   cancelAddService() {
-    this.isAddingService = false;
-    this.showExistingServices = false;
-    this.selectedExistingServiceId = null;
+    this.isAddingService.set(false);
+    this.showExistingServices.set(false);
+    this.selectedExistingServiceId.set(null);
   }
 
   addService() {
-    if (!this.userPermissions.permissions.canCreate) {
-      this.serviceMessage.error = 'You do not have permission to create services';
+    if (!this.userPermissions().permissions.canCreate) {
+      this.serviceMessage().error = 'You do not have permission to create services';
+      this.serviceMessage.set(this.serviceMessage());
       return;
     }
     // Blank zero-quantity inputs must travel as null, not 0 — "leave blank" and "costs 0"
     // are different settings.
-    this.newService.zeroQuantityCost = this.emptyToNull(this.newService.zeroQuantityCost);
-    this.newService.zeroQuantityDuration = this.emptyToNull(this.newService.zeroQuantityDuration);
+    this.newService().zeroQuantityCost = this.emptyToNull(this.newService().zeroQuantityCost);
+    this.newService.set(this.newService());
+    this.newService().zeroQuantityDuration = this.emptyToNull(this.newService().zeroQuantityDuration);
+    this.newService.set(this.newService());
 
-    this.adminService.createService(this.newService).subscribe({
+    this.adminService.createService(this.newService()).subscribe({
       next: (response) => {
-        if (this.selectedServiceType) {
-          this.selectedServiceType.services.push(response);
+        if (this.selectedServiceType()) {
+          this.selectedServiceType()!.services.push(response);
+          this.selectedServiceType.set(this.selectedServiceType());
         }
-        this.serviceMessage.success = 'Service created successfully';
-        this.isAddingService = false;
+        this.serviceMessage().success = 'Service created successfully';
+        this.serviceMessage.set(this.serviceMessage());
+        this.isAddingService.set(false);
         this.loadServiceTypes();
         this.loadAllServices();
       },
       error: () => {
-        this.serviceMessage.error = 'Failed to create service';
+        this.serviceMessage().error = 'Failed to create service';
+        this.serviceMessage.set(this.serviceMessage());
       }
     });
   }
 
   editService(service: Service) {
-    if (!this.userPermissions.permissions.canUpdate) {
-      this.serviceMessage.error = 'You do not have permission to edit service';
+    if (!this.userPermissions().permissions.canUpdate) {
+      this.serviceMessage().error = 'You do not have permission to edit service';
+      this.serviceMessage.set(this.serviceMessage());
       return;
     }
-    this.editingServiceId = service.id;
+    this.editingServiceId.set(service.id);
   }
 
   cancelEditService() {
-    this.editingServiceId = null;
+    this.editingServiceId.set(null);
     this.loadServiceTypes();
   }
 
@@ -922,19 +961,22 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
       zeroQuantityDuration: this.emptyToNull(service.zeroQuantityDuration)
     }).subscribe({
       next: (response) => {
-        if (this.selectedServiceType) {
-          const index = this.selectedServiceType.services.findIndex(s => s.id === response.id);
+        if (this.selectedServiceType()) {
+          const index = this.selectedServiceType()!.services.findIndex(s => s.id === response.id);
           if (index !== -1) {
-            this.selectedServiceType.services[index] = response;
+            this.selectedServiceType()!.services[index] = response;
+            this.selectedServiceType.set(this.selectedServiceType());
           }
         }
-        this.serviceMessage.success = 'Service updated successfully';
-        this.editingServiceId = null;
+        this.serviceMessage().success = 'Service updated successfully';
+        this.serviceMessage.set(this.serviceMessage());
+        this.editingServiceId.set(null);
         this.loadServiceTypes();
         this.loadAllServices();
       },
       error: () => {
-        this.serviceMessage.error = 'Failed to update service';
+        this.serviceMessage().error = 'Failed to update service';
+        this.serviceMessage.set(this.serviceMessage());
       }
     });
   }
@@ -953,25 +995,30 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   deleteService(service: Service) {
-    if (!this.userPermissions.permissions.canDelete) {
-      this.serviceMessage.error = 'You do not have permission to delete services';
+    if (!this.userPermissions().permissions.canDelete) {
+      this.serviceMessage().error = 'You do not have permission to delete services';
+      this.serviceMessage.set(this.serviceMessage());
       return;
     }
     if (confirm(`Are you sure you want to permanently delete "${service.name}"? This cannot be undone.`)) {
       this.adminService.deleteService(service.id).subscribe({
         next: () => {
-          if (this.selectedServiceType) {
-            this.selectedServiceType.services = this.selectedServiceType.services.filter(s => s.id !== service.id);
+          if (this.selectedServiceType()) {
+            this.selectedServiceType()!.services = this.selectedServiceType()!.services.filter(s => s.id !== service.id);
+            this.selectedServiceType.set(this.selectedServiceType());
           }
-          this.serviceMessage.success = 'Service deleted successfully';
+          this.serviceMessage().success = 'Service deleted successfully';
+          this.serviceMessage.set(this.serviceMessage());
           this.loadServiceTypes();
           this.loadAllServices();
         },
         error: (error) => {
           if (error.error?.message) {
-            this.serviceMessage.error = error.error.message;
+            this.serviceMessage().error = error.error.message;
+            this.serviceMessage.set(this.serviceMessage());
           } else {
-            this.serviceMessage.error = 'Failed to delete service';
+            this.serviceMessage().error = 'Failed to delete service';
+            this.serviceMessage.set(this.serviceMessage());
           }
         }
       });
@@ -983,67 +1030,70 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
   // ==========================================================================
 
   togglePricingRow(service: Service) {
-    this.expandedPricingServiceId = this.expandedPricingServiceId === service.id ? null : service.id;
+    this.expandedPricingServiceId.set(this.expandedPricingServiceId() === service.id ? null : service.id);
     this.resetPricingRowEditors();
-    this.pricingRowMessage = { error: '', success: '' };
+    this.pricingRowMessage.set({ error: '', success: '' });
   }
 
   private resetPricingRowEditors() {
-    this.isAddingThreshold = false;
-    this.editingThresholdId = null;
-    this.isAddingRateTier = false;
-    this.editingRateTierId = null;
-    this.newThreshold = { sourceServiceId: 0, sourceQuantity: 0, includedQuantity: 0 };
-    this.newRateTier = { fromQuantity: 0, cost: 0, timeDuration: 0, displayOrder: 0 };
+    this.isAddingThreshold.set(false);
+    this.editingThresholdId.set(null);
+    this.isAddingRateTier.set(false);
+    this.editingRateTierId.set(null);
+    this.newThreshold.set({ sourceServiceId: 0, sourceQuantity: 0, includedQuantity: 0 });
+    this.newRateTier.set({ fromQuantity: 0, cost: 0, timeDuration: 0, displayOrder: 0 });
   }
 
   /** Services that may act as an allowance source — same service type, and not the service itself. */
   getThresholdSourceCandidates(service: Service): Service[] {
-    if (!this.selectedServiceType) return [];
-    return this.selectedServiceType.services.filter(s => s.id !== service.id);
+    if (!this.selectedServiceType()) return [];
+    return this.selectedServiceType()!.services.filter(s => s.id !== service.id);
   }
 
   /** Reloads one service's rows in place so the row doesn't collapse on every change. */
   private refreshPricingRow(service: Service) {
     this.adminService.getServiceThresholds(service.id).subscribe({
-      next: rows => service.thresholds = rows
+      next: rows => { service.thresholds = rows; this.selectedServiceType.set(this.selectedServiceType()); }
     });
     this.adminService.getServiceRateTiers(service.id).subscribe({
-      next: rows => service.rateTiers = rows
+      next: rows => { service.rateTiers = rows; this.selectedServiceType.set(this.selectedServiceType()); }
     });
   }
 
   private handlePricingRowError(error: any, fallback: string) {
-    this.pricingRowMessage.error = error?.error?.message || fallback;
-    this.pricingRowMessage.success = '';
+    this.pricingRowMessage().error = error?.error?.message || fallback;
+    this.pricingRowMessage.set(this.pricingRowMessage());
+    this.pricingRowMessage().success = '';
+    this.pricingRowMessage.set(this.pricingRowMessage());
   }
 
   // ----- Thresholds -----
 
   startAddingThreshold(service: Service) {
-    this.isAddingThreshold = true;
-    this.editingThresholdId = null;
+    this.isAddingThreshold.set(true);
+    this.editingThresholdId.set(null);
     const candidates = this.getThresholdSourceCandidates(service);
-    this.newThreshold = {
+    this.newThreshold.set({
       sourceServiceId: candidates.length ? candidates[0].id : 0,
       sourceQuantity: 0,
       includedQuantity: 0
-    };
+    });
   }
 
   cancelAddingThreshold() {
-    this.isAddingThreshold = false;
+    this.isAddingThreshold.set(false);
   }
 
   addThreshold(service: Service) {
-    if (!this.newThreshold.sourceServiceId) {
-      this.pricingRowMessage.error = 'Choose which service the included amount is based on.';
+    if (!this.newThreshold().sourceServiceId) {
+      this.pricingRowMessage().error = 'Choose which service the included amount is based on.';
+      this.pricingRowMessage.set(this.pricingRowMessage());
       return;
     }
-    this.adminService.createServiceThreshold(service.id, this.newThreshold).subscribe({
+    this.adminService.createServiceThreshold(service.id, this.newThreshold()).subscribe({
       next: () => {
-        this.pricingRowMessage = { error: '', success: 'Included amount added.' };
-        this.isAddingThreshold = false;
+        this.pricingRowMessage.set({ error: '', success: 'Included amount added.' });
+        this.isAddingThreshold.set(false);
         this.refreshPricingRow(service);
       },
       error: err => this.handlePricingRowError(err, 'Failed to add the included amount.')
@@ -1051,8 +1101,8 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   startEditingThreshold(row: ServiceThreshold) {
-    this.editingThresholdId = row.id;
-    this.isAddingThreshold = false;
+    this.editingThresholdId.set(row.id);
+    this.isAddingThreshold.set(false);
   }
 
   saveThreshold(service: Service, row: ServiceThreshold) {
@@ -1062,8 +1112,8 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
       includedQuantity: row.includedQuantity
     }).subscribe({
       next: () => {
-        this.pricingRowMessage = { error: '', success: 'Included amount updated.' };
-        this.editingThresholdId = null;
+        this.pricingRowMessage.set({ error: '', success: 'Included amount updated.' });
+        this.editingThresholdId.set(null);
         this.refreshPricingRow(service);
       },
       error: err => {
@@ -1074,7 +1124,7 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   cancelEditingThreshold(service: Service) {
-    this.editingThresholdId = null;
+    this.editingThresholdId.set(null);
     this.refreshPricingRow(service);
   }
 
@@ -1084,7 +1134,7 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
 
     this.adminService.deleteServiceThreshold(service.id, row.id).subscribe({
       next: () => {
-        this.pricingRowMessage = { error: '', success: 'Included amount removed.' };
+        this.pricingRowMessage.set({ error: '', success: 'Included amount removed.' });
         this.refreshPricingRow(service);
       },
       error: err => this.handlePricingRowError(err, 'Failed to remove the included amount.')
@@ -1094,27 +1144,27 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
   // ----- Rate tiers -----
 
   startAddingRateTier(service: Service) {
-    this.isAddingRateTier = true;
-    this.editingRateTierId = null;
+    this.isAddingRateTier.set(true);
+    this.editingRateTierId.set(null);
     const tiers = service.rateTiers || [];
-    this.newRateTier = {
+    this.newRateTier.set({
       // First tier must anchor at 0; afterwards default to just past the current top band.
       fromQuantity: tiers.length === 0 ? 0 : Math.max(...tiers.map(t => t.fromQuantity)) + 100,
       cost: service.cost || 0,
       timeDuration: service.timeDuration || 0,
       displayOrder: tiers.length + 1
-    };
+    });
   }
 
   cancelAddingRateTier() {
-    this.isAddingRateTier = false;
+    this.isAddingRateTier.set(false);
   }
 
   addRateTier(service: Service) {
-    this.adminService.createServiceRateTier(service.id, this.newRateTier).subscribe({
+    this.adminService.createServiceRateTier(service.id, this.newRateTier()).subscribe({
       next: () => {
-        this.pricingRowMessage = { error: '', success: 'Rate tier added.' };
-        this.isAddingRateTier = false;
+        this.pricingRowMessage.set({ error: '', success: 'Rate tier added.' });
+        this.isAddingRateTier.set(false);
         this.refreshPricingRow(service);
       },
       error: err => this.handlePricingRowError(err, 'Failed to add the rate tier.')
@@ -1122,8 +1172,8 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   startEditingRateTier(row: ServiceRateTier) {
-    this.editingRateTierId = row.id;
-    this.isAddingRateTier = false;
+    this.editingRateTierId.set(row.id);
+    this.isAddingRateTier.set(false);
   }
 
   saveRateTier(service: Service, row: ServiceRateTier) {
@@ -1134,8 +1184,8 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
       displayOrder: row.displayOrder
     }).subscribe({
       next: () => {
-        this.pricingRowMessage = { error: '', success: 'Rate tier updated.' };
-        this.editingRateTierId = null;
+        this.pricingRowMessage.set({ error: '', success: 'Rate tier updated.' });
+        this.editingRateTierId.set(null);
         this.refreshPricingRow(service);
       },
       error: err => {
@@ -1146,7 +1196,7 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   cancelEditingRateTier(service: Service) {
-    this.editingRateTierId = null;
+    this.editingRateTierId.set(null);
     this.refreshPricingRow(service);
   }
 
@@ -1155,7 +1205,7 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
 
     this.adminService.deleteServiceRateTier(service.id, row.id).subscribe({
       next: () => {
-        this.pricingRowMessage = { error: '', success: 'Rate tier removed.' };
+        this.pricingRowMessage.set({ error: '', success: 'Rate tier removed.' });
         this.refreshPricingRow(service);
       },
       error: err => this.handlePricingRowError(err, 'Failed to remove the rate tier.')
@@ -1207,46 +1257,46 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
   // ==========================================================================
 
   togglePricingConfigPanel() {
-    this.showPricingConfigPanel = !this.showPricingConfigPanel;
-    if (!this.showPricingConfigPanel) this.resetPricingConfigPanel();
+    this.showPricingConfigPanel.set(!this.showPricingConfigPanel());
+    if (!this.showPricingConfigPanel()) this.resetPricingConfigPanel();
   }
 
   private resetPricingConfigPanel() {
-    this.pricingConfigJson = '';
-    this.pricingConfigDiff = null;
+    this.pricingConfigJson.set('');
+    this.pricingConfigDiff.set(null);
     this.pendingPricingConfig = null;
-    this.pricingConfigMessage = { error: '', success: '' };
+    this.pricingConfigMessage.set({ error: '', success: '' });
   }
 
-  get isSuperAdmin(): boolean {
-    return this.userRole === 'SuperAdmin';
-  }
+  readonly isSuperAdmin = computed<boolean>(() => this.userRole() === 'SuperAdmin');
 
   exportPricingConfiguration(allTypes: boolean) {
-    this.pricingConfigBusy = true;
-    this.pricingConfigMessage = { error: '', success: '' };
+    this.pricingConfigBusy.set(true);
+    this.pricingConfigMessage.set({ error: '', success: '' });
 
-    const scope = allTypes ? undefined : (this.selectedServiceType?.id ?? undefined);
+    const scope = allTypes ? undefined : (this.selectedServiceType()?.id ?? undefined);
     this.adminService.exportPricingConfiguration(scope).subscribe({
       next: config => {
-        this.pricingConfigJson = JSON.stringify(config, null, 2);
-        this.pricingConfigDiff = null;
+        this.pricingConfigJson.set(JSON.stringify(config, null, 2));
+        this.pricingConfigDiff.set(null);
         this.pendingPricingConfig = null;
-        this.pricingConfigBusy = false;
-        this.pricingConfigMessage.success = allTypes
+        this.pricingConfigBusy.set(false);
+        this.pricingConfigMessage().success = allTypes
           ? `Exported ${config.serviceTypes.length} service type(s). Copy the JSON below, or download it.`
-          : `Exported "${this.selectedServiceType?.name}". Copy the JSON below, or download it.`;
+          : `Exported "${this.selectedServiceType()?.name}". Copy the JSON below, or download it.`;
+        this.pricingConfigMessage.set(this.pricingConfigMessage());
       },
       error: () => {
-        this.pricingConfigBusy = false;
-        this.pricingConfigMessage.error = 'Failed to export the configuration.';
+        this.pricingConfigBusy.set(false);
+        this.pricingConfigMessage().error = 'Failed to export the configuration.';
+        this.pricingConfigMessage.set(this.pricingConfigMessage());
       }
     });
   }
 
   downloadPricingConfiguration() {
-    if (!this.pricingConfigJson) return;
-    const blob = new Blob([this.pricingConfigJson], { type: 'application/json' });
+    if (!this.pricingConfigJson()) return;
+    const blob = new Blob([this.pricingConfigJson()], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
@@ -1262,66 +1312,70 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
 
     const reader = new FileReader();
     reader.onload = () => {
-      this.pricingConfigJson = String(reader.result ?? '');
-      this.pricingConfigDiff = null;
+      this.pricingConfigJson.set(String(reader.result ?? ''));
+      this.pricingConfigDiff.set(null);
       this.pendingPricingConfig = null;
-      this.pricingConfigMessage = { error: '', success: '' };
+      this.pricingConfigMessage.set({ error: '', success: '' });
     };
     reader.readAsText(file);
     input.value = ''; // allow re-selecting the same file
   }
 
   previewPricingConfiguration() {
-    this.pricingConfigMessage = { error: '', success: '' };
-    this.pricingConfigDiff = null;
+    this.pricingConfigMessage.set({ error: '', success: '' });
+    this.pricingConfigDiff.set(null);
 
     let parsed: PricingConfiguration;
     try {
-      parsed = JSON.parse(this.pricingConfigJson);
+      parsed = JSON.parse(this.pricingConfigJson());
     } catch {
-      this.pricingConfigMessage.error = 'That is not valid JSON. Paste the exported file exactly as it was produced.';
+      this.pricingConfigMessage().error = 'That is not valid JSON. Paste the exported file exactly as it was produced.';
+      this.pricingConfigMessage.set(this.pricingConfigMessage());
       return;
     }
 
-    this.pricingConfigBusy = true;
+    this.pricingConfigBusy.set(true);
     this.adminService.previewPricingConfiguration(parsed).subscribe({
       next: diff => {
-        this.pricingConfigDiff = diff;
+        this.pricingConfigDiff.set(diff);
         this.pendingPricingConfig = diff.canApply ? parsed : null;
-        this.pricingConfigBusy = false;
+        this.pricingConfigBusy.set(false);
         if (diff.isNoOp) {
-          this.pricingConfigMessage.success = 'This configuration matches what is already here — nothing would change.';
+          this.pricingConfigMessage().success = 'This configuration matches what is already here — nothing would change.';
+          this.pricingConfigMessage.set(this.pricingConfigMessage());
         }
       },
       error: err => {
-        this.pricingConfigBusy = false;
-        this.pricingConfigMessage.error = err?.error?.message || 'Failed to preview the configuration.';
+        this.pricingConfigBusy.set(false);
+        this.pricingConfigMessage().error = err?.error?.message || 'Failed to preview the configuration.';
+        this.pricingConfigMessage.set(this.pricingConfigMessage());
       }
     });
   }
 
   applyPricingConfiguration() {
-    if (!this.pendingPricingConfig || !this.pricingConfigDiff?.canApply) return;
+    if (!this.pendingPricingConfig || !this.pricingConfigDiff()?.canApply) return;
 
-    const typeCount = this.pricingConfigDiff.serviceTypes.length;
+    const typeCount = this.pricingConfigDiff()!.serviceTypes.length;
     if (!confirm(
       `Apply this configuration to ${typeCount} service type(s)?\n\n` +
       'Prices, durations, included amounts and rate tiers will be overwritten with the values shown in the preview.'
     )) return;
 
-    this.pricingConfigBusy = true;
+    this.pricingConfigBusy.set(true);
     this.adminService.applyPricingConfiguration(this.pendingPricingConfig).subscribe({
       next: result => {
-        this.pricingConfigBusy = false;
-        this.pricingConfigMessage = { error: '', success: result.message };
-        this.pricingConfigDiff = null;
+        this.pricingConfigBusy.set(false);
+        this.pricingConfigMessage.set({ error: '', success: result.message });
+        this.pricingConfigDiff.set(null);
         this.pendingPricingConfig = null;
         this.loadServiceTypes();
         this.loadAllServices();
       },
       error: err => {
-        this.pricingConfigBusy = false;
-        this.pricingConfigMessage.error = err?.error?.message || 'Failed to apply the configuration. Nothing was changed.';
+        this.pricingConfigBusy.set(false);
+        this.pricingConfigMessage().error = err?.error?.message || 'Failed to apply the configuration. Nothing was changed.';
+        this.pricingConfigMessage.set(this.pricingConfigMessage());
       }
     });
   }
@@ -1355,63 +1409,72 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   deactivateService(service: Service) {
-    if (!this.userPermissions.permissions.canDeactivate) {
-      this.serviceMessage.error = 'You do not have permission to deactivate services';
+    if (!this.userPermissions().permissions.canDeactivate) {
+      this.serviceMessage().error = 'You do not have permission to deactivate services';
+      this.serviceMessage.set(this.serviceMessage());
       return;
     }
     this.adminService.deactivateService(service.id).subscribe({
       next: (response) => {
-        if (this.selectedServiceType) {
-          const index = this.selectedServiceType.services.findIndex(s => s.id === service.id);
+        if (this.selectedServiceType()) {
+          const index = this.selectedServiceType()!.services.findIndex(s => s.id === service.id);
           if (index !== -1) {
-            this.selectedServiceType.services[index] = { ...this.selectedServiceType.services[index], isActive: false };
+            this.selectedServiceType()!.services[index] = { ...this.selectedServiceType()!.services[index], isActive: false };
+            this.selectedServiceType.set(this.selectedServiceType());
           }
         }
-        this.serviceMessage.success = 'Service deactivated successfully';
+        this.serviceMessage().success = 'Service deactivated successfully';
+        this.serviceMessage.set(this.serviceMessage());
         this.loadServiceTypes();
         this.loadAllServices();
       },
       error: () => {
-        this.serviceMessage.error = 'Failed to deactivate service';
+        this.serviceMessage().error = 'Failed to deactivate service';
+        this.serviceMessage.set(this.serviceMessage());
       }
     });
   }
 
   activateService(service: Service) {
-    if (!this.userPermissions.permissions.canActivate) {
-      this.serviceMessage.error = 'You do not have permission to activate services';
+    if (!this.userPermissions().permissions.canActivate) {
+      this.serviceMessage().error = 'You do not have permission to activate services';
+      this.serviceMessage.set(this.serviceMessage());
       return;
     }
     this.adminService.activateService(service.id).subscribe({
       next: (response) => {
-        if (this.selectedServiceType) {
-          const index = this.selectedServiceType.services.findIndex(s => s.id === service.id);
+        if (this.selectedServiceType()) {
+          const index = this.selectedServiceType()!.services.findIndex(s => s.id === service.id);
           if (index !== -1) {
-            this.selectedServiceType.services[index] = { ...this.selectedServiceType.services[index], isActive: true };
+            this.selectedServiceType()!.services[index] = { ...this.selectedServiceType()!.services[index], isActive: true };
+            this.selectedServiceType.set(this.selectedServiceType());
           }
         }
-        this.serviceMessage.success = 'Service activated successfully';
+        this.serviceMessage().success = 'Service activated successfully';
+        this.serviceMessage.set(this.serviceMessage());
         this.loadServiceTypes();
         this.loadAllServices();
       },
       error: () => {
-        this.serviceMessage.error = 'Failed to activate service';
+        this.serviceMessage().error = 'Failed to activate service';
+        this.serviceMessage.set(this.serviceMessage());
       }
     });
   }
 
   // Extra Services Methods
   startAddingExtraService() {
-    if (!this.userPermissions.permissions.canCreate) {
-      this.extraServiceMessage.error = 'You do not have permission to create extra services';
+    if (!this.userPermissions().permissions.canCreate) {
+      this.extraServiceMessage().error = 'You do not have permission to create extra services';
+      this.extraServiceMessage.set(this.extraServiceMessage());
       return;
     }
-    if (!this.selectedServiceType) return;
+    if (!this.selectedServiceType()) return;
     
-    this.isAddingExtraService = true;
-    this.showExistingExtraServices = false;
-    this.selectedExistingExtraServiceId = null;
-    this.newExtraService = {
+    this.isAddingExtraService.set(true);
+    this.showExistingExtraServices.set(false);
+    this.selectedExistingExtraServiceId.set(null);
+    this.newExtraService.set({
       name: '',
       description: '',
       price: 0,
@@ -1423,67 +1486,70 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
       isSuperDeepCleaning: false,
       isSameDayService: false,
       priceMultiplier: 1.0,
-      serviceTypeId: this.selectedServiceType.id,
+      serviceTypeId: this.selectedServiceType()!.id,
       isAvailableForAll: true,
-      displayOrder: this.selectedServiceType.extraServices.length + 1,
+      displayOrder: this.selectedServiceType()!.extraServices.length + 1,
       extraServiceKey: ''
-    };
+    });
   }
 
   toggleExistingExtraServices() {
-    this.showExistingExtraServices = !this.showExistingExtraServices;
+    this.showExistingExtraServices.set(!this.showExistingExtraServices());
   }
 
   onExtraServiceSelectionChange(event: any) {
     // Convert string to number if needed
     if (event.target.value && event.target.value !== '') {
-      this.selectedExistingExtraServiceId = parseInt(event.target.value);
+      this.selectedExistingExtraServiceId.set(parseInt(event.target.value));
     } else {
-      this.selectedExistingExtraServiceId = null;
+      this.selectedExistingExtraServiceId.set(null);
     }
   }
 
   getAvailableExtraServicesForCopy(): ExtraService[] {
-    if (!this.selectedServiceType || !this.allExtraServices) {
+    if (!this.selectedServiceType() || !this.allExtraServices()) {
       return [];
     }
 
     // Offer only extras the selected type does not already have: matched on the KEY when the
     // candidate carries one (a renamed copy is still the same extra), otherwise on the name as before.
-    const existing = this.selectedServiceType.extraServices;
+    const existing = this.selectedServiceType()!.extraServices;
     const existingKeys = new Set(existing.map(s => s.extraServiceKey).filter((k): k is string => !!k));
     const existingNames = new Set(existing.map(s => s.name));
-    return this.allExtraServices.filter(service =>
+    return this.allExtraServices().filter(service =>
       service.extraServiceKey ? !existingKeys.has(service.extraServiceKey) : !existingNames.has(service.name));
   }
 
   copyExistingExtraService() {
-    if (!this.userPermissions.permissions.canCreate) {
-      this.extraServiceMessage.error = 'You do not have permission to copy extra services';
+    if (!this.userPermissions().permissions.canCreate) {
+      this.extraServiceMessage().error = 'You do not have permission to copy extra services';
+      this.extraServiceMessage.set(this.extraServiceMessage());
       return;
     }
-    if (!this.selectedExistingExtraServiceId || !this.selectedServiceType) {
+    if (!this.selectedExistingExtraServiceId() || !this.selectedServiceType()) {
       return;
     }
     
     // Use the API to copy the extra service (like the regular service copy)
     this.adminService.copyExtraService({
-      sourceExtraServiceId: this.selectedExistingExtraServiceId,
-      targetServiceTypeId: this.selectedServiceType.id
+      sourceExtraServiceId: this.selectedExistingExtraServiceId()!,
+      targetServiceTypeId: this.selectedServiceType()!.id
     }).subscribe({
       next: (response) => {
         // Add the copied service to the selected service type
-        if (this.selectedServiceType) {
-          this.selectedServiceType.extraServices.push(response);
+        if (this.selectedServiceType()) {
+          this.selectedServiceType()!.extraServices.push(response);
+          this.selectedServiceType.set(this.selectedServiceType());
         }
         
         // Reset the form
-        this.isAddingExtraService = false;
-        this.showExistingExtraServices = false;
-        this.selectedExistingExtraServiceId = null;
+        this.isAddingExtraService.set(false);
+        this.showExistingExtraServices.set(false);
+        this.selectedExistingExtraServiceId.set(null);
         
         // Show success message
-        this.extraServiceMessage.success = 'Extra service copied successfully';
+        this.extraServiceMessage().success = 'Extra service copied successfully';
+        this.extraServiceMessage.set(this.extraServiceMessage());
         
         // Reload data to ensure consistency
         this.loadServiceTypes();
@@ -1491,35 +1557,38 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
       },
       error: (error) => {
         console.error('Error copying extra service:', error);
-        this.extraServiceMessage.error = 'Failed to copy extra service. Please try again.';
+        this.extraServiceMessage().error = 'Failed to copy extra service. Please try again.';
+        this.extraServiceMessage.set(this.extraServiceMessage());
       }
     });
   }
 
   cancelAddExtraService() {
-    this.isAddingExtraService = false;
-    this.showExistingExtraServices = false;
-    this.selectedExistingExtraServiceId = null;
+    this.isAddingExtraService.set(false);
+    this.showExistingExtraServices.set(false);
+    this.selectedExistingExtraServiceId.set(null);
   }
 
   addExtraService() {
-    if (!this.userPermissions.permissions.canCreate) {
-      this.extraServiceMessage.error = 'You do not have permission to create extra services';
+    if (!this.userPermissions().permissions.canCreate) {
+      this.extraServiceMessage().error = 'You do not have permission to create extra services';
+      this.extraServiceMessage.set(this.extraServiceMessage());
       return;
     }
-    if (!this.selectedServiceType) return;
+    if (!this.selectedServiceType()) return;
 
     const extraServiceData = {
-      ...this.newExtraService,
-      serviceTypeId: this.newExtraService.isAvailableForAll ? undefined : this.selectedServiceType.id
+      ...this.newExtraService(),
+      serviceTypeId: this.newExtraService().isAvailableForAll ? undefined : this.selectedServiceType()!.id
     };
     this.adminService.createExtraService(extraServiceData).subscribe({
       next: (response) => {
-        if (this.selectedServiceType) {
-          this.selectedServiceType.extraServices.push(response);
+        if (this.selectedServiceType()) {
+          this.selectedServiceType()!.extraServices.push(response);
+          this.selectedServiceType.set(this.selectedServiceType());
         }
-        this.isAddingExtraService = false;
-        this.newExtraService = {
+        this.isAddingExtraService.set(false);
+        this.newExtraService.set({
           name: '',
           description: '',
           price: 0,
@@ -1535,32 +1604,36 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
           isAvailableForAll: true,
           displayOrder: 1,
           extraServiceKey: ''
-        };
-        this.extraServiceMessage.success = 'Extra service added successfully.';
+        });
+        this.extraServiceMessage().success = 'Extra service added successfully.';
+        this.extraServiceMessage.set(this.extraServiceMessage());
       },
       error: (error) => {
         console.error('Error creating extra service:', error);
-        this.extraServiceMessage.error = extractApiErrorMessage(error, 'Failed to create extra service. Please try again.');
+        this.extraServiceMessage().error = extractApiErrorMessage(error, 'Failed to create extra service. Please try again.');
+        this.extraServiceMessage.set(this.extraServiceMessage());
       }
     });
   }
 
   editExtraService(extraService: ExtraService) {
-    if (!this.userPermissions.permissions.canUpdate) {
-      this.extraServiceMessage.error = 'You do not have permission to edit extra services';
+    if (!this.userPermissions().permissions.canUpdate) {
+      this.extraServiceMessage().error = 'You do not have permission to edit extra services';
+      this.extraServiceMessage.set(this.extraServiceMessage());
       return;
     }
-    this.editingExtraServiceId = extraService.id;
+    this.editingExtraServiceId.set(extraService.id);
   }
 
   cancelEditExtraService() {
-    this.editingExtraServiceId = null;
+    this.editingExtraServiceId.set(null);
     this.loadServiceTypes();
   }
 
   saveExtraService(extraService: ExtraService) {
-    if (!this.userPermissions.permissions.canUpdate) {
-      this.extraServiceMessage.error = 'You do not have permission to update extra services';
+    if (!this.userPermissions().permissions.canUpdate) {
+      this.extraServiceMessage().error = 'You do not have permission to update extra services';
+      this.extraServiceMessage.set(this.extraServiceMessage());
       return;
     }
 
@@ -1576,7 +1649,7 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
       isSuperDeepCleaning: extraService.isSuperDeepCleaning,
       isSameDayService: extraService.isSameDayService,
       priceMultiplier: extraService.priceMultiplier,
-      serviceTypeId: extraService.isAvailableForAll ? undefined : this.selectedServiceType?.id,
+      serviceTypeId: extraService.isAvailableForAll ? undefined : this.selectedServiceType()?.id,
       isAvailableForAll: extraService.isAvailableForAll,
       displayOrder: extraService.displayOrder || 1,
       // Blank saves as "no key"; format and uniqueness come back from the server as the message.
@@ -1584,68 +1657,78 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
     };
     this.adminService.updateExtraService(extraService.id, updateData).subscribe({
       next: (response) => {
-        if (this.selectedServiceType) {
-          const index = this.selectedServiceType.extraServices.findIndex(s => s.id === response.id);
+        if (this.selectedServiceType()) {
+          const index = this.selectedServiceType()!.extraServices.findIndex(s => s.id === response.id);
           if (index !== -1) {
-            this.selectedServiceType.extraServices[index] = response;
+            this.selectedServiceType()!.extraServices[index] = response;
+            this.selectedServiceType.set(this.selectedServiceType());
           }
         }
         this.loadServiceTypes();
-        this.editingExtraServiceId = null;
-        this.extraServiceMessage.success = 'Extra service updated successfully.';
+        this.editingExtraServiceId.set(null);
+        this.extraServiceMessage().success = 'Extra service updated successfully.';
+        this.extraServiceMessage.set(this.extraServiceMessage());
       },
       error: (error) => {
         console.error('Error updating extra service:', error);
-        this.extraServiceMessage.error = extractApiErrorMessage(error, 'Failed to update extra service. Please try again.');
+        this.extraServiceMessage().error = extractApiErrorMessage(error, 'Failed to update extra service. Please try again.');
+        this.extraServiceMessage.set(this.extraServiceMessage());
       }
     });
   }
 
   deleteExtraService(extraService: ExtraService) {
-    if (!this.userPermissions.permissions.canDelete) {
-      this.extraServiceMessage.error = 'You do not have permission to delete extra services';
+    if (!this.userPermissions().permissions.canDelete) {
+      this.extraServiceMessage().error = 'You do not have permission to delete extra services';
+      this.extraServiceMessage.set(this.extraServiceMessage());
       return;
     }
     if (confirm(`Are you sure you want to permanently delete "${extraService.name}"? This cannot be undone.`)) {
       this.adminService.deleteExtraService(extraService.id).subscribe({
         next: () => {
-          if (this.selectedServiceType) {
-            this.selectedServiceType.extraServices = this.selectedServiceType.extraServices.filter(s => s.id !== extraService.id);
+          if (this.selectedServiceType()) {
+            this.selectedServiceType()!.extraServices = this.selectedServiceType()!.extraServices.filter(s => s.id !== extraService.id);
+            this.selectedServiceType.set(this.selectedServiceType());
           }
-          this.extraServiceMessage.success = 'Extra service deleted successfully.';
+          this.extraServiceMessage().success = 'Extra service deleted successfully.';
+          this.extraServiceMessage.set(this.extraServiceMessage());
         },
         error: (error) => {
           console.error('Error deleting extra service:', error);
-          this.extraServiceMessage.error = 'Failed to delete extra service. Please try again.';
+          this.extraServiceMessage().error = 'Failed to delete extra service. Please try again.';
+          this.extraServiceMessage.set(this.extraServiceMessage());
         }
       });
     }
   }
 
   deactivateExtraService(extraService: ExtraService) {
-    if (!this.userPermissions.permissions.canDeactivate) {
-      this.extraServiceMessage.error = 'You do not have permission to deactivate extra services';
+    if (!this.userPermissions().permissions.canDeactivate) {
+      this.extraServiceMessage().error = 'You do not have permission to deactivate extra services';
+      this.extraServiceMessage.set(this.extraServiceMessage());
       return;
     }
     this.adminService.deactivateExtraService(extraService.id).subscribe({
       next: (response) => {
         // Update allExtraServices
-        this.allExtraServices = this.allExtraServices.map(service => 
+        this.allExtraServices.set(this.allExtraServices().map(service => 
           service.id === extraService.id 
             ? { ...service, isActive: false }
             : service
-        );
+        ));
         
         // Update selectedServiceType.extraServices if it exists
-        if (this.selectedServiceType) {
-          this.selectedServiceType.extraServices = this.selectedServiceType.extraServices.map(service =>
+        if (this.selectedServiceType()) {
+          this.selectedServiceType()!.extraServices = this.selectedServiceType()!.extraServices.map(service =>
             service.id === extraService.id
               ? { ...service, isActive: false }
               : service
           );
+          this.selectedServiceType.set(this.selectedServiceType());
         }
         
-        this.extraServiceMessage.success = 'Extra service deactivated successfully.';
+        this.extraServiceMessage().success = 'Extra service deactivated successfully.';
+        this.extraServiceMessage.set(this.extraServiceMessage());
 
         // Re-fetch from backend so admin UI matches booking endpoint
         this.loadServiceTypes();
@@ -1653,35 +1736,39 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
       },
       error: (error) => {
         console.error('Error deactivating extra service:', error);
-        this.extraServiceMessage.error = 'Failed to deactivate extra service. Please try again.';
+        this.extraServiceMessage().error = 'Failed to deactivate extra service. Please try again.';
+        this.extraServiceMessage.set(this.extraServiceMessage());
       }
     });
   }
 
   activateExtraService(extraService: ExtraService) {
-    if (!this.userPermissions.permissions.canActivate) {
-      this.extraServiceMessage.error = 'You do not have permission to activate extra services';
+    if (!this.userPermissions().permissions.canActivate) {
+      this.extraServiceMessage().error = 'You do not have permission to activate extra services';
+      this.extraServiceMessage.set(this.extraServiceMessage());
       return;
     }
     this.adminService.activateExtraService(extraService.id).subscribe({
       next: (response) => {
         // Update allExtraServices
-        this.allExtraServices = this.allExtraServices.map(service => 
+        this.allExtraServices.set(this.allExtraServices().map(service => 
           service.id === extraService.id 
             ? { ...service, isActive: true }
             : service
-        );
+        ));
         
         // Update selectedServiceType.extraServices if it exists
-        if (this.selectedServiceType) {
-          this.selectedServiceType.extraServices = this.selectedServiceType.extraServices.map(service =>
+        if (this.selectedServiceType()) {
+          this.selectedServiceType()!.extraServices = this.selectedServiceType()!.extraServices.map(service =>
             service.id === extraService.id
               ? { ...service, isActive: true }
               : service
           );
+          this.selectedServiceType.set(this.selectedServiceType());
         }
         
-        this.extraServiceMessage.success = 'Extra service activated successfully.';
+        this.extraServiceMessage().success = 'Extra service activated successfully.';
+        this.extraServiceMessage.set(this.extraServiceMessage());
 
         // Re-fetch from backend so admin UI matches booking endpoint
         this.loadServiceTypes();
@@ -1689,7 +1776,8 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
       },
       error: (error) => {
         console.error('Error activating extra service:', error);
-        this.extraServiceMessage.error = 'Failed to activate extra service. Please try again.';
+        this.extraServiceMessage().error = 'Failed to activate extra service. Please try again.';
+        this.extraServiceMessage.set(this.extraServiceMessage());
       }
     });
   }
@@ -1701,11 +1789,11 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
 
   // Poll Question Methods
   loadPollQuestions() {
-    if (!this.selectedServiceType) return;
+    if (!this.selectedServiceType()) return;
 
-    this.adminService.getPollQuestions(this.selectedServiceType.id).subscribe({
+    this.adminService.getPollQuestions(this.selectedServiceType()!.id).subscribe({
       next: (questions) => {
-        this.pollQuestions = this.sortPollQuestionsByOrder(questions);
+        this.pollQuestions.set(this.sortPollQuestionsByOrder(questions));
         // Initialize sticky headers after poll questions load
         setTimeout(() => {
           this.updateAllStickyHeaders();
@@ -1713,94 +1801,103 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
       },
       error: (error) => {
         console.error('Error loading poll questions:', error);
-        this.pollQuestionMessage.error = 'Failed to load poll questions';
+        this.pollQuestionMessage().error = 'Failed to load poll questions';
+        this.pollQuestionMessage.set(this.pollQuestionMessage());
       }
     });
   }
 
   startAddingPollQuestion() {
-    if (!this.userPermissions.permissions.canCreate) {
-      this.pollQuestionMessage.error = 'You do not have permission to create poll questions';
+    if (!this.userPermissions().permissions.canCreate) {
+      this.pollQuestionMessage().error = 'You do not have permission to create poll questions';
+      this.pollQuestionMessage.set(this.pollQuestionMessage());
       return;
     }
-    if (!this.selectedServiceType) return;
+    if (!this.selectedServiceType()) return;
 
-    this.isAddingPollQuestion = true;
-    this.editingPollQuestionId = null;
-    this.newPollQuestion = {
+    this.isAddingPollQuestion.set(true);
+    this.editingPollQuestionId.set(null);
+    this.newPollQuestion.set({
       question: '',
       questionType: 'text',
       options: '',
       isRequired: false,
       displayOrder: this.getNextPollQuestionDisplayOrder(),
-      serviceTypeId: this.selectedServiceType.id
-    };
+      serviceTypeId: this.selectedServiceType()!.id
+    });
   }
 
   cancelAddPollQuestion() {
-    this.isAddingPollQuestion = false;
-    this.newPollQuestion = {
+    this.isAddingPollQuestion.set(false);
+    this.newPollQuestion.set({
       question: '',
       questionType: 'text',
       options: '',
       isRequired: false,
       displayOrder: 1,
       serviceTypeId: 0
-    };
+    });
     this.clearPollQuestionMessages();
   }
 
   addPollQuestion() {
-    if (!this.newPollQuestion.question) {
-      this.pollQuestionMessage.error = 'Please enter a question';
+    if (!this.newPollQuestion().question) {
+      this.pollQuestionMessage().error = 'Please enter a question';
+      this.pollQuestionMessage.set(this.pollQuestionMessage());
       return;
     }
 
-    if ((this.newPollQuestion.questionType === 'dropdown' || this.newPollQuestion.questionType === 'radio' || this.newPollQuestion.questionType === 'checkbox') && !this.newPollQuestion.options) {
-      this.pollQuestionMessage.error = 'Please enter options for dropdown/radio/checkbox questions (comma-separated)';
+    if ((this.newPollQuestion().questionType === 'dropdown' || this.newPollQuestion().questionType === 'radio' || this.newPollQuestion().questionType === 'checkbox') && !this.newPollQuestion().options) {
+      this.pollQuestionMessage().error = 'Please enter options for dropdown/radio/checkbox questions (comma-separated)';
+      this.pollQuestionMessage.set(this.pollQuestionMessage());
       return;
     }
 
-    this.adminService.createPollQuestion(this.newPollQuestion).subscribe({
+    this.adminService.createPollQuestion(this.newPollQuestion()).subscribe({
       next: (question) => {
-        this.pollQuestions.push(question);
-        this.pollQuestions = this.sortPollQuestionsByOrder(this.pollQuestions);
-        this.isAddingPollQuestion = false;
-        this.newPollQuestion = {
+        this.pollQuestions().push(question);
+        this.pollQuestions.set(this.pollQuestions());
+        this.pollQuestions.set(this.sortPollQuestionsByOrder(this.pollQuestions()));
+        this.isAddingPollQuestion.set(false);
+        this.newPollQuestion.set({
           question: '',
           questionType: 'text',
           options: '',
           isRequired: false,
           displayOrder: 1,
           serviceTypeId: 0
-        };
-        this.pollQuestionMessage.success = 'Question added successfully';
+        });
+        this.pollQuestionMessage().success = 'Question added successfully';
+        this.pollQuestionMessage.set(this.pollQuestionMessage());
         this.clearPollQuestionMessagesAfterDelay();
       },
       error: (error) => {
         console.error('Error adding poll question:', error);
-        this.pollQuestionMessage.error = 'Failed to add question';
+        this.pollQuestionMessage().error = 'Failed to add question';
+        this.pollQuestionMessage.set(this.pollQuestionMessage());
       }
     });
   }
 
   editPollQuestion(question: PollQuestion) {
-    this.editingPollQuestionId = question.id;
-    this.isAddingPollQuestion = false;
+    this.editingPollQuestionId.set(question.id);
+    this.isAddingPollQuestion.set(false);
   }
 
   cancelEditPollQuestion() {
-    this.editingPollQuestionId = null;
+    this.editingPollQuestionId.set(null);
   }
 
   savePollQuestion(question: PollQuestion) {
     if (!question.question) {
-      this.pollQuestionMessage.error = 'Please enter a question';
+      this.pollQuestionMessage().error = 'Please enter a question';
+      this.pollQuestionMessage.set(this.pollQuestionMessage());
       return;
     }
 
     if ((question.questionType === 'dropdown' || question.questionType === 'radio' || question.questionType === 'checkbox') && !question.options) {
-      this.pollQuestionMessage.error = 'Please enter options for dropdown/radio/checkbox questions (comma-separated)';
+      this.pollQuestionMessage().error = 'Please enter options for dropdown/radio/checkbox questions (comma-separated)';
+      this.pollQuestionMessage.set(this.pollQuestionMessage());
       return;
     }
 
@@ -1809,21 +1906,24 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
 
     this.adminService.updatePollQuestion(question.id, question).subscribe({
       next: () => {
-        this.editingPollQuestionId = null;
-        this.pollQuestions = this.sortPollQuestionsByOrder(this.pollQuestions);
-        this.pollQuestionMessage.success = 'Question updated successfully';
+        this.editingPollQuestionId.set(null);
+        this.pollQuestions.set(this.sortPollQuestionsByOrder(this.pollQuestions()));
+        this.pollQuestionMessage().success = 'Question updated successfully';
+        this.pollQuestionMessage.set(this.pollQuestionMessage());
         this.clearPollQuestionMessagesAfterDelay();
       },
       error: (error) => {
         console.error('Error updating poll question:', error);
-        this.pollQuestionMessage.error = 'Failed to update question';
+        this.pollQuestionMessage().error = 'Failed to update question';
+        this.pollQuestionMessage.set(this.pollQuestionMessage());
       }
     });
   }
 
   deletePollQuestion(questionId: number) {
-    if (!this.userPermissions.permissions.canDelete) {
-      this.pollQuestionMessage.error = 'You do not have permission to delete poll questions';
+    if (!this.userPermissions().permissions.canDelete) {
+      this.pollQuestionMessage().error = 'You do not have permission to delete poll questions';
+      this.pollQuestionMessage.set(this.pollQuestionMessage());
       return;
     }
 
@@ -1833,20 +1933,22 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
 
     this.adminService.deletePollQuestion(questionId).subscribe({
       next: () => {
-        this.pollQuestions = this.pollQuestions.filter(q => q.id !== questionId);
-        this.pollQuestionMessage.success = 'Question deleted successfully';
+        this.pollQuestions.set(this.pollQuestions().filter(q => q.id !== questionId));
+        this.pollQuestionMessage().success = 'Question deleted successfully';
+        this.pollQuestionMessage.set(this.pollQuestionMessage());
         this.clearPollQuestionMessagesAfterDelay();
       },
       error: (error) => {
         console.error('Error deleting poll question:', error);
-        this.pollQuestionMessage.error = 'Failed to delete question';
+        this.pollQuestionMessage().error = 'Failed to delete question';
+        this.pollQuestionMessage.set(this.pollQuestionMessage());
       }
     });
   }
 
   getNextPollQuestionDisplayOrder(): number {
-    if (this.pollQuestions.length === 0) return 1;
-    return this.pollQuestions.length + 1;
+    if (this.pollQuestions().length === 0) return 1;
+    return this.pollQuestions().length + 1;
   }
 
   /** Sort poll questions by display order then id for stable unique ordering. */
@@ -1861,13 +1963,13 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
 
   /** Get 1-based display position for a question (unique per list). Used for Order column and when saving. */
   getPollQuestionDisplayPosition(question: PollQuestion): number {
-    const sorted = this.sortPollQuestionsByOrder(this.pollQuestions);
+    const sorted = this.sortPollQuestionsByOrder(this.pollQuestions());
     const idx = sorted.findIndex(q => q.id === question.id);
     return idx >= 0 ? idx + 1 : (question.displayOrder ?? 1);
   }
 
   clearPollQuestionMessages() {
-    this.pollQuestionMessage = { success: '', error: '' };
+    this.pollQuestionMessage.set({ success: '', error: '' });
   }
 
   clearPollQuestionMessagesAfterDelay() {

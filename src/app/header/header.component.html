@@ -12,7 +12,7 @@
       </a>
       <!-- Server-rendered for an admin (layout hint), so it never pops in. -->
       @if (clockVisible) {
-      <span class="ny-time-clock">{{ nyTime }}</span>
+      <span class="ny-time-clock">{{ nyTime() }}</span>
       }
       <div class="nav-container">
         <!-- Bubble Rewards Badge (kept at the left of the cluster). Its slot is part of the server
@@ -24,7 +24,7 @@
         <div class="nav-links" id="mobile-navigation">
           <!-- Cleaning Services Mega Dropdown -->
           <div class="has-dropdown services-dropdown"
-               [class.open]="isServicesMenuOpen"
+               [class.open]="isServicesMenuOpen()"
                (mouseenter)="showServicesMenu()"
                (mouseleave)="hideServicesMenu()">
             <a href="/service-page"
@@ -38,7 +38,7 @@
                 </g>
               </svg>
             </a>
-            <div class="mega-dropdown" [class.open]="isServicesMenuOpen">
+            <div class="mega-dropdown" [class.open]="isServicesMenuOpen()">
               <div class="mega-dropdown-content">
                 <!-- Residential -->
                 <div class="dropdown-column">
@@ -80,7 +80,7 @@
           
           <!-- About Dropdown -->
           <div class="has-dropdown about-dropdown"
-               [class.open]="isAboutMenuOpen"
+               [class.open]="isAboutMenuOpen()"
                (mouseenter)="showAboutMenu()"
                (mouseleave)="hideAboutMenu()">
             <a href="/about"
@@ -95,7 +95,7 @@
                 </g>
               </svg>
             </a>
-            <div class="mega-dropdown" [class.open]="isAboutMenuOpen">
+            <div class="mega-dropdown" [class.open]="isAboutMenuOpen()">
               <div class="mega-dropdown-content more-dropdown-content">
                 <div class="dropdown-column">
                   <p>Company</p>
@@ -118,7 +118,7 @@
 
           <!-- Information Dropdown -->
           <div class="has-dropdown more-dropdown"
-               [class.open]="isMoreMenuOpen"
+               [class.open]="isMoreMenuOpen()"
                (mouseenter)="showMoreMenu()"
                (mouseleave)="hideMoreMenu()">
             <a role="button"
@@ -134,7 +134,7 @@
                 </g>
               </svg>
             </a>
-            <div class="mega-dropdown" [class.open]="isMoreMenuOpen">
+            <div class="mega-dropdown" [class.open]="isMoreMenuOpen()">
               <div class="mega-dropdown-content more-dropdown-content">
                 <div class="dropdown-column">
                   <p>Explore</p>
@@ -144,10 +144,10 @@
                     <a routerLink="/gift-cards" (click)="closeAllMenus()">Gift Cards</a>
                     <!-- Driven by the admin toggle Blog → Settings → "Blog page visible
                          to public" (BlogStatusService) — no code change to go live. -->
-                    @if (blogPublicVisible) {
+                    @if (blogPublicVisible()) {
                     <a routerLink="/blog" (click)="closeAllMenus()">Blog</a>
                     }
-                    @if (!blogPublicVisible) {
+                    @if (!blogPublicVisible()) {
                     <span class="sub-link-disabled" aria-disabled="true" title="Coming soon">Blog <small>Soon</small></span>
                     }
                   </div>
@@ -170,13 +170,13 @@
             <!-- Desktop nav: soft "Get a Quote" ghost CTA. In the mobile hamburger menu
                  the always-visible top-bar quote button already covers this, so we swap
                  in a "Contact Us" link instead. -->
-            @if (!isMobile) {
+            @if (!isMobile()) {
             <a routerLink="/free-quote"
                routerLinkActive="active"
                class="btn-quote-ghost"
                (click)="closeMobileMenu()">Get a Quote</a>
             }
-            @if (isMobile) {
+            @if (isMobile()) {
             <a routerLink="/contact"
                routerLinkActive="active"
                class="btn-contact-ghost"
@@ -203,10 +203,10 @@
           </div>
         </div>
         <button class="mobile-menu-btn"
-                [class.active]="isMenuOpen"
+                [class.active]="isMenuOpen()"
                 (click)="toggleMenu()"
-                [attr.aria-label]="isMenuOpen ? 'Close navigation menu' : 'Open navigation menu'"
-                [attr.aria-expanded]="isMenuOpen"
+                [attr.aria-label]="isMenuOpen() ? 'Close navigation menu' : 'Open navigation menu'"
+                [attr.aria-expanded]="isMenuOpen()"
                 aria-controls="mobile-navigation">
           <span></span>
           <span></span>
@@ -214,7 +214,7 @@
         </button>
         <!-- Auth slot: always reserve space; show spinner until auth ready, then login or user menu -->
         <div class="header-auth-slot">
-          @if (!showAuthUI) {
+          @if (!showAuthUI()) {
           <div class="header-auth-shimmer-wrap">
             <div class="header-auth-spinner">
               <div class="header-auth-loader-ring header-auth-loader-ring-outer"></div>
@@ -222,7 +222,7 @@
             </div>
           </div>
           }
-          @if (showAuthUI && isBrowser) {
+          @if (showAuthUI() && isBrowser) {
             <app-header-account-menu></app-header-account-menu>
           }
         </div>

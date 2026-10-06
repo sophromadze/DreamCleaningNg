@@ -1,4 +1,5 @@
 import { PLATFORM_ID, inject, Service } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { BehaviorSubject } from 'rxjs';
 import { isPlatformBrowser } from '@angular/common';
 
@@ -11,6 +12,8 @@ export class ThemeService {
   private platformId = inject<Object>(PLATFORM_ID);
 
   private readonly currentTheme$ = new BehaviorSubject<Theme>('light');
+  /** The subject as a signal, so views reading isDark/theme re-render on a change. */
+  private readonly currentTheme = toSignal(this.currentTheme$, { requireSync: true });
   private readonly isBrowser: boolean;
 
   constructor() {
@@ -24,7 +27,7 @@ export class ThemeService {
   }
 
   get theme(): Theme {
-    return this.currentTheme$.value;
+    return this.currentTheme();
   }
 
   get theme$() {
@@ -32,7 +35,7 @@ export class ThemeService {
   }
 
   get isDark(): boolean {
-    return this.currentTheme$.value === 'dark';
+    return this.currentTheme() === 'dark';
   }
 
   setTheme(theme: Theme): void {
