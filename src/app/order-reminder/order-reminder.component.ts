@@ -11,7 +11,6 @@ import { faCircleStop } from '../shared/icons/glyphs/faCircleStop';
 
 @Component({
   selector: 'app-order-reminder',
-  standalone: true,
   imports: [IconComponent],
   templateUrl: './order-reminder.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

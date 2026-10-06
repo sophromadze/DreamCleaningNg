@@ -19,7 +19,6 @@ export const PAY_ALL_UNCONFIRMED_MESSAGE =
 
 @Component({
   selector: 'app-upcoming-recurring-orders',
-  standalone: true,
   imports: [CommonModule, SaveCardModalComponent],
   templateUrl: './upcoming-recurring-orders.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

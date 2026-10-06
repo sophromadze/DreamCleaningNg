@@ -14,7 +14,6 @@ import { StructuredDataService } from '../../../services/structured-data.service
 
 @Component({
   selector: 'app-heavy-condition-cleaning',
-  standalone: true,
   imports: [RouterModule, IconComponent, CardImageDirective],
   templateUrl: './heavy-condition-cleaning.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

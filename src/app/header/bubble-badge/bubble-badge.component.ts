@@ -8,7 +8,6 @@ import { AuthService } from '../../services/auth.service';
 
 @Component({
   selector: 'app-bubble-badge',
-  standalone: true,
   imports: [CommonModule, RouterModule],
   templateUrl: './bubble-badge.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

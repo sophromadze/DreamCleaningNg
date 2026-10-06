@@ -5,7 +5,6 @@ import { formatNy } from '../../shared/ny-time.util';
 
 @Component({
   selector: 'app-trusted-devices',
-  standalone: true,
   imports: [],
   templateUrl: './trusted-devices.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

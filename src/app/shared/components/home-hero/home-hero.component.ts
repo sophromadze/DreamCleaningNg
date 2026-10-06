@@ -178,7 +178,6 @@ export function trimServiceTypesForHero(types: ServiceType[] | null | undefined)
  */
 @Component({
   selector: 'app-home-hero',
-  standalone: true,
   imports: [NgOptimizedImage, RouterLink, FormsModule, ReactiveFormsModule, ShimmerDirective, IconComponent],
   providers: [RESPONSIVE_IMAGE_LOADER_PROVIDER],
   templateUrl: './home-hero.component.html',

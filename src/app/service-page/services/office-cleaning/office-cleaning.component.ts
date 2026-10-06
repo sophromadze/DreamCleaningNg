@@ -6,7 +6,6 @@ import { StructuredDataService } from '../../../services/structured-data.service
 
 @Component({
   selector: 'app-office-cleaning',
-  standalone: true,
   imports: [RouterModule],
   templateUrl: './office-cleaning.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

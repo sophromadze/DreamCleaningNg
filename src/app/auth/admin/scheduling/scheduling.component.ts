@@ -21,7 +21,6 @@ const ALL_TIME_SLOTS = [
 
 @Component({
   selector: 'app-scheduling',
-  standalone: true,
   imports: [FormsModule],
   templateUrl: './scheduling.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

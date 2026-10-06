@@ -14,7 +14,6 @@ import { formViewRefresher } from '../shared/forms/form-view-refresher';
 
 @Component({
   selector: 'app-free-quote',
-  standalone: true,
   imports: [ReactiveFormsModule, RouterModule, BubbleFieldComponent, IconComponent],
   templateUrl: './free-quote.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

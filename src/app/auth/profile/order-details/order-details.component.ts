@@ -19,7 +19,6 @@ import { debugTimersPaused } from '../../../shared/debug-timers';
 
 @Component({
   selector: 'app-order-details',
-  standalone: true,
   imports: [CommonModule, RouterModule, FormsModule],
   templateUrl: './order-details.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

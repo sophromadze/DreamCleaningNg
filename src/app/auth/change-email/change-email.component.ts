@@ -37,7 +37,6 @@ import { faPaperPlane } from '../../shared/icons/glyphs/faPaperPlane';
  */
 @Component({
   selector: 'app-change-email',
-  standalone: true,
   imports: [FormsModule, RouterModule, IconComponent],
   templateUrl: './change-email.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

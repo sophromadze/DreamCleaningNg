@@ -28,7 +28,6 @@ type ModalKind = 'none' | 'payment' | 'void' | 'send' | 'reminder' | 'reverse' |
  */
 @Component({
   selector: 'app-invoice-detail',
-  standalone: true,
   imports: [CommonModule, FormsModule, RouterLink],
   templateUrl: './invoice-detail.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

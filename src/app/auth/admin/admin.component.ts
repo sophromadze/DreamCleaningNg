@@ -19,7 +19,6 @@ import { AdminCustomerInvoicesComponent } from './customer-invoices/admin-custom
 
 @Component({
   selector: 'app-admin',
-  standalone: true,
   imports: [
     OrdersComponent,
     AdminUsersComponent,

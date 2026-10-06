@@ -46,7 +46,6 @@ export const ORDERS_PER_PAGE = 10;
 
 @Component({
   selector: 'app-profile',
-  standalone: true,
   imports: [
     CommonModule, FormsModule, RouterModule, ShimmerDirective,
     TrustedDevicesComponent, BillingTabComponent, UpcomingRecurringOrdersComponent,

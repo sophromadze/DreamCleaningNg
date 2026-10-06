@@ -18,7 +18,6 @@ const STATUS_SENT = 2;
 
 @Component({
   selector: 'app-sms',
-  standalone: true,
   imports: [FormsModule, NyDatePipe],
   templateUrl: './sms.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ChangeDetectorRef, PLATFORM_ID, ChangeDetectionStrategy, inject, signal } from '@angular/core';
+import { Component, OnInit, OnDestroy, PLATFORM_ID, ChangeDetectionStrategy, inject, signal } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
@@ -52,7 +52,6 @@ import { resolveServiceTypeShortLabel } from '../../../shared/admin/service-type
  */
 @Component({
   selector: 'app-outgoing-payments',
-  standalone: true,
   imports: [CommonModule, FormsModule, RouterModule],
   templateUrl: './outgoing-payments.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -60,7 +59,6 @@ import { resolveServiceTypeShortLabel } from '../../../shared/admin/service-type
 })
 export class OutgoingPaymentsComponent implements OnInit, OnDestroy {
   private service = inject(OutgoingPaymentService);
-  private cdr = inject(ChangeDetectorRef);
   private platformId = inject<Object>(PLATFORM_ID);
 
   readonly data = signal<OutgoingPaymentList | null>(null, { equal: () => false });
@@ -231,12 +229,10 @@ export class OutgoingPaymentsComponent implements OnInit, OnDestroy {
         next: data => {
           this.data.set(data);
           this.loading.set(false);
-          this.cdr.markForCheck();
         },
         error: err => {
           this.error.set(extractApiErrorMessage(err, 'Could not load outgoing payments.'));
           this.loading.set(false);
-          this.cdr.markForCheck();
         }
       });
   }
@@ -270,7 +266,6 @@ export class OutgoingPaymentsComponent implements OnInit, OnDestroy {
         next: data => {
           this.salaries.set(data);
           this.salariesLoading.set(false);
-          this.cdr.markForCheck();
         },
         error: err => {
           // Reported into the section rather than the page-level banner: the cleaner list beside
@@ -278,7 +273,6 @@ export class OutgoingPaymentsComponent implements OnInit, OnDestroy {
           this.salaries.set(null);
           this.salariesLoading.set(false);
           this.error.set(extractApiErrorMessage(err, 'Could not load staff salaries'));
-          this.cdr.markForCheck();
         }
       });
   }
@@ -365,13 +359,11 @@ export class OutgoingPaymentsComponent implements OnInit, OnDestroy {
     this.payingInstalmentKey.set(null);
     this.salaryPaymentNote.set('');
     this.flash(message);
-    this.cdr.markForCheck();
   }
 
   private afterSalaryError(err: unknown, fallback: string): void {
     this.salarySaving.set(false);
     this.error.set(extractApiErrorMessage(err, fallback));
-    this.cdr.markForCheck();
   }
 
   // ── Where the salary is sent ───────────────────────────────────────────────
@@ -412,12 +404,10 @@ export class OutgoingPaymentsComponent implements OnInit, OnDestroy {
           this.editingDetailsKey.set(null);
           this.detailsInput.set('');
           this.flash(`${payee.name} — payment details saved`);
-          this.cdr.markForCheck();
         },
         error: err => {
           this.savingDetails.set(false);
           this.error.set(extractApiErrorMessage(err, 'Could not save those payment details'));
-          this.cdr.markForCheck();
         }
       });
   }
@@ -654,7 +644,6 @@ export class OutgoingPaymentsComponent implements OnInit, OnDestroy {
       } catch {
         this.error.set('Could not copy that — select it and copy by hand.');
       }
-      this.cdr.markForCheck();
     };
 
     if (navigator?.clipboard?.writeText) {
@@ -670,9 +659,7 @@ export class OutgoingPaymentsComponent implements OnInit, OnDestroy {
     if (this.copiedTimer) clearTimeout(this.copiedTimer);
     this.copiedTimer = setTimeout(() => {
       clear();
-      this.cdr.markForCheck();
     }, 2000);
-    this.cdr.markForCheck();
   }
 
   isCopied(cleaner: OutgoingPaymentCleaner): boolean {
@@ -931,7 +918,6 @@ export class OutgoingPaymentsComponent implements OnInit, OnDestroy {
         error: err => {
           this.error.set(extractApiErrorMessage(err, fallback));
           this.savingOrderDefaults.set(false);
-          this.cdr.markForCheck();
         }
       });
   }
@@ -1004,7 +990,6 @@ export class OutgoingPaymentsComponent implements OnInit, OnDestroy {
         error: err => {
           this.error.set(extractApiErrorMessage(err, 'Could not save that change.'));
           this.savingEdit.set(false);
-          this.cdr.markForCheck();
         }
       });
   }
@@ -1036,7 +1021,6 @@ export class OutgoingPaymentsComponent implements OnInit, OnDestroy {
         error: err => {
           this.error.set(extractApiErrorMessage(err, 'Could not reset that line.'));
           this.savingEdit.set(false);
-          this.cdr.markForCheck();
         }
       });
   }
@@ -1131,7 +1115,6 @@ export class OutgoingPaymentsComponent implements OnInit, OnDestroy {
       error: err => {
         this.error.set(extractApiErrorMessage(err, 'Could not record that payment.'));
         this.paying.set(false);
-        this.cdr.markForCheck();
       }
     });
   }
@@ -1152,7 +1135,6 @@ export class OutgoingPaymentsComponent implements OnInit, OnDestroy {
         },
         error: err => {
           this.error.set(extractApiErrorMessage(err, 'Could not undo that payment.'));
-          this.cdr.markForCheck();
         }
       });
   }
@@ -1182,10 +1164,8 @@ export class OutgoingPaymentsComponent implements OnInit, OnDestroy {
 
   private flash(message: string): void {
     this.successMessage.set(message);
-    this.cdr.markForCheck();
     setTimeout(() => {
       this.successMessage.set('');
-      this.cdr.markForCheck();
     }, 4000);
   }
 

@@ -7,7 +7,6 @@ import { formViewRefresher } from '../../shared/forms/form-view-refresher';
 
 @Component({
   selector: 'app-forgot-password',
-  standalone: true,
   imports: [ReactiveFormsModule, RouterLink],
   templateUrl: './forgot-password.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

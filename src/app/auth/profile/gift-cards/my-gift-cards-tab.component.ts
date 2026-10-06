@@ -17,7 +17,6 @@ import { formViewRefresher } from '../../../shared/forms/form-view-refresher';
  */
 @Component({
   selector: 'app-my-gift-cards-tab',
-  standalone: true,
   imports: [CommonModule, ReactiveFormsModule, RouterModule],
   templateUrl: './my-gift-cards-tab.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

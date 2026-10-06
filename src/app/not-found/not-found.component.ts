@@ -37,7 +37,6 @@ interface RemovedHeadElement {
  */
 @Component({
   selector: 'app-not-found',
-  standalone: true,
   imports: [RouterLink, IconComponent],
   template: `
     <section class="not-found-page" aria-labelledby="not-found-title">

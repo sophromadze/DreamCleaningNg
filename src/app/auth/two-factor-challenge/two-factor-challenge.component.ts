@@ -14,7 +14,6 @@ import { faSpinner } from '../../shared/icons/glyphs/faSpinner';
 
 @Component({
   selector: 'app-two-factor-challenge',
-  standalone: true,
   imports: [FormsModule, RouterModule, IconComponent],
   templateUrl: './two-factor-challenge.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

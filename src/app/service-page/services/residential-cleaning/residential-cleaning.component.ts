@@ -10,7 +10,6 @@ import { StructuredDataService } from '../../../services/structured-data.service
 
 @Component({
   selector: 'app-residential-cleaning',
-  standalone: true,
   imports: [RouterModule, IconComponent, CardImageDirective],
   templateUrl: './residential-cleaning.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

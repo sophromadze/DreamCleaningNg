@@ -25,7 +25,6 @@ type DateRangeKey = 'all' | 'this-month' | 'last-month' | 'custom';
  */
 @Component({
   selector: 'app-commercial-invoices',
-  standalone: true,
   imports: [CommonModule, FormsModule, RouterLink],
   templateUrl: './invoices.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

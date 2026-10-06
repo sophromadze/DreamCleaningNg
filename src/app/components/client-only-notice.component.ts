@@ -1,10 +1,9 @@
-import { Component, Inject, PLATFORM_ID, ChangeDetectionStrategy } from '@angular/core';
+import { Component, PLATFORM_ID, ChangeDetectionStrategy, inject } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { Router } from '@angular/router';
 
 @Component({
   selector: 'app-client-only-notice',
-  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [],
   template: `
@@ -52,14 +51,8 @@ import { Router } from '@angular/router';
   `]
 })
 export class ClientOnlyNoticeComponent {
-  isBrowser: boolean;
-
-  constructor(
-    @Inject(PLATFORM_ID) private platformId: Object,
-    private router: Router
-  ) {
-    this.isBrowser = isPlatformBrowser(this.platformId);
-  }
+  private readonly router = inject(Router);
+  readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
 
   goHome() {
     this.router.navigate(['/']);

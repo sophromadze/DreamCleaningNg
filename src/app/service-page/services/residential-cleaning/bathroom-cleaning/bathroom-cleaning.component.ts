@@ -7,7 +7,6 @@ import { StructuredDataService } from '../../../../services/structured-data.serv
 
 @Component({
   selector: 'app-bathroom-cleaning',
-  standalone: true,
   imports: [RouterModule, IconComponent],
   templateUrl: './bathroom-cleaning.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

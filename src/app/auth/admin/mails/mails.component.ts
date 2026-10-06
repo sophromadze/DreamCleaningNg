@@ -10,7 +10,6 @@ const STATUS_SENT = 2;
 
 @Component({
   selector: 'app-mails',
-  standalone: true,
   imports: [FormsModule, NyDatePipe],
   templateUrl: './mails.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

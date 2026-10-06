@@ -6,7 +6,6 @@ declare const AppleID: any;
 
 @Component({
   selector: 'app-apple-signin-button',
-  standalone: true,
   imports: [],
   template: `
     @if (isBrowser) {

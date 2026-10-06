@@ -35,7 +35,6 @@ import { getAdminAvatarColor, getAdminAvatarInitials } from '../../../shared/adm
  */
 @Component({
   selector: 'app-cleaner-accounts',
-  standalone: true,
   imports: [FormsModule, CleanersDashboardComponent],
   templateUrl: './cleaner-accounts.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

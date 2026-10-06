@@ -11,7 +11,6 @@ import { formViewRefresher } from '../../../shared/forms/form-view-refresher';
 
 @Component({
   selector: 'app-special-offers',
-  standalone: true,
   imports: [CommonModule, FormsModule, ReactiveFormsModule],
   templateUrl: './special-offers.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

@@ -21,7 +21,6 @@ import { findAdvertisedFirstTimeOffer } from '../shared/booking/special-offer-ke
  */
 @Component({
   selector: 'app-first-time-offer-popup',
-  standalone: true,
   imports: [RouterModule, IconComponent],
   templateUrl: './first-time-offer-popup.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

@@ -7,7 +7,6 @@ import { listStartingPrices } from '../shared/pricing/marketing-price-format';
 
 @Component({
   selector: 'app-faq',
-  standalone: true,
   imports: [BubbleFieldComponent],
   templateUrl: './faq.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

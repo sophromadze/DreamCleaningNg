@@ -3,7 +3,6 @@ import { FormsModule } from '@angular/forms';
 
 @Component({
   selector: 'app-duration-selector',
-  standalone: true,
   imports: [FormsModule],
   templateUrl: './duration-selector.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

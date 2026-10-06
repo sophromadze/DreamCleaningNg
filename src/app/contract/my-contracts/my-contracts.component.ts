@@ -13,7 +13,6 @@ import { extractApiErrorMessage } from '../../utils/http-error.utils';
  */
 @Component({
   selector: 'app-my-contracts',
-  standalone: true,
   imports: [CommonModule],
   templateUrl: './my-contracts.component.html',
   // The review page's stylesheet is the single source for the client-facing chrome; this

@@ -93,7 +93,6 @@ type CleaningType = 'normal' | 'deep' | 'superdeep';
  */
 @Component({
   selector: 'app-recreate-order-modal',
-  standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './recreate-order-modal.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

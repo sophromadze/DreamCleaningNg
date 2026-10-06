@@ -4,7 +4,6 @@ import { SmsComponent } from '../sms/sms.component';
 
 @Component({
   selector: 'app-communications',
-  standalone: true,
   imports: [MailsComponent, SmsComponent],
   templateUrl: './communications.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

@@ -8,7 +8,6 @@ import { Directive, ElementRef, OnChanges, OnDestroy, Renderer2, SimpleChanges, 
  */
 @Directive({
   selector: '[shimmer]',
-  standalone: true,
 })
 export class ShimmerDirective implements OnChanges, OnDestroy {
   private el = inject<ElementRef<HTMLElement>>(ElementRef);

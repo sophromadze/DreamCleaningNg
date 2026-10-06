@@ -7,7 +7,6 @@ import { findAdvertisedFirstTimeOffer } from '../shared/booking/special-offer-ke
 
 @Component({
   selector: 'app-sticky-mobile-cta',
-  standalone: true,
   imports: [RouterModule],
   templateUrl: './sticky-mobile-cta.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

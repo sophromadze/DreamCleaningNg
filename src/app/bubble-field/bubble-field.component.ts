@@ -9,7 +9,6 @@ const MOBILE_BREAKPOINT_PX = 768;
 
 @Component({
   selector: 'app-bubble-field',
-  standalone: true,
   imports: [CommonModule],
   templateUrl: './bubble-field.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

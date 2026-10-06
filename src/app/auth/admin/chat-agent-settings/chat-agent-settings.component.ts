@@ -21,7 +21,6 @@ interface VisibilityOption {
  */
 @Component({
   selector: 'app-chat-agent-settings',
-  standalone: true,
   imports: [CommonModule],
   templateUrl: './chat-agent-settings.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

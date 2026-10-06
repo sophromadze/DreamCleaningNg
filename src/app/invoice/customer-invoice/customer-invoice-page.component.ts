@@ -27,7 +27,6 @@ import { faSpinner } from '../../shared/icons/glyphs/faSpinner';
  */
 @Component({
   selector: 'app-customer-invoice-page',
-  standalone: true,
   imports: [CommonModule, RouterModule, IconComponent],
   templateUrl: './customer-invoice-page.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

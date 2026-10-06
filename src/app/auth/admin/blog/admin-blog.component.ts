@@ -33,7 +33,6 @@ interface SuggestionRow extends SuggestedTopic {
  */
 @Component({
   selector: 'app-admin-blog',
-  standalone: true,
   imports: [CommonModule, FormsModule, RouterModule],
   templateUrl: './admin-blog.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

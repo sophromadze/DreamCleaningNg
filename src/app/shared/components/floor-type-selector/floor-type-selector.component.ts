@@ -13,7 +13,6 @@ export interface FloorTypeSelection {
 
 @Component({
   selector: 'app-floor-type-selector',
-  standalone: true,
   imports: [FormsModule],
   templateUrl: './floor-type-selector.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

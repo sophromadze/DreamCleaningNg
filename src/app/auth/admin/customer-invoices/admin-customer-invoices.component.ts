@@ -35,7 +35,6 @@ export const MANUAL_PAYMENT_OPTIONS = [
  */
 @Component({
   selector: 'app-admin-customer-invoices',
-  standalone: true,
   imports: [CommonModule, FormsModule, AdminUserSearchComponent],
   templateUrl: './admin-customer-invoices.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

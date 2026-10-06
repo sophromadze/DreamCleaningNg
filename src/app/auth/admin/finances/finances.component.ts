@@ -170,7 +170,6 @@ interface CompareRow {
 
 @Component({
   selector: 'app-finances',
-  standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './finances.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

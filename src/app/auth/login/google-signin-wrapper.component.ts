@@ -13,7 +13,6 @@ import { ThemeService } from '../../services/theme.service';
  */
 @Component({
   selector: 'app-google-signin-wrapper',
-  standalone: true,
   imports: [GoogleSigninButtonModule],
   template: `
     @if (isBrowser) {

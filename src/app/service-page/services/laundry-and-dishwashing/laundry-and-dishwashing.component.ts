@@ -4,7 +4,6 @@ import { StructuredDataService } from '../../../services/structured-data.service
 
 @Component({
   selector: 'app-laundry-and-dishwashing',
-  standalone: true,
   imports: [RouterModule],
   templateUrl: './laundry-and-dishwashing.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

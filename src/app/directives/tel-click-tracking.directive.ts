@@ -8,8 +8,7 @@ import { PhoneClickTrackingService } from '../services/phone-click-tracking.serv
  * Tracks for Google Ads before allowing default tel: behavior.
  */
 @Directive({
-  selector: '[appTelClickTracking]',
-  standalone: true
+  selector: '[appTelClickTracking]'
 })
 export class TelClickTrackingDirective {
   private phoneTracking = inject(PhoneClickTrackingService);

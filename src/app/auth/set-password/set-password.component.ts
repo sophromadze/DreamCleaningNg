@@ -6,7 +6,6 @@ import { validatePassword } from '../../utils/password-validator';
 
 @Component({
   selector: 'app-set-password',
-  standalone: true,
   imports: [FormsModule],
   template: `
     <div class="set-password-wrapper">

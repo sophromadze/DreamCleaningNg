@@ -51,7 +51,6 @@ type DetailTab = 'details' | 'history' | 'photos' | 'notes' | 'tasks' | 'invoice
 
 @Component({
   selector: 'app-user-management',
-  standalone: true,
   imports: [CommonModule, FormsModule, RegisterCustomerModalComponent, RecreateOrderModalComponent, AdminUserBillingComponent],
   templateUrl: './user-management.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

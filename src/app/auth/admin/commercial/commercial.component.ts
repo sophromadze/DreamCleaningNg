@@ -17,7 +17,6 @@ import { AuthService } from '../../../services/auth.service';
  */
 @Component({
   selector: 'app-commercial',
-  standalone: true,
   imports: [RouterLink, RouterLinkActive, RouterOutlet],
   templateUrl: './commercial.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

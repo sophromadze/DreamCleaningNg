@@ -17,7 +17,6 @@ import { formatNyDateTime } from '../../../shared/ny-time.util';
 // convenience — the endpoints themselves carry [Authorize(Roles = "SuperAdmin")].
 @Component({
   selector: 'app-loyalty-discount-admin',
-  standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './loyalty-discount-admin.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

@@ -14,7 +14,6 @@ import { faUser } from '../../shared/icons/glyphs/faUser';
  */
 @Component({
   selector: 'app-header-account-menu',
-  standalone: true,
   imports: [RouterLink, IconComponent],
   templateUrl: './header-account-menu.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

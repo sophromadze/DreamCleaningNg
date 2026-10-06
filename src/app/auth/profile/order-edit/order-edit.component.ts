@@ -76,7 +76,6 @@ interface SelectedExtraService {
 
 @Component({
   selector: 'app-order-edit',
-  standalone: true,
   imports: [FormsModule, ReactiveFormsModule, RouterModule, DateSelectorComponent, TimeSelectorComponent, FloorTypeSelectorComponent, CleaningTypeDetailsExpandableComponent, QuantityControlComponent, ExtraServicesGridComponent, OrderSummaryCardComponent],
   templateUrl: './order-edit.component.html',
   // Booking's stylesheet is the single source of truth for the shared look; the local

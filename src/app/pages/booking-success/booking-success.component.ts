@@ -17,7 +17,6 @@ import { faEnvelopeOpenText } from '../../shared/icons/glyphs/faEnvelopeOpenText
 
 @Component({
   selector: 'app-booking-success',
-  standalone: true,
   imports: [CommonModule, RouterModule, FormsModule, IconComponent],
   templateUrl: './booking-success.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

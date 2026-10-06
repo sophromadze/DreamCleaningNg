@@ -17,7 +17,6 @@ import { allowsCurrencyChoice, currencySymbol, isSalaryCategory } from '../../..
 
 @Component({
   selector: 'app-expenses',
-  standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './expenses.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

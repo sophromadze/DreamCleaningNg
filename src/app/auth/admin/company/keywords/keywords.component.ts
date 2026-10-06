@@ -14,7 +14,6 @@ import {
  */
 @Component({
   selector: 'app-keywords',
-  standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './keywords.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

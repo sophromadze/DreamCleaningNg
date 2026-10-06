@@ -17,7 +17,6 @@ interface CategoryGroup {
 
 @Component({
   selector: 'app-admin-rewards',
-  standalone: true,
   imports: [CommonModule, FormsModule, RouterModule, NyDatePipe],
   templateUrl: './admin-rewards.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

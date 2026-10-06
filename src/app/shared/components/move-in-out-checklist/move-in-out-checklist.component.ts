@@ -14,7 +14,6 @@ import { faXmark } from '../../icons/glyphs/faXmark';
 
 @Component({
   selector: 'app-move-in-out-checklist',
-  standalone: true,
   imports: [IconComponent],
   templateUrl: './move-in-out-checklist.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

@@ -14,7 +14,6 @@ import { isPlatformBrowser } from '@angular/common';
  */
 @Component({
   selector: 'app-refer-a-friend',
-  standalone: true,
   imports: [],
   templateUrl: './refer-a-friend.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

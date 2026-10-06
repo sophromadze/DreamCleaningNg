@@ -61,7 +61,6 @@ type PanelKey =
  */
 @Component({
   selector: 'app-contract-form',
-  standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './contract-form.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

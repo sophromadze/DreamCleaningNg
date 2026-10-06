@@ -29,7 +29,6 @@ interface EditState {
 
 @Component({
   selector: 'app-before-after-photos',
-  standalone: true,
   imports: [FormsModule],
   templateUrl: './before-after-photos.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

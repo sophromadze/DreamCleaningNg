@@ -5,7 +5,6 @@ import { CrmCallService, CallRecord, CallSummary } from '../../../../services/cr
 
 @Component({
   selector: 'app-crm-calls',
-  standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './crm-calls.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

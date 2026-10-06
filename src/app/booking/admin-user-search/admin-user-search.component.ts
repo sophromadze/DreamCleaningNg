@@ -49,7 +49,6 @@ export const USER_LIST_SETTLE_MS = 350;
  */
 @Component({
   selector: 'app-admin-user-search',
-  standalone: true,
   imports: [FormsModule, IconComponent],
   templateUrl: './admin-user-search.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

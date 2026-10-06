@@ -13,7 +13,6 @@ type LoginStep = 'email' | 'password' | 'otp';
 
 @Component({
   selector: 'app-login',
-  standalone: true,
   imports: [FormsModule, ReactiveFormsModule, RouterModule, GoogleSigninWrapperComponent, AppleSigninButtonComponent],
   templateUrl: './login.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

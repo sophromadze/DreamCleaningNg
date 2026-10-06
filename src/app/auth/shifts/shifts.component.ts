@@ -14,7 +14,6 @@ const FALLBACK_COLORS = [
 
 @Component({
   selector: 'app-shifts',
-  standalone: true,
   imports: [FormsModule],
   templateUrl: './shifts.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

@@ -8,7 +8,6 @@ declare const AppleID: any;
 
 @Component({
   selector: 'app-apple-callback',
-  standalone: true,
   imports: [],
   template: `
     @if (isBrowser) {

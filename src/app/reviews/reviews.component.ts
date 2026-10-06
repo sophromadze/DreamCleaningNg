@@ -19,7 +19,6 @@ interface DisplayReview extends Review {
 
 @Component({
   selector: 'app-reviews',
-  standalone: true,
   imports: [CommonModule, RouterModule],
   templateUrl: './reviews.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

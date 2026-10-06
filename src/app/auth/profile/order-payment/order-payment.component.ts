@@ -29,7 +29,6 @@ import { isBedroomsLine, isCleanersLine } from '../../../shared/booking/order-se
 
 @Component({
   selector: 'app-order-payment',
-  standalone: true,
   imports: [CommonModule, RouterModule, FormsModule, SaveCardModalComponent, IconComponent],
   templateUrl: './order-payment.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

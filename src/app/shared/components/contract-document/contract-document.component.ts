@@ -17,7 +17,6 @@ import { ContractSignatureBlock, ContractSignatureParty } from '../../../service
  */
 @Component({
   selector: 'app-contract-document',
-  standalone: true,
   imports: [CommonModule],
   templateUrl: './contract-document.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

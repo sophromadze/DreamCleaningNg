@@ -3,7 +3,6 @@ import { FormsModule } from '@angular/forms';
 import { getAllServiceTimeSlots } from '../../shared/booking/service-time-slots';
 @Component({
   selector: 'app-time-selector',
-  standalone: true,
   imports: [FormsModule],
   templateUrl: './time-selector.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

@@ -5,7 +5,6 @@ import { Subscription } from '../../../services/booking.service';
 
 @Component({
   selector: 'app-subscriptions',
-  standalone: true,
   imports: [FormsModule],
   templateUrl: './subscriptions.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

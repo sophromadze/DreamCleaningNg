@@ -15,7 +15,6 @@ import { extractApiErrorMessage } from '../../../utils/http-error.utils';
  */
 @Component({
   selector: 'app-my-invoices-tab',
-  standalone: true,
   imports: [CommonModule],
   templateUrl: './my-invoices-tab.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

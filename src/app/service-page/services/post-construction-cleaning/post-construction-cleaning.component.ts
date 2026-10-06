@@ -6,7 +6,6 @@ import { StructuredDataService } from '../../../services/structured-data.service
 
 @Component({
   selector: 'app-post-construction-cleaning',
-  standalone: true,
   imports: [RouterModule, CardImageDirective],
   templateUrl: './post-construction-cleaning.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

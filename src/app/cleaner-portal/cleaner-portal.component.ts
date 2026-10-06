@@ -71,7 +71,6 @@ export interface CleanerCalendarCell {
  */
 @Component({
   selector: 'app-cleaner-portal',
-  standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './cleaner-portal.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

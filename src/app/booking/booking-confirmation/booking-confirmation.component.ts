@@ -17,7 +17,6 @@ import { faGift } from '../../shared/icons/glyphs/faGift';
 
 @Component({
   selector: 'app-booking-confirmation',
-  standalone: true,
   imports: [CommonModule, RouterModule, SaveCardModalComponent, IconComponent],
   templateUrl: './booking-confirmation.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

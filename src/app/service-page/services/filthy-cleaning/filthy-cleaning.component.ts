@@ -7,7 +7,6 @@ import { StructuredDataService } from '../../../services/structured-data.service
 
 @Component({
   selector: 'app-filthy-cleaning',
-  standalone: true,
   imports: [RouterModule, CardImageDirective],
   templateUrl: './filthy-cleaning.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

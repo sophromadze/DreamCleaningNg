@@ -10,7 +10,6 @@ import { faEnvelope } from '../../shared/icons/glyphs/faEnvelope';
 
 @Component({
   selector: 'app-gift-card-confirmation',
-  standalone: true,
   imports: [CommonModule, RouterModule, IconComponent],
   templateUrl: './gift-card-confirmation.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

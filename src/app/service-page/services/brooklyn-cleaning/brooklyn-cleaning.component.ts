@@ -18,7 +18,6 @@ import { StructuredDataService } from '../../../services/structured-data.service
 
 @Component({
   selector: 'app-brooklyn-cleaning',
-  standalone: true,
   imports: [RouterModule, ServiceAreaMapComponent, HomeHeroComponent, CardImageDirective],
   templateUrl: './brooklyn-cleaning.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

@@ -10,7 +10,6 @@ type Step = 'email' | 'code' | 'account-found' | 'merge-email' | 'merge-success'
 
 @Component({
   selector: 'app-real-email-verify',
-  standalone: true,
   imports: [ReactiveFormsModule],
   templateUrl: './real-email-verify.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

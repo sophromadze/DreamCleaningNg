@@ -18,7 +18,6 @@ import { findAdvertisedFirstTimeOffer } from '../../../shared/booking/special-of
 
 @Component({
   selector: 'app-deep-cleaning',
-  standalone: true,
   imports: [RouterModule, TestimonialSectionComponent, IconComponent, CardImageDirective],
   templateUrl: './deep-cleaning.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

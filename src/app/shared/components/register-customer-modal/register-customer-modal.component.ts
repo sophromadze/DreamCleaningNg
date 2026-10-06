@@ -37,7 +37,6 @@ export interface RegisteredCustomer {
  */
 @Component({
   selector: 'app-register-customer-modal',
-  standalone: true,
   imports: [FormsModule],
   templateUrl: './register-customer-modal.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

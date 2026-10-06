@@ -12,7 +12,6 @@ type CrmTab = 'leads' | 'calls' | 'customers' | 'segments' | 'automation';
 
 @Component({
   selector: 'app-crm',
-  standalone: true,
   imports: [RouterLink, LeadsPipelineComponent, CrmCustomersComponent, CrmSegmentsComponent, CrmAutomationComponent, CrmCallsComponent],
   templateUrl: './crm.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

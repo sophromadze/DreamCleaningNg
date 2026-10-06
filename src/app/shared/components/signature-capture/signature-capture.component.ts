@@ -34,7 +34,6 @@ export interface CapturedSignature {
  */
 @Component({
   selector: 'app-signature-capture',
-  standalone: true,
   imports: [FormsModule],
   templateUrl: './signature-capture.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

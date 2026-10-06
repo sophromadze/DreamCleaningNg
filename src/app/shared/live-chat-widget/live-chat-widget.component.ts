@@ -1,6 +1,4 @@
-import {
-  Component, OnInit, OnDestroy, ViewChild, ElementRef, Inject, PLATFORM_ID, HostBinding, ChangeDetectionStrategy, signal
-} from '@angular/core';
+import { Component, OnInit, OnDestroy, ElementRef, PLATFORM_ID, HostBinding, ChangeDetectionStrategy, signal, inject, viewChild } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, NavigationEnd } from '@angular/router';
@@ -11,15 +9,18 @@ import { filter } from 'rxjs/operators';
 
 @Component({
   selector: 'app-live-chat-widget',
-  standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './live-chat-widget.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./live-chat-widget.component.scss']
 })
 export class LiveChatWidgetComponent implements OnInit, OnDestroy {
-  @ViewChild('messagesContainer') messagesContainer!: ElementRef;
-  @ViewChild('fileInput') fileInput!: ElementRef<HTMLInputElement>;
+  private readonly chatService = inject(LiveChatService);
+  private readonly authService = inject(AuthService);
+  private readonly router = inject(Router);
+
+  readonly messagesContainer = viewChild<ElementRef>('messagesContainer');
+  readonly fileInput = viewChild<ElementRef<HTMLInputElement>>('fileInput');
 
   readonly isOpen = signal(false);
   readonly isChatStarted = signal(false);
@@ -28,7 +29,7 @@ export class LiveChatWidgetComponent implements OnInit, OnDestroy {
   readonly messages = signal<ChatMessage[]>([]);
   readonly status = signal<ChatStatus>('disconnected');
   readonly errorMessage = signal('');
-  isBrowser: boolean;
+  readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
   readonly unreadCount = signal(0);
   readonly isDraggingFile = signal(false);
   readonly currentUser = signal<any>(null);
@@ -40,15 +41,6 @@ export class LiveChatWidgetComponent implements OnInit, OnDestroy {
   private chatAutoStarted = false;
   private subscriptions: Subscription[] = [];
   private detachViewportSync?: () => void;
-
-  constructor(
-    private chatService: LiveChatService,
-    private authService: AuthService,
-    private router: Router,
-    @Inject(PLATFORM_ID) platformId: Object
-  ) {
-    this.isBrowser = isPlatformBrowser(platformId);
-  }
 
   ngOnInit(): void {
     if (!this.isBrowser) return;
@@ -146,7 +138,7 @@ export class LiveChatWidgetComponent implements OnInit, OnDestroy {
   }
 
   triggerFileUpload(): void {
-    this.fileInput?.nativeElement.click();
+    this.fileInput()?.nativeElement.click();
   }
 
   async onFileSelected(event: Event): Promise<void> {
@@ -254,14 +246,14 @@ export class LiveChatWidgetComponent implements OnInit, OnDestroy {
   }
 
   private isScrolledToBottom(): boolean {
-    const container = this.messagesContainer?.nativeElement;
+    const container = this.messagesContainer()?.nativeElement;
     if (!container) return true;
     return container.scrollHeight - container.scrollTop - container.clientHeight < 40;
   }
 
   private scrollToBottom(): void {
     try {
-      const container = this.messagesContainer?.nativeElement;
+      const container = this.messagesContainer()?.nativeElement;
       if (container) {
         container.scrollTop = container.scrollHeight;
       }

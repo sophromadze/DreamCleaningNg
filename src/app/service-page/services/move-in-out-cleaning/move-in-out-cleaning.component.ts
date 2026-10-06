@@ -12,7 +12,6 @@ import { StructuredDataService } from '../../../services/structured-data.service
 
 @Component({
   selector: 'app-move-in-out-cleaning',
-  standalone: true,
   imports: [RouterModule, IconComponent, CardImageDirective],
   templateUrl: './move-in-out-cleaning.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

@@ -30,7 +30,6 @@ export interface ExtraServiceSelection {
  */
 @Component({
   selector: 'app-extra-services-grid',
-  standalone: true,
   imports: [ShimmerDirective, QuantityControlComponent, IconComponent],
   templateUrl: './extra-services-grid.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

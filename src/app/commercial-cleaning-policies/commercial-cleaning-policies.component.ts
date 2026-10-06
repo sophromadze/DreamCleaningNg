@@ -44,7 +44,6 @@ export interface PolicyRenderItem {
  */
 @Component({
   selector: 'app-commercial-cleaning-policies',
-  standalone: true,
   imports: [RouterLink],
   templateUrl: './commercial-cleaning-policies.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

@@ -15,7 +15,6 @@ import { Component, ChangeDetectionStrategy, output, input } from '@angular/core
  */
 @Component({
   selector: 'app-quantity-control',
-  standalone: true,
   templateUrl: './quantity-control.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./quantity-control.component.scss']

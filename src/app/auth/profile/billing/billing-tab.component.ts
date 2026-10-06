@@ -37,7 +37,6 @@ interface TermsDialog {
  */
 @Component({
   selector: 'app-billing-tab',
-  standalone: true,
   imports: [CommonModule, FormsModule, RouterModule],
   templateUrl: './billing-tab.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

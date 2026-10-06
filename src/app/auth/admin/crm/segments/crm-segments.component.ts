@@ -4,7 +4,6 @@ import { CrmCustomerService, CrmSegment } from '../../../../services/crm-custome
 
 @Component({
   selector: 'app-crm-segments',
-  standalone: true,
   imports: [CommonModule],
   templateUrl: './crm-segments.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

@@ -31,7 +31,6 @@ import { extractApiErrorMessage } from '../../utils/http-error.utils';
  */
 @Component({
   selector: 'app-my-invoices',
-  standalone: true,
   imports: [CommonModule],
   templateUrl: './my-invoices.component.html',
   // The contract review sheet is the single source for the client-facing chrome, exactly as

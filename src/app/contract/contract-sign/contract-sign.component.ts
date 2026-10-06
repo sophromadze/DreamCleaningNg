@@ -25,7 +25,6 @@ import { extractApiErrorMessage } from '../../utils/http-error.utils';
  */
 @Component({
   selector: 'app-contract-sign',
-  standalone: true,
   imports: [CommonModule, FormsModule, ContractDocumentComponent, SignatureCaptureComponent],
   templateUrl: './contract-sign.component.html',
   // The review page's stylesheet is the single source for the shared client-page chrome; this

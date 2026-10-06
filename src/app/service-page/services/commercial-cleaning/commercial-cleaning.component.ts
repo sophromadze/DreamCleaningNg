@@ -42,7 +42,6 @@ const SECTOR_PHOTO_SIZES = '(max-width: 580px) calc(100vw - 49px), 365px';
  */
 @Component({
   selector: 'app-commercial-cleaning',
-  standalone: true,
   imports: [RouterLink, ReactiveFormsModule, TestimonialSectionComponent],
   templateUrl: './commercial-cleaning.component.html',
   // Order matters. The homepage's two stylesheets are listed FIRST and own the shared look

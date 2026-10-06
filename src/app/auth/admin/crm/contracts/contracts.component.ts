@@ -22,7 +22,6 @@ type ContractsView = 'list' | 'form' | 'detail';
  */
 @Component({
   selector: 'app-contracts',
-  standalone: true,
   imports: [CommonModule, FormsModule, ContractFormComponent, ContractDetailComponent],
   templateUrl: './contracts.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

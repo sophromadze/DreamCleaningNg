@@ -9,7 +9,6 @@ import {
 
 @Component({
   selector: 'app-crm-customers',
-  standalone: true,
   imports: [CommonModule, FormsModule, RouterLink],
   templateUrl: './crm-customers.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

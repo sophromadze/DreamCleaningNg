@@ -12,7 +12,6 @@ import { faXmark } from '../../shared/icons/glyphs/faXmark';
  */
 @Component({
   selector: 'app-reorder-section',
-  standalone: true,
   imports: [IconComponent],
   // The host carries the .reorder-section class so the booking page's existing
   // layout rules (.reorder-section, .booking-form-top .reorder-section) keep applying.

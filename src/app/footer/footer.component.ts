@@ -10,7 +10,6 @@ import { faYelp } from '../shared/icons/glyphs/faYelp';
 
 @Component({
   selector: 'app-footer',
-  standalone: true,
   imports: [RouterLink, RouterLinkActive, IconComponent],
   templateUrl: './footer.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

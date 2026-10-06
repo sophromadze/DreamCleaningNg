@@ -6,7 +6,6 @@ import { PhoneNumberService } from '../services/phone-number.service';
 
 @Component({
   selector: 'app-floating-action-buttons',
-  standalone: true,
   imports: [RouterModule],
   templateUrl: './floating-action-buttons.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

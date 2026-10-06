@@ -13,7 +13,6 @@ import { canViewAdminPage } from '../../../shared/admin-viewable-pages';
  */
 @Component({
   selector: 'app-company',
-  standalone: true,
   imports: [RouterLink, RouterLinkActive, RouterOutlet],
   templateUrl: './company.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

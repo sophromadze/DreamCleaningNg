@@ -14,7 +14,6 @@ import { faXmark } from '../../icons/glyphs/faXmark';
 
 @Component({
   selector: 'app-cleaning-type-details-expandable',
-  standalone: true,
   imports: [IconComponent],
   templateUrl: './cleaning-type-details-expandable.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

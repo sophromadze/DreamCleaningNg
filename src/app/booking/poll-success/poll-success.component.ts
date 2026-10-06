@@ -8,7 +8,6 @@ import { faCircleCheck } from '../../shared/icons/glyphs/faCircleCheck';
 
 @Component({
   selector: 'app-poll-success',
-  standalone: true,
   imports: [IconComponent],
   template: `
     <div class="poll-success-container">

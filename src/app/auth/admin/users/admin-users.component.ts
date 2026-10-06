@@ -13,7 +13,6 @@ export type AdminUsersTab = 'customers' | 'cleaners' | 'business-clients' | 'sta
 
 @Component({
   selector: 'app-admin-users',
-  standalone: true,
   imports: [
     UserManagementComponent,
     CleanerAccountsComponent,

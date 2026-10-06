@@ -23,7 +23,6 @@ import { extractApiErrorMessage } from '../../utils/http-error.utils';
  */
 @Component({
   selector: 'app-contract-review',
-  standalone: true,
   imports: [FormsModule, ContractDocumentComponent],
   templateUrl: './contract-review.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

@@ -18,7 +18,6 @@ import { formViewRefresher } from '../shared/forms/form-view-refresher';
 
 @Component({
   selector: 'app-contact',
-  standalone: true,
   imports: [ReactiveFormsModule, RouterModule, BubbleFieldComponent, IconComponent],
   templateUrl: './contact.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

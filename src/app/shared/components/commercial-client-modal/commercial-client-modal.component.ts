@@ -91,7 +91,6 @@ const CLIENT_FORM_FIELD_IDS: Record<ClientFormField, string> = {
  */
 @Component({
   selector: 'app-commercial-client-modal',
-  standalone: true,
   imports: [FormsModule],
   templateUrl: './commercial-client-modal.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

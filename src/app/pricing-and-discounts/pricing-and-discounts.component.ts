@@ -29,7 +29,6 @@ interface RecurringPlan {
 
 @Component({
   selector: 'app-pricing-and-discounts',
-  standalone: true,
   imports: [RouterModule, IconComponent],
   templateUrl: './pricing-and-discounts.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

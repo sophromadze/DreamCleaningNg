@@ -6,7 +6,6 @@ import { Subject, takeUntil, filter } from 'rxjs';
 
 @Component({
   selector: 'app-continue-booking',
-  standalone: true,
   imports: [
     RouterModule
 ],

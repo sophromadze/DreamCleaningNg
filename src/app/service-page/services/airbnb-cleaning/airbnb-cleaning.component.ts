@@ -8,7 +8,6 @@ import { StructuredDataService } from '../../../services/structured-data.service
 
 @Component({
   selector: 'app-airbnb-cleaning',
-  standalone: true,
   imports: [RouterModule, CardImageDirective],
   templateUrl: './airbnb-cleaning.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

@@ -7,7 +7,6 @@ import { StructuredDataService } from '../../../services/structured-data.service
 
 @Component({
   selector: 'app-custom-cleaning',
-  standalone: true,
   imports: [RouterModule, CardImageDirective],
   templateUrl: './custom-cleaning.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

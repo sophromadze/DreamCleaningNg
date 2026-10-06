@@ -18,7 +18,6 @@ const BASE_URL = 'https://dreamcleaningnyc.com';
  */
 @Component({
   selector: 'app-blog-post',
-  standalone: true,
   imports: [RouterModule],
   templateUrl: './blog-post.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

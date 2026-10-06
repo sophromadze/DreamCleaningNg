@@ -15,7 +15,6 @@ type LoginStep = 'email' | 'password' | 'otp';
 
 @Component({
   selector: 'app-auth-modal',
-  standalone: true,
   imports: [
     FormsModule,
     ReactiveFormsModule,

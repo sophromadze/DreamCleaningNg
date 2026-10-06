@@ -66,7 +66,6 @@ export interface BeforeAfterPhoto {
 
 @Component({
   selector: 'app-main',
-  standalone: true,
   imports: [RouterLink, HomeHeroComponent, TestimonialSectionComponent, IconComponent, CardImageDirective],
   templateUrl: './main.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

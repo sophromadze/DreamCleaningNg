@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ChangeDetectorRef, HostBinding, ChangeDetectionStrategy, inject, output, input, signal } from '@angular/core';
+import { Component, OnInit, OnDestroy, HostBinding, ChangeDetectionStrategy, inject, output, input, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
@@ -100,7 +100,6 @@ const DAY_LABEL: Record<DayKey, string> = {
 
 @Component({
   selector: 'app-cleaners-dashboard',
-  standalone: true,
   imports: [CommonModule, FormsModule, RouterModule, NyDatePipe, CleanerPortalComponent],
   templateUrl: './cleaners-dashboard.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -108,7 +107,6 @@ const DAY_LABEL: Record<DayKey, string> = {
 })
 export class CleanersDashboardComponent implements OnInit, OnDestroy {
   private cleanerService = inject(CleanerManagementService);
-  private cdr = inject(ChangeDetectorRef);
   private authService = inject(AuthService);
   private route = inject(ActivatedRoute);
   private router = inject(Router);
@@ -349,9 +347,7 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
       if (this.paymentCopiedTimer) clearTimeout(this.paymentCopiedTimer);
       this.paymentCopiedTimer = setTimeout(() => {
         this.paymentDetailsCopied.set(false);
-        this.cdr.markForCheck();
       }, 2000);
-      this.cdr.markForCheck();
     };
 
     const fallback = () => {
@@ -369,7 +365,6 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
       } catch {
         // Nothing else to try; the value is on screen and selectable by hand.
       }
-      this.cdr.markForCheck();
     };
 
     if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
@@ -425,7 +420,6 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
       .subscribe(params => {
         const requested = params.get('tab');
         this.activeTab.set(requested === 'portal' && this.canSeePortal ? 'portal' : 'dashboard');
-        this.cdr.markForCheck();
       });
 
     this.search$
@@ -510,7 +504,6 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
         }),
         finalize(() => {
           this.loading.set(false);
-          this.cdr.markForCheck();
         })
       );
   }
@@ -533,12 +526,10 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
           item.id === detail.id ? { ...item, mainNote: detail.mainNote ?? null } : item
         ));
         this.loadingDetail.set(false);
-        this.cdr.markForCheck();
       },
       error: err => {
         this.errorMessage.set(this.extractError(err) || 'Failed to load cleaner details');
         this.loadingDetail.set(false);
-        this.cdr.markForCheck();
       }
     });
   }

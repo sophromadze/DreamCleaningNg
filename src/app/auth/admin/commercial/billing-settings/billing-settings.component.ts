@@ -23,7 +23,6 @@ import { extractApiErrorMessage } from '../../../../utils/http-error.utils';
  */
 @Component({
   selector: 'app-billing-settings',
-  standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './billing-settings.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

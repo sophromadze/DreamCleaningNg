@@ -17,7 +17,6 @@ const TEAM_PHOTO_SIZES =
 
 @Component({
   selector: 'app-about',
-  standalone: true,
   imports: [BubbleFieldComponent],
   templateUrl: './about.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

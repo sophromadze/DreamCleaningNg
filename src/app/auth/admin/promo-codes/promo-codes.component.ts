@@ -5,7 +5,6 @@ import { AdminService, PromoCode, CreatePromoCode, UpdatePromoCode, UserPermissi
 
 @Component({
   selector: 'app-promo-codes',
-  standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './promo-codes.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

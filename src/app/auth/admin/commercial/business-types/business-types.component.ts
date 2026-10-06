@@ -28,7 +28,6 @@ import { extractApiErrorMessage } from '../../../../utils/http-error.utils';
  */
 @Component({
   selector: 'app-business-types',
-  standalone: true,
   imports: [FormsModule],
   templateUrl: './business-types.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

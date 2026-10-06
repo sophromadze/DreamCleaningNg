@@ -119,7 +119,6 @@ function length(vw: number, px: number): string {
  */
 @Directive({
   selector: 'img[cardImage]',
-  standalone: true,
   host: {
     '[attr.srcset]': 'srcset || null',
     '[attr.sizes]': 'srcset ? sizes() : null'

@@ -37,7 +37,6 @@ interface HeaderAccountServices {
 
 @Component({
   selector: 'app-header',
-  standalone: true,
   imports: [RouterLink, RouterLinkActive, BubbleBadgeComponent, HeaderAccountMenuComponent],
   templateUrl: './header.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

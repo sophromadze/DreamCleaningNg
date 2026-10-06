@@ -42,7 +42,6 @@ const FIRST_PAGE_SIZE = 2;
  */
 @Component({
   selector: 'app-testimonial-section',
-  standalone: true,
   imports: [RouterLink],
   templateUrl: './testimonial-section.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -168,7 +167,6 @@ export class TestimonialSectionComponent implements OnInit, OnDestroy {
           if (this.currentReviewIndex() >= this.reviews().length) this.currentReviewIndex.set(0);
           this.updateRenderedReviews();
           if (!this.reviewSliderTimer) this.startReviewSlider();
-          this.cdr.markForCheck();
         },
         error: (error) => {
           console.error('Error loading reviews:', error);

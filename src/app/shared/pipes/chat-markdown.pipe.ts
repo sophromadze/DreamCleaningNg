@@ -16,7 +16,7 @@ import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
  * marked trusted — bypassSecurityTrustHtml is safe because every byte of original
  * content went through the escape step.
  */
-@Pipe({ name: 'chatMarkdown', standalone: true })
+@Pipe({ name: 'chatMarkdown' })
 export class ChatMarkdownPipe implements PipeTransform {
   private sanitizer = inject(DomSanitizer);
 

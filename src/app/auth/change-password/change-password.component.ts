@@ -28,7 +28,6 @@ import { faCircleExclamation } from '../../shared/icons/glyphs/faCircleExclamati
  */
 @Component({
   selector: 'app-change-password',
-  standalone: true,
   imports: [FormsModule, RouterModule, IconComponent],
   templateUrl: './change-password.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

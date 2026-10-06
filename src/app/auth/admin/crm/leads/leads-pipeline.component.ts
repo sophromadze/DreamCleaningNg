@@ -9,7 +9,6 @@ import { AuthService } from '../../../../services/auth.service';
 
 @Component({
   selector: 'app-leads-pipeline',
-  standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './leads-pipeline.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

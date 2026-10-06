@@ -20,7 +20,6 @@ import { ChatMarkdownPipe } from '../../../shared/pipes/chat-markdown.pipe';
  */
 @Component({
   selector: 'app-chat-sessions',
-  standalone: true,
   imports: [CommonModule, FormsModule, ChatMarkdownPipe],
   templateUrl: './chat-sessions.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

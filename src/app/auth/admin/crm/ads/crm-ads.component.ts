@@ -5,7 +5,6 @@ import { CrmAdsService, AdsDailyRow, AdsTotals, AdsPeriod, AdsQuery } from '../.
 
 @Component({
   selector: 'app-crm-ads',
-  standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './crm-ads.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

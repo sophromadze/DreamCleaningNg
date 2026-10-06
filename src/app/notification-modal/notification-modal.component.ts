@@ -5,7 +5,6 @@ import { SignalRService, UserNotification } from '../services/signalr.service';
 
 @Component({
   selector: 'app-notification-modal',
-  standalone: true,
   imports: [CommonModule],
   templateUrl: './notification-modal.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

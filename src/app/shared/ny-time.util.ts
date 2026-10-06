@@ -65,7 +65,7 @@ export function formatNyDateTime(value: string | Date | null | undefined): strin
  * Template pipe for UTC timestamps: {{ value | nyDate }} or {{ value | nyDate:'datetime' }}.
  * Presets: 'date' → "Jun 13, 2026" (default), 'datetime' → "Jun 13, 2026, 6:36 AM".
  */
-@Pipe({ name: 'nyDate', standalone: true })
+@Pipe({ name: 'nyDate' })
 export class NyDatePipe implements PipeTransform {
   transform(value: string | Date | null | undefined, preset: 'date' | 'datetime' = 'date'): string {
     return preset === 'datetime' ? formatNyDateTime(value) : formatNyMediumDate(value);

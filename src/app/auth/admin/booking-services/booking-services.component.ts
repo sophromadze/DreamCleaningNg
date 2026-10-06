@@ -1,4 +1,4 @@
-import { Component, OnInit, ChangeDetectorRef, AfterViewInit, OnDestroy, ElementRef, HostListener, ChangeDetectionStrategy, inject, viewChild, signal, computed } from '@angular/core';
+import { Component, OnInit, AfterViewInit, OnDestroy, ElementRef, HostListener, ChangeDetectionStrategy, inject, viewChild, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
@@ -32,7 +32,6 @@ export interface CreatePollQuestion {
 
 @Component({
   selector: 'app-booking-services',
-  standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './booking-services.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -40,7 +39,6 @@ export interface CreatePollQuestion {
 })
 export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestroy {
   private adminService = inject(AdminService);
-  private cdr = inject(ChangeDetectorRef);
 
   readonly serviceTypesTableWrapper = viewChild<ElementRef<HTMLDivElement>>('serviceTypesTableWrapper');
   readonly serviceTypesTableHeader = viewChild<ElementRef<HTMLTableSectionElement>>('serviceTypesTableHeader');

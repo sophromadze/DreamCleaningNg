@@ -15,7 +15,6 @@ import { extractApiErrorMessage } from '../../../../utils/http-error.utils';
  */
 @Component({
   selector: 'app-admin-user-billing',
-  standalone: true,
   imports: [CommonModule],
   templateUrl: './admin-user-billing.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

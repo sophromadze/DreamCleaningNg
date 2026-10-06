@@ -19,7 +19,6 @@ import { ORDER_SERVICE_KEYS, orderServiceIs } from '../../../shared/booking/orde
 
 @Component({
   selector: 'app-audit-history',
-  standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './audit-history.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

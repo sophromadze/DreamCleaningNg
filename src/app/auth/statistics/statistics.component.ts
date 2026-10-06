@@ -57,7 +57,6 @@ interface MonthlyExpenseCategory {
 
 @Component({
   selector: 'app-statistics',
-  standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './statistics.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

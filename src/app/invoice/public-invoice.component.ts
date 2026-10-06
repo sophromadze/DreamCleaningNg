@@ -28,7 +28,6 @@ import { extractApiErrorMessage } from '../utils/http-error.utils';
  */
 @Component({
   selector: 'app-public-invoice',
-  standalone: true,
   imports: [CommonModule],
   templateUrl: './public-invoice.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

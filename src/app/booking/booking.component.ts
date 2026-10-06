@@ -186,7 +186,6 @@ export function adminMethodIsSettled(method: AdminBookingPaymentMethod): boolean
 
 @Component({
   selector: 'app-booking',
-  standalone: true,
   imports: [CommonModule, FormsModule, ReactiveFormsModule, RouterModule, DurationSelectorComponent, TimeSelectorComponent, DateSelectorComponent, ShimmerDirective, FloorTypeSelectorComponent, CleaningTypeDetailsExpandableComponent, MoveInOutChecklistComponent, AdminUserSearchComponent, RegisterCustomerModalComponent, ReorderSectionComponent, QuantityControlComponent, ExtraServicesGridComponent, OrderSummaryCardComponent, IconComponent],
   // This page-level BookingService must get the APP's HttpClient (app.config: authInterceptor).
   // Never add HttpClientModule to `imports` above: it gave this component a private HttpClient
@@ -855,7 +854,6 @@ export class BookingComponent implements OnInit, OnDestroy {
           this.loadOrders();
           this.loading().partnership = false;
           this.loading.set(this.loading());
-          this.cdr.markForCheck();
         };
         if (this.isBrowser) {
           runInInjectionContext(this.injector, () => {
@@ -1242,7 +1240,6 @@ export class BookingComponent implements OnInit, OnDestroy {
         this.loading.set(this.loading());
         this.loading().pricing = false;
         this.loading.set(this.loading());
-        this.cdr.markForCheck();
       },
       error: (error) => {
         console.error('Failed to load service types:', error);
@@ -1259,7 +1256,6 @@ export class BookingComponent implements OnInit, OnDestroy {
         this.loading.set(this.loading());
         this.loading().timeSlots = false;
         this.loading.set(this.loading());
-        this.cdr.markForCheck();
       }
     });
 
@@ -1448,7 +1444,6 @@ export class BookingComponent implements OnInit, OnDestroy {
     if (this.state.value === value) return;
     this.state.setValue(value);
     this.onStateChange(value);
-    this.cdr.markForCheck();
   }
 
   toggleCityDropdown(): void {
@@ -1461,7 +1456,6 @@ export class BookingComponent implements OnInit, OnDestroy {
     this.city.setValue(value);
     this.city.markAsDirty();
     this.city.markAsTouched();
-    this.cdr.markForCheck();
   }
 
   private setupFormListeners() {
@@ -1780,7 +1774,6 @@ export class BookingComponent implements OnInit, OnDestroy {
       // over, so bring it back instead of leaving the fallback input in its place.
       this.reinitAddressAutocomplete();
     }
-    this.cdr.markForCheck();
   }
 
   clearApartmentSelection() {
@@ -1961,7 +1954,6 @@ export class BookingComponent implements OnInit, OnDestroy {
     this.addressFallbackTimer = setTimeout(() => {
       if (!this.autocompleteLoaded && !this.autocompleteError()) {
         this.showAddressFallbackAfterDelay.set(true);
-        this.cdr.markForCheck();
       }
       this.addressFallbackTimer = null;
     }, 2500);
@@ -2083,7 +2075,6 @@ export class BookingComponent implements OnInit, OnDestroy {
       : 'Other';
     if (next === this.addressNameType()) return;
     this.addressNameType.set(next);
-    this.cdr.markForCheck();
   }
 
   toggleAddressNameDropdown(): void {
@@ -2105,13 +2096,11 @@ export class BookingComponent implements OnInit, OnDestroy {
 
     if (type === 'Other') {
       this.apartmentName.setValue('');
-      this.cdr.markForCheck();
       this.focusAddressNameInput();
       return;
     }
 
     this.apartmentName.setValue(type);
-    this.cdr.markForCheck();
     this.persistAddressNameToSavedApartment();
   }
 
@@ -2152,11 +2141,9 @@ export class BookingComponent implements OnInit, OnDestroy {
         const idx = this.userApartments().findIndex((a: { id: number }) => a.id === saved.id);
         if (idx !== -1) { this.userApartments()[idx] = saved; this.userApartments.set(this.userApartments()); }
         this.errorMessage.set('');
-        this.cdr.markForCheck();
       },
       error: () => {
         this.errorMessage.set('Could not save address name. Please try again.');
-        this.cdr.markForCheck();
       }
     });
   }
@@ -2180,7 +2167,6 @@ export class BookingComponent implements OnInit, OnDestroy {
       this.loading.set(this.loading());
       this.loading().pricing = true;
       this.loading.set(this.loading());
-      this.cdr.markForCheck();
     }
     this.selectedServiceType.set(serviceType);
     this.serviceTypeControl.setValue(serviceType.id);
@@ -2371,7 +2357,6 @@ export class BookingComponent implements OnInit, OnDestroy {
     this.loading.set(this.loading());
     this.loading().summary = false;
     this.loading.set(this.loading());
-    this.cdr.markForCheck();
   }
 
   onServiceTypeChange(event: any) {
@@ -4331,7 +4316,6 @@ loadBubblePointsOptions(): void {
     const setPromoLoaded = () => {
       this.loading().promoBanner = false;
       this.loading.set(this.loading());
-      this.cdr.markForCheck();
     };
     if (this.isAdminMode() && this.selectedTargetUser()) {
       this.adminService.getUserSpecialOffers(this.selectedTargetUser()!.id).subscribe({
@@ -4413,7 +4397,6 @@ loadBubblePointsOptions(): void {
       this.previousOrders.set([]);
       this.loading().previousOrders = false;
       this.loading.set(this.loading());
-      this.cdr.markForCheck();
       return;
     }
     this.isLoadingOrders.set(true);
@@ -4429,7 +4412,6 @@ loadBubblePointsOptions(): void {
         this.isLoadingOrders.set(false);
         this.loading().previousOrders = false;
         this.loading.set(this.loading());
-        this.cdr.markForCheck();
       },
       error: (error) => {
         console.error('Error loading orders:', error);
@@ -4437,7 +4419,6 @@ loadBubblePointsOptions(): void {
         this.isLoadingOrders.set(false);
         this.loading().previousOrders = false;
         this.loading.set(this.loading());
-        this.cdr.markForCheck();
       }
     });
   }
@@ -4593,7 +4574,6 @@ loadBubblePointsOptions(): void {
     this.errorMessage.set('');
     this.discountsClearedForAccountSwitch.set(hadDiscount);
     this.calculateTotal();
-    this.cdr.markForCheck();
   }
 
   /**

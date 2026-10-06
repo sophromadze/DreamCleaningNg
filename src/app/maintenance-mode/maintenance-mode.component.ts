@@ -4,7 +4,6 @@ import { formatNyDateTime } from '../shared/ny-time.util';
 
 @Component({
   selector: 'app-maintenance-mode',
-  standalone: true,
   imports: [],
   template: `
     <div class="maintenance-container">

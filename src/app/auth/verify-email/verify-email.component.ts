@@ -5,7 +5,6 @@ import { AuthService } from '../../services/auth.service';
 
 @Component({
   selector: 'app-verify-email',
-  standalone: true,
   imports: [RouterLink],
   templateUrl: './verify-email.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

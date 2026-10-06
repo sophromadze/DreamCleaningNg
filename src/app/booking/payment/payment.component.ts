@@ -3,7 +3,6 @@ import { StripeService } from '../../services/stripe.service';
 
 @Component({
   selector: 'app-payment',
-  standalone: true,
   imports: [],
   templateUrl: './payment.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

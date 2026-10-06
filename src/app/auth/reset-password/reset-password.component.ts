@@ -7,7 +7,6 @@ import { formViewRefresher } from '../../shared/forms/form-view-refresher';
 
 @Component({
   selector: 'app-reset-password',
-  standalone: true,
   imports: [ReactiveFormsModule, RouterLink],
   templateUrl: './reset-password.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

@@ -19,7 +19,6 @@ const GIFT_CARD_DRAFT_TTL_MS = 30 * 60 * 1000;
 
 @Component({
   selector: 'app-gift-cards',
-  standalone: true,
   imports: [FormsModule, ReactiveFormsModule, BubbleFieldComponent],
   templateUrl: './gift-cards.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

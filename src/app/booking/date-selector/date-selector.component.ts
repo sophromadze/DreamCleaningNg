@@ -3,7 +3,6 @@ import { FormsModule } from '@angular/forms';
 
 @Component({
   selector: 'app-date-selector',
-  standalone: true,
   imports: [FormsModule],
   templateUrl: './date-selector.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

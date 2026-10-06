@@ -50,7 +50,6 @@ import { getAdminAvatarColor, getAdminAvatarInitials } from '../../../../shared/
  */
 @Component({
   selector: 'app-commercial-clients',
-  standalone: true,
   imports: [
     CommonModule, FormsModule, RouterLink, CommercialClientModalComponent, UserManagementComponent
   ],

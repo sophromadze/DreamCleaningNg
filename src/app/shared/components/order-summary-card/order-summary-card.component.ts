@@ -32,7 +32,6 @@ export interface SummaryLine {
  */
 @Component({
   selector: 'app-order-summary-card',
-  standalone: true,
   imports: [ShimmerDirective, IconComponent],
   templateUrl: './order-summary-card.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

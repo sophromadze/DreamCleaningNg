@@ -56,7 +56,6 @@ interface WidgetMessage {
  */
 @Component({
   selector: 'app-chat-widget',
-  standalone: true,
   imports: [FormsModule, ChatMarkdownPipe, IconComponent],
   templateUrl: './chat-widget.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

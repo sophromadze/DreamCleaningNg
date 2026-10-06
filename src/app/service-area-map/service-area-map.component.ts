@@ -4,7 +4,6 @@ import {
   OnDestroy,
   PLATFORM_ID,
   inject,
-  ChangeDetectorRef,
   ElementRef,
   ChangeDetectionStrategy,
   viewChild, signal,
@@ -53,7 +52,6 @@ const TILE_LAYER_OPTIONS = {
 
 @Component({
   selector: 'app-service-area-map',
-  standalone: true,
   imports: [FormsModule],
   templateUrl: './service-area-map.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -80,7 +78,6 @@ export class ServiceAreaMapComponent implements AfterViewInit, OnDestroy {
 
   private platformId = inject(PLATFORM_ID);
   private http = inject(HttpClient);
-  private cdr = inject(ChangeDetectorRef);
   private themeService = inject(ThemeService);
   private themeSub?: Subscription;
 
@@ -140,7 +137,6 @@ export class ServiceAreaMapComponent implements AfterViewInit, OnDestroy {
         const docked = entries.some((e) => e.isIntersecting);
         this.isDocked.set(docked);
         if (docked && this.isExpanded()) this.isExpanded.set(false);
-        this.cdr.markForCheck();
       },
       { root: null, threshold: 0 }
     );
@@ -151,7 +147,6 @@ export class ServiceAreaMapComponent implements AfterViewInit, OnDestroy {
   expand(): void {
     if (this.isDocked() || this.isExpanded()) return;
     this.isExpanded.set(true);
-    this.cdr.markForCheck();
     if (!this.mapInitialized) {
       this.mapInitialized = true;
       this.loadGeoJsonAndInitMap();
@@ -162,7 +157,6 @@ export class ServiceAreaMapComponent implements AfterViewInit, OnDestroy {
 
   collapse(): void {
     this.isExpanded.set(false);
-    this.cdr.markForCheck();
   }
 
   private clearMap(): void {
@@ -446,7 +440,6 @@ export class ServiceAreaMapComponent implements AfterViewInit, OnDestroy {
       }
       this.map?.invalidateSize();
 
-      this.cdr.markForCheck();
     });
   }
 
@@ -502,7 +495,6 @@ export class ServiceAreaMapComponent implements AfterViewInit, OnDestroy {
     if (!this.map || !this.L) return;
     if (this.tileLayer) this.map.removeLayer(this.tileLayer);
     this.tileLayer = this.createTileLayer(this.L).addTo(this.map);
-    this.cdr.markForCheck();
   }
 
   private getStyle(
@@ -585,7 +577,6 @@ export class ServiceAreaMapComponent implements AfterViewInit, OnDestroy {
     if (raw.length !== 5) {
       this.searchMessage.set('Please enter a valid ZIP code');
       this.searchSuccess.set(false);
-      this.cdr.markForCheck();
       return;
     }
 
@@ -594,7 +585,6 @@ export class ServiceAreaMapComponent implements AfterViewInit, OnDestroy {
     if (!borough) {
       this.searchMessage.set(`Sorry, we don't currently service ${raw}. Contact us to request service in your area.`);
       this.searchSuccess.set(false);
-      this.cdr.markForCheck();
       return;
     }
 
@@ -610,7 +600,6 @@ export class ServiceAreaMapComponent implements AfterViewInit, OnDestroy {
     this.ensureZipOnMap(raw);
     this.reapplyStyles();
     this.flyToZip(raw);
-    this.cdr.markForCheck();
   }
 
   get messageClass(): string {

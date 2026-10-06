@@ -9,7 +9,6 @@ type DiscountSubTab = 'promo-codes' | 'special-offers' | 'subscriptions' | 'gift
 
 @Component({
   selector: 'app-discounts',
-  standalone: true,
   imports: [
     PromoCodesComponent,
     SpecialOffersComponent,

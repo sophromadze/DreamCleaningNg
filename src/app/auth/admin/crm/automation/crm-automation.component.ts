@@ -6,7 +6,6 @@ import { CrmAutomationService, AutomationRule, AutomationAlert } from '../../../
 
 @Component({
   selector: 'app-crm-automation',
-  standalone: true,
   imports: [CommonModule, FormsModule, RouterLink],
   templateUrl: './crm-automation.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

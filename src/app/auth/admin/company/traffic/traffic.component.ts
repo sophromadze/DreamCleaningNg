@@ -14,7 +14,6 @@ import {
  */
 @Component({
   selector: 'app-traffic',
-  standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './traffic.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

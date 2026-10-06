@@ -20,7 +20,6 @@ import { faXmark } from '../shared/icons/glyphs/faXmark';
 
 @Component({
   selector: 'app-cleaning-checklist',
-  standalone: true,
   imports: [RouterModule, IconComponent],
   templateUrl: './cleaning-checklist.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

@@ -16,7 +16,6 @@ import { faSpinner } from '../../shared/icons/glyphs/faSpinner';
 
 @Component({
   selector: 'app-setup-pin',
-  standalone: true,
   imports: [FormsModule, IconComponent],
   templateUrl: './setup-pin.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

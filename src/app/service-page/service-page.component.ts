@@ -5,7 +5,6 @@ import { CardImageDirective } from '../shared/images/card-image.directive';
 
 @Component({
   selector: 'app-service-page',
-  standalone: true,
   imports: [RouterModule, CardImageDirective],
   templateUrl: './service-page.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

@@ -9,7 +9,6 @@ import { faCircleCheck } from '../../shared/icons/glyphs/faCircleCheck';
 
 @Component({
   selector: 'app-gift-card-payment',
-  standalone: true,
   imports: [CommonModule, PaymentComponent, IconComponent],
   templateUrl: './gift-card-payment.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

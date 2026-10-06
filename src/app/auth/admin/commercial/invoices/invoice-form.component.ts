@@ -38,7 +38,6 @@ interface EditableLine {
  */
 @Component({
   selector: 'app-invoice-form',
-  standalone: true,
   imports: [CommonModule, FormsModule, RouterLink, CommercialClientModalComponent],
   templateUrl: './invoice-form.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

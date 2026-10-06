@@ -27,7 +27,6 @@ import { debounceTime, distinctUntilChanged, switchMap, filter } from 'rxjs/oper
 
 @Component({
   selector: 'app-tasks',
-  standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './tasks.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

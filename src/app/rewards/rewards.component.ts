@@ -14,7 +14,6 @@ import {
 
 @Component({
   selector: 'app-rewards',
-  standalone: true,
   imports: [CommonModule, RouterModule, ShimmerDirective, NyDatePipe, ReferAFriendComponent],
   templateUrl: './rewards.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

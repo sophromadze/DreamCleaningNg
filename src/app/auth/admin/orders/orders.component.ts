@@ -152,7 +152,6 @@ export interface PaymentTimelineRow {
 
 @Component({
   selector: 'app-orders',
-  standalone: true,
   imports: [CommonModule, FormsModule, RecurringSeriesPanelComponent],
   templateUrl: './orders.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -1360,11 +1359,9 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
         this.residentialVariantCache.set(this.residentialVariantCache());
         this.isSavingCustomServiceName.set(false);
         this.showCustomServiceNameEditor = false;
-        this.cdr.markForCheck();
       },
       error: () => {
         this.isSavingCustomServiceName.set(false);
-        this.cdr.markForCheck();
       }
     });
   }

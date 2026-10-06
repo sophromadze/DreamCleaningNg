@@ -6,7 +6,6 @@ import { formViewRefresher } from '../../shared/forms/form-view-refresher';
 
 @Component({
   selector: 'app-verify-email-notice',
-  standalone: true,
   imports: [FormsModule, ReactiveFormsModule, RouterLink],
   templateUrl: './verify-email-notice.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

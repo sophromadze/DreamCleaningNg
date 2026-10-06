@@ -20,7 +20,6 @@ import { ContractsComponent } from '../crm/contracts/contracts.component';
  */
 @Component({
   selector: 'app-contracts-page',
-  standalone: true,
   imports: [ContractsComponent],
   templateUrl: './contracts-page.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

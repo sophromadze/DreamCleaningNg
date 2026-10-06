@@ -78,7 +78,6 @@ import { extractApiErrorMessage } from '../../../utils/http-error.utils';
 
 @Component({
   selector: 'app-recurring-series-panel',
-  standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './recurring-series-panel.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

@@ -28,7 +28,6 @@ import { faLock } from '../../icons/glyphs/faLock';
  */
 @Component({
   selector: 'app-save-card-modal',
-  standalone: true,
   imports: [IconComponent],
   templateUrl: './save-card-modal.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

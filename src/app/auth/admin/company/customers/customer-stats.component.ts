@@ -227,7 +227,6 @@ const VIEW_STORAGE_PREFIX = 'dreamcleaning-customers-view';
  */
 @Component({
   selector: 'app-customer-stats',
-  standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './customer-stats.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

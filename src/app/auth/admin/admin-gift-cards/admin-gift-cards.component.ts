@@ -43,7 +43,6 @@ interface GiftCardUsage {
 
 @Component({
   selector: 'app-admin-gift-cards',
-  standalone: true,
   imports: [FormsModule],
   templateUrl: './admin-gift-cards.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

@@ -18,7 +18,6 @@ import { IconDefinition } from './icon-definition';
  */
 @Component({
   selector: 'i[appIcon]',
-  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'app-icon' },
   template: `@if (appIcon(); as icon) {<svg class="app-icon__svg" xmlns="http://www.w3.org/2000/svg" [attr.viewBox]="'0 0 ' + icon.width + ' ' + icon.height" [style.width.em]="icon.width / icon.height" aria-hidden="true" focusable="false"><path fill="currentColor" [attr.d]="icon.path"/></svg>}`
