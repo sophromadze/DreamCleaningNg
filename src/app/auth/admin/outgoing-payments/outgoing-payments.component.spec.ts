@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideHttpClient, withXhr } from '@angular/common/http';
-import { provideRouter } from '@angular/router';
+import { provideRouter, Router } from '@angular/router';
 
 import { OutgoingPaymentsComponent } from './outgoing-payments.component';
 import {
@@ -1402,6 +1402,51 @@ describe('OutgoingPaymentsComponent', () => {
       expect(component.monthLabel).not.toBe(before);
       expect(component.activeTab()).toBe('employees');
       expect(component.isCurrentMonth).toBe(false);
+    });
+  });
+  // ── Orders / Unpaid cleaners / Paid cleaners (2026-10) ──
+
+  describe('the three views of cleaner wages', () => {
+    it('opens on Orders, with the month bar', () => {
+      render();
+      expect(component.cleanerView()).toBe('orders');
+      expect(fixture.nativeElement.querySelector('.month-bar')).not.toBeNull();
+      expect(fixture.nativeElement.querySelector('table.data-table')).not.toBeNull();
+    });
+
+    it('switches to Unpaid cleaners in place, keeps it in the URL, and drops the month bar', () => {
+      render();
+      const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+
+      component.setCleanerView('unpaid');
+      fixture.detectChanges();
+
+      expect(navigate).toHaveBeenCalledWith([], expect.objectContaining({
+        queryParams: { tab: null, view: 'unpaid' }, replaceUrl: true
+      }));
+      // Not a monthly figure: everything owed, whenever the job was.
+      expect(fixture.nativeElement.querySelector('.month-bar')).toBeNull();
+      expect(fixture.nativeElement.querySelector('app-unpaid-cleaners')).not.toBeNull();
+      expect(fixture.nativeElement.querySelector('table.data-table')).toBeNull();
+      httpMock.expectOne(r => r.url.endsWith('/outgoing-payments/cleaners/unpaid'))
+        .flush({ cleaners: [], totalOutstanding: 0, lineCount: 0, unassignedOutstanding: 0, unassignedSlotCount: 0 });
+    });
+
+    it('reloads the Orders data when money is recorded on another view', () => {
+      render();
+      component.onPayoutsChanged();
+      flushLoad(list([order()]));
+    });
+
+    it('keeps the payee tab in the URL too', () => {
+      render();
+      const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+
+      component.setTab('employees');
+
+      expect(navigate).toHaveBeenCalledWith([], expect.objectContaining({
+        queryParams: { tab: 'employees', view: null }
+      }));
     });
   });
 });

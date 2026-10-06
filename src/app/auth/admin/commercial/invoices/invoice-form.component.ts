@@ -6,14 +6,16 @@ import { finalize } from 'rxjs/operators';
 
 import {
   InvoiceService, InvoiceClientOption, InvoiceContractOption, InvoiceLocationOption,
-  InvoiceDueTerms, InvoiceTaxType, InvoiceDiscountType, InvoicePaymentMethod, InvoiceStatus,
-  SaveInvoice, SaveInvoiceItem, InvoiceDetail,
+  InvoiceDueTerms, InvoiceTaxType, InvoiceDiscountType, InvoicePaymentMethods, InvoiceStatus,
+  SaveInvoice, SaveInvoiceItem, InvoiceDetail, CommercialBillingDefaults,
+  INVOICE_PAYMENT_METHOD_OPTIONS, offersPaymentMethod,
   InvoiceEligibleOrder, InvoiceOrderAllocation,
   previewTotals, resolveDueDate, DUE_TERMS_OPTIONS
 } from '../../../../services/invoice.service';
 import { AdminService } from '../../../../services/admin.service';
 import { ContractClient } from '../../../../services/contract.service';
 import { CommercialClientModalComponent } from '../../../../shared/components/commercial-client-modal/commercial-client-modal.component';
+import { InvoiceRecipientsEditorComponent } from './invoice-recipients-editor.component';
 import { extractApiErrorMessage } from '../../../../utils/http-error.utils';
 
 /** One editable row. `id` is present only for a line that already exists on a saved invoice. */
@@ -38,7 +40,7 @@ interface EditableLine {
  */
 @Component({
   selector: 'app-invoice-form',
-  imports: [CommonModule, FormsModule, RouterLink, CommercialClientModalComponent],
+  imports: [CommonModule, FormsModule, RouterLink, CommercialClientModalComponent, InvoiceRecipientsEditorComponent],
   templateUrl: './invoice-form.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./invoice-form.component.scss']
@@ -52,7 +54,8 @@ export class InvoiceFormComponent implements OnInit {
   readonly InvoiceTaxType = InvoiceTaxType;
   readonly InvoiceDiscountType = InvoiceDiscountType;
   readonly InvoiceDueTerms = InvoiceDueTerms;
-  readonly InvoicePaymentMethod = InvoicePaymentMethod;
+  readonly InvoicePaymentMethods = InvoicePaymentMethods;
+  readonly methodOptions = INVOICE_PAYMENT_METHOD_OPTIONS;
   readonly dueTermsOptions = DUE_TERMS_OPTIONS;
 
   invoiceId?: number;
@@ -163,7 +166,26 @@ export class InvoiceFormComponent implements OnInit {
   /** Ticked while unlocked: persist this rate as the default for future documents. */
   readonly saveTaxRateAsDefault = signal(false);
 
-  readonly paymentMethod = signal<InvoicePaymentMethod>(InvoicePaymentMethod.AchBankTransfer);
+  // ── Payment methods (2026-10) ─────────────────────────────────────────────────────────────
+  //
+  // A SET, one checkbox per method, and the set is what the client's page offers — the old single
+  // radio was saved and then read by nothing that decided what the customer could do. A new
+  // invoice starts from the Billing Settings switches; the server refuses an empty set.
+
+  readonly paymentMethods = signal<InvoicePaymentMethods>(InvoicePaymentMethods.None);
+  private methodsTouched = false;
+
+  /** The fee rules and manual-transfer readiness the checkboxes describe. Null until loaded. */
+  readonly billingDefaults = signal<CommercialBillingDefaults | null>(null);
+
+  // ── Recipients (2026-10) ──────────────────────────────────────────────────────────────────
+  //
+  // Who this invoice is emailed to — sending, resending, reminders and receipts all use the
+  // list. Pre-filled from the client (their saved default list, else their billing email), every
+  // address removable, any number added. At least one; the server validates too.
+
+  readonly recipients = signal<string[]>([]);
+  readonly saveRecipientsAsDefault = signal(false);
 
   readonly customerNote = signal('');
   readonly internalNote = signal('');
@@ -244,6 +266,7 @@ export class InvoiceFormComponent implements OnInit {
       .subscribe({
         next: list => {
           this.clients.set(list);
+          this.loadBillingDefaults();
           if (this.isEdit) {
             this.loadExisting();
           } else {
@@ -283,30 +306,105 @@ export class InvoiceFormComponent implements OnInit {
   /** The cleaning `?orderId=` asked for, until the picker has loaded and can honour it. */
   private preselectOrderId: number | null = null;
 
-  /**
-   * Seeds tax mode, rate and terms from the ONE saved source of commercial billing defaults —
-   * the same row the contract form reads, which is what stops a contract quoting tax-inclusive
-   * while its invoices add 8.875% on top.
-   *
-   * The narrower `defaults` endpoint rather than the full settings read: this form needs five
-   * values and never displays the company's bank account, so it is not handed one. The customer
-   * note still comes from the full settings read below, which only runs when it is needed.
-   */
+  /** A new invoice's customer note, from the full settings read — the defaults endpoint has no note. */
   private applyBillingDefaults(): void {
-    this.invoiceService.getBillingDefaults().subscribe({
-      next: d => {
-        this.taxType.set(d.defaultTaxType);
-        this.taxRate.set(d.defaultTaxRate ?? null);
-        this.dueTerms.set(d.defaultDueTerms);
-      },
-      // Defaults are a convenience; the form is perfectly usable without them.
-      error: () => {}
-    });
-
     this.invoiceService.getBillingSettings().subscribe({
       next: s => { if (!this.customerNote()) this.customerNote.set(s.defaultCustomerNote ?? ''); },
       error: () => {}
     });
+  }
+
+  /**
+   * The ONE saved source of commercial billing defaults — the same row the contract form reads,
+   * which is what stops a contract quoting tax-inclusive while its invoices add 8.875% on top.
+   *
+   * Loaded on edit as well as create: the payment-method checkboxes describe the fees and need to
+   * know whether manual transfer can be offered. On a NEW invoice it also seeds tax mode, rate,
+   * terms and the pre-ticked payment methods. The narrower `defaults` endpoint: this form never
+   * displays the company's bank account, so it is not handed one.
+   */
+  private loadBillingDefaults(): void {
+    this.invoiceService.getBillingDefaults().subscribe({
+      next: d => {
+        this.billingDefaults.set(d);
+        if (this.isEdit) return;
+
+        // A NEW invoice starts from the saved defaults.
+        this.taxType.set(d.defaultTaxType);
+        this.taxRate.set(d.defaultTaxRate ?? null);
+        this.dueTerms.set(d.defaultDueTerms);
+        // Pre-ticked from the Billing Settings switches — unless the admin already ticked.
+        if (!this.methodsTouched) this.paymentMethods.set(d.defaultPaymentMethods);
+      },
+      // Defaults are a convenience; the form is perfectly usable without them.
+      error: () => this.billingDefaults.set(null)
+    });
+  }
+
+  // ── Payment methods ──
+
+  offers(method: InvoicePaymentMethods): boolean {
+    return offersPaymentMethod(this.paymentMethods(), method);
+  }
+
+  toggleMethod(method: InvoicePaymentMethods, checked: boolean): void {
+    this.methodsTouched = true;
+    this.paymentMethods.set(checked
+      ? (this.paymentMethods() | method)
+      : (this.paymentMethods() & ~method));
+  }
+
+  /**
+   * Manual transfer cannot be ADDED while the bank details are incomplete — the server refuses
+   * it, because half a set of instructions is worse than none. One already on the invoice stays
+   * selectable, so editing something else is never blocked by a settings change.
+   */
+  isMethodUnavailable(method: InvoicePaymentMethods): boolean {
+    if (method !== InvoicePaymentMethods.ManualBankTransfer) return false;
+    const defaults = this.billingDefaults();
+    if (!defaults || defaults.manualTransferAvailable) return false;
+    return !offersPaymentMethod(this.existing()?.paymentMethods, InvoicePaymentMethods.ManualBankTransfer);
+  }
+
+  /** The ACH fee on this invoice's balance as the page would quote it — display only. */
+  get achFeePreview(): number {
+    const d = this.billingDefaults();
+    if (!d?.achCustomerFeeEnabled || this.balanceDue <= 0) return 0;
+    const fee = Math.round((this.balanceDue * Math.max(0, d.achCustomerFeeRatePercent) / 100 + Number.EPSILON) * 100) / 100;
+    return d.achCustomerFeeCapAmount > 0 ? Math.min(fee, d.achCustomerFeeCapAmount) : fee;
+  }
+
+  /** Which fee applies to each method — said where the admin chooses, so nobody is surprised. */
+  methodNote(method: InvoicePaymentMethods): string {
+    const d = this.billingDefaults();
+    switch (method) {
+      case InvoicePaymentMethods.OnlineBank: {
+        if (!d) return 'The client pays from their US bank account through Stripe ("Pay from Bank").';
+        if (!d.achCustomerFeeEnabled) {
+          return 'The client pays from their US bank account through Stripe ("Pay from Bank"). '
+            + 'No processing fee is added — the ACH fee is switched off in Billing Settings.';
+        }
+        const cap = d.achCustomerFeeCapAmount > 0 ? `, up to $${d.achCustomerFeeCapAmount.toFixed(2)}` : '';
+        const preview = this.achFeePreview > 0 ? ` — $${this.achFeePreview.toFixed(2)} on this balance` : '';
+        return 'The client pays from their US bank account through Stripe ("Pay from Bank"). An ACH '
+          + `processing fee of ${d.achCustomerFeeRatePercent}%${cap} is added on top of the balance${preview}, `
+          + 'shown to the client before they confirm.';
+      }
+      case InvoicePaymentMethods.Card:
+        return 'The client pays by card through Stripe ("Pay by Card"). No processing fee is added to the client.';
+      case InvoicePaymentMethods.ManualBankTransfer:
+        if (this.isMethodUnavailable(method)) {
+          return 'Unavailable until the bank details in Billing Settings are complete'
+            + (d?.missingManualAchFields.length ? ` (missing: ${d.missingManualAchFields.join(', ')}).` : '.');
+        }
+        return 'The client sends a transfer from their own bank using the details printed on the invoice; '
+          + 'record it when it arrives. No processing fee from us.';
+      case InvoicePaymentMethods.Other:
+        return 'A check or another arrangement made with you. The invoice asks the client to contact you; '
+          + 'record the payment when it arrives. No processing fee.';
+      default:
+        return '';
+    }
   }
 
   unlockTaxRate(): void {
@@ -341,7 +439,9 @@ export class InvoiceFormComponent implements OnInit {
           this.discountValue.set(inv.discountValue ?? null);
           this.taxType.set(inv.taxType);
           this.taxRate.set(inv.taxRate ?? null);
-          this.paymentMethod.set(inv.paymentMethod);
+          this.paymentMethods.set(inv.paymentMethods);
+          this.methodsTouched = true;
+          this.recipients.set([...(inv.recipients ?? [])]);
 
           this.customerNote.set(inv.customerNote ?? '');
           this.internalNote.set(inv.internalNote ?? '');
@@ -395,6 +495,10 @@ export class InvoiceFormComponent implements OnInit {
     this.prefillWarning.set('');
 
     const client = this.selectedClient;
+    // A new client means new addressees: their saved default list, else their billing email.
+    this.recipients.set([...(client?.defaultInvoiceRecipients ?? [])]);
+    this.saveRecipientsAsDefault.set(false);
+
     if (client?.locations.length === 1) {
       this.locationId.set(client.locations[0].id);
       this.serviceAddress.set(client.locations[0].address);
@@ -787,6 +891,8 @@ export class InvoiceFormComponent implements OnInit {
 
   get canSave(): boolean {
     return !!this.clientId()
+      && this.paymentMethods() !== InvoicePaymentMethods.None
+      && this.recipients().length > 0
       && this.lines().some(l => l.description.trim())
       && !this.saving() && !this.savingOrders() && (!this.selectedOrderIds().length || !this.eligibleError());
   }
@@ -825,7 +931,9 @@ export class InvoiceFormComponent implements OnInit {
       // Only ever true while the rate is unlocked - a locked field cannot have been edited, so
       // it must not silently rewrite the company's default on every save.
       saveTaxRateAsDefault: this.taxRateUnlocked() && this.saveTaxRateAsDefault(),
-      paymentMethod: this.paymentMethod(),
+      paymentMethods: this.paymentMethods(),
+      recipients: [...this.recipients()],
+      saveRecipientsAsClientDefault: this.saveRecipientsAsDefault(),
       customerNote: this.customerNote().trim() || null,
       internalNote: this.internalNote().trim() || null,
       items
@@ -881,7 +989,10 @@ export class InvoiceFormComponent implements OnInit {
     this.invoiceService.send(savedId, { attachPdf: true })
       .pipe(finalize(() => this.saving.set(false)))
       .subscribe({
-        next: () => this.router.navigate(['/admin/commercial/invoices', savedId]),
+        // A send that reached only SOME recipients still succeeded; the detail page says who
+        // was missed.
+        next: sent => this.router.navigate(['/admin/commercial/invoices', savedId],
+          sent?.actionNotice ? { queryParams: { sendNotice: sent.actionNotice } } : {}),
         error: err => {
           // The invoice IS saved - only the mail failed. Go to the detail page and say so
           // there, rather than stranding the admin on a form whose work is already stored.

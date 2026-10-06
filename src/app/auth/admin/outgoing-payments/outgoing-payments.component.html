@@ -76,6 +76,7 @@
   <!-- Month selector + what still has to go out this month. SHARED: both tabs are a view of the
        same month, so moving it on one and finding the other on a different month would be worse
        than the extra click of switching back. "Still to pay" follows the tab on screen. -->
+  @if (showMonthBar) {
   <div class="month-bar">
     <div class="month-nav">
       <button class="month-arrow" type="button" (click)="prevMonth()" title="Previous month">‹</button>
@@ -93,6 +94,7 @@
     </div>
     }
   </div>
+  }
 
   <!-- Shared by both tabs: a write on either reports through the same two lines. -->
   @if (successMessage()) {
@@ -302,6 +304,27 @@
   <!-- ══ Cleaner wages tab ══════════════════════════════════════════════════ -->
   @if (activeTab() === 'cleaners') {
 
+  <!--
+    Three views of cleaner wages, one ledger behind them (2026-10). Orders is the per-order table;
+    Unpaid cleaners is who is owed across every finished job, payable several at once; Paid
+    cleaners is the payout history. A payment made on any of them shows on the others.
+  -->
+  <div class="payee-tabs cleaner-views" role="tablist" aria-label="Cleaner wages">
+    <button type="button" role="tab" class="payee-tab"
+            [class.active]="cleanerView() === 'orders'"
+            [attr.aria-selected]="cleanerView() === 'orders'"
+            (click)="setCleanerView('orders')">Orders</button>
+    <button type="button" role="tab" class="payee-tab"
+            [class.active]="cleanerView() === 'unpaid'"
+            [attr.aria-selected]="cleanerView() === 'unpaid'"
+            (click)="setCleanerView('unpaid')">Unpaid cleaners</button>
+    <button type="button" role="tab" class="payee-tab"
+            [class.active]="cleanerView() === 'paid'"
+            [attr.aria-selected]="cleanerView() === 'paid'"
+            (click)="setCleanerView('paid')">Paid cleaners</button>
+  </div>
+
+  @if (cleanerView() === 'orders') {
   <!-- Filters -->
   <div class="filter-bar">
     <div class="segmented" role="group" aria-label="Payment status">
@@ -510,6 +533,15 @@
     </div>
     }
   </div>
+  }
+  }
+
+  @if (cleanerView() === 'unpaid') {
+  <app-unpaid-cleaners (paid)="onPayoutsChanged()" />
+  }
+
+  @if (cleanerView() === 'paid') {
+  <app-cleaner-payout-history (changed)="onPayoutsChanged()" />
   }
 
   }

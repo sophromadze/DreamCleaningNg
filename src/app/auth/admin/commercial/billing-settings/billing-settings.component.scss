@@ -135,6 +135,20 @@
   }
 }
 
+/* The one customer-facing fee, under the method it belongs to. */
+.fee-block {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-color);
+
+  h4 {
+    margin: 0 0 10px;
+    font-size: 0.9rem;
+    font-weight: var(--fw-semibold);
+    color: var(--text-primary);
+  }
+}
+
 .alert-warning {
   padding: 11px 13px;
   border-radius: var(--radius-sm);

@@ -110,6 +110,8 @@ export const AUDIT_FIELD_LABELS: { [field: string]: string } = {
   PaidVia: 'Paid Via',
   PaidByUserId: 'Paid By',
   PaymentNote: 'Payment Note',
+  TotalPaidForLine: 'Total Paid For This Line',
+  PayoutId: 'Payout #',
   SlotIndex: 'Unassigned Slot',
   TipsForCleaner: 'Tips For Cleaner',
   PaidLinesPinnedToOldRate: 'Already-Paid Lines Pinned To Old Rate',
@@ -358,7 +360,7 @@ export function getAuditFieldLabel(field: string): string {
 const MONEY_FIELD_PATTERN =
   /(Amount|Price|Cost|Total|SubTotal|Salary|Rate|Balance|Tips|Tax|Credit|Payout|Spend|Usd)$/;
 const MONEY_FIELD_EXACT = new Set([
-  'SubTotal', 'Total', 'Tax', 'Tips', 'PaidAmount', 'CleanerTotalSalary', 'CleanerHourlyRate',
+  'SubTotal', 'Total', 'Tax', 'Tips', 'PaidAmount', 'TotalPaidForLine', 'CleanerTotalSalary', 'CleanerHourlyRate',
   'SalaryHourlyRate', 'DiscountAmount', 'SubscriptionDiscountAmount', 'LoyaltyDiscountAmount',
   'GiftCardAmountUsed', 'CreditsApplied', 'TotalRefundedAmount', 'AmountRefunded',
   'RequestedAmount', 'AdditionalAmount', 'MinimumOrderAmount', 'OriginalAmount', 'CurrentBalance',

@@ -4,7 +4,7 @@ import { provideHttpClient, withXhr } from '@angular/common/http';
 import { provideRouter, Router } from '@angular/router';
 
 import { InvoiceFormComponent } from './invoice-form.component';
-import { InvoiceEligibleOrder, InvoiceTaxType, InvoiceStatus } from '../../../../services/invoice.service';
+import { InvoiceEligibleOrder, InvoiceTaxType, InvoiceStatus, InvoicePaymentMethods } from '../../../../services/invoice.service';
 import { ContractClient } from '../../../../services/contract.service';
 import { environment } from '../../../../../environments/environment';
 
@@ -39,6 +39,8 @@ describe('InvoiceFormComponent', () => {
     billingEmail: 'ari@existing.invalid',
     billingPhone: '7185550100',
     billingAddress: '1 Old Street, Brooklyn, NY 11226',
+    defaultInvoiceRecipients: ['ari@existing.invalid'],
+    hasSavedDefaultRecipients: false,
     locations: [{ id: 70, label: 'Old Street', address: '1 Old Street, Brooklyn, NY 11226' }],
     contracts: [{ id: 900, contractNumber: 'DCC-2026-11112222', statusLabel: 'Executed' }]
   };
@@ -51,6 +53,8 @@ describe('InvoiceFormComponent', () => {
     billingEmail: 'casey@chicktastic.invalid',
     billingPhone: '7185550123',
     billingAddress: '1569 Flatbush Ave., Brooklyn, NY 11210',
+    defaultInvoiceRecipients: ['casey@chicktastic.invalid'],
+    hasSavedDefaultRecipients: false,
     locations: [{ id: 910, label: 'Flatbush Ave.', address: '1569 Flatbush Ave., Brooklyn, NY 11210' }],
     contracts: []
   };
@@ -87,7 +91,9 @@ describe('InvoiceFormComponent', () => {
     // Tax-inclusive at 8.875%, from the ONE saved source of commercial billing defaults.
     httpMock.expectOne(DEFAULTS_URL).flush({
       defaultTaxType: 1, defaultTaxRate: 8.875, defaultContractPriceMode: 0, defaultDueTerms: 2,
-      achCustomerFeeEnabled: true, achCustomerFeeRatePercent: 0.8, achCustomerFeeCapAmount: 5
+      achCustomerFeeEnabled: true, achCustomerFeeRatePercent: 0.8, achCustomerFeeCapAmount: 5,
+      // Online bank payment pre-ticked; the bank details are complete.
+      defaultPaymentMethods: 1, manualTransferAvailable: true, missingManualAchFields: []
     });
 
     // The customer note still comes from the full settings read; nothing else here does.
@@ -136,6 +142,7 @@ describe('InvoiceFormComponent', () => {
   }
   function prepareLinkedDraft(prices?: number[]): void {
     component.clientId.set(7);
+    component.recipients.set(['ari@existing.invalid']);
     component.eligibleOrders.set(linkedRows(prices));
     component.lines.set([{ description: 'Cloned old single line', quantity: 1, unitPrice: 925.43 }]);
     component.serviceDates.set(['2026-09-13']); component.serviceStartDate.set('2026-09-13'); component.serviceEndDate.set('2026-09-13');
@@ -288,6 +295,81 @@ describe('InvoiceFormComponent', () => {
       component.openClientModal();
 
       expect(component.showClientModal()).toBe(false);
+    });
+  });
+
+  // ── Payment methods and recipients (2026-10) ─────────────────────────────────────────────
+
+  describe('payment methods and recipients', () => {
+    it('pre-ticks the Billing Settings defaults on a new invoice', () => {
+      expect(component.paymentMethods()).toBe(InvoicePaymentMethods.OnlineBank);
+      expect(component.offers(InvoicePaymentMethods.OnlineBank)).toBe(true);
+      expect(component.offers(InvoicePaymentMethods.Card)).toBe(false);
+    });
+
+    it('offers one checkbox per method, each saying which fee applies', () => {
+      fixture.detectChanges();
+      const options = Array.from(fixture.nativeElement.querySelectorAll('.method-option')) as HTMLElement[];
+      expect(options.map(o => o.querySelector('.method-name')!.textContent!.trim())).toEqual([
+        'Online bank payment (ACH)', 'Card', 'Manual bank transfer', 'Other (check or arranged with us)'
+      ]);
+
+      expect(component.methodNote(InvoicePaymentMethods.OnlineBank)).toContain('0.8%, up to $5.00');
+      expect(component.methodNote(InvoicePaymentMethods.Card)).toContain('No processing fee');
+      expect(component.methodNote(InvoicePaymentMethods.ManualBankTransfer)).toContain('No processing fee from us');
+    });
+
+    it('lets several methods be chosen and none at all blocks the save', () => {
+      component.toggleMethod(InvoicePaymentMethods.Card, true);
+      expect(component.paymentMethods()).toBe(InvoicePaymentMethods.OnlineBank | InvoicePaymentMethods.Card);
+
+      component.toggleMethod(InvoicePaymentMethods.OnlineBank, false);
+      component.toggleMethod(InvoicePaymentMethods.Card, false);
+      component.clientId.set(7);
+      component.recipients.set(['ari@existing.invalid']);
+      component.lines.set([{ description: 'Office cleaning', quantity: 1, unitPrice: 100 }]);
+
+      expect(component.canSave).toBe(false);
+      fixture.detectChanges();
+      expect(fixture.nativeElement.textContent).toContain('Choose at least one payment method.');
+    });
+
+    it('cannot add manual transfer while the bank details are incomplete', () => {
+      component.billingDefaults.set({
+        ...component.billingDefaults()!, manualTransferAvailable: false, missingManualAchFields: ['Account number']
+      });
+
+      expect(component.isMethodUnavailable(InvoicePaymentMethods.ManualBankTransfer)).toBe(true);
+      expect(component.methodNote(InvoicePaymentMethods.ManualBankTransfer)).toContain('missing: Account number');
+    });
+
+    it('addresses the invoice to the chosen client\'s default recipients', () => {
+      component.clientId.set(7);
+      component.onClientChange();
+
+      expect(component.recipients()).toEqual(['ari@existing.invalid']);
+    });
+
+    it('needs at least one recipient, and sends the list and the methods with the save', () => {
+      component.clientId.set(7);
+      component.onClientChange();
+      component.lines.set([{ description: 'Office cleaning', quantity: 1, unitPrice: 100 }]);
+      component.toggleMethod(InvoicePaymentMethods.Card, true);
+
+      component.recipients.set([]);
+      expect(component.canSave).toBe(false);
+
+      component.recipients.set(['ari@existing.invalid', 'cfo@existing.invalid']);
+      component.saveRecipientsAsDefault.set(true);
+      expect(component.canSave).toBe(true);
+
+      vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+      component.saveDraft();
+      const request = httpMock.expectOne(`${environment.apiUrl}/admin/commercial/invoices`);
+      expect(request.request.body.paymentMethods).toBe(InvoicePaymentMethods.OnlineBank | InvoicePaymentMethods.Card);
+      expect(request.request.body.recipients).toEqual(['ari@existing.invalid', 'cfo@existing.invalid']);
+      expect(request.request.body.saveRecipientsAsClientDefault).toBe(true);
+      request.flush({ id: 12 });
     });
   });
 });

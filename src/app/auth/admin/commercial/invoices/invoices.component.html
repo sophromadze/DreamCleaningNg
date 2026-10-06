@@ -158,7 +158,7 @@
           <td>
             <span class="status-badge" [ngClass]="statusClass(inv.status)">{{ inv.statusLabel }}</span>
           </td>
-          <td class="hide-sm muted">{{ paymentMethodLabel(inv.paymentMethod) }}</td>
+          <td class="hide-sm muted">{{ paymentMethodsLabel(inv.paymentMethods) }}</td>
           <td class="align-right actions-cell">
             <button type="button" class="menu-button" (click)="toggleMenu(inv.id, $event)"
                     [attr.aria-expanded]="openMenuId() === inv.id" aria-label="Invoice actions">

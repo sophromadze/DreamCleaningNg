@@ -30,7 +30,44 @@ export enum InvoiceStatus {
 
 export enum InvoiceTaxType { Exempt = 0, Included = 1, Added = 2 }
 export enum InvoiceDiscountType { None = 0, FixedAmount = 1, Percentage = 2 }
-export enum InvoicePaymentMethod { AchBankTransfer = 0, Card = 1, Other = 2 }
+/**
+ * The payment methods ONE commercial invoice offers, as a bit set (2026-10). Chosen per invoice;
+ * the Billing Settings switches only decide which are pre-ticked on a new one. Mirrors
+ * `InvoicePaymentMethods` on the server — append, never renumber.
+ */
+export enum InvoicePaymentMethods {
+  None = 0,
+  OnlineBank = 1,
+  Card = 2,
+  ManualBankTransfer = 4,
+  Other = 8
+}
+
+/** One checkbox on the invoice form: the method, its name, and which fee applies to it. */
+export interface InvoicePaymentMethodOption {
+  method: InvoicePaymentMethods;
+  label: string;
+}
+
+/** Every method, in the order every surface lists them, named as the server names them. */
+export const INVOICE_PAYMENT_METHOD_OPTIONS: readonly InvoicePaymentMethodOption[] = [
+  { method: InvoicePaymentMethods.OnlineBank, label: 'Online bank payment (ACH)' },
+  { method: InvoicePaymentMethods.Card, label: 'Card' },
+  { method: InvoicePaymentMethods.ManualBankTransfer, label: 'Manual bank transfer' },
+  { method: InvoicePaymentMethods.Other, label: 'Other (check or arranged with us)' }
+];
+
+export function offersPaymentMethod(set: number | null | undefined, method: InvoicePaymentMethods): boolean {
+  return method !== InvoicePaymentMethods.None && ((set ?? 0) & method) === method;
+}
+
+/** "Online bank payment (ACH), Card" — the same wording the server's activity trail uses. */
+export function describePaymentMethods(set: number | null | undefined): string {
+  const labels = INVOICE_PAYMENT_METHOD_OPTIONS
+    .filter(o => offersPaymentMethod(set, o.method))
+    .map(o => o.label);
+  return labels.length ? labels.join(', ') : 'None';
+}
 
 export enum InvoicePaymentRecordMethod {
   AchBankTransfer = 0,
@@ -237,7 +274,15 @@ export interface SaveInvoice {
    */
   saveTaxRateAsDefault?: boolean;
 
-  paymentMethod: InvoicePaymentMethod;
+  /** Every method this invoice offers — at least one; the server validates. */
+  paymentMethods: InvoicePaymentMethods;
+
+  /** Who the invoice is emailed to — at least one valid address; the server validates. */
+  recipients: string[];
+
+  /** Also store `recipients` as the client's default list for future invoices. */
+  saveRecipientsAsClientDefault?: boolean;
+
   customerNote?: string | null;
   internalNote?: string | null;
   items: SaveInvoiceItem[];
@@ -257,7 +302,7 @@ export interface InvoiceListItem {
   balanceDue: number;
   status: InvoiceStatus;
   statusLabel: string;
-  paymentMethod: InvoicePaymentMethod;
+  paymentMethods: InvoicePaymentMethods;
   paidAt?: string;
   lastSentAt?: string;
   hasBeenSent: boolean;
@@ -314,6 +359,8 @@ export interface InvoicePayment {
 
 export interface InvoiceEmailLog {
   id: number;
+  /** Shared by every row of one send (one message per recipient). Null on older rows. */
+  sendBatchId?: string | null;
   emailType: InvoiceEmailType;
   emailTypeLabel: string;
   recipient: string;
@@ -398,7 +445,16 @@ export interface InvoiceDetail {
   overpayment: number;
 
   currency: string;
-  paymentMethod: InvoicePaymentMethod;
+  paymentMethods: InvoicePaymentMethods;
+  paymentMethodsLabel: string;
+
+  /** Who sending, resending, reminders and receipts go to. */
+  recipients: string[];
+  /** True when `recipients` is the client's billing address because the invoice predates its own list. */
+  recipientsAreFallback: boolean;
+
+  /** Only on the response to a send that reached SOME recipients: who it missed. */
+  actionNotice?: string | null;
 
   customerNote?: string;
   internalNote?: string;
@@ -518,6 +574,10 @@ export interface PublicPaymentOptions {
   stripeCardAvailable: boolean;
   manualAchAvailable: boolean;
 
+  /** The invoice accepts a check or another arrangement — nothing to click, just how to reach us. */
+  otherArrangementAvailable: boolean;
+  otherArrangementNote?: string | null;
+
   /**
    * True only while an ACH debit is genuinely SETTLING — never merely because a Checkout Session
    * was opened. Opening Stripe and closing the tab submits nothing, and treating that as "in
@@ -534,6 +594,8 @@ export interface PublicPaymentOptions {
   processingFeeAmount?: number;
   processingTotalCharged?: number;
   processingStartedAt?: string;
+  /** The payment being confirmed is a card payment (seconds away), not an ACH debit (days). */
+  processingIsCard?: boolean;
 
   lastAttemptFailed: boolean;
   /** Fixed, customer-safe wording. Never Stripe's own error text. */
@@ -627,7 +689,6 @@ export interface PublicInvoice {
   currency: string;
   paidAt?: string;
   customerNote?: string;
-  paymentMethod: InvoicePaymentMethod;
   paymentInstructions?: PublicPaymentInstructions;
   paymentOptions: PublicPaymentOptions;
   company: PublicCompany;
@@ -668,6 +729,12 @@ export interface InvoiceClientOption {
   billingEmail?: string;
   billingPhone?: string;
   billingAddress?: string;
+
+  /** What a new invoice for this client is addressed to: the saved default list, else `billingEmail`. */
+  defaultInvoiceRecipients: string[];
+  /** True when that list is one an admin saved. */
+  hasSavedDefaultRecipients: boolean;
+
   locations: InvoiceLocationOption[];
   contracts: InvoiceContractOption[];
 
@@ -767,6 +834,13 @@ export interface CommercialBillingDefaults {
   achCustomerFeeEnabled: boolean;
   achCustomerFeeRatePercent: number;
   achCustomerFeeCapAmount: number;
+
+  /** Pre-ticked on a new invoice: the Billing Settings switches. */
+  defaultPaymentMethods: InvoicePaymentMethods;
+  /** Bank details complete enough for an invoice to offer manual transfer. */
+  manualTransferAvailable: boolean;
+  /** Field NAMES only, for the explanation beside the disabled checkbox. */
+  missingManualAchFields: string[];
 }
 
 /** One row of the business customer's own My Invoices list. */
@@ -807,7 +881,8 @@ export interface InvoiceListFilters {
   search?: string;
   status?: InvoiceStatus | null;
   clientId?: number | null;
-  paymentMethod?: InvoicePaymentMethod | null;
+  /** "Offers this method" — an invoice offers a set, so this filters by membership. */
+  paymentMethod?: InvoicePaymentMethods | null;
   fromDate?: string | null;
   toDate?: string | null;
 
@@ -913,13 +988,23 @@ export class InvoiceService {
     return this.http.get<InvoiceOrderAllocation[]>(`${this.adminUrl}/${id}/orders`);
   }
 
-  send(id: number, body: { recipientEmail?: string; attachPdf: boolean; message?: string }):
+  /**
+   * Sends to every recipient on the invoice. `recipients`, when given, REPLACES the invoice's
+   * stored list first (validated like the form), so the invoice keeps saying who it went to.
+   */
+  send(id: number, body: { recipients?: string[]; attachPdf: boolean; message?: string }):
     Observable<InvoiceDetail> {
     return this.http.post<InvoiceDetail>(`${this.adminUrl}/${id}/send`, body);
   }
 
-  sendReminder(id: number, body: { recipientEmail?: string; force: boolean }): Observable<InvoiceDetail> {
+  sendReminder(id: number, body: { recipients?: string[]; force: boolean }): Observable<InvoiceDetail> {
     return this.http.post<InvoiceDetail>(`${this.adminUrl}/${id}/reminder`, body);
+  }
+
+  /** Replaces who the invoice is emailed to, nothing else. Allowed on anything not Void. */
+  updateRecipients(id: number, body: { recipients: string[]; saveAsClientDefault: boolean }):
+    Observable<InvoiceDetail> {
+    return this.http.put<InvoiceDetail>(`${this.adminUrl}/${id}/recipients`, body);
   }
 
   sendReceipt(id: number): Observable<InvoiceDetail> {

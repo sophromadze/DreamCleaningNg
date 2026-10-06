@@ -9,6 +9,9 @@
   @if (notice()) {
   <div class="alert alert-success">{{ notice() }}</div>
   }
+  @if (warning()) {
+  <div class="alert alert-warning" role="status">{{ warning() }}</div>
+  }
   @if (invoice(); as inv) {
 
 
@@ -177,7 +180,26 @@
             </div>
             <div><span class="label">Service location</span><span>{{ inv.serviceAddress || '—' }}</span></div>
             <div><span class="label">Billing contact</span><span>{{ inv.billingContactName || '—' }}</span></div>
-            <div><span class="label">Email</span><span>{{ inv.billingEmail || 'None on file' }}</span></div>
+            <div><span class="label">Billing email</span><span>{{ inv.billingEmail || 'None on file' }}</span></div>
+            <div class="wide">
+              <span class="label">Sent to</span>
+              <span class="recipient-line">
+                @if (inv.recipients.length) {
+                <span>{{ inv.recipients.join(', ') }}</span>
+                } @else {
+                <span>No recipients yet</span>
+                }
+                @if (inv.recipientsAreFallback) {
+                <span class="muted">(the client's billing address — this invoice has no list of its own yet)</span>
+                }
+                @if (inv.canEdit) {
+                <button type="button" class="link-btn" (click)="openRecipients()">Edit recipients</button>
+                }
+              </span>
+            </div>
+            <div class="wide">
+              <span class="label">Payment methods</span><span>{{ inv.paymentMethodsLabel }}</span>
+            </div>
             <div><span class="label">Billing address</span><span>{{ inv.billingAddress || '—' }}</span></div>
             @if (inv.poNumber) {
             <div><span class="label">PO number</span><span>{{ inv.poNumber }}</span></div>
@@ -412,18 +434,27 @@
           <p class="empty">No emails sent yet.</p>
           }
           <ul class="event-list">
-            @for (e of inv.emailHistory; track $index) {
-            <li [class.failed]="isFailed(e)">
+            @for (g of emailGroups(); track g.key) {
+            <li [class.failed]="g.allFailed">
               <span class="event-title">
-                {{ e.emailTypeLabel }}
-                @if (isFailed(e)) {
+                {{ g.emailTypeLabel }}
+                @if (g.allFailed) {
                 <em>failed</em>
+                } @else if (g.anyFailed) {
+                <em>partly failed</em>
                 }
               </span>
-              <span class="event-meta">{{ e.sentAt | date:'MMM d, y, h:mm a' }} · to {{ e.recipient }}</span>
-              @if (e.failureReason) {
-              <span class="event-error">{{ e.failureReason }}</span>
-              }
+              <span class="event-meta">{{ g.sentAt | date:'MMM d, y, h:mm a' }}</span>
+              <ul class="recipient-results">
+                @for (e of g.logs; track e.id) {
+                <li [class.failed]="isFailed(e)">
+                  to {{ e.recipient }}
+                  @if (isFailed(e)) {
+                  — not sent{{ e.failureReason ? ': ' + e.failureReason : '' }}
+                  }
+                </li>
+                }
+              </ul>
             </li>
             }
           </ul>
@@ -568,10 +599,12 @@
         <h3>{{ invoice()?.firstSentAt ? 'Resend Invoice' : 'Send Invoice' }}</h3>
 
         <div class="field">
-          <label for="sendEmail">Send to *</label>
-          <input id="sendEmail" type="email" [(ngModel)]="sendEmail"
-                 placeholder="accounting@example.com">
-          <span class="hint">Defaults to the client's billing contact.</span>
+          <app-invoice-recipients-editor [(recipients)]="sendRecipients" inputId="sendRecipient"
+                                         label="Send to *" />
+          <span class="hint">
+            One email to each address. A change here is saved on the invoice, so resends,
+            reminders and receipts follow it.
+          </span>
         </div>
 
         <div class="field">
@@ -586,7 +619,7 @@
 
         <div class="modal-actions">
           <button type="button" class="btn-ghost" (click)="closeModal()">Cancel</button>
-          <button type="button" class="btn-primary" (click)="send()" [disabled]="busy()">
+          <button type="button" class="btn-primary" (click)="send()" [disabled]="busy() || !sendRecipients().length">
             {{ busy() ? 'Sending…' : 'Send invoice' }}
           </button>
         </div>
@@ -597,8 +630,8 @@
         <h3>Send Payment Reminder</h3>
 
         <div class="field">
-          <label for="reminderEmail">Send to *</label>
-          <input id="reminderEmail" type="email" [(ngModel)]="sendEmail">
+          <app-invoice-recipients-editor [(recipients)]="sendRecipients" inputId="reminderRecipient"
+                                         label="Send to *" />
         </div>
 
         <label class="checkbox">
@@ -608,8 +641,33 @@
 
         <div class="modal-actions">
           <button type="button" class="btn-ghost" (click)="closeModal()">Cancel</button>
-          <button type="button" class="btn-primary" (click)="sendReminder()" [disabled]="busy()">
+          <button type="button" class="btn-primary" (click)="sendReminder()" [disabled]="busy() || !sendRecipients().length">
             {{ busy() ? 'Sending…' : 'Send reminder' }}
+          </button>
+        </div>
+      }
+
+      <!-- Who the invoice goes to — editable on anything that is not Void. -->
+      @if (modal() === 'recipients') {
+        <h3>Invoice Recipients</h3>
+        <p class="modal-sub">Sending, resending, reminders and payment receipts for this invoice all go to these addresses.</p>
+
+        <div class="field">
+          <app-invoice-recipients-editor [(recipients)]="editRecipients" inputId="editRecipient"
+                                         label="Recipients *" />
+        </div>
+
+        <label class="checkbox">
+          <input type="checkbox" [ngModel]="editRecipientsSaveDefault()"
+                 (ngModelChange)="editRecipientsSaveDefault.set($event)">
+          <span>Save as default recipients for this client</span>
+        </label>
+
+        <div class="modal-actions">
+          <button type="button" class="btn-ghost" (click)="closeModal()">Cancel</button>
+          <button type="button" class="btn-primary" (click)="saveRecipients()"
+                  [disabled]="busy() || !editRecipients().length">
+            {{ busy() ? 'Saving…' : 'Save recipients' }}
           </button>
         </div>
       }

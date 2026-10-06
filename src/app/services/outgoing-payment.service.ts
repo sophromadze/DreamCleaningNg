@@ -257,6 +257,128 @@ export interface UpdateCleanerPayrollPayload {
   updateBillableMinutes: boolean;
 }
 
+// ── Unpaid cleaners / Paid cleaners (2026-10) ───────────────────────────────
+//
+// The same payout ledger the per-order view writes to, read per CLEANER. Every payment — one line,
+// a whole order or several cleaners at once — is a payout record keeping exactly which order lines
+// it covered, so the three views cannot disagree.
+
+/** One order line still owed — the full payout, or the difference on a line paid before. */
+export interface UnpaidCleanerLine {
+  orderCleanerId: number;
+  orderId: number;
+  serviceDate: string;
+  serviceTime: string;
+  serviceTypeName: string;
+  rawServiceTypeName: string;
+  customServiceDisplayName?: string | null;
+  isCustomServiceType: boolean;
+  isDeepCleaning: boolean;
+  customerName: string;
+  billableMinutes: number;
+  hourlyRate: number;
+  payout: number;
+  alreadyPaid: number;
+  /** What paying the line now records — echoed back in the pay request. */
+  outstanding: number;
+  isTopUp: boolean;
+}
+
+export interface UnpaidCleaner {
+  cleanerId: number;
+  firstName: string;
+  lastName: string;
+  isActive: boolean;
+  paymentMethod?: CleanerPaymentMethod | number | null;
+  paymentDetails?: string | null;
+  totalOutstanding: number;
+  topUpOutstanding: number;
+  lines: UnpaidCleanerLine[];
+}
+
+export interface UnpaidCleanersList {
+  cleaners: UnpaidCleaner[];
+  totalOutstanding: number;
+  lineCount: number;
+  /** Owed to staffing slots with nobody on file — paid from the Orders view, not here. */
+  unassignedOutstanding: number;
+  unassignedSlotCount: number;
+}
+
+export interface PayCleanersRequest {
+  cleaners: { cleanerId: number; lines: { orderCleanerId: number; amount: number }[] }[];
+  paidOn?: string | null;
+  paidVia?: number | null;
+  reference?: string | null;
+  note?: string | null;
+  /** Minted once per confirmation: a retried request records nothing twice. */
+  idempotencyKey: string;
+}
+
+export interface PayCleanersResult {
+  payoutIds: number[];
+  cleanerCount: number;
+  totalPaid: number;
+  alreadyRecorded: boolean;
+}
+
+export type CleanerPayoutStatus = 'Active' | 'PartiallyReverted' | 'Reverted';
+
+export interface CleanerPayoutLine {
+  id: number;
+  orderId: number;
+  serviceDate: string;
+  serviceTypeName: string;
+  rawServiceTypeName: string;
+  customServiceDisplayName?: string | null;
+  isCustomServiceType: boolean;
+  isDeepCleaning: boolean;
+  customerName?: string | null;
+  amount: number;
+  isTopUp: boolean;
+  isReverted: boolean;
+  revertedAt?: string | null;
+}
+
+export interface CleanerPayout {
+  id: number;
+  cleanerId: number;
+  cleanerName: string;
+  amount: number;
+  activeAmount: number;
+  paidOn: string;
+  paidVia?: CleanerPaymentMethod | number | null;
+  reference?: string | null;
+  note?: string | null;
+  createdByName?: string | null;
+  createdAt: string;
+  isImported: boolean;
+  status: CleanerPayoutStatus;
+  revertedAt?: string | null;
+  revertedByName?: string | null;
+  revertReason?: string | null;
+  canRevert: boolean;
+  lines: CleanerPayoutLine[];
+}
+
+export interface CleanerPayoutHistory {
+  payouts: CleanerPayout[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+  /** What still stands across the whole filter, not the page. */
+  totalPaid: number;
+  cleanerOptions: { cleanerId: number; name: string }[];
+}
+
+export interface CleanerPayoutHistoryQuery {
+  from?: string | null;
+  to?: string | null;
+  cleanerId?: number | null;
+  page?: number;
+  pageSize?: number;
+}
+
 @Service()
 export class OutgoingPaymentService {
   private http = inject(HttpClient);
@@ -386,5 +508,35 @@ export class OutgoingPaymentService {
     const params = new HttpParams().set("payeeKey", payeeKey);
     return this.http.post<AdminSalaryPayoutList>(
       this.apiUrl + "/salaries/" + year + "/" + month + "/" + half + "/unpay", {}, { params });
+  }
+
+  // ── Unpaid cleaners / Paid cleaners ──
+
+  /** Every cleaner owed money right now, across all finished orders, with the lines. */
+  getUnpaidCleaners(): Observable<UnpaidCleanersList> {
+    return this.http.get<UnpaidCleanersList>(`${this.apiUrl}/cleaners/unpaid`);
+  }
+
+  /**
+   * Pays exactly the lines and amounts the confirmation showed — one payout per cleaner. A 409
+   * means something moved since the list was read; nothing was paid.
+   */
+  payCleaners(body: PayCleanersRequest): Observable<PayCleanersResult> {
+    return this.http.post<PayCleanersResult>(`${this.apiUrl}/cleaners/pay`, body);
+  }
+
+  getPayoutHistory(query: CleanerPayoutHistoryQuery = {}): Observable<CleanerPayoutHistory> {
+    let params = new HttpParams();
+    if (query.from) params = params.set('from', query.from);
+    if (query.to) params = params.set('to', query.to);
+    if (query.cleanerId) params = params.set('cleanerId', String(query.cleanerId));
+    if (query.page) params = params.set('page', String(query.page));
+    if (query.pageSize) params = params.set('pageSize', String(query.pageSize));
+    return this.http.get<CleanerPayoutHistory>(`${this.apiUrl}/payouts`, { params });
+  }
+
+  /** Moves a whole payout back to unpaid. Kept in the history, marked reverted, with the reason. */
+  revertPayout(payoutId: number, reason: string): Observable<CleanerPayout> {
+    return this.http.post<CleanerPayout>(`${this.apiUrl}/payouts/${payoutId}/revert`, { reason });
   }
 }

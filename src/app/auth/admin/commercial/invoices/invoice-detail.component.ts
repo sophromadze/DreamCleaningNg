@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, ChangeDetectionStrategy, signal } from '@angular/core';
+import { Component, OnInit, inject, ChangeDetectionStrategy, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -10,9 +10,23 @@ import {
   InvoicePaymentAttemptStatus, invoiceStatusClass, PAYMENT_RECORD_METHODS
 } from '../../../../services/invoice.service';
 import { extractApiErrorMessage } from '../../../../utils/http-error.utils';
+import { InvoiceRecipientsEditorComponent } from './invoice-recipients-editor.component';
 
 // 'dispose' is the Void / Archive / Full delete CHOICE; 'void' is the reason form it leads to.
-type ModalKind = 'none' | 'payment' | 'void' | 'send' | 'reminder' | 'reverse' | 'dispose';
+type ModalKind = 'none' | 'payment' | 'void' | 'send' | 'reminder' | 'reverse' | 'dispose' | 'recipients';
+
+/**
+ * One send in the history: every address it went to, together. An invoice is mailed one message
+ * per recipient, and the shared batch id is what groups the rows back into the one action.
+ */
+export interface InvoiceEmailGroup {
+  key: string;
+  emailTypeLabel: string;
+  sentAt: string;
+  logs: InvoiceEmailLog[];
+  anyFailed: boolean;
+  allFailed: boolean;
+}
 
 /**
  * One commercial invoice: everything about it, and every action on it.
@@ -28,7 +42,7 @@ type ModalKind = 'none' | 'payment' | 'void' | 'send' | 'reminder' | 'reverse' |
  */
 @Component({
   selector: 'app-invoice-detail',
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [CommonModule, FormsModule, RouterLink, InvoiceRecipientsEditorComponent],
   templateUrl: './invoice-detail.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./invoice-detail.component.scss']
@@ -48,6 +62,9 @@ export class InvoiceDetailComponent implements OnInit {
   readonly busy = signal(false);
   readonly error = signal('');
   readonly notice = signal('');
+
+  /** A send that reached only SOME recipients: who it missed. Stays until the next action. */
+  readonly warning = signal('');
 
   readonly modal = signal<ModalKind>('none');
 
@@ -76,8 +93,13 @@ export class InvoiceDetailComponent implements OnInit {
   // Void
   readonly voidReason = signal('');
 
-  // Send / reminder
-  readonly sendEmail = signal('');
+  // Send / reminder — the invoice's recipient list, editable in the dialog. Sending with a changed
+  // list replaces the invoice's stored one, so the invoice keeps saying who it went to.
+  readonly sendRecipients = signal<string[]>([]);
+
+  // The Recipients dialog
+  readonly editRecipients = signal<string[]>([]);
+  readonly editRecipientsSaveDefault = signal(false);
   readonly sendMessage = signal('');
   readonly sendAttachPdf = signal(true);
   readonly reminderForce = signal(false);
@@ -93,6 +115,8 @@ export class InvoiceDetailComponent implements OnInit {
     // saved, only the mail failed, and this is the page that can retry it.
     const sendError = this.route.snapshot.queryParamMap.get('sendError');
     if (sendError) this.error.set(sendError);
+    const sendNotice = this.route.snapshot.queryParamMap.get('sendNotice');
+    if (sendNotice) this.warning.set(sendNotice);
 
     this.load(id);
   }
@@ -265,16 +289,44 @@ export class InvoiceDetailComponent implements OnInit {
   }
 
   openSend(): void {
-    this.sendEmail.set(this.invoice()?.billingEmail ?? '');
+    this.sendRecipients.set([...(this.invoice()?.recipients ?? [])]);
     this.sendMessage.set('');
     this.sendAttachPdf.set(true);
     this.modal.set('send');
   }
 
   openReminder(): void {
-    this.sendEmail.set(this.invoice()?.billingEmail ?? '');
+    this.sendRecipients.set([...(this.invoice()?.recipients ?? [])]);
     this.reminderForce.set(false);
     this.modal.set('reminder');
+  }
+
+  openRecipients(): void {
+    this.editRecipients.set([...(this.invoice()?.recipients ?? [])]);
+    this.editRecipientsSaveDefault.set(false);
+    this.modal.set('recipients');
+  }
+
+  saveRecipients(): void {
+    if (!this.invoice() || !this.editRecipients().length) return;
+
+    this.busy.set(true);
+    this.error.set('');
+
+    this.invoiceService.updateRecipients(this.invoice()!.id, {
+      recipients: this.editRecipients(),
+      saveAsClientDefault: this.editRecipientsSaveDefault()
+    })
+      .pipe(finalize(() => this.busy.set(false)))
+      .subscribe({
+        next: updated => {
+          this.refresh(updated);
+          this.flash(this.editRecipientsSaveDefault()
+            ? 'Recipients saved, and saved as this client\'s default for future invoices.'
+            : 'Recipients saved.');
+        },
+        error: err => this.error.set(extractApiErrorMessage(err, 'Could not save the recipients.'))
+      });
   }
 
   openReverse(payment: InvoicePayment): void {
@@ -340,41 +392,58 @@ export class InvoiceDetailComponent implements OnInit {
   }
 
   send(): void {
-    if (!this.invoice()) return;
+    if (!this.invoice() || !this.sendRecipients().length) return;
 
     this.busy.set(true);
     this.error.set('');
+    this.warning.set('');
 
     this.invoiceService.send(this.invoice()!.id, {
-      recipientEmail: this.sendEmail().trim() || undefined,
+      recipients: this.sendRecipients(),
       attachPdf: this.sendAttachPdf(),
       message: this.sendMessage().trim() || undefined
     })
       .pipe(finalize(() => this.busy.set(false)))
       .subscribe({
-        next: updated => {
-          this.refresh(updated);
-          this.flash(`Invoice sent to ${this.sendEmail() || 'the billing contact'}.`);
-        },
-        error: err => this.error.set(extractApiErrorMessage(err, 'Could not send the invoice.'))
+        next: updated => this.afterSend(updated, `Invoice sent to ${this.sendRecipients().join(', ')}.`),
+        error: err => this.failSend(err, 'Could not send the invoice.')
       });
   }
 
   sendReminder(): void {
-    if (!this.invoice()) return;
+    if (!this.invoice() || !this.sendRecipients().length) return;
 
     this.busy.set(true);
     this.error.set('');
+    this.warning.set('');
 
     this.invoiceService.sendReminder(this.invoice()!.id, {
-      recipientEmail: this.sendEmail().trim() || undefined,
+      recipients: this.sendRecipients(),
       force: this.reminderForce()
     })
       .pipe(finalize(() => this.busy.set(false)))
       .subscribe({
-        next: updated => { this.refresh(updated); this.flash('Reminder sent.'); },
-        error: err => this.error.set(extractApiErrorMessage(err, 'Could not send the reminder.'))
+        next: updated => this.afterSend(updated, `Reminder sent to ${this.sendRecipients().join(', ')}.`),
+        error: err => this.failSend(err, 'Could not send the reminder.')
       });
+  }
+
+  /**
+   * A send that reached SOME of the recipients still succeeded — the invoice did go out — so it
+   * refreshes like a success and keeps a warning naming who was missed, rather than an error that
+   * would invite a duplicate resend to everybody.
+   */
+  private afterSend(updated: InvoiceDetail, sentMessage: string): void {
+    this.refresh(updated);
+    if (updated.actionNotice) this.warning.set(updated.actionNotice);
+    else this.flash(sentMessage);
+  }
+
+  /** Every recipient failed: the body still carries the refreshed invoice, so the history shows why. */
+  private failSend(err: unknown, fallback: string): void {
+    const body = (err as { error?: { invoice?: InvoiceDetail } })?.error;
+    if (body?.invoice) this.invoice.set(body.invoice);
+    this.error.set(extractApiErrorMessage(err, fallback));
   }
 
   sendReceipt(): void {
@@ -386,7 +455,11 @@ export class InvoiceDetailComponent implements OnInit {
     this.invoiceService.sendReceipt(this.invoice()!.id)
       .pipe(finalize(() => this.busy.set(false)))
       .subscribe({
-        next: updated => { this.invoice.set(updated); this.flash('Payment receipt sent.'); },
+        next: updated => {
+          this.invoice.set(updated);
+          if (updated.actionNotice) this.warning.set(updated.actionNotice);
+          else this.flash(`Payment receipt sent to ${updated.recipients.join(', ')}.`);
+        },
         error: err => this.error.set(extractApiErrorMessage(err, 'Could not send the receipt.'))
       });
   }
@@ -511,6 +584,30 @@ export class InvoiceDetailComponent implements OnInit {
    * A failed send is shown as a failure, not silently omitted. An admin who believes the client
    * has the invoice, when nothing was delivered, is the worst outcome this page can produce.
    */
+  /**
+   * The send history, one entry per SEND: rows sharing a batch id are one action to several
+   * addresses. Rows from before multi-recipient sending have no batch id and stand alone.
+   */
+  readonly emailGroups = computed<InvoiceEmailGroup[]>(() => {
+    const groups: InvoiceEmailGroup[] = [];
+    const byKey = new Map<string, InvoiceEmailGroup>();
+
+    for (const log of this.invoice()?.emailHistory ?? []) {
+      const key = log.sendBatchId ? `batch:${log.sendBatchId}` : `row:${log.id}`;
+      let group = byKey.get(key);
+      if (!group) {
+        group = { key, emailTypeLabel: log.emailTypeLabel, sentAt: log.sentAt, logs: [], anyFailed: false, allFailed: true };
+        byKey.set(key, group);
+        groups.push(group);
+      }
+      group.logs.push(log);
+      if (this.isFailed(log)) group.anyFailed = true;
+      else group.allFailed = false;
+    }
+
+    return groups;
+  });
+
   isFailed(log: InvoiceEmailLog): boolean {
     return log.status === InvoiceEmailStatus.Failed;
   }

@@ -6,7 +6,7 @@ import { finalize } from 'rxjs/operators';
 import { Subject, debounceTime, distinctUntilChanged } from 'rxjs';
 
 import {
-  InvoiceService, InvoiceListItem, InvoiceSummary, InvoiceStatus, InvoicePaymentMethod,
+  InvoiceService, InvoiceListItem, InvoiceSummary, InvoiceStatus, InvoicePaymentMethods, offersPaymentMethod,
   InvoiceClientOption, invoiceStatusClass
 } from '../../../../services/invoice.service';
 import { extractApiErrorMessage } from '../../../../utils/http-error.utils';
@@ -51,7 +51,8 @@ export class CommercialInvoicesComponent implements OnInit {
   readonly search = signal('');
   readonly statusFilter = signal<InvoiceStatus | null>(null);
   readonly clientFilter = signal<number | null>(null);
-  readonly paymentMethodFilter = signal<InvoicePaymentMethod | null>(null);
+  /** "Offers this method" — an invoice offers a set of methods, so the filter is membership. */
+  readonly paymentMethodFilter = signal<InvoicePaymentMethods | null>(null);
   readonly dateRange = signal<DateRangeKey>('all');
   readonly customFrom = signal('');
   readonly customTo = signal('');
@@ -83,11 +84,12 @@ export class CommercialInvoicesComponent implements OnInit {
     { value: InvoiceStatus.Void, label: 'Void' }
   ];
 
-  readonly paymentMethodOptions: { value: InvoicePaymentMethod | null; label: string }[] = [
+  readonly paymentMethodOptions: { value: InvoicePaymentMethods | null; label: string }[] = [
     { value: null, label: 'Any payment method' },
-    { value: InvoicePaymentMethod.AchBankTransfer, label: 'ACH Bank Transfer' },
-    { value: InvoicePaymentMethod.Card, label: 'Card' },
-    { value: InvoicePaymentMethod.Other, label: 'Other' }
+    { value: InvoicePaymentMethods.OnlineBank, label: 'Offers online bank payment' },
+    { value: InvoicePaymentMethods.Card, label: 'Offers card' },
+    { value: InvoicePaymentMethods.ManualBankTransfer, label: 'Offers manual transfer' },
+    { value: InvoicePaymentMethods.Other, label: 'Offers other' }
   ];
 
   readonly dateOptions: { value: DateRangeKey; label: string }[] = [
@@ -274,12 +276,18 @@ export class CommercialInvoicesComponent implements OnInit {
     return invoice.status === InvoiceStatus.Overdue;
   }
 
-  /** Short label for the Payment column — the full names are too wide for a table cell. */
-  paymentMethodLabel(method: InvoicePaymentMethod): string {
-    switch (method) {
-      case InvoicePaymentMethod.AchBankTransfer: return 'ACH';
-      case InvoicePaymentMethod.Card: return 'Card';
-      default: return 'Other';
-    }
+  /**
+   * Short labels for the Payment column — every method the invoice offers. The full names
+   * ("Online bank payment (ACH)") are too wide for a table cell; the detail page uses them.
+   */
+  paymentMethodsLabel(set: InvoicePaymentMethods): string {
+    const short: [InvoicePaymentMethods, string][] = [
+      [InvoicePaymentMethods.OnlineBank, 'Bank online'],
+      [InvoicePaymentMethods.Card, 'Card'],
+      [InvoicePaymentMethods.ManualBankTransfer, 'Transfer'],
+      [InvoicePaymentMethods.Other, 'Other']
+    ];
+    const labels = short.filter(([m]) => offersPaymentMethod(set, m)).map(([, label]) => label);
+    return labels.length ? labels.join(', ') : '—';
   }
 }

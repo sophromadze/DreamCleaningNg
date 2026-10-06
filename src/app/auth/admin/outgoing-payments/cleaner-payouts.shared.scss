@@ -1,0 +1,430 @@
+// Shared by the Unpaid cleaners and Paid cleaners views (2026-10). Same visual language as the
+// rest of Outgoing Payments: theme tokens only, amber for "still to pay", green for paid, never red
+// for an unpaid wage (it is work outstanding, not an error).
+
+:host { display: block; }
+
+.payout-view {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.view-message {
+  padding: 0.65rem 0.85rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.86rem;
+
+  &.success { background: var(--mint-fresh); color: var(--mint-fresh-text); }
+  &.error { background: var(--soft-red); color: var(--soft-red-text); }
+}
+
+.view-empty {
+  padding: 1.5rem;
+  text-align: center;
+  color: var(--text-muted-on-tint);
+  border: 1px dashed var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.view-footnote {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--text-muted-on-tint);
+}
+
+// ── The bar that follows the selection ──
+
+.selection-bar,
+.history-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1rem;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.select-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.86rem;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.selection-totals,
+.history-total {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin-left: auto;
+  font-size: 0.84rem;
+  color: var(--text-muted-on-tint);
+}
+
+.selection-amount {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.btn-pay-selected,
+.btn-confirm {
+  padding: 0.55rem 1rem;
+  border: 1px solid var(--primary-color);
+  border-radius: var(--radius-sm);
+  background: var(--primary-color);
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.86rem;
+  font-family: inherit;
+  cursor: pointer;
+
+  &:hover:not(:disabled) { background: var(--primary-color-hover); }
+  &:disabled { opacity: 0.55; cursor: not-allowed; }
+}
+
+.btn-cancel,
+.btn-revert,
+.expand-btn {
+  padding: 0.45rem 0.85rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text-primary);
+  font-size: 0.82rem;
+  font-family: inherit;
+  cursor: pointer;
+
+  &:hover:not(:disabled) { background: var(--surface-subtle); }
+  &:disabled { opacity: 0.55; cursor: not-allowed; }
+}
+
+.btn-danger {
+  padding: 0.55rem 1rem;
+  border: 1px solid var(--soft-red-text);
+  border-radius: var(--radius-sm);
+  background: var(--soft-red);
+  color: var(--soft-red-text);
+  font-weight: 600;
+  font-size: 0.86rem;
+  font-family: inherit;
+  cursor: pointer;
+
+  &:disabled { opacity: 0.55; cursor: not-allowed; }
+}
+
+.btn-link-plain {
+  border: none;
+  background: none;
+  padding: 0;
+  color: var(--primary-color-text);
+  font: inherit;
+  font-size: 0.84rem;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+}
+
+// ── Filters ──
+
+.filter-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+
+  label {
+    font-size: 0.74rem;
+    font-weight: 600;
+    color: var(--text-muted-on-tint);
+  }
+}
+
+.filter-field input,
+.filter-field select,
+.confirm-field input,
+.confirm-field select,
+.confirm-field textarea {
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text-primary);
+  font-size: 0.86rem;
+  font-family: inherit;
+}
+
+// ── The list ──
+
+.cleaner-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.cleaner-card {
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  padding: 0.7rem 0.9rem;
+
+  &.selected {
+    border-color: var(--primary-color);
+    background: var(--soft-blue);
+  }
+
+  &.is-reverted .cleaner-amount { color: var(--text-muted-on-tint); }
+}
+
+.cleaner-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.85rem;
+}
+
+.cleaner-check { flex: 0 0 auto; }
+
+.cleaner-name {
+  font-weight: 600;
+  font-size: 0.92rem;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.payout-date {
+  font-size: 0.84rem;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.cleaner-destination {
+  flex: 1 1 10rem;
+  min-width: 0;
+  font-size: 0.8rem;
+  color: var(--text-muted-on-tint);
+  overflow-wrap: anywhere;
+}
+
+.cleaner-amount {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.cleaner-note {
+  margin: 0.4rem 0 0;
+  font-size: 0.78rem;
+  color: var(--text-muted-on-tint);
+}
+
+.reverted-note { color: var(--soft-red-text); }
+
+.tag {
+  margin-left: 0.35rem;
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.muted-tag { background: var(--surface-subtle); color: var(--text-muted-on-tint); }
+
+.muted { color: var(--text-muted-on-tint); }
+
+.status-pill {
+  padding: 0.12rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+
+  &.status-paid { background: var(--mint-fresh); color: var(--mint-fresh-text); }
+  &.status-partial { background: var(--soft-yellow); color: var(--soft-yellow-text); }
+  &.status-reverted { background: var(--surface-subtle); color: var(--text-muted-on-tint); }
+}
+
+.line-sub {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 400;
+  color: var(--text-muted-on-tint);
+}
+
+// ── Lines ──
+
+.line-table-wrap {
+  margin-top: 0.6rem;
+  overflow-x: auto;
+}
+
+.line-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+
+  th, td {
+    padding: 0.4rem 0.5rem;
+    border-bottom: 1px solid var(--border-color);
+    text-align: left;
+    color: var(--text-primary);
+    vertical-align: top;
+  }
+
+  th {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--text-muted-on-tint);
+  }
+
+  .num { text-align: right; font-variant-numeric: tabular-nums; }
+
+  tr.is-reverted td { color: var(--text-muted-on-tint); text-decoration: line-through; }
+  tr.is-reverted .line-sub { text-decoration: none; }
+}
+
+.payout-actions {
+  margin-top: 0.6rem;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.view-pager {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.84rem;
+  color: var(--text-primary);
+
+  button {
+    padding: 0.35rem 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--text-primary);
+    font-family: inherit;
+    cursor: pointer;
+
+    &:disabled { opacity: 0.55; cursor: not-allowed; }
+  }
+}
+
+// ── The confirmation / revert dialog ──
+
+.confirm-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.5);
+  z-index: 1100;
+}
+
+.confirm-dialog {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(560px, calc(100vw - 32px));
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  z-index: 1101;
+  padding: 1.1rem 1.2rem;
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--text-primary);
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.3);
+
+  h3 { margin: 0 0 0.75rem; font-size: 1.02rem; }
+}
+
+.confirm-text {
+  margin: 0 0 0.75rem;
+  font-size: 0.86rem;
+  color: var(--text-primary);
+}
+
+.confirm-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 14rem;
+  overflow-y: auto;
+
+  li {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.35rem 0;
+    border-bottom: 1px solid var(--border-color);
+    font-size: 0.86rem;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+.confirm-total {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.55rem 0 0.75rem;
+  font-weight: 700;
+  font-size: 0.98rem;
+}
+
+.confirm-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 0.6rem 0.8rem;
+}
+
+.confirm-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+
+  &.wide { grid-column: 1 / -1; }
+
+  label {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--text-muted-on-tint);
+  }
+
+  textarea { resize: vertical; }
+}
+
+.confirm-error {
+  margin: 0.6rem 0 0;
+  font-size: 0.82rem;
+  color: var(--soft-red-text);
+}
+
+.confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.9rem;
+}
+
+@media (max-width: 600px) {
+  .hide-sm { display: none; }
+  .selection-totals, .history-total { margin-left: 0; }
+}

@@ -40,6 +40,8 @@ describe('InvoiceDetailComponent — void, archive or delete', () => {
     // `emailHistory`, not `emails`: the template reads `inv.emailHistory.length`, and the API
     // always sends the list (InvoiceDetailDto initialises it), so the double must too.
     items: [], payments: [], emailHistory: [], activity: [], paymentAttempts: [],
+    recipients: ['ap@northline.invalid'], recipientsAreFallback: false,
+    paymentMethods: 1, paymentMethodsLabel: 'Online bank payment (ACH)',
     coveredOrders: [],
     hasPaymentInProgress: false,
     canEdit: true, canEditMonetaryValues: true, editRequiresWarning: false,

@@ -1,0 +1,177 @@
+<section class="payout-view" aria-labelledby="unpaidHeading">
+  <h3 id="unpaidHeading" class="sr-only">Unpaid cleaners</h3>
+
+  @if (success()) {
+  <div class="view-message success" role="status">{{ success() }}</div>
+  }
+  @if (error()) {
+  <div class="view-message error" role="alert">{{ error() }}</div>
+  }
+
+  <!-- The bar that follows the selection: how many, how much, and the one action. -->
+  <div class="selection-bar">
+    <label class="select-all">
+      <input type="checkbox" [checked]="allSelected()" [indeterminate]="someSelected()"
+             [disabled]="!cleaners().length || paying()"
+             (change)="toggleAll($any($event.target).checked)">
+      <span>Select all</span>
+    </label>
+
+    <div class="selection-totals" aria-live="polite">
+      @if (selected().size) {
+      <span>{{ selected().size }} selected</span>
+      <span class="selection-amount">{{ selectedTotal() | currency:'USD' }}</span>
+      } @else {
+      <span>Owed in total</span>
+      <span class="selection-amount">{{ (data()?.totalOutstanding ?? 0) | currency:'USD' }}</span>
+      }
+    </div>
+
+    <button type="button" class="btn-pay-selected" (click)="openConfirm()"
+            [disabled]="!selected().size || paying()">
+      Mark selected paid
+    </button>
+  </div>
+
+  @if (loading() && !data()) {
+  <div class="view-empty">Loading…</div>
+  }
+
+  @if (data(); as list) {
+    @if (!list.cleaners.length) {
+    <div class="view-empty">Nobody is owed anything right now.</div>
+    }
+
+    <ul class="cleaner-list">
+      @for (cleaner of list.cleaners; track cleaner.cleanerId) {
+      <li class="cleaner-card" [class.selected]="isSelected(cleaner)">
+        <div class="cleaner-row">
+          <input type="checkbox" class="cleaner-check" [id]="'pay-cleaner-' + cleaner.cleanerId"
+                 [checked]="isSelected(cleaner)" [disabled]="paying()"
+                 (change)="toggle(cleaner, $any($event.target).checked)">
+          <label class="cleaner-name" [for]="'pay-cleaner-' + cleaner.cleanerId">
+            {{ cleanerName(cleaner) }}
+            @if (!cleaner.isActive) {
+            <span class="tag muted-tag">Inactive</span>
+            }
+          </label>
+          <span class="cleaner-destination">{{ paymentSummary(cleaner) }}</span>
+          <span class="cleaner-amount">{{ cleaner.totalOutstanding | currency:'USD' }}</span>
+          <button type="button" class="expand-btn" (click)="toggleExpanded(cleaner)"
+                  [attr.aria-expanded]="isExpanded(cleaner)"
+                  [attr.aria-controls]="'unpaid-lines-' + cleaner.cleanerId">
+            {{ cleaner.lines.length }} order{{ cleaner.lines.length === 1 ? '' : 's' }}
+            <span aria-hidden="true">{{ isExpanded(cleaner) ? '▴' : '▾' }}</span>
+          </button>
+        </div>
+
+        @if (cleaner.topUpOutstanding > 0) {
+        <p class="cleaner-note">
+          Includes {{ cleaner.topUpOutstanding | currency:'USD' }} still to pay on orders paid before —
+          their hours grew after the money went out.
+        </p>
+        }
+
+        @if (isExpanded(cleaner)) {
+        <div class="line-table-wrap" [id]="'unpaid-lines-' + cleaner.cleanerId">
+          <table class="line-table">
+            <thead>
+              <tr>
+                <th scope="col">Order</th>
+                <th scope="col">Date</th>
+                <th scope="col">Service</th>
+                <th scope="col" class="hide-sm">Customer</th>
+                <th scope="col" class="hide-sm">Hours × rate</th>
+                <th scope="col" class="num">Owed</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (line of cleaner.lines; track line.orderCleanerId) {
+              <tr>
+                <td>#{{ line.orderId }}</td>
+                <td>{{ line.serviceDate | date:'MMM d, y' }}</td>
+                <td>{{ serviceTypeShort(line) }}</td>
+                <td class="hide-sm">{{ line.customerName }}</td>
+                <td class="hide-sm">{{ hours(line) }} × {{ line.hourlyRate | currency:'USD' }}</td>
+                <td class="num">
+                  {{ line.outstanding | currency:'USD' }}
+                  @if (line.isTopUp) {
+                  <span class="line-sub">top-up · {{ line.alreadyPaid | currency:'USD' }} paid before</span>
+                  }
+                </td>
+              </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        }
+      </li>
+      }
+    </ul>
+
+    @if (list.unassignedSlotCount > 0) {
+    <p class="view-footnote">
+      Another {{ list.unassignedOutstanding | currency:'USD' }} is owed to {{ list.unassignedSlotCount }}
+      staffing slot{{ list.unassignedSlotCount === 1 ? '' : 's' }} with nobody on file. Those have no
+      cleaner record, so they are paid from the Orders view.
+    </p>
+    }
+  }
+</section>
+
+<!-- The confirmation: the total, who, and the optional details of the transfer. -->
+@if (confirming()) {
+<div class="confirm-backdrop" (click)="cancelConfirm()"></div>
+<div class="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="confirmPayHeading">
+  <h3 id="confirmPayHeading">Mark {{ selectedCleaners().length }} cleaner{{ selectedCleaners().length === 1 ? '' : 's' }} paid</h3>
+
+  <ul class="confirm-list">
+    @for (cleaner of selectedCleaners(); track cleaner.cleanerId) {
+    <li>
+      <span>{{ cleanerName(cleaner) }} <span class="muted">· {{ cleaner.lines.length }} order{{ cleaner.lines.length === 1 ? '' : 's' }}</span></span>
+      <span>{{ cleaner.totalOutstanding | currency:'USD' }}</span>
+    </li>
+    }
+  </ul>
+  <div class="confirm-total">
+    <span>Total</span><span>{{ selectedTotal() | currency:'USD' }}</span>
+  </div>
+
+  <div class="confirm-fields">
+    <div class="confirm-field">
+      <label for="payoutDate">Date paid</label>
+      <input id="payoutDate" type="date" [max]="maxPaidOn"
+             [ngModel]="paidOn()" (ngModelChange)="paidOn.set($event)">
+    </div>
+    <div class="confirm-field">
+      <label for="payoutMethod">Method</label>
+      <select id="payoutMethod" [ngModel]="paidVia()" (ngModelChange)="paidVia.set($event)">
+        @for (o of methodOptions; track o.value) {
+        <option [ngValue]="o.value">{{ o.label }}</option>
+        }
+      </select>
+    </div>
+    <div class="confirm-field">
+      <label for="payoutReference">Reference (optional)</label>
+      <input id="payoutReference" type="text" maxlength="200" placeholder="Zelle confirmation, check number"
+             [ngModel]="reference()" (ngModelChange)="reference.set($event)">
+    </div>
+    <div class="confirm-field wide">
+      <label for="payoutNote">Note (optional)</label>
+      <textarea id="payoutNote" rows="2" maxlength="500"
+                [ngModel]="note()" (ngModelChange)="note.set($event)"></textarea>
+    </div>
+  </div>
+
+  @if (error()) {
+  <p class="confirm-error" role="alert">{{ error() }}</p>
+  }
+
+  <div class="confirm-actions">
+    <button type="button" class="btn-cancel" (click)="cancelConfirm()" [disabled]="paying()">Cancel</button>
+    <button type="button" class="btn-confirm" (click)="confirmPay()" [disabled]="paying()">
+      {{ paying() ? 'Recording…' : 'Mark paid — ' + (selectedTotal() | currency:'USD') }}
+    </button>
+  </div>
+</div>
+}

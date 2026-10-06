@@ -26,7 +26,8 @@ describe('Recurring and commercial refinement', () => {
       id: 1, status: InvoiceStatus.Draft, invoiceNumber: 'DCI-2026-12345678',
       draftWarnings: ['Current contract pricing differs.', 'Current contract tax rate differs.'],
       currentContractUnitPrice: 1000, currentContractTaxType: InvoiceTaxType.Included,
-      currentContractTaxRate: 9, items: [], paymentAttempts: [], payments: [], emailHistory: [], activity: []
+      currentContractTaxRate: 9, items: [], paymentAttempts: [], payments: [], emailHistory: [], activity: [],
+      recipients: ['ap@client.invalid'], recipientsAreFallback: false, paymentMethods: 1, paymentMethodsLabel: 'Online bank payment (ACH)'
     } as unknown as InvoiceDetail;
   }
 

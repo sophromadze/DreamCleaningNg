@@ -1,0 +1,167 @@
+<section class="payout-view" aria-labelledby="paidHeading">
+  <h3 id="paidHeading" class="sr-only">Paid cleaners</h3>
+
+  @if (success()) {
+  <div class="view-message success" role="status">{{ success() }}</div>
+  }
+  @if (error() && !reverting()) {
+  <div class="view-message error" role="alert">{{ error() }}</div>
+  }
+
+  <div class="history-filters">
+    <div class="filter-field">
+      <label for="payoutFrom">Paid from</label>
+      <input id="payoutFrom" type="date" [ngModel]="from()" (ngModelChange)="from.set($event); onFilterChange()">
+    </div>
+    <div class="filter-field">
+      <label for="payoutTo">Paid to</label>
+      <input id="payoutTo" type="date" [ngModel]="to()" (ngModelChange)="to.set($event); onFilterChange()">
+    </div>
+    <div class="filter-field">
+      <label for="payoutCleaner">Cleaner</label>
+      <select id="payoutCleaner" [ngModel]="cleanerId()" (ngModelChange)="cleanerId.set($event); onFilterChange()">
+        <option [ngValue]="null">All cleaners</option>
+        @for (o of data()?.cleanerOptions ?? []; track o.cleanerId) {
+        <option [ngValue]="o.cleanerId">{{ o.name }}</option>
+        }
+      </select>
+    </div>
+    @if (hasFilters) {
+    <button type="button" class="btn-link-plain" (click)="clearFilters()">Clear filters</button>
+    }
+    <div class="history-total" aria-live="polite">
+      <span>Paid</span>
+      <span class="selection-amount">{{ (data()?.totalPaid ?? 0) | currency:'USD' }}</span>
+    </div>
+  </div>
+
+  @if (loading() && !data()) {
+  <div class="view-empty">Loading…</div>
+  }
+
+  @if (data(); as history) {
+    @if (!history.payouts.length) {
+    <div class="view-empty">{{ hasFilters ? 'No payouts match these filters.' : 'No payouts recorded yet.' }}</div>
+    }
+
+    <ul class="cleaner-list">
+      @for (payout of history.payouts; track payout.id) {
+      <li class="cleaner-card" [class.is-reverted]="payout.status === 'Reverted'">
+        <div class="cleaner-row">
+          <span class="payout-date">{{ payout.paidOn | date:'MMM d, y' }}</span>
+          <span class="cleaner-name">{{ payout.cleanerName }}</span>
+          <span class="cleaner-destination">
+            {{ method(payout) }}@if (payout.reference) { · {{ payout.reference }} }
+          </span>
+          <span [class]="'status-pill ' + statusClass(payout)">{{ statusLabel(payout) }}</span>
+          <span class="cleaner-amount">
+            @if (payout.status === 'Reverted') {
+            <s>{{ payout.amount | currency:'USD' }}</s>
+            } @else {
+            {{ payout.activeAmount | currency:'USD' }}
+            @if (payout.activeAmount !== payout.amount) {
+            <span class="line-sub">of {{ payout.amount | currency:'USD' }}</span>
+            }
+            }
+          </span>
+          <button type="button" class="expand-btn" (click)="toggleExpanded(payout)"
+                  [attr.aria-expanded]="isExpanded(payout)"
+                  [attr.aria-controls]="'payout-lines-' + payout.id">
+            {{ payout.lines.length }} order{{ payout.lines.length === 1 ? '' : 's' }}
+            <span aria-hidden="true">{{ isExpanded(payout) ? '▴' : '▾' }}</span>
+          </button>
+        </div>
+
+        @if (isExpanded(payout)) {
+        <div class="payout-detail" [id]="'payout-lines-' + payout.id">
+          <p class="cleaner-note">
+            Recorded {{ payout.createdAt | date:'MMM d, y, h:mm a' }}
+            @if (payout.createdByName) { by {{ payout.createdByName }} }
+            @if (payout.isImported) { · imported from payments recorded before payout history existed }
+          </p>
+          @if (payout.note) {
+          <p class="cleaner-note">Note: {{ payout.note }}</p>
+          }
+          @if (payout.revertedAt) {
+          <p class="cleaner-note reverted-note">
+            Reverted {{ payout.revertedAt | date:'MMM d, y, h:mm a' }}
+            @if (payout.revertedByName) { by {{ payout.revertedByName }} }
+            @if (payout.revertReason) { — {{ payout.revertReason }} }
+          </p>
+          }
+
+          <div class="line-table-wrap">
+            <table class="line-table">
+              <thead>
+                <tr>
+                  <th scope="col">Order</th>
+                  <th scope="col">Date</th>
+                  <th scope="col">Service</th>
+                  <th scope="col" class="hide-sm">Customer</th>
+                  <th scope="col" class="num">Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (line of payout.lines; track line.id) {
+                <tr [class.is-reverted]="line.isReverted">
+                  <td>#{{ line.orderId }}</td>
+                  <td>{{ line.serviceDate | date:'MMM d, y' }}</td>
+                  <td>{{ serviceTypeShort(line) }}</td>
+                  <td class="hide-sm">{{ line.customerName || '—' }}</td>
+                  <td class="num">
+                    {{ line.amount | currency:'USD' }}
+                    @if (line.isTopUp) { <span class="line-sub">top-up</span> }
+                    @if (line.isReverted) { <span class="line-sub">reverted</span> }
+                  </td>
+                </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+
+          @if (payout.canRevert) {
+          <div class="payout-actions">
+            <button type="button" class="btn-revert" (click)="openRevert(payout)">Revert payout</button>
+          </div>
+          }
+        </div>
+        }
+      </li>
+      }
+    </ul>
+
+    @if (totalPages() > 1) {
+    <nav class="view-pager" aria-label="Payout history pages">
+      <button type="button" (click)="goToPage(page() - 1)" [disabled]="page() === 1">‹ Prev</button>
+      <span>Page {{ page() }} of {{ totalPages() }}</span>
+      <button type="button" (click)="goToPage(page() + 1)" [disabled]="page() === totalPages()">Next ›</button>
+    </nav>
+    }
+  }
+</section>
+
+@if (reverting(); as payout) {
+<div class="confirm-backdrop" (click)="cancelRevert()"></div>
+<div class="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="revertHeading">
+  <h3 id="revertHeading">Revert payout to {{ payout.cleanerName }}</h3>
+  <p class="confirm-text">
+    {{ payout.activeAmount | currency:'USD' }} paid on {{ payout.paidOn | date:'MMM d, y' }} moves back to
+    Unpaid cleaners. The payout stays in this history, marked reverted, with your name and reason.
+  </p>
+  <div class="confirm-field wide">
+    <label for="revertReason">Reason *</label>
+    <textarea id="revertReason" rows="2" maxlength="500"
+              [ngModel]="revertReason()" (ngModelChange)="revertReason.set($event)"></textarea>
+  </div>
+  @if (error()) {
+  <p class="confirm-error" role="alert">{{ error() }}</p>
+  }
+  <div class="confirm-actions">
+    <button type="button" class="btn-cancel" (click)="cancelRevert()" [disabled]="revertBusy()">Cancel</button>
+    <button type="button" class="btn-danger" (click)="confirmRevert()"
+            [disabled]="revertBusy() || revertReason().trim().length < 3">
+      {{ revertBusy() ? 'Reverting…' : 'Revert payout' }}
+    </button>
+  </div>
+</div>
+}

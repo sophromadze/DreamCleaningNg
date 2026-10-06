@@ -1,7 +1,7 @@
 import { Component, OnInit, OnDestroy, PLATFORM_ID, ChangeDetectionStrategy, inject, signal } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterModule } from '@angular/router';
+import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { Subject, Observable, concat } from 'rxjs';
 import { debounceTime, distinctUntilChanged, takeUntil, last } from 'rxjs/operators';
 
@@ -24,6 +24,17 @@ import {
 import { DurationUtils } from '../../../utils/duration.utils';
 import { extractApiErrorMessage } from '../../../utils/http-error.utils';
 import { resolveServiceTypeShortLabel } from '../../../shared/admin/service-type-short-label';
+import { UnpaidCleanersComponent } from './unpaid-cleaners.component';
+import { CleanerPayoutHistoryComponent } from './cleaner-payout-history.component';
+
+/** The page's two payee tabs, as the URL names them. */
+export type PayeeTab = 'cleaners' | 'employees';
+
+/** The three views of cleaner wages (2026-10), as the URL names them. */
+export type CleanerView = 'orders' | 'unpaid' | 'paid';
+
+const PAYEE_TABS: readonly PayeeTab[] = ['cleaners', 'employees'];
+const CLEANER_VIEWS: readonly CleanerView[] = ['orders', 'unpaid', 'paid'];
 
 /**
  * Outgoing Payments (SuperAdmin) — what we owe cleaners for finished jobs, and the record of
@@ -52,7 +63,7 @@ import { resolveServiceTypeShortLabel } from '../../../shared/admin/service-type
  */
 @Component({
   selector: 'app-outgoing-payments',
-  imports: [CommonModule, FormsModule, RouterModule],
+  imports: [CommonModule, FormsModule, RouterModule, UnpaidCleanersComponent, CleanerPayoutHistoryComponent],
   templateUrl: './outgoing-payments.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['../orders/orders.component.scss', './outgoing-payments.component.scss']
@@ -60,6 +71,8 @@ import { resolveServiceTypeShortLabel } from '../../../shared/admin/service-type
 export class OutgoingPaymentsComponent implements OnInit, OnDestroy {
   private service = inject(OutgoingPaymentService);
   private platformId = inject<Object>(PLATFORM_ID);
+  private route = inject(ActivatedRoute);
+  private router = inject(Router);
 
   readonly data = signal<OutgoingPaymentList | null>(null, { equal: () => false });
   readonly loading = signal(false);
@@ -91,7 +104,16 @@ export class OutgoingPaymentsComponent implements OnInit, OnDestroy {
    * says money is still owed over there, and a badge that only appears once you click the tab is
    * no use at all.
    */
-  readonly activeTab = signal<'cleaners' | 'employees'>('cleaners');
+  readonly activeTab = signal<PayeeTab>('cleaners');
+
+  /**
+   * Which view of cleaner wages is on screen (2026-10): Orders (the per-order table), Unpaid
+   * cleaners (who is owed, across every finished job) and Paid cleaners (the payout history).
+   * All three read one payout ledger, so a payment made on any of them shows on the others.
+   * Kept in the URL with the payee tab (`?tab=` / `?view=`), so a reload or a shared link opens
+   * the same place.
+   */
+  readonly cleanerView = signal<CleanerView>('orders');
 
   // ===== Staff salaries (Employees tab) =====
   /**
@@ -182,6 +204,13 @@ export class OutgoingPaymentsComponent implements OnInit, OnDestroy {
   private copiedTimer: ReturnType<typeof setTimeout> | null = null;
 
   ngOnInit(): void {
+    // The URL decides where the page opens; anything unrecognised falls back to the defaults.
+    const params = this.route.snapshot.queryParamMap;
+    const tab = params.get('tab') as PayeeTab | null;
+    const view = params.get('view') as CleanerView | null;
+    if (tab && PAYEE_TABS.includes(tab)) this.activeTab.set(tab);
+    if (view && CLEANER_VIEWS.includes(view)) this.cleanerView.set(view);
+
     this.search$
       .pipe(debounceTime(300), distinctUntilChanged(), takeUntil(this.destroy$))
       .subscribe(() => {
@@ -279,15 +308,50 @@ export class OutgoingPaymentsComponent implements OnInit, OnDestroy {
 
   // ===== Tabs =====
 
-  setTab(tab: 'cleaners' | 'employees'): void {
+  setTab(tab: PayeeTab): void {
     if (this.activeTab() === tab) return;
     this.activeTab.set(tab);
+    this.syncUrl();
     // Both tabs are already loaded, so switching fetches nothing. What it does clear is the
     // transient state of the tab being left — a half-typed payment note or a half-edited account
     // number must not still be sitting there on the way back.
     this.cancelPayInstalment();
     this.cancelEditDetails();
     this.error.set('');
+  }
+
+  setCleanerView(view: CleanerView): void {
+    if (this.cleanerView() === view) return;
+    this.cleanerView.set(view);
+    this.successMessage.set('');
+    this.error.set('');
+    this.syncUrl();
+  }
+
+  /** The month bar belongs to the Orders view and the Employees tab; the other two are not monthly. */
+  get showMonthBar(): boolean {
+    return this.activeTab() === 'employees' || this.cleanerView() === 'orders';
+  }
+
+  /**
+   * Money was recorded or reverted on the Unpaid / Paid views: the per-order table and the tab
+   * badge read the same ledger, so they reload rather than wait for a manual refresh.
+   */
+  onPayoutsChanged(): void {
+    this.load();
+  }
+
+  /** Default tab and view are left out of the URL, so the plain page address stays clean. */
+  private syncUrl(): void {
+    void this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: {
+        tab: this.activeTab() === 'cleaners' ? null : this.activeTab(),
+        view: this.activeTab() === 'cleaners' && this.cleanerView() !== 'orders' ? this.cleanerView() : null
+      },
+      queryParamsHandling: 'merge',
+      replaceUrl: true
+    });
   }
 
   /** What the month still owes on the tab that is NOT on screen — the tab badge. */

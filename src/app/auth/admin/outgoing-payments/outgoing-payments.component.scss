@@ -981,6 +981,17 @@
   }
 }
 
+/* The three views of cleaner wages sit under the payee tabs: same underline, one size down so
+   the two levels read as parent and child. */
+.cleaner-views {
+  margin-bottom: 0.9rem;
+
+  .payee-tab {
+    padding: 0.45rem 0.85rem;
+    font-size: 0.86rem;
+  }
+}
+
 @media (max-width: 480px) {
   .payee-tab {
     flex: 1 1 0;

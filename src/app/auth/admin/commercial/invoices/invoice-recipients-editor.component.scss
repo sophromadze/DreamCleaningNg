@@ -1,0 +1,106 @@
+.recipients-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.editor-label {
+  font-size: 0.8rem;
+  font-weight: var(--fw-medium);
+  color: var(--text-secondary);
+}
+
+.recipient-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.recipient-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  max-width: 100%;
+  padding: 0.3rem 0.55rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--soft-blue);
+  color: var(--text-primary);
+  font-size: 0.82rem;
+}
+
+.recipient-address { overflow-wrap: anywhere; }
+
+.chip-remove {
+  border: none;
+  background: none;
+  padding: 0 2px;
+  color: var(--text-muted-on-tint);
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+
+  &:hover { color: var(--soft-red-text); }
+
+  &:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 1px;
+    border-radius: 2px;
+  }
+}
+
+.recipient-add {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+
+  input {
+    flex: 1 1 14rem;
+    min-width: 0;
+    max-width: 24rem;
+    padding: 9px 11px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--text-primary);
+    font-size: 0.88rem;
+    font-family: inherit;
+
+    &:focus {
+      outline: none;
+      border-color: var(--primary-color);
+    }
+
+    &[aria-invalid='true'] { border-color: var(--soft-red-text); }
+  }
+}
+
+.btn-add {
+  padding: 8px 14px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--primary-color-text);
+  font-size: 0.84rem;
+  font-weight: var(--fw-semibold);
+  font-family: inherit;
+  cursor: pointer;
+
+  &:hover:not(:disabled) { background: var(--soft-blue); }
+  &:disabled { opacity: 0.55; cursor: not-allowed; }
+
+  &:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 1px;
+  }
+}
+
+.editor-error {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--soft-red-text);
+}

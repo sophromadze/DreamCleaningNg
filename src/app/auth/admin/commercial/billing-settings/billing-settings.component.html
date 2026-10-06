@@ -79,9 +79,21 @@
 
     <section class="card">
       <h3>Online Payments</h3>
+      <!--
+        WHAT THESE SWITCHES DO (2026-10). They are the payment methods PRE-TICKED on a new
+        commercial invoice; each invoice keeps its own choice, and that choice is what its client is
+        offered. This text used to say no processing fee is ever added — untrue: Pay from Bank
+        carries the ACH processing fee below.
+      -->
       <p class="hint block">
-        What the customer is offered on the invoice page. No processing fee is ever added to the
-        customer, whichever method they use.
+        These are the payment methods <strong>pre-ticked on a new commercial invoice</strong>. Each
+        invoice keeps its own choice — that is what its client is offered — and changing a switch
+        here never changes an invoice that already exists.
+      </p>
+      <p class="hint block">
+        <strong>Fees:</strong> paying from a bank account through Stripe adds the ACH processing
+        fee set below on top of the balance. Card adds no fee to the client. A manual bank transfer
+        carries no fee from us.
       </p>
 
       <label class="toggle-row">
@@ -90,8 +102,10 @@
         <span class="toggle-text">
           <strong>Stripe ACH Direct Debit</strong>
           <span class="toggle-note">
-            The customer pays straight from their US bank account. Stripe collects the account
-            details and the authorization — they never reach our servers.
+            "Pay from Bank": the customer pays straight from their US bank account. Stripe collects
+            the account details and the authorization — they never reach our servers. The ACH
+            processing fee below is added on top. This switch also decides whether regular
+            (residential) customer invoices offer Pay from Bank.
           </span>
         </span>
       </label>
@@ -102,8 +116,9 @@
         <span class="toggle-text">
           <strong>Stripe Card</strong>
           <span class="toggle-note">
-            Off by default. Card fees on a four-figure commercial invoice are material, so this is
-            a commercial decision rather than a default.
+            "Pay by Card". Off by default: card processing costs on a four-figure commercial
+            invoice are material, so card is offered invoice by invoice. No processing fee is
+            added to the customer — the card cost is ours.
           </span>
         </span>
       </label>
@@ -115,7 +130,8 @@
           <strong>Manual ACH Bank Transfer</strong>
           <span class="toggle-note">
             The customer sends a transfer from their own bank using the details below, and an admin
-            records it. This is the fallback whenever online payment is unavailable.
+            records it. Can only be offered once those details are complete. No processing fee from
+            us. Regular customer invoices show these transfer details whenever they are complete.
           </span>
         </span>
       </label>
@@ -129,18 +145,60 @@
         <strong>Manual ACH is enabled but incomplete.</strong>
         The bank details below are missing:
         {{ settings()!.missingManualAchFields.join(', ') }}.
-        Invoices will not show manual transfer instructions until these are filled in — an
-        incomplete block is worse than none, because the customer only finds out at their bank.
+        Invoices cannot offer manual transfer until these are filled in — an incomplete block is
+        worse than none, because the customer only finds out at their bank.
       </div>
       }
 
       @if (!form().stripeAchEnabled && !form().stripeCardEnabled && !form().manualAchEnabled) {
-      <div class="alert alert-warning"
-          >
-        <strong>No payment method is enabled.</strong>
-        Customers will have no way to pay their invoices online or by transfer.
+      <div class="alert alert-warning">
+        <strong>No payment method is pre-ticked.</strong>
+        New commercial invoices will start with nothing selected, and the methods will have to be
+        chosen on each one.
       </div>
       }
+
+      <!-- ── The one customer-facing fee: Pay from Bank ── -->
+      <div class="fee-block">
+        <h4>ACH processing fee</h4>
+
+        <label class="toggle-row">
+          <input type="checkbox" [(ngModel)]="form().achCustomerFeeEnabled" name="achCustomerFeeEnabled"
+                 [disabled]="!canEdit">
+          <span class="toggle-text">
+            <strong>Add an ACH processing fee to Pay from Bank</strong>
+            <span class="toggle-note">
+              Applies to Pay from Bank only, on commercial and regular customer invoices. The
+              client sees the exact amount before they authorize; it is charged as its own line and
+              never counted toward the invoice balance. Card and manual transfer never carry it.
+            </span>
+          </span>
+        </label>
+
+        @if (form().achCustomerFeeEnabled) {
+        <div class="field-row">
+          <div class="field">
+            <label for="achFeeRate">Fee rate (% of the balance)</label>
+            <input id="achFeeRate" type="number" min="0" max="10" step="0.01"
+                   [(ngModel)]="form().achCustomerFeeRatePercent" name="achCustomerFeeRatePercent"
+                   [disabled]="!canEdit">
+          </div>
+          <div class="field">
+            <label for="achFeeCap">Maximum fee ($)</label>
+            <input id="achFeeCap" type="number" min="0" step="0.01"
+                   [(ngModel)]="form().achCustomerFeeCapAmount" name="achCustomerFeeCapAmount"
+                   [disabled]="!canEdit">
+            <span class="hint">0 means no maximum.</span>
+          </div>
+        </div>
+        <p class="hint block">
+          Example: on a {{ feeExampleBalance | currency:'USD' }} balance the client pays
+          {{ feeExample | currency:'USD' }} on top.
+        </p>
+        } @else {
+        <p class="hint block">Pay from Bank is currently free to the client.</p>
+        }
+      </div>
     </section>
 
     <section class="card">

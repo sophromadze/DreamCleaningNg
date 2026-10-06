@@ -4,7 +4,7 @@ import { ActivatedRoute } from '@angular/router';
 import { finalize } from 'rxjs/operators';
 
 import {
-  InvoiceService, PublicInvoice, InvoiceStatus, InvoiceTaxType, InvoicePaymentMethod,
+  InvoiceService, PublicInvoice, InvoiceStatus, InvoiceTaxType,
   InvoicePaymentRecordMethod
 } from '../services/invoice.service';
 import { extractApiErrorMessage } from '../utils/http-error.utils';
@@ -245,11 +245,6 @@ export class PublicInvoiceComponent implements OnInit {
 
   toggleManualAch(): void {
     this.manualAchExpanded.set(!this.manualAchExpanded());
-  }
-
-  /** ACH is the commercial default, and the only method the invoice actually instructs on. */
-  get isAchPreferred(): boolean {
-    return this.invoice()?.paymentMethod === InvoicePaymentMethod.AchBankTransfer;
   }
 
   get isPaid(): boolean { return this.invoice()?.status === InvoiceStatus.Paid; }

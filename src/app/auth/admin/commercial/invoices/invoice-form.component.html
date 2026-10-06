@@ -120,10 +120,35 @@
       </div>
       }
 
-      @if (selectedClient && !selectedClient.billingEmail) {
-      <div class="alert alert-warning inline">
-        This client has no billing email address. You can still save a draft, but sending will ask
-        you for an address.
+      <!--
+        WHO THIS INVOICE GOES TO. Its own list: sending, resending, reminders and receipts all use
+        it. Pre-filled from the client — their saved default list, else their billing email — and
+        every address can be removed, the default included. Editable after the amounts lock (a
+        receipt still needs somewhere to go), so it never follows monetaryLocked().
+      -->
+      @if (selectedClient) {
+      <div class="recipients">
+        <app-invoice-recipients-editor [(recipients)]="recipients" inputId="newRecipient" />
+
+        <label class="check">
+          <input type="checkbox" name="saveRecipientsAsDefault"
+                 [ngModel]="saveRecipientsAsDefault()" (ngModelChange)="saveRecipientsAsDefault.set($event)"
+                 [disabled]="!recipients().length">
+          <span>Save as default recipients for this client</span>
+        </label>
+        <p class="hint">
+          Sending, resending, reminders and payment receipts for this invoice all go to these
+          addresses.
+          @if (!isEdit) {
+            @if (selectedClient.hasSavedDefaultRecipients) {
+            Pre-filled from this client's saved default recipients.
+            } @else if (selectedClient.billingEmail) {
+            Pre-filled from the client's billing email.
+            } @else {
+            This client has no billing email on file — add the address to send to.
+            }
+          }
+        </p>
       </div>
       }
 
@@ -652,32 +677,49 @@
       </div>
     </section>
 
-    <!-- ── Payment method ───────────────────────────────────────────────────────────── -->
+    <!-- ── Payment methods ──────────────────────────────────────────────────────────── -->
+    <!--
+      Every method this invoice offers the client — exactly what their invoice page will show.
+      Checkboxes, not a radio: the old single choice was saved and then read by nothing that
+      decided what the customer could do. Each line says which fee applies to it.
+    -->
     <section class="card">
-      <h3>Payment Method</h3>
+      <fieldset class="method-fieldset">
+        <legend><h3>Payment Methods</h3></legend>
+        <p class="hint method-intro">
+          Choose every way the client may pay this invoice. A new invoice starts with the methods
+          switched on in Commercial → Billing Settings.
+          @if (monetaryLocked()) {
+          Locked now that the invoice is paid.
+          }
+        </p>
 
-      <div class="radio-row">
-        <label class="radio">
-          <input type="radio" name="paymentMethod" [(ngModel)]="paymentMethod"
-                 [value]="InvoicePaymentMethod.AchBankTransfer" [disabled]="monetaryLocked()">
-          <span>ACH Bank Transfer <em>preferred</em></span>
-        </label>
-        <label class="radio">
-          <input type="radio" name="paymentMethod" [(ngModel)]="paymentMethod"
-                 [value]="InvoicePaymentMethod.Card" [disabled]="monetaryLocked()">
-          <span>Card</span>
-        </label>
-        <label class="radio">
-          <input type="radio" name="paymentMethod" [(ngModel)]="paymentMethod"
-                 [value]="InvoicePaymentMethod.Other" [disabled]="monetaryLocked()">
-          <span>Other</span>
-        </label>
-      </div>
+        <div class="method-list">
+          @for (option of methodOptions; track option.method) {
+          <label class="method-option"
+                 [class.is-unavailable]="isMethodUnavailable(option.method)">
+            <input type="checkbox" [name]="'paymentMethod' + option.method"
+                   [checked]="offers(option.method)"
+                   (change)="toggleMethod(option.method, $any($event.target).checked)"
+                   [disabled]="monetaryLocked() || isMethodUnavailable(option.method)"
+                   [attr.aria-describedby]="'methodNote' + option.method">
+            <span class="method-text">
+              <span class="method-name">{{ option.label }}</span>
+              <span class="method-note" [id]="'methodNote' + option.method">{{ methodNote(option.method) }}</span>
+            </span>
+          </label>
+          }
+        </div>
 
-      <p class="hint">
-        Bank details come from Commercial → Billing Settings and are printed on the invoice
-        automatically. The invoice number is used as the payment reference.
-      </p>
+        @if (paymentMethods() === InvoicePaymentMethods.None && !monetaryLocked()) {
+        <p class="field-error">Choose at least one payment method.</p>
+        }
+
+        <p class="hint">
+          Bank details come from Commercial → Billing Settings and are printed on the invoice
+          automatically. The invoice number is used as the payment reference.
+        </p>
+      </fieldset>
     </section>
 
     <!-- ── Notes ────────────────────────────────────────────────────────────────────── -->

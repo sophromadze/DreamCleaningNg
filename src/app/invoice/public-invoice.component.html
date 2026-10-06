@@ -52,7 +52,7 @@
       </div>
 
       <div class="invoice-id">
-        <div class="doc-title">Invoice</div>
+        <h1 class="doc-title">Invoice</h1>
         <div class="invoice-number">{{ inv.invoiceNumber }}</div>
         <span class="status-badge" [class.paid]="isPaid" [class.overdue]="isOverdue"
               [class.void]="isVoid">{{ inv.statusLabel }}</span>
@@ -238,7 +238,11 @@
       @if (isProcessing) {
       <div class="processing-panel">
         <span class="processing-title">Payment processing</span>
+        @if (options?.processingIsCard) {
+        <p>Your card payment has been submitted and is being confirmed.</p>
+        } @else {
         <p>Your ACH payment has been submitted and is processing.</p>
+        }
 
         @if (options?.processingAmount) {
         <div class="fee-summary processing-breakdown">
@@ -254,17 +258,24 @@
           }
           @if (options?.processingTotalCharged) {
           <div class="fee-row fee-total">
-            <span>Total bank debit</span>
+            <span>{{ options?.processingIsCard ? 'Total card charge' : 'Total bank debit' }}</span>
             <span>{{ options!.processingTotalCharged | currency:'USD' }}</span>
           </div>
           }
         </div>
         }
 
+        @if (options?.processingIsCard) {
+        <p class="processing-note">
+          This usually takes less than a minute. Refresh the page shortly — you do not need to
+          submit another payment.
+        </p>
+        } @else {
         <p class="processing-note">
           ACH payments can take several business days to settle. You do not need to submit another
           payment while this payment is processing — we will email you as soon as it clears.
         </p>
+        }
       </div>
       }
       @if (!isProcessing) {
@@ -353,12 +364,14 @@
         </div>
         }
 
-        <!-- Secondary: card, only when the owner has enabled it -->
+        <!-- Card, when this invoice offers it. No processing fee — the same as card on a
+             regular invoice; only Pay from Bank carries one. -->
         @if (options?.stripeCardAvailable) {
         <div class="pay-secondary">
           <button type="button" class="btn-pay-alt" (click)="payByCard()" [disabled]="startingPayment()">
             Pay by Card
           </button>
+          <span class="pay-caption">Secure card payment powered by Stripe. No processing fee.</span>
         </div>
         }
       }
@@ -476,12 +489,35 @@
       }
 
       <!--
-        Every route is off and nothing is in flight. Says so plainly rather than showing an empty
-        panel — this is what an admin sees if they disable both methods, and the customer needs to
-        know to get in touch rather than assume the page is broken.
+        A check or another arrangement: nothing to click, so it says how — quote the invoice
+        number and get in touch — with the company's own contact details beside it.
       -->
-      @if (!isProcessing && !options?.stripeAchAvailable
-                  && !options?.stripeCardAvailable && !options?.manualAchAvailable) {
+      @if (options?.otherArrangementAvailable) {
+      @if (options?.manualAchAvailable || options?.stripeAchAvailable || options?.stripeCardAvailable || isProcessing) {
+      <div class="pay-divider">
+        <span>OR</span>
+      </div>
+      }
+      <div class="other-arrangement">
+        <span class="manual-title">Pay by check or another arrangement</span>
+        <p class="pay-note">{{ options!.otherArrangementNote }}</p>
+        @if (inv.company.phone || inv.company.email) {
+        <p class="pay-note">
+          @if (inv.company.phone) { <span>{{ inv.company.phone }}</span> }
+          @if (inv.company.phone && inv.company.email) { <span aria-hidden="true"> · </span> }
+          @if (inv.company.email) { <a [href]="'mailto:' + inv.company.email">{{ inv.company.email }}</a> }
+        </p>
+        }
+      </div>
+      }
+
+      <!--
+        Every route is off and nothing is in flight. Says so plainly rather than showing an empty
+        panel, and the customer needs to know to get in touch rather than assume the page is
+        broken.
+      -->
+      @if (!isProcessing && !options?.stripeAchAvailable && !options?.stripeCardAvailable
+                  && !options?.manualAchAvailable && !options?.otherArrangementAvailable) {
     <div class="pay-alert info"
           >
         Payment options are not available for this invoice online. Please contact us and we will

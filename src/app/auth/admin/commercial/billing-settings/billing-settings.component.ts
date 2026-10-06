@@ -66,6 +66,22 @@ export class BillingSettingsComponent implements OnInit {
 
   get canEdit(): boolean { return !!this.settings()?.canEdit; }
 
+  /** The balance the fee example is worked on. */
+  readonly feeExampleBalance = 1000;
+
+  /**
+   * What the client would pay on top of `feeExampleBalance` with the rate and cap as typed —
+   * the server's rule (`AchProcessingFeeCalculator`), restated for the example line only.
+   */
+  get feeExample(): number {
+    const f = this.form();
+    if (!f.achCustomerFeeEnabled) return 0;
+    const rate = Math.min(10, Math.max(0, Number(f.achCustomerFeeRatePercent) || 0));
+    const cap = Math.max(0, Number(f.achCustomerFeeCapAmount) || 0);
+    const fee = Math.round((this.feeExampleBalance * rate / 100 + Number.EPSILON) * 100) / 100;
+    return cap > 0 ? Math.min(fee, cap) : fee;
+  }
+
   save(): void {
     if (!this.canEdit || !this.form().companyLegalName?.trim()) return;
 

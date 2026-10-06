@@ -1,0 +1,32 @@
+<div class="recipients-editor" role="group" [attr.aria-labelledby]="inputId() + 'Label'">
+  <span class="editor-label" [id]="inputId() + 'Label'">{{ label() }}</span>
+
+  @if (recipients().length) {
+  <ul class="recipient-chips">
+    @for (email of recipients(); track email) {
+    <li class="recipient-chip">
+      <span class="recipient-address">{{ email }}</span>
+      <button type="button" class="chip-remove" (click)="remove(email)"
+              [attr.aria-label]="'Remove ' + email">×</button>
+    </li>
+    }
+  </ul>
+  } @else {
+  <p class="editor-error">Add at least one email address to send this invoice to.</p>
+  }
+
+  <div class="recipient-add">
+    <label class="sr-only" [for]="inputId()">Add an email address</label>
+    <input [id]="inputId()" type="email" autocomplete="off" placeholder="name@company.com"
+           [ngModel]="newRecipient()" (ngModelChange)="onInput($event)"
+           [ngModelOptions]="{ standalone: true }"
+           (keydown.enter)="$event.preventDefault(); add()"
+           [attr.aria-invalid]="error() ? 'true' : null"
+           [attr.aria-describedby]="error() ? inputId() + 'Error' : null">
+    <button type="button" class="btn-add" (click)="add()" [disabled]="!newRecipient().trim()">Add email</button>
+  </div>
+
+  @if (error()) {
+  <p class="editor-error" [id]="inputId() + 'Error'" role="alert">{{ error() }}</p>
+  }
+</div>

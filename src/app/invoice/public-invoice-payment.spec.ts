@@ -7,7 +7,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { PublicInvoiceComponent } from './public-invoice.component';
 import {
   InvoiceService, PublicInvoice, InvoiceStatus, InvoiceTaxType,
-  InvoicePaymentMethod, InvoicePaymentRecordMethod
+  InvoicePaymentRecordMethod
 } from '../services/invoice.service';
 
 /**
@@ -39,11 +39,11 @@ describe('PublicInvoiceComponent — payment', () => {
     amountPaid: 0,
     balanceDue: 925.43,
     currency: 'USD',
-    paymentMethod: InvoicePaymentMethod.AchBankTransfer,
     paymentOptions: {
       stripeAchAvailable: true,
       stripeCardAvailable: false,
       manualAchAvailable: true,
+      otherArrangementAvailable: false,
       paymentInProgress: false,
       lastAttemptFailed: false,
       // NO FEE by default, so the base fixture exercises the plain payment path. A configured fee
@@ -165,6 +165,7 @@ describe('PublicInvoiceComponent — payment', () => {
       stripeAchAvailable: false,
       stripeCardAvailable: false,
       manualAchAvailable: true,
+      otherArrangementAvailable: false,
       paymentInProgress: true,
       processingAmount: 925.43,
       lastAttemptFailed: false,
@@ -304,6 +305,7 @@ describe('PublicInvoiceComponent — payment', () => {
       stripeAchAvailable: false,
       stripeCardAvailable: false,
       manualAchAvailable: false,
+      otherArrangementAvailable: false,
       paymentInProgress: false,
       lastAttemptFailed: false,
       achProcessingFee: 0,
@@ -328,6 +330,7 @@ describe('PublicInvoiceComponent — payment', () => {
       stripeAchAvailable: false,
       stripeCardAvailable: false,
       manualAchAvailable: false,
+      otherArrangementAvailable: false,
       paymentInProgress: false,
       lastAttemptFailed: false,
       achProcessingFee: 0,
@@ -405,6 +408,7 @@ describe('PublicInvoiceComponent — payment', () => {
       stripeAchAvailable: false,
       stripeCardAvailable: false,
       manualAchAvailable: false,
+      otherArrangementAvailable: false,
       paymentInProgress: false,
       lastAttemptFailed: false,
       achProcessingFee: 0,
@@ -630,6 +634,7 @@ describe('PublicInvoiceComponent — payment', () => {
       stripeAchAvailable: false,
       stripeCardAvailable: false,
       manualAchAvailable: true,
+      otherArrangementAvailable: false,
       paymentInProgress: true,
       processingAmount: 925.43,
       processingFeeAmount: 5.00,
@@ -775,5 +780,48 @@ describe('PublicInvoiceComponent — payment', () => {
     expect(component.servicePeriod).toBeNull();
     expect(fixture.nativeElement.textContent).not.toContain('Service period:');
     expect(fixture.nativeElement.textContent).not.toContain('Service date:');
+  });
+  // ── Per-invoice payment methods (2026-10) ──
+
+  it('says card carries no processing fee', () => {
+    const withCard = baseInvoice();
+    withCard.paymentOptions.stripeCardAvailable = true;
+    setUp(withCard);
+
+    expect(fixture.nativeElement.textContent).toContain('Secure card payment powered by Stripe. No processing fee.');
+  });
+
+  it('shows a check or other arrangement with how to reach us, and nothing to click', () => {
+    const invoice = baseInvoice();
+    invoice.paymentOptions.stripeAchAvailable = false;
+    invoice.paymentOptions.manualAchAvailable = false;
+    invoice.paymentOptions.otherArrangementAvailable = true;
+    invoice.paymentOptions.otherArrangementNote = 'You can also pay by check or another arrangement made with us.';
+    invoice.company.phone = '(212) 555-0100';
+    invoice.company.email = 'billing@example.com';
+    setUp(invoice);
+
+    const text = fixture.nativeElement.textContent as string;
+    expect(text).toContain('Pay by check or another arrangement');
+    expect(text).toContain('You can also pay by check or another arrangement made with us.');
+    expect(text).toContain('(212) 555-0100');
+    expect((fixture.nativeElement as HTMLElement).querySelector('a[href="mailto:billing@example.com"]')).not.toBeNull();
+    // Something IS offered, so the "no payment options" notice must not appear.
+    expect(text).not.toContain('Payment options are not available for this invoice online');
+  });
+
+  it('describes a settling card payment as a card payment, not a days-long ACH debit', () => {
+    const invoice = baseInvoice();
+    invoice.paymentOptions.stripeAchAvailable = false;
+    invoice.paymentOptions.paymentInProgress = true;
+    invoice.paymentOptions.processingAmount = 925.43;
+    invoice.paymentOptions.processingTotalCharged = 925.43;
+    invoice.paymentOptions.processingIsCard = true;
+    setUp(invoice);
+
+    const text = fixture.nativeElement.textContent as string;
+    expect(text).toContain('Your card payment has been submitted and is being confirmed.');
+    expect(text).toContain('Total card charge');
+    expect(text).not.toContain('ACH payments can take several business days');
   });
 });

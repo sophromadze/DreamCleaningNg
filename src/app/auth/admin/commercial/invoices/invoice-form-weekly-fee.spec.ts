@@ -31,6 +31,8 @@ describe('InvoiceFormComponent — weekly flat fee', () => {
   function form(weekly: boolean): InvoiceFormComponent {
     const c = TestBed.runInInjectionContext(() => new InvoiceFormComponent());
     c.clientId.set(7);
+    c.paymentMethods.set(1);
+    c.recipients.set(['ap@onyx.invalid']);
     c.clients.set([{
       id: 7, legalEntityName: 'Onyx LLC', locations: [],
       contracts: [{ id: 40, contractNumber: 'DCC-2026-12918497', statusLabel: 'FullySigned',

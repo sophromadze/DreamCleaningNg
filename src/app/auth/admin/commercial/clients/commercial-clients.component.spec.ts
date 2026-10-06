@@ -37,7 +37,9 @@ describe('CommercialClientsComponent', () => {
     locations: [],
     contracts: [],
     isActive: true,
-    invoiceCount: 0
+    invoiceCount: 0,
+    defaultInvoiceRecipients: [],
+    hasSavedDefaultRecipients: false
   };
 
   const LINKED: InvoiceClientOption = {
