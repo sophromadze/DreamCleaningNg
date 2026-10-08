@@ -359,26 +359,26 @@
         <!-- Shown to everyone and server-rendered whole (2026-10) - frame, icon, both lines and
              "OFF". Only the percentage may arrive later, into its reserved space. See showWelcomeCoupon. -->
         @if (showWelcomeCoupon) {
+        <!-- Named by its own text ("Welcome Offer First cleaning 10% OFF. Book now."), so what a speech
+             user reads on it is what they can say (WCAG 2.5.3). &ngsp; separates the stacked parts. -->
         <a class="hero-offer-coupon"
-           routerLink="/booking"
-           [attr.aria-label]="firstTimeDiscountLabel
-             ? 'Welcome offer: ' + firstTimeDiscountLabel + ' off your first cleaning. Book now.'
-             : 'Welcome offer: a discount off your first cleaning. Book now.'">
+           routerLink="/booking">
           <div class="hero-offer-coupon__body">
             <svg class="hero-offer-coupon__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <path d="M20.59 13.41 13.42 20.58a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82Z"/>
               <circle cx="7" cy="7" r="1.6" fill="currentColor"/>
             </svg>
             <span class="hero-offer-coupon__copy">
-              <span class="hero-offer-coupon__eyebrow">Welcome Offer</span>
+              <span class="hero-offer-coupon__eyebrow">Welcome Offer</span>&ngsp;
               <span class="hero-offer-coupon__headline">First cleaning</span>
             </span>
-          </div>
+          </div>&ngsp;
           <span class="hero-offer-coupon__perf" aria-hidden="true"></span>
           <div class="hero-offer-coupon__deal">
-            <span class="hero-offer-coupon__percent">{{ firstTimeDiscountLabel }}</span>
+            <span class="hero-offer-coupon__percent">{{ firstTimeDiscountLabel }}</span>&ngsp;
             <span class="hero-offer-coupon__off">OFF</span>
           </div>
+          <span class="sr-only">. Book now.</span>
         </a>
         }
 

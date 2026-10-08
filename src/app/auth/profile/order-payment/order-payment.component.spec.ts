@@ -94,9 +94,9 @@ describe('OrderPaymentComponent — consent gate', () => {
             initializeElements: vi.fn().mockName('StripeService.initializeElements'),
             createCardElement: vi.fn().mockName('StripeService.createCardElement'),
             destroyCardElement: vi.fn().mockName('StripeService.destroyCardElement'),
-            destroyPaymentRequestButton: vi.fn().mockName('StripeService.destroyPaymentRequestButton'),
-            createPaymentRequest: vi.fn().mockName('StripeService.createPaymentRequest'),
-            createPaymentRequestButton: vi.fn().mockName('StripeService.createPaymentRequestButton'),
+            destroyWalletButton: vi.fn().mockName('StripeService.destroyWalletButton'),
+            mountWalletButton: vi.fn().mockName('StripeService.mountWalletButton'),
+            updateWalletAmount: vi.fn().mockName('StripeService.updateWalletAmount'),
             confirmCardPayment: vi.fn().mockName('StripeService.confirmCardPayment'),
             confirmPaymentRequest: vi.fn().mockName('StripeService.confirmPaymentRequest')
           }
@@ -281,15 +281,15 @@ describe('OrderPaymentComponent — part-payments', () => {
       initializeElements: vi.fn().mockName('StripeService.initializeElements'),
       createCardElement: vi.fn().mockName('StripeService.createCardElement'),
       destroyCardElement: vi.fn().mockName('StripeService.destroyCardElement'),
-      destroyPaymentRequestButton: vi.fn().mockName('StripeService.destroyPaymentRequestButton'),
-      createPaymentRequest: vi.fn().mockName('StripeService.createPaymentRequest'),
-      createPaymentRequestButton: vi.fn().mockName('StripeService.createPaymentRequestButton'),
+      destroyWalletButton: vi.fn().mockName('StripeService.destroyWalletButton'),
+      mountWalletButton: vi.fn().mockName('StripeService.mountWalletButton'),
+      updateWalletAmount: vi.fn().mockName('StripeService.updateWalletAmount'),
       confirmCardPayment: vi.fn().mockName('StripeService.confirmCardPayment'),
       confirmPaymentRequest: vi.fn().mockName('StripeService.confirmPaymentRequest')
     } as unknown as MockedObject<StripeService>;
     stripeService.initializeElements.mockReturnValue(Promise.resolve() as any);
     stripeService.createCardElement.mockReturnValue({ on: () => {} } as any);
-    stripeService.createPaymentRequest.mockReturnValue(Promise.resolve(null) as any);
+    stripeService.mountWalletButton.mockReturnValue(Promise.resolve(false));
 
     bookingService = {
       acceptPaymentConsent: vi.fn().mockName('BookingService.acceptPaymentConsent'),
@@ -471,14 +471,14 @@ describe('OrderPaymentComponent — save-card modal', () => {
       initializeElements: vi.fn().mockName('StripeService.initializeElements'),
       createCardElement: vi.fn().mockName('StripeService.createCardElement'),
       destroyCardElement: vi.fn().mockName('StripeService.destroyCardElement'),
-      destroyPaymentRequestButton: vi.fn().mockName('StripeService.destroyPaymentRequestButton'),
-      createPaymentRequest: vi.fn().mockName('StripeService.createPaymentRequest'),
-      createPaymentRequestButton: vi.fn().mockName('StripeService.createPaymentRequestButton'),
+      destroyWalletButton: vi.fn().mockName('StripeService.destroyWalletButton'),
+      mountWalletButton: vi.fn().mockName('StripeService.mountWalletButton'),
+      updateWalletAmount: vi.fn().mockName('StripeService.updateWalletAmount'),
       confirmCardPayment: vi.fn().mockName('StripeService.confirmCardPayment'),
       confirmPaymentRequest: vi.fn().mockName('StripeService.confirmPaymentRequest')
     } as unknown as MockedObject<StripeService>;
     stripeService.initializeElements.mockReturnValue(Promise.resolve(undefined as any));
-    stripeService.createPaymentRequest.mockReturnValue(Promise.resolve(null as any));
+    stripeService.mountWalletButton.mockReturnValue(Promise.resolve(false));
     stripeService.confirmCardPayment.mockReturnValue(Promise.resolve({ id: 'pi_order' }) as any);
     stripeService.confirmPaymentRequest.mockReturnValue(Promise.resolve({ id: 'pi_order' }) as any);
 

@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ChangeDetectorRef, ChangeDetectionStrategy, inject, signal, computed } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef, ChangeDetectionStrategy, effect, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -91,7 +91,10 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
   currentUser: any;
   readonly cardError = signal<string | null>(null);
   readonly isLoading = signal(true);
-  readonly showApplePay = signal(false);
+  // Apple Pay / Google Pay. The container is rendered while a wallet button is mounted, and shown
+  // only once Stripe reports that this device offers one of the two wallets.
+  readonly showWallet = signal(false);
+  readonly walletAvailable = signal(false);
   // True when a gift card covers the full order amount (server returns requiresPayment=false).
   // Skips Stripe entirely and confirms the order directly.
   readonly fullyCovered = signal(false);
@@ -223,8 +226,11 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
   ngOnDestroy() {
     // Clean up Stripe elements
     this.stripeService.destroyCardElement();
-    this.stripeService.destroyPaymentRequestButton();
+    this.stripeService.destroyWalletButton();
   }
+
+  // The wallet sheet shows the amount the page shows.
+  private readonly syncWalletAmount = effect(() => this.stripeService.updateWalletAmount(this.orderTotal()));
 
   private tryInit() {
     if (this.hasInitialized) return;
@@ -387,9 +393,10 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
     this.errorMessage.set('');
     this.cardError.set(null);
     this.paymentClientSecret = null;
-    this.showApplePay.set(false);
+    this.showWallet.set(false);
+    this.walletAvailable.set(false);
     this.stripeService.destroyCardElement();
-    this.stripeService.destroyPaymentRequestButton();
+    this.stripeService.destroyWalletButton();
     this.isLoading.set(true);
     this.cdr.detectChanges();
     this.createPaymentIntent();
@@ -524,39 +531,42 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
       
       // Start trying to mount immediately
       tryMountElement();
-      this.initApplePay();
+      this.initWalletButton();
     } catch (error: any) {
       console.error('Failed to initialize Stripe elements:', error);
       this.errorMessage.set(error.message || 'Failed to initialize payment form. Please refresh the page.');
     }
   }
 
-  private async initApplePay() {
+  private async initWalletButton() {
     if (!this.paymentClientSecret) return;
-    const pr = await this.stripeService.createPaymentRequest(this.orderTotal(), 'Dream Cleaning NYC');
-    if (!pr) return;
-    this.showApplePay.set(true);
+    this.walletAvailable.set(false);
+    this.showWallet.set(true);
     this.cdr.detectChanges();
-    setTimeout(() => this.stripeService.createPaymentRequestButton(pr, 'payment-request-button'), 0);
-
-    pr.on('paymentmethod', async (ev: any) => {
-      if (this.isProcessing()) { ev.complete('fail'); return; }
-      this.isProcessing.set(true);
-      this.errorMessage.set('');
-      try {
-        const paymentIntent = await this.stripeService.confirmPaymentRequest(
-          this.paymentClientSecret!, ev.paymentMethod.id
-        );
-        ev.complete('success');
-        const idForConfirm = paymentIntent?.id ?? this.paymentIntentId;
-        this.confirmCharged(idForConfirm);
-      } catch (payErr: any) {
-        ev.complete('fail');
-        this.errorMessage.set(payErr.message || 'Payment failed. Please try again.');
-        this.isProcessing.set(false);
-        this.cdr.detectChanges();
-      }
+    await this.stripeService.mountWalletButton({
+      elementId: 'payment-request-button',
+      amount: this.orderTotal(),
+      canStart: () => !this.isProcessing(),
+      onAvailability: available => this.walletAvailable.set(available),
+      onPaymentMethod: paymentMethodId => this.payWithWallet(paymentMethodId),
+      onError: message => this.errorMessage.set(message),
     });
+  }
+
+  /** The wallet sheet handed over a card: charge it against this page's intent. */
+  private async payWithWallet(paymentMethodId: string) {
+    if (this.isProcessing() || !this.paymentClientSecret) return;
+    this.isProcessing.set(true);
+    this.errorMessage.set('');
+    try {
+      const paymentIntent = await this.stripeService.confirmPaymentRequest(this.paymentClientSecret, paymentMethodId);
+      const idForConfirm = paymentIntent?.id ?? this.paymentIntentId;
+      this.confirmCharged(idForConfirm);
+    } catch (payErr: any) {
+      this.errorMessage.set(payErr.message || 'Payment failed. Please try again.');
+      this.isProcessing.set(false);
+      this.cdr.detectChanges();
+    }
   }
 
 

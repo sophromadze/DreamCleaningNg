@@ -2,9 +2,32 @@ import { inject, Service } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
-import { loadStripe, Stripe, StripeElements, StripeCardElement } from '@stripe/stripe-js';
+import {
+  loadStripe, Stripe, StripeElements, StripeCardElement, StripeExpressCheckoutElement,
+  StripeExpressCheckoutElementOptions
+} from '@stripe/stripe-js';
 import { AuthService } from './auth.service';
 import { ThemeService } from './theme.service';
+
+/**
+ * A page's Apple Pay / Google Pay button (see {@link StripeService.mountWalletButton}). The wallet
+ * only produces a card PaymentMethod; the page charges it through its own PaymentIntent exactly
+ * like a saved card, so the server side of every payment flow is the same for all three.
+ */
+export interface WalletButtonOptions {
+  /** Id of the element the button mounts into. It must be rendered (not display:none) first. */
+  elementId: string;
+  /** The amount in dollars the wallet sheet shows. Keep it current with updateWalletAmount(). */
+  amount: number;
+  /** Asked when the button is tapped; false keeps the sheet closed (a payment is already running). */
+  canStart: () => boolean;
+  /** Whether this device offers Apple Pay or Google Pay — the page shows the button's row only then. */
+  onAvailability: (available: boolean) => void;
+  /** The customer authorised a card in the wallet sheet: the PaymentMethod id to charge. */
+  onPaymentMethod: (paymentMethodId: string) => void;
+  /** The sheet could not produce a payment method (nothing was charged). */
+  onError: (message: string) => void;
+}
 
 @Service()
 export class StripeService {
@@ -16,8 +39,11 @@ export class StripeService {
   private elements: StripeElements | null = null;
   private cardElement: StripeCardElement | null = null;
   private apiUrl = environment.apiUrl;
-  private paymentRequest: any = null;
-  private prButton: any = null;
+  // Apple Pay / Google Pay. The Express Checkout Element needs a deferred-intent Elements group
+  // of its own (mode + amount); the card field's group above has no such options.
+  private walletElements: StripeElements | null = null;
+  private walletButton: StripeExpressCheckoutElement | null = null;
+  private walletOptions: WalletButtonOptions | null = null;
 
   constructor() {
     this.initializeStripe();
@@ -25,8 +51,12 @@ export class StripeService {
     // The card field lives in a Stripe iframe, so CSS can't reach it — its colors are baked
     // in at create() time. Re-push them whenever the theme flips, otherwise a field mounted
     // in light mode keeps dark navy text on the dark surface (unreadable, and the guest
-    // payment pages are where it shows up most).
-    this.themeService.theme$.subscribe(() => this.applyCardElementTheme());
+    // payment pages are where it shows up most). The wallet button's theme can't be updated in
+    // place, so it is rebuilt.
+    this.themeService.theme$.subscribe(() => {
+      this.applyCardElementTheme();
+      this.applyWalletButtonTheme();
+    });
   }
 
   private getCardElementStyle(): { base: any; invalid: any } {
@@ -242,55 +272,108 @@ export class StripeService {
     return this.cardElement;
   }
 
-  // Create a PaymentRequest (Apple Pay / Google Pay). Returns null if the device can't pay.
-  async createPaymentRequest(amount: number, label: string): Promise<any | null> {
-    if (!this.stripe) {
-      await this.initializeStripe();
+  /**
+   * Mounts the Apple Pay / Google Pay button (Stripe's Express Checkout Element, limited to those
+   * two wallets). It replaces the Payment Request Button, which Stripe.js no longer ships.
+   *
+   * The element group is created in deferred mode with `paymentMethodCreation: 'manual'`, so the
+   * wallet sheet only produces a card PaymentMethod (`createPaymentMethod`). Nothing is charged
+   * here: the page passes that id to {@link confirmPaymentRequest} against its own PaymentIntent,
+   * the same path a saved card takes. The sheet closes once the payment method exists; anything
+   * that fails after that is reported on the page.
+   *
+   * Resolves false when Stripe could not be loaded or the container is missing.
+   */
+  async mountWalletButton(options: WalletButtonOptions): Promise<boolean> {
+    this.destroyWalletButton();
+    if (!this.stripe) await this.initializeStripe();
+    if (!this.stripe) return false;
+    if (!document.getElementById(options.elementId)) {
+      console.error(`Element with id "${options.elementId}" not found in DOM`);
+      return false;
     }
-    if (!this.stripe) return null;
 
-    this.paymentRequest = this.stripe.paymentRequest({
-      country: 'US',
+    this.walletOptions = options;
+    this.walletElements = this.stripe.elements({
+      mode: 'payment',
+      amount: this.toCents(options.amount),
       currency: 'usd',
-      total: { label, amount: Math.round(amount * 100) },
-      requestPayerName: true,
-      requestPayerEmail: true,
+      paymentMethodCreation: 'manual',
+      // Apple Pay and Google Pay hand over cards; nothing else may reach these intents.
+      // (Stripe.js 10 / API endive name; it was paymentMethodTypes before.)
+      allowedPaymentMethodTypes: ['card'],
     });
-
-    const result = await this.paymentRequest.canMakePayment();
-    return result ? this.paymentRequest : null;
+    this.createWalletButton();
+    return true;
   }
 
-  // Mount the Apple/Google Pay button. Theme follows the current site theme.
-  createPaymentRequestButton(paymentRequest: any, elementId: string): any {
-    if (!this.elements) {
-      this.createElements();
-    }
-    if (!this.elements) {
-      throw new Error('Stripe Elements not initialized');
-    }
-    const el = document.getElementById(elementId);
-    if (!el) {
-      console.error(`Element with id "${elementId}" not found in DOM`);
-      return null;
-    }
-    if (this.prButton) {
-      try { this.prButton.destroy(); } catch {}
-      this.prButton = null;
-    }
+  /** Keeps the amount on the wallet sheet in step with the page's total (coupons, tips, balance). */
+  updateWalletAmount(amount: number): void {
+    if (!this.walletElements || !this.walletOptions) return;
+    const cents = this.toCents(amount);
+    if (cents <= 0) return;
+    this.walletOptions = { ...this.walletOptions, amount };
+    this.walletElements.update({ amount: cents });
+  }
+
+  private createWalletButton(): void {
+    const options = this.walletOptions;
+    const group = this.walletElements;
+    if (!options || !group) return;
+
     const isDark = this.themeService.theme === 'dark';
-    this.prButton = this.elements.create('paymentRequestButton', {
-      paymentRequest,
-      style: {
-        paymentRequestButton: {
-          type: 'default',
-          theme: isDark ? 'dark' : 'light',
-          height: '48px'
-        }
-      }
+    const buttonOptions: StripeExpressCheckoutElementOptions = {
+      paymentMethods: { applePay: 'auto', googlePay: 'auto', link: 'never', paypal: 'never', amazonPay: 'never', klarna: 'never' },
+      // Same look as the old Payment Request Button: plain wallet mark, white on the light
+      // theme and black on the dark one, 48px tall, the two wallets stacked full width.
+      buttonType: { applePay: 'plain', googlePay: 'plain' },
+      buttonTheme: { applePay: isDark ? 'black' : 'white', googlePay: isDark ? 'black' : 'white' },
+      buttonHeight: 48,
+      // overflow 'never' (no "more" menu) is only accepted with maxRows 0 = as many rows as needed.
+      layout: { maxColumns: 1, maxRows: 0, overflow: 'never' },
+      emailRequired: true,
+    };
+    const button = group.create('expressCheckout', buttonOptions);
+    this.walletButton = button;
+
+    button.on('ready', ({ availablePaymentMethods }) => {
+      if (this.walletButton !== button) return;
+      options.onAvailability(!!availablePaymentMethods && (availablePaymentMethods.applePay || availablePaymentMethods.googlePay));
     });
-    this.prButton.mount(`#${elementId}`);
-    return this.prButton;
+    button.on('click', (event) => {
+      if (options.canStart()) event.resolve();
+      else event.reject();
+    });
+    button.on('confirm', async (event) => {
+      const stripe = this.stripe;
+      if (!stripe || this.walletButton !== button) { event.paymentFailed({ reason: 'fail' }); return; }
+      const submitted = await group.submit();
+      if (submitted.error) {
+        event.paymentFailed({ reason: 'fail' });
+        options.onError(submitted.error.message || 'Payment failed. Please try again.');
+        return;
+      }
+      const { error, paymentMethod } = await stripe.createPaymentMethod({ elements: group });
+      if (error || !paymentMethod) {
+        event.paymentFailed({ reason: 'fail' });
+        options.onError(error?.message || 'Payment failed. Please try again.');
+        return;
+      }
+      options.onPaymentMethod(paymentMethod.id);
+    });
+    button.mount(`#${options.elementId}`);
+  }
+
+  // The button's colours are fixed at create() time; rebuild it in the same group on a theme flip.
+  private applyWalletButtonTheme(): void {
+    if (!this.walletButton || !this.walletOptions || !document.getElementById(this.walletOptions.elementId)) return;
+    try { this.walletButton.destroy(); } catch {}
+    this.walletButton = null;
+    this.createWalletButton();
+  }
+
+  private toCents(amount: number): number {
+    return Math.round((Number(amount) || 0) * 100);
   }
 
   // Confirm using the wallet payment method. Handles 3D Secure (requires_action).
@@ -325,11 +408,12 @@ export class StripeService {
     return paymentIntent;
   }
 
-  destroyPaymentRequestButton(): void {
-    if (this.prButton) {
-      try { this.prButton.destroy(); } catch {}
-      this.prButton = null;
+  destroyWalletButton(): void {
+    if (this.walletButton) {
+      try { this.walletButton.destroy(); } catch {}
+      this.walletButton = null;
     }
-    this.paymentRequest = null;
+    this.walletElements = null;
+    this.walletOptions = null;
   }
 }

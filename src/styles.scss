@@ -124,6 +124,11 @@
   vertical-align: -0.125em;
 }
 
+/* Font Awesome 7 draws every webfont icon in a fixed 1.25em box by default (what `fa-fw` did in
+   6). The staff and account pages were laid out with natural glyph widths, so keep those; an
+   element with `fa-fw` / `fa-width-fixed` still sets its own fixed width. */
+:root { --fa-width: auto; }
+
 /* Same animation and reduced-motion behaviour as Font Awesome's `fa-spin`
    (identical rules, so nothing changes when the admin bundle adds its own). */
 .fa-spin {
@@ -1297,8 +1302,11 @@ gmp-place-autocomplete::part(prediction-item-selected) {
     span:not(.pac-item-query) { color: #999 !important; }
   }
 }
-/* Apple Pay / Google Pay (Stripe Payment Request Button) container */
-.applepay-button-container { margin-bottom: 0.75rem; }
+/* Apple Pay / Google Pay (Stripe Express Checkout Element) container. The button is mounted before
+   Stripe knows whether the device has a wallet, so it takes no room (and is not announced) until
+   the page marks it available — no layout jump, and no empty gap when there is no wallet. */
+.wallet-button-container { height: 0; overflow: hidden; visibility: hidden; }
+.wallet-button-container.is-available { height: auto; overflow: visible; visibility: visible; margin-bottom: 0.75rem; }
 
 /* On the borough service pages the sticky ZIP-coverage bar occupies the bottom-center
    of the viewport. When it's present (body.has-coverage-bar, toggled by the sticky

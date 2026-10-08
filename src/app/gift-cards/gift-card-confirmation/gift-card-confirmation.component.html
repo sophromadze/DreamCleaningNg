@@ -25,8 +25,8 @@
       <h3>Payment Information</h3>
       
       <!-- Apple Pay / Google Pay button -->
-      @if (showApplePay()) {
-      <div id="payment-request-button" class="applepay-button-container"></div>
+      @if (showWallet()) {
+      <div id="payment-request-button" class="wallet-button-container" [class.is-available]="walletAvailable()"></div>
       }
 
       <!-- Card Element Container -->

@@ -209,24 +209,26 @@
                second badge style of its own. Two deliberate differences from the homepage's:
                the percentage is a constant here because commercial work is quoted from a
                walkthrough and has no special-offer row to read, and the coupon SCROLLS to the
-               quote form instead of linking to /booking, so it is a <button>. -->
-          <button type="button" class="hero-offer-coupon" (click)="scrollToQuoteForm()"
-                  [attr.aria-label]="'New client offer: ' + firstMonthDiscountPercent + '% off your first month of a recurring plan. Request a quote.'">
+               quote form instead of linking to /booking, so it is a <button>. Like the homepage's, it is
+               named by its own text, so the words on it are the words a speech user can say
+               (WCAG 2.5.3); &ngsp; separates the stacked parts. -->
+          <button type="button" class="hero-offer-coupon" (click)="scrollToQuoteForm()">
             <div class="hero-offer-coupon__body">
               <svg class="hero-offer-coupon__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M20.59 13.41 13.42 20.58a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82Z"/>
                 <circle cx="7" cy="7" r="1.6" fill="currentColor"/>
               </svg>
               <span class="hero-offer-coupon__copy">
-                <span class="hero-offer-coupon__eyebrow">New Client Offer</span>
+                <span class="hero-offer-coupon__eyebrow">New Client Offer</span>&ngsp;
                 <span class="hero-offer-coupon__headline">First month</span>
               </span>
-            </div>
+            </div>&ngsp;
             <span class="hero-offer-coupon__perf" aria-hidden="true"></span>
             <div class="hero-offer-coupon__deal">
-              <span class="hero-offer-coupon__percent">{{ firstMonthDiscountPercent }}%</span>
+              <span class="hero-offer-coupon__percent">{{ firstMonthDiscountPercent }}%</span>&ngsp;
               <span class="hero-offer-coupon__off">OFF</span>
             </div>
+            <span class="sr-only">on a recurring plan. Request a quote.</span>
           </button>
 
           <div class="hero-trust-bar">

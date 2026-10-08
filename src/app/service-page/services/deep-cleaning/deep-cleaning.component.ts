@@ -1,5 +1,6 @@
-import { Component, OnInit, OnDestroy, inject, ChangeDetectionStrategy, signal } from '@angular/core';
-import { RouterModule } from '@angular/router';
+import { Component, OnInit, OnDestroy, inject, ChangeDetectionStrategy, signal, PLATFORM_ID, TransferState, makeStateKey } from '@angular/core';
+import { isPlatformBrowser } from '@angular/common';
+import { Router, RouterModule } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { MarketingPricingService } from '../../../shared/pricing/marketing-pricing.service';
 import { priceFragment, startingPriceOffer } from '../../../shared/pricing/marketing-price-format';
@@ -15,6 +16,11 @@ import { faTriangleExclamation } from '../../../shared/icons/glyphs/faTriangleEx
 import { CardImageDirective } from '../../../shared/images/card-image.directive';
 import { StructuredDataService } from '../../../services/structured-data.service';
 import { findAdvertisedFirstTimeOffer } from '../../../shared/booking/special-offer-keys';
+import { SSR_CATALOGUE } from '../../../shared/ssr/ssr-catalogue.token';
+import { resolveRenderedOffers } from '../../../shared/ssr/rendered-offers';
+
+/** The offer the server drew the hero's first-time line from (see resolveRenderedOffers). */
+export const DEEP_CLEANING_OFFERS_KEY = makeStateKey<PublicSpecialOffer[]>('deep-cleaning.offers');
 
 @Component({
   selector: 'app-deep-cleaning',
@@ -33,10 +39,15 @@ export class DeepCleaningComponent implements OnInit, OnDestroy {
   readonly pricing = this.marketingPricing.text;
   private readonly structuredData = inject(StructuredDataService);
 
-  /** First-time customer offer from public special offers. The percentage is
-   *  admin-configurable (never hardcoded) — the hero line only renders once it loads. */
+  /** First-time customer offer from public special offers. The percentage is admin-configurable
+   *  (never hardcoded). Server-rendered from server.ts's copy, so the line is in the first paint. */
   readonly specialOffers = signal<PublicSpecialOffer[]>([]);
   private subscription = new Subscription();
+  private readonly transferState = inject(TransferState);
+  private readonly ssrCatalogue = inject(SSR_CATALOGUE, { optional: true });
+  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
+  /** Created by the app's first navigation in the browser, i.e. hydrating server-rendered HTML. */
+  private readonly hydrating = this.isBrowser && !inject(Router).navigated;
 
   ngOnInit(): void {
     this.injectSchema();
@@ -49,6 +60,11 @@ export class DeepCleaningComponent implements OnInit, OnDestroy {
   }
 
   private loadFirstTimeOffer(): void {
+    const rendered = resolveRenderedOffers(DEEP_CLEANING_OFFERS_KEY, {
+      isBrowser: this.isBrowser, hydrating: this.hydrating, transferState: this.transferState, ssrCatalogue: this.ssrCatalogue
+    });
+    if (rendered) { this.specialOffers.set(rendered); return; }
+    if (!this.isBrowser) return;
     this.subscription.add(
       this.specialOfferService.getPublicSpecialOffers().subscribe({
         next: (offers) => { this.specialOffers.set(offers); },

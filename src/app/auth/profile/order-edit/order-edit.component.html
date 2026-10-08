@@ -561,8 +561,8 @@
         </div>
 
         <!-- Apple Pay / Google Pay button -->
-        @if (showApplePay()) {
-        <div id="payment-request-button-order-edit" class="applepay-button-container"></div>
+        @if (showWallet()) {
+        <div id="payment-request-button-order-edit" class="wallet-button-container" [class.is-available]="walletAvailable()"></div>
         }
 
         <!-- Stripe Card Element -->

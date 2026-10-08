@@ -279,8 +279,10 @@
         </div>
         }
 
-        @if (showApplePay() && !fullyCovered() && !usingSavedCard) {
-        <div id="payment-request-button" class="applepay-button-container"></div>
+        <!-- Apple Pay / Google Pay button -->
+        @if (showWallet()) {
+        <div id="payment-request-button" class="wallet-button-container"
+             [class.is-available]="walletAvailable() && !fullyCovered() && !usingSavedCard"></div>
         }
 
         <!-- Card Element Container -->

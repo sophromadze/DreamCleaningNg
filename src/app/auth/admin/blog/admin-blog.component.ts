@@ -2,7 +2,6 @@ import { Component, OnDestroy, OnInit, ChangeDetectionStrategy, inject, signal }
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
-import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { Subject, Subscription, debounceTime } from 'rxjs';
 import { marked } from 'marked';
 import { AuthService } from '../../../services/auth.service';
@@ -29,7 +28,9 @@ interface SuggestionRow extends SuggestedTopic {
  * Admin Blog section: Posts / Editor / Topic Queue / Settings / How It Works.
  * The editor works on Markdown; the live preview renders client-side with `marked`
  * (admin-only convenience) while the published output is always the server-side
- * sanitized HTML — the pipelines are close enough for editing purposes.
+ * sanitized HTML — the pipelines are close enough for editing purposes. The preview is
+ * sanitized too: it is bound as a plain string, so Angular's HTML sanitizer strips scripts,
+ * event handlers and javascript: links before they reach the admin's session.
  */
 @Component({
   selector: 'app-admin-blog',
@@ -40,7 +41,6 @@ interface SuggestionRow extends SuggestedTopic {
 })
 export class AdminBlogComponent implements OnInit, OnDestroy {
   private blogService = inject(BlogService);
-  private sanitizer = inject(DomSanitizer);
   private authService = inject(AuthService);
 
   readonly BlogPostStatus = BlogPostStatus;
@@ -62,7 +62,7 @@ export class AdminBlogComponent implements OnInit, OnDestroy {
   editorSlugManuallyEdited = false;
   readonly editorBusy = signal(false);
   readonly editorError = signal('');
-  readonly previewHtml = signal<SafeHtml | null>(null);
+  readonly previewHtml = signal<string | null>(null);
   readonly uploadBusy = signal(false);
   private previewInput$ = new Subject<string>();
 
@@ -289,8 +289,7 @@ export class AdminBlogComponent implements OnInit, OnDestroy {
   }
 
   private renderPreview(md: string): void {
-    const html = marked.parse(md || '', { async: false }) as string;
-    this.previewHtml.set(this.sanitizer.bypassSecurityTrustHtml(html));
+    this.previewHtml.set(marked.parse(md || '', { async: false }));
   }
 
   get metaTitleLength(): number { return (this.editorForm().metaTitle || '').length; }

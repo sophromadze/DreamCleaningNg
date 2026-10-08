@@ -561,7 +561,8 @@ export class StatisticsComponent implements OnInit, OnDestroy {
             padding: 12,
             callbacks: {
               label: (ctx) => {
-                const val = ctx.parsed.y;
+                // Chart.js types a gap in the series as null.
+                const val = ctx.parsed.y ?? 0;
                 return `Revenue: $${val.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
               }
             }

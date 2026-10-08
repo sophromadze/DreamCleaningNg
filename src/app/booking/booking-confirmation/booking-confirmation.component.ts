@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ChangeDetectionStrategy, inject, signal } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectionStrategy, Injector, afterNextRender, effect, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { Subject, takeUntil } from 'rxjs';
@@ -31,6 +31,7 @@ export class BookingConfirmationComponent implements OnInit, OnDestroy {
   private stripeService = inject(StripeService);
   private orderSound = inject(OrderSoundService);
   private billingService = inject(BillingService);
+  private injector = inject(Injector);
 
   protected readonly icons = { faCircleCheck, faCircleNotch, faGift };
 
@@ -43,7 +44,10 @@ export class BookingConfirmationComponent implements OnInit, OnDestroy {
   readonly orderTotal = signal<number>(0);
   currentUser: any;
   readonly cardError = signal<string | null>(null);
-  readonly showApplePay = signal(false);
+  // Apple Pay / Google Pay. The container is rendered while a wallet button is mounted, and shown
+  // only once Stripe reports that this device offers one of the two wallets.
+  readonly showWallet = signal(false);
+  readonly walletAvailable = signal(false);
   // True when a gift card (or credits) covers the full amount, so no Stripe charge is needed.
   // Drives the UI to hide the card form and confirm the booking directly. The server has the
   // final say via the prepare-payment `requiresPayment` flag.
@@ -187,7 +191,7 @@ export class BookingConfirmationComponent implements OnInit, OnDestroy {
 
     // Initialize Stripe Elements asynchronously
     this.initializeStripeElements();
-    this.initApplePay();
+    this.initWalletButton();
   }
 
   ngOnDestroy() {
@@ -198,65 +202,66 @@ export class BookingConfirmationComponent implements OnInit, OnDestroy {
 
     // Clean up Stripe elements
     this.stripeService.destroyCardElement();
-    this.stripeService.destroyPaymentRequestButton();
+    this.stripeService.destroyWalletButton();
   }
 
-  private async initApplePay() {
+  // The wallet sheet shows the amount the page shows.
+  private readonly syncWalletAmount = effect(() => this.stripeService.updateWalletAmount(this.orderTotal()));
+
+  private initWalletButton() {
     // No wallet button when a gift card covers the full amount (nothing to charge).
     if (this.fullyCovered()) return;
-    const pr = await this.stripeService.createPaymentRequest(this.orderTotal(), 'Dream Cleaning NYC');
-    if (!pr) return;
-    this.showApplePay.set(true);
-    setTimeout(() => this.stripeService.createPaymentRequestButton(pr, 'payment-request-button'), 0);
+    this.walletAvailable.set(false);
+    this.showWallet.set(true);
+    afterNextRender(() => {
+      this.stripeService.mountWalletButton({
+        elementId: 'payment-request-button',
+        amount: this.orderTotal(),
+        // Also refuses to start while a charge from an earlier visit to this page is still
+        // settling — isProcessing alone is component-local and resets when the page re-mounts.
+        canStart: () => !this.isProcessing() && this.bookingDataService.paymentPhase === 'idle',
+        onAvailability: available => this.walletAvailable.set(available),
+        onPaymentMethod: paymentMethodId => this.payWithWallet(paymentMethodId),
+        onError: message => this.errorMessage.set(message),
+      });
+    }, { injector: this.injector });
+  }
 
-    pr.on('paymentmethod', (ev: any) => {
-      // Also refuses to start while a charge from an earlier visit to this page is still
-      // settling — isProcessing alone is component-local and resets when the page re-mounts.
-      if (this.isProcessing() || this.bookingDataService.paymentPhase !== 'idle') {
-        ev.complete('fail');
-        return;
-      }
-      this.isProcessing.set(true);
-      this.errorMessage.set('');
-      // No takeUntil on this one: cancelling it would leave the wallet sheet waiting on an
-      // ev.complete() that never comes. The backend's prepare-session reuse covers the
-      // duplicate case here.
-      this.bookingService.preparePayment(this.bookingData()).subscribe({
-        next: async (response: any) => {
-          try {
-            if (response.guestToken && response.guestUser && !this.authService.isLoggedIn()) {
-              this.authService.applyGuestAuth(response.guestToken, response.guestRefreshToken, response.guestUser);
-              this.currentUser = response.guestUser;
-            }
-            // Already paid on an earlier attempt — close the wallet sheet and settle what
-            // exists instead of charging the card a second time. Same rule as the card path.
-            if (response.orderId > 0 || response.alreadyPaidPaymentIntentId) {
-              ev.complete('success');
-              this.settleAlreadyPaidAttempt(response, response.sessionId);
-              return;
-            }
-
-            // Guard up before the charge, same as the card path.
-            this.bookingDataService.markPaymentInFlight();
-            const paymentIntent = await this.stripeService.confirmPaymentRequest(
-              response.paymentClientSecret, ev.paymentMethod.id
-            );
-            ev.complete('success');
-            this.confirmChargedBooking(paymentIntent.id, response.sessionId);
-          } catch (payErr: any) {
-            ev.complete('fail');
-            this.bookingDataService.markPaymentIdle();
-            this.errorMessage.set(payErr.message || 'Payment failed. Please try again.');
-            this.isProcessing.set(false);
+  /** The wallet sheet handed over a card: prepare the booking's intent, then charge that card. */
+  private payWithWallet(paymentMethodId: string) {
+    if (this.isProcessing() || this.bookingDataService.paymentPhase !== 'idle') return;
+    this.isProcessing.set(true);
+    this.errorMessage.set('');
+    // The sheet has already closed and nothing is charged until this answers, so leaving the
+    // page may abandon it — same rule as the card path (see processPayment).
+    this.bookingService.preparePayment(this.bookingData()).pipe(takeUntil(this.destroy$)).subscribe({
+      next: async (response: any) => {
+        try {
+          if (response.guestToken && response.guestUser && !this.authService.isLoggedIn()) {
+            this.authService.applyGuestAuth(response.guestToken, response.guestRefreshToken, response.guestUser);
+            this.currentUser = response.guestUser;
           }
-        },
-        error: (err: any) => {
-          ev.complete('fail');
+          // Already paid on an earlier attempt — settle what exists instead of charging the
+          // card a second time. Same rule as the card path.
+          if (this.settleAlreadyPaidAttempt(response, response.sessionId)) return;
+
+          // Guard up before the charge, same as the card path.
+          this.bookingDataService.markPaymentInFlight();
+          const paymentIntent = await this.stripeService.confirmPaymentRequest(
+            response.paymentClientSecret, paymentMethodId
+          );
+          this.confirmChargedBooking(paymentIntent.id, response.sessionId);
+        } catch (payErr: any) {
           this.bookingDataService.markPaymentIdle();
-          this.errorMessage.set(err.error?.message || 'Failed to prepare payment');
+          this.errorMessage.set(payErr.message || 'Payment failed. Please try again.');
           this.isProcessing.set(false);
         }
-      });
+      },
+      error: (err: any) => {
+        this.bookingDataService.markPaymentIdle();
+        this.errorMessage.set(err.error?.message || 'Failed to prepare payment');
+        this.isProcessing.set(false);
+      }
     });
   }
 
@@ -373,7 +378,7 @@ export class BookingConfirmationComponent implements OnInit, OnDestroy {
             this.fullyCovered.set(false);
             this.errorMessage.set('Your gift card no longer covers the full amount. Please enter your card details to pay the remaining balance.');
             this.isProcessing.set(false);
-            this.initApplePay();
+            this.initWalletButton();
             return;
           }
 

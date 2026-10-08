@@ -21,6 +21,12 @@ export class StickyMobileCtaComponent {
   readonly isVisible = signal(false);
   /** Display label for the first-time discount, e.g. "10%" or "$20". Empty until loaded. */
   readonly firstTimeDiscountLabel = signal('');
+  /**
+   * The bar waits for the offer (or its failure) so it appears whole: drawing it first and adding
+   * "- 10% Off First Cleaning" a moment later slid "Book Online" sideways (a layout shift on every
+   * mobile page load).
+   */
+  private offerResolved = false;
   private isBrowser: boolean;
 
   constructor() {
@@ -42,8 +48,14 @@ export class StickyMobileCtaComponent {
       next: (offers) => {
         const offer = findAdvertisedFirstTimeOffer(offers);
         this.firstTimeDiscountLabel.set(this.buildDiscountLabel(offer));
+        this.offerResolved = true;
+        this.updateVisibility();
       },
-      error: () => { this.firstTimeDiscountLabel.set(''); }
+      error: () => {
+        this.firstTimeDiscountLabel.set('');
+        this.offerResolved = true;
+        this.updateVisibility();
+      }
     });
   }
 
@@ -78,7 +90,7 @@ export class StickyMobileCtaComponent {
       path === route || path.startsWith(route + '/')
     );
 
-    this.isVisible.set(isMobile && !isOnExcludedRoute);
+    this.isVisible.set(isMobile && !isOnExcludedRoute && this.offerResolved);
     this.stickyCtaService.setVisible(this.isVisible());
   }
 

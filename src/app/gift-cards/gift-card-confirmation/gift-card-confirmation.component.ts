@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, PLATFORM_ID, ChangeDetectionStrategy, inject, signal } from '@angular/core';
+import { Component, OnInit, OnDestroy, PLATFORM_ID, ChangeDetectionStrategy, Injector, afterNextRender, inject, signal } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { GiftCardService, CreateGiftCard } from '../../services/gift-card.service';
@@ -20,6 +20,7 @@ export class GiftCardConfirmationComponent implements OnInit, OnDestroy {
   private authService = inject(AuthService);
   private giftCardService = inject(GiftCardService);
   private stripeService = inject(StripeService);
+  private injector = inject(Injector);
   private platformId = inject<Object>(PLATFORM_ID);
 
   protected readonly icons = { faCircleCheck, faEnvelope };
@@ -35,7 +36,10 @@ export class GiftCardConfirmationComponent implements OnInit, OnDestroy {
   isPreparing = false;
 
   readonly cardError = signal<string | null>(null);
-  readonly showApplePay = signal(false);
+  // Apple Pay / Google Pay. The container is rendered while a wallet button is mounted, and shown
+  // only once Stripe reports that this device offers one of the two wallets.
+  readonly showWallet = signal(false);
+  readonly walletAvailable = signal(false);
   private isBrowser: boolean;
 
   constructor() {
@@ -80,7 +84,7 @@ export class GiftCardConfirmationComponent implements OnInit, OnDestroy {
 
   ngOnDestroy() {
     this.stripeService.destroyCardElement();
-    this.stripeService.destroyPaymentRequestButton();
+    this.stripeService.destroyWalletButton();
   }
 
   private async initializeStripeElements() {
@@ -93,51 +97,57 @@ export class GiftCardConfirmationComponent implements OnInit, OnDestroy {
           this.cardError.set(event.error ? event.error.message : null);
         });
       }
-      this.initApplePay();
+      this.initWalletButton();
     } catch (error) {
       console.error('Failed to initialize Stripe elements:', error);
       this.errorMessage.set('Failed to initialize payment form');
     }
   }
 
-  private async initApplePay() {
+  private initWalletButton() {
     if (!this.isBrowser || !this.giftCardData) return;
-    const pr = await this.stripeService.createPaymentRequest(this.giftCardAmount, 'Dream Cleaning NYC');
-    if (!pr) return;
-    this.showApplePay.set(true);
-    setTimeout(() => this.stripeService.createPaymentRequestButton(pr, 'payment-request-button'), 0);
+    this.walletAvailable.set(false);
+    this.showWallet.set(true);
+    afterNextRender(() => {
+      this.stripeService.mountWalletButton({
+        elementId: 'payment-request-button',
+        amount: this.giftCardAmount,
+        canStart: () => !this.isProcessing(),
+        onAvailability: available => this.walletAvailable.set(available),
+        onPaymentMethod: paymentMethodId => this.payWithWallet(paymentMethodId),
+        onError: message => this.errorMessage.set(message),
+      });
+    }, { injector: this.injector });
+  }
 
-    pr.on('paymentmethod', (ev: any) => {
-      if (this.isProcessing()) { ev.complete('fail'); return; }
-      this.isProcessing.set(true);
-      this.errorMessage.set('');
-      this.giftCardService.createGiftCard(this.giftCardData!).subscribe({
-        next: async (response: any) => {
-          try {
-            this.giftCardId = response.giftCardId;
-            const paymentIntent = await this.stripeService.confirmPaymentRequest(
-              response.paymentClientSecret, ev.paymentMethod.id
-            );
-            ev.complete('success');
-            this.giftCardService.confirmGiftCardPayment(this.giftCardId, paymentIntent.id).subscribe({
-              next: () => { this.paymentCompleted.set(true); this.isProcessing.set(false); },
-              error: (err: any) => {
-                this.errorMessage.set(err.error?.message || 'Payment confirmation failed');
-                this.isProcessing.set(false);
-              }
-            });
-          } catch (payErr: any) {
-            ev.complete('fail');
-            this.errorMessage.set(payErr.message || 'Payment failed. Please try again.');
-            this.isProcessing.set(false);
-          }
-        },
-        error: (err: any) => {
-          ev.complete('fail');
-          this.errorMessage.set(err.error?.message || 'Failed to create gift card. Please try again.');
+  /** The wallet sheet handed over a card: create the gift card's intent, then charge that card. */
+  private payWithWallet(paymentMethodId: string) {
+    if (this.isProcessing() || !this.giftCardData) return;
+    this.isProcessing.set(true);
+    this.errorMessage.set('');
+    this.giftCardService.createGiftCard(this.giftCardData).subscribe({
+      next: async (response: any) => {
+        try {
+          this.giftCardId = response.giftCardId;
+          const paymentIntent = await this.stripeService.confirmPaymentRequest(
+            response.paymentClientSecret, paymentMethodId
+          );
+          this.giftCardService.confirmGiftCardPayment(this.giftCardId, paymentIntent.id).subscribe({
+            next: () => { this.paymentCompleted.set(true); this.isProcessing.set(false); },
+            error: (err: any) => {
+              this.errorMessage.set(err.error?.message || 'Payment confirmation failed');
+              this.isProcessing.set(false);
+            }
+          });
+        } catch (payErr: any) {
+          this.errorMessage.set(payErr.message || 'Payment failed. Please try again.');
           this.isProcessing.set(false);
         }
-      });
+      },
+      error: (err: any) => {
+        this.errorMessage.set(err.error?.message || 'Failed to create gift card. Please try again.');
+        this.isProcessing.set(false);
+      }
     });
   }
 

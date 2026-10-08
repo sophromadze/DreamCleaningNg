@@ -6,7 +6,7 @@ import { of, throwError } from 'rxjs';
 import { BookingConfirmationComponent } from './booking-confirmation.component';
 import { BookingDataService } from '../../services/booking-data.service';
 import { BookingService } from '../../services/booking.service';
-import { StripeService } from '../../services/stripe.service';
+import { StripeService, WalletButtonOptions } from '../../services/stripe.service';
 import { OrderSoundService } from '../../services/order-sound.service';
 import { Router, provideRouter } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
@@ -330,6 +330,93 @@ describe('BookingConfirmationComponent', () => {
       component.selectPaymentMethod(null);
       component.onPayClicked();
       expect(component.showSaveCardModal()).toBe(true);
+    });
+  });
+
+  // ── Apple Pay / Google Pay (Express Checkout Element, 2026-10) ─────────────────────────────
+  //
+  // Stripe.js 10 removed the Payment Request Button. The wallet now only hands over a card
+  // PaymentMethod, and the page charges it through the SAME prepare → confirm path as before —
+  // including the already-paid guard, which must keep the second charge from ever happening.
+  describe('the wallet button', () => {
+    let bookingService: BookingService;
+    let stripeService: StripeService;
+    let wallet: WalletButtonOptions | undefined;
+
+    beforeEach(async () => {
+      bookingService = TestBed.inject(BookingService);
+      stripeService = TestBed.inject(StripeService);
+      wallet = undefined;
+      bookingDataService.setBookingData({ serviceDate: '2026-10-20', serviceTime: '10:00', total: 120 });
+
+      vi.spyOn(stripeService, 'initializeElements').mockResolvedValue();
+      vi.spyOn(stripeService, 'createCardElement').mockReturnValue(null);
+      vi.spyOn(stripeService, 'mountWalletButton').mockImplementation(async options => { wallet = options; return true; });
+      vi.spyOn(stripeService, 'confirmCardPayment').mockImplementation(((): Promise<never> =>
+        Promise.reject(new Error('the card form must not be used on the wallet path'))) as any);
+      vi.spyOn(TestBed.inject(Router), 'navigate').mockReturnValue(Promise.resolve(true));
+      vi.spyOn(TestBed.inject(OrderSoundService), 'playBookingConfirmed').mockImplementation(() => {});
+
+      fixture.detectChanges();
+      await fixture.whenStable();
+    });
+
+    it('mounts with the page total and shows its row only when the device has a wallet', async () => {
+      expect(wallet).toEqual(expect.objectContaining({ elementId: 'payment-request-button', amount: 120 }));
+      const row: HTMLElement = fixture.nativeElement.querySelector('#payment-request-button');
+      expect(row.classList.contains('is-available')).toBe(false);
+
+      wallet!.onAvailability(true);
+      await fixture.whenStable();
+      expect(row.classList.contains('is-available')).toBe(true);
+    });
+
+    it('keeps the sheet closed while a payment is running', () => {
+      expect(wallet!.canStart()).toBe(true);
+      component.isProcessing.set(true);
+      expect(wallet!.canStart()).toBe(false);
+    });
+
+    it('charges the wallet card against the prepared intent, then confirms the booking', async () => {
+      vi.spyOn(bookingService, 'preparePayment').mockReturnValue(of({
+        orderId: 0, total: 120, requiresPayment: true, paymentClientSecret: 'pi_new_secret_x',
+        alreadyPaidPaymentIntentId: null, sessionId: 'prepare_payment_9'
+      }));
+      const charge = vi.spyOn(stripeService, 'confirmPaymentRequest').mockResolvedValue({ id: 'pi_new', status: 'succeeded' });
+      const confirm = vi.spyOn(bookingService, 'confirmPayment').mockReturnValue(of({ orderId: 901 }));
+
+      wallet!.onPaymentMethod('pm_wallet');
+
+      await vi.waitFor(() => expect(component.orderId()).toBe(901));
+      expect(charge).toHaveBeenCalledWith('pi_new_secret_x', 'pm_wallet');
+      expect(confirm).toHaveBeenCalledWith(0, 'pi_new', 'prepare_payment_9');
+    });
+
+    it('never charges the wallet card for a booking that is already paid for', async () => {
+      vi.spyOn(bookingService, 'preparePayment').mockReturnValue(of({
+        orderId: 369, total: 120, requiresPayment: false, paymentClientSecret: null,
+        alreadyPaidPaymentIntentId: null, sessionId: 'prepare_payment_9'
+      }));
+      const charge = vi.spyOn(stripeService, 'confirmPaymentRequest');
+
+      wallet!.onPaymentMethod('pm_wallet');
+
+      await vi.waitFor(() => expect(component.orderId()).toBe(369));
+      expect(charge).not.toHaveBeenCalled();
+    });
+
+    it('reports a declined wallet card and lets the customer try again', async () => {
+      vi.spyOn(bookingService, 'preparePayment').mockReturnValue(of({
+        orderId: 0, total: 120, requiresPayment: true, paymentClientSecret: 'pi_new_secret_x',
+        alreadyPaidPaymentIntentId: null, sessionId: 'prepare_payment_9'
+      }));
+      vi.spyOn(stripeService, 'confirmPaymentRequest').mockRejectedValue({ message: 'Your card was declined.' });
+
+      wallet!.onPaymentMethod('pm_wallet');
+
+      await vi.waitFor(() => expect(component.errorMessage()).toBe('Your card was declined.'));
+      expect(component.isProcessing()).toBe(false);
+      expect(bookingDataService.paymentPhase).toBe('idle');
     });
   });
 });

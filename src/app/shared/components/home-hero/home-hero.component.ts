@@ -11,6 +11,7 @@ import { BookingService, ServiceType, Service } from '../../../services/booking.
 import { BookingFormData, FormPersistenceService } from '../../../services/form-persistence.service';
 import { SSR_RESPONSE_CONTEXT } from '../../ssr/ssr-response.token';
 import { SSR_CATALOGUE } from '../../ssr/ssr-catalogue.token';
+import { resolveRenderedOffers } from '../../ssr/rendered-offers';
 import {
   HERO_CHOICE_COOKIE, HeroChoice, decodeHeroChoice, readCookie, validateHeroChoice
 } from '../../booking/hero-choice-cookie';
@@ -321,24 +322,16 @@ export class HomeHeroComponent implements OnInit, OnDestroy {
    * server render that had no copy, fetches it in the browser as before.
    */
   private loadSpecialOffers() {
-    if (!this.isBrowser) {
-      const offers = this.ssrCatalogue?.publicOffers;
-      if (offers) {
-        const advertised = findAdvertisedFirstTimeOffer(offers);
-        this.specialOffers.set(advertised ? [advertised] : []);
-        this.offersKnown.set(true);
-        this.transferState.set(HERO_OFFERS_KEY, this.specialOffers());
-      }
-      return;
-    }
-
-    if (this.hydrating && this.transferState.hasKey(HERO_OFFERS_KEY)) {
-      this.specialOffers.set(this.transferState.get(HERO_OFFERS_KEY, []));
+    const rendered = resolveRenderedOffers(HERO_OFFERS_KEY, {
+      isBrowser: this.isBrowser, hydrating: this.hydrating, transferState: this.transferState, ssrCatalogue: this.ssrCatalogue
+    });
+    if (rendered) {
+      this.specialOffers.set(rendered);
       this.offersKnown.set(true);
-      this.transferState.remove(HERO_OFFERS_KEY);
-      HomeHeroComponent.lastOffers = this.specialOffers();
+      if (this.isBrowser) HomeHeroComponent.lastOffers = rendered;
       return;
     }
+    if (!this.isBrowser) return;
 
     if (HomeHeroComponent.lastOffers) {
       this.specialOffers.set(HomeHeroComponent.lastOffers);

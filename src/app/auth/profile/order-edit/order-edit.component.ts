@@ -1,5 +1,5 @@
 // src/app/auth/profile/order-edit/order-edit.component.ts
-import { Component, OnDestroy, OnInit, PLATFORM_ID, ChangeDetectionStrategy, inject, signal, computed } from '@angular/core';
+import { Component, OnDestroy, OnInit, PLATFORM_ID, ChangeDetectionStrategy, Injector, afterNextRender, effect, inject, signal, computed } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, FormArray, FormControl, Validators } from '@angular/forms';
 import { RouterModule, ActivatedRoute, Router } from '@angular/router';
@@ -120,7 +120,14 @@ export class OrderEditComponent implements OnInit, OnDestroy {
   readonly successMessage = signal('');
   readonly additionalAmount = signal(0);
   readonly showPaymentModal = signal(false);
-  readonly showApplePay = signal(false);
+  // Apple Pay / Google Pay. The container is rendered while a wallet button is mounted, and shown
+  // only once Stripe reports that this device offers one of the two wallets.
+  readonly showWallet = signal(false);
+  readonly walletAvailable = signal(false);
+  private injector = inject(Injector);
+
+  // The wallet sheet shows the amount the payment modal shows.
+  private readonly syncWalletAmount = effect(() => this.stripeService.updateWalletAmount(this.additionalAmount()));
   isSameDaySelected = false;
   
   // Blocked time slots (scheduling restrictions)
@@ -1251,7 +1258,7 @@ export class OrderEditComponent implements OnInit, OnDestroy {
   ngOnDestroy() {
     // Clean up Stripe elements when component is destroyed
     this.stripeService.destroyCardElement();
-    this.stripeService.destroyPaymentRequestButton();
+    this.stripeService.destroyWalletButton();
   }
 
   onPhoneInput(event: Event): void {
@@ -1303,60 +1310,66 @@ export class OrderEditComponent implements OnInit, OnDestroy {
           this.cardError.set(event.error ? event.error.message : null);
         });
       }
-      this.initApplePay();
+      this.initWalletButton();
     } catch (error) {
       console.error('Failed to initialize Stripe elements:', error);
       this.paymentErrorMessage.set('Failed to initialize payment form');
     }
   }
 
-  private async initApplePay() {
+  private initWalletButton() {
     if (!this.order() || !this.updateData || this.additionalAmount() <= 0) return;
-    const pr = await this.stripeService.createPaymentRequest(this.additionalAmount(), 'Dream Cleaning NYC');
-    if (!pr) return;
-    this.showApplePay.set(true);
-    setTimeout(() => this.stripeService.createPaymentRequestButton(pr, 'payment-request-button-order-edit'), 0);
+    this.walletAvailable.set(false);
+    this.showWallet.set(true);
+    afterNextRender(() => {
+      this.stripeService.mountWalletButton({
+        elementId: 'payment-request-button-order-edit',
+        amount: this.additionalAmount(),
+        canStart: () => !this.isProcessingPayment(),
+        onAvailability: available => this.walletAvailable.set(available),
+        onPaymentMethod: paymentMethodId => this.payWithWallet(paymentMethodId),
+        onError: message => this.paymentErrorMessage.set(message),
+      });
+    }, { injector: this.injector });
+  }
 
-    pr.on('paymentmethod', (ev: any) => {
-      if (this.isProcessingPayment()) { ev.complete('fail'); return; }
-      this.isProcessingPayment.set(true);
-      this.paymentErrorMessage.set('');
-      this.orderService.createUpdatePaymentIntent(this.order()!.id, this.updateData!).subscribe({
-        next: async (response: any) => {
-          try {
-            const paymentIntent = await this.stripeService.confirmPaymentRequest(
-              response.paymentClientSecret, ev.paymentMethod.id
-            );
-            ev.complete('success');
-            // Mirror processAdditionalPayment's confirm step exactly.
-            this.orderService.confirmUpdatePayment(
-              this.order()!.id,
-              paymentIntent.id,
-              this.updateData!
-            ).subscribe({
-              next: () => {
-                this.showPaymentModal.set(false);
-                this.successMessage.set('Order updated successfully');
-                this.authService.refreshUserProfile().subscribe({ next: () => {} });
-                setTimeout(() => this.router.navigate(['/order', this.order()!.id]), 1500);
-              },
-              error: (err: any) => {
-                this.paymentErrorMessage.set(err.error?.message || 'Failed to update order after payment');
-                this.isProcessingPayment.set(false);
-              }
-            });
-          } catch (payErr: any) {
-            ev.complete('fail');
-            this.paymentErrorMessage.set(payErr.message || 'Payment failed. Please try again.');
-            this.isProcessingPayment.set(false);
-          }
-        },
-        error: (err: any) => {
-          ev.complete('fail');
-          this.paymentErrorMessage.set(err.error?.message || 'Failed to create payment');
+  /** The wallet sheet handed over a card: create the top-up intent, then charge that card. */
+  private payWithWallet(paymentMethodId: string) {
+    if (this.isProcessingPayment() || !this.order() || !this.updateData) return;
+    this.isProcessingPayment.set(true);
+    this.paymentErrorMessage.set('');
+    this.orderService.createUpdatePaymentIntent(this.order()!.id, this.updateData!).subscribe({
+      next: async (response: any) => {
+        try {
+          const paymentIntent = await this.stripeService.confirmPaymentRequest(
+            response.paymentClientSecret, paymentMethodId
+          );
+          // Mirror processAdditionalPayment's confirm step exactly.
+          this.orderService.confirmUpdatePayment(
+            this.order()!.id,
+            paymentIntent.id,
+            this.updateData!
+          ).subscribe({
+            next: () => {
+              this.showPaymentModal.set(false);
+              this.successMessage.set('Order updated successfully');
+              this.authService.refreshUserProfile().subscribe({ next: () => {} });
+              setTimeout(() => this.router.navigate(['/order', this.order()!.id]), 1500);
+            },
+            error: (err: any) => {
+              this.paymentErrorMessage.set(err.error?.message || 'Failed to update order after payment');
+              this.isProcessingPayment.set(false);
+            }
+          });
+        } catch (payErr: any) {
+          this.paymentErrorMessage.set(payErr.message || 'Payment failed. Please try again.');
           this.isProcessingPayment.set(false);
         }
-      });
+      },
+      error: (err: any) => {
+        this.paymentErrorMessage.set(err.error?.message || 'Failed to create payment');
+        this.isProcessingPayment.set(false);
+      }
     });
   }
 
@@ -1473,10 +1486,11 @@ export class OrderEditComponent implements OnInit, OnDestroy {
       this.showPaymentModal.set(false);
       this.paymentErrorMessage.set('');
       this.cardError.set(null);
-      this.showApplePay.set(false);
+      this.showWallet.set(false);
+      this.walletAvailable.set(false);
       // Clean up Stripe elements
       this.stripeService.destroyCardElement();
-      this.stripeService.destroyPaymentRequestButton();
+      this.stripeService.destroyWalletButton();
     }
   }
 
