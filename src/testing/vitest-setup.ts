@@ -32,9 +32,17 @@ function failFinishedTest(message: string): never {
 // false, as in Karma's single page), and which files share one depends on scheduling — so a login
 // one file left behind could change how an unrelated file starts, run to run. (This hook runs once
 // per file; tests inside a file still share storage the way they always did.)
+//
+// Cookies are storage too. AppComponent writes the 90-day dc_attribution cookie on init, so a file
+// that rendered it made attribution.service.spec start from that "Direct" visit — and its "never
+// overwrite the first touch" rule then kept it (1 run in ~15 failed, depending on scheduling).
 beforeAll(() => {
   localStorage.clear();
   sessionStorage.clear();
+  for (const cookie of document.cookie.split(';')) {
+    const name = cookie.split('=')[0].trim();
+    if (name) document.cookie = `${name}=; path=/; max-age=0`;
+  }
 });
 
 const networkAttempts: string[] = [];
