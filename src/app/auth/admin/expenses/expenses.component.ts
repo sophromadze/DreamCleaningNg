@@ -1,6 +1,8 @@
-import { Component, OnInit, ChangeDetectionStrategy, inject, signal } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy, DestroyRef, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { ActivatedRoute, Router } from '@angular/router';
 import { forkJoin } from 'rxjs';
 import {
   ExpenseService,
@@ -15,6 +17,19 @@ import {
 import { AuthService } from '../../../services/auth.service';
 import { allowsCurrencyChoice, currencySymbol, isSalaryCategory } from '../../../shared/admin/salary-expense.rules';
 
+/** The `?month=` query param: `yyyy-MM`. The year range matches what the server accepts. */
+export function parseMonthParam(value: string | null): { year: number; month: number } | null {
+  const match = /^(\d{4})-(0[1-9]|1[0-2])$/.exec(value ?? '');
+  if (!match) return null;
+  const year = Number(match[1]);
+  if (year < 2000 || year > 2100) return null;
+  return { year, month: Number(match[2]) };
+}
+
+export function formatMonthParam(year: number, month: number): string {
+  return `${year}-${String(month).padStart(2, '0')}`;
+}
+
 @Component({
   selector: 'app-expenses',
   imports: [CommonModule, FormsModule],
@@ -25,6 +40,13 @@ import { allowsCurrencyChoice, currencySymbol, isSalaryCategory } from '../../..
 export class ExpensesComponent implements OnInit {
   private expenseService = inject(ExpenseService);
   private authService = inject(AuthService);
+  private router = inject(Router);
+  private route = inject(ActivatedRoute);
+  private destroyRef = inject(DestroyRef);
+
+  // Each load is numbered so a slow answer for a month the user has already left can't overwrite
+  // the month now on screen (clicking through months quickly, or Back twice).
+  private loadSeq = 0;
 
   // Grouped Category → Name → entries view, scoped to the selected month.
   readonly grouped = signal<GroupedExpenses | null>(null);
@@ -37,7 +59,9 @@ export class ExpensesComponent implements OnInit {
   readonly error = signal('');
   readonly successMessage = signal('');
 
-  // Selected month (1-12) + year for the grouped view.
+  // Selected month (1-12) + year for the grouped view. The URL's `?month=yyyy-MM` is the source
+  // of truth (no param = the current month), so a refresh, a shared link and Back all land on
+  // the month that was on screen.
   readonly selYear = signal(new Date().getFullYear());
   readonly selMonth = signal(new Date().getMonth() + 1);
 
@@ -96,23 +120,48 @@ export class ExpensesComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    this.load();
+    // Every month change goes through the URL, including the first one, so there is exactly one
+    // path from "which month" to "what is loaded".
+    this.route.queryParamMap
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(params => {
+        const raw = params.get('month');
+        const parsed = parseMonthParam(raw);
+        if (raw != null && !parsed) {
+          // A hand-edited or stale link: show the current month and drop the bad value rather
+          // than leaving it in the address bar to be shared again.
+          this.router.navigate([], {
+            relativeTo: this.route,
+            queryParams: { month: null },
+            queryParamsHandling: 'merge',
+            replaceUrl: true
+          });
+          return;
+        }
+        const now = new Date();
+        this.selYear.set(parsed?.year ?? now.getFullYear());
+        this.selMonth.set(parsed?.month ?? now.getMonth() + 1);
+        this.load();
+      });
   }
 
   load(): void {
+    const seq = ++this.loadSeq;
     this.loading.set(true);
     forkJoin({
-      grouped: this.expenseService.getGrouped(this.selYear(), this.selMonth()),
+      grouped: this.expenseService.getGrouped(this.selYear(), this.selMonth(), this.toYmd(new Date())),
       categories: this.expenseService.getCategories(),
       staff: this.expenseService.getStaffMembers()
     }).subscribe({
       next: ({ grouped, categories, staff }) => {
+        if (seq !== this.loadSeq) return;
         this.grouped.set(grouped);
         this.categories.set(categories);
         this.staffMembers.set(staff);
         this.loading.set(false);
       },
       error: (err) => {
+        if (seq !== this.loadSeq) return;
         this.error.set(err.error?.message || 'Failed to load expenses');
         this.loading.set(false);
       }
@@ -122,22 +171,32 @@ export class ExpensesComponent implements OnInit {
   // ─── month navigation ──────────────────────────────────────────────────────
 
   prevMonth(): void {
-    if (this.selMonth() === 1) { this.selMonth.set(12); this.selYear.update(v => v - 1); }
-    else { this.selMonth.update(v => v - 1); }
-    this.load();
+    if (this.selMonth() === 1) this.goToMonth(this.selYear() - 1, 12);
+    else this.goToMonth(this.selYear(), this.selMonth() - 1);
   }
 
   nextMonth(): void {
-    if (this.selMonth() === 12) { this.selMonth.set(1); this.selYear.update(v => v + 1); }
-    else { this.selMonth.update(v => v + 1); }
-    this.load();
+    if (this.selMonth() === 12) this.goToMonth(this.selYear() + 1, 1);
+    else this.goToMonth(this.selYear(), this.selMonth() + 1);
   }
 
   goToCurrentMonth(): void {
     const now = new Date();
-    this.selYear.set(now.getFullYear());
-    this.selMonth.set(now.getMonth() + 1);
-    this.load();
+    this.goToMonth(now.getFullYear(), now.getMonth() + 1);
+  }
+
+  /** A new history entry per month, so Back steps back through the months that were viewed. */
+  private goToMonth(year: number, month: number): void {
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { month: formatMonthParam(year, month) },
+      queryParamsHandling: 'merge'
+    });
+  }
+
+  /** True once the selected month holds at least one listed expense. */
+  get hasEntriesInMonth(): boolean {
+    return (this.grouped()?.categories ?? []).some(c => c.names.length > 0);
   }
 
   get isCurrentMonth(): boolean {
@@ -557,6 +616,11 @@ export class ExpensesComponent implements OnInit {
   formatDate(iso: string): string {
     const d = new Date(iso);
     return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+  }
+
+  /** "Oct 9" — the year is already in the month label beside it. */
+  formatShortDate(iso: string): string {
+    return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   }
 
   // ─── tiny helpers ─────────────────────────────────────────────────────────────

@@ -86,6 +86,11 @@
       font-weight: var(--fw-bold);
       font-size: 1.2rem;
     }
+
+    .month-total-sub {
+      color: var(--text-secondary);
+      font-size: 0.8rem;
+    }
   }
 }
 
@@ -429,16 +434,18 @@
   background: var(--surface-subtle);
 }
 
+// Secondary context under a line's entries — deliberately quieter than the month figure in the
+// line's header, which is its total.
 .entry-alltime {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.4rem;
   padding: 0.5rem 0;
   color: var(--text-secondary);
-  font-size: 0.85rem;
+  font-size: 0.8rem;
 
-  i { color: var(--star-color); }
-  strong { color: var(--text-primary); margin-left: 0.2rem; }
+  .alltime-amount { font-weight: var(--fw-medium); }
 }
 
 .entry-table {
@@ -446,10 +453,11 @@
   border-collapse: collapse;
   font-size: 0.88rem;
 
+  // The entry list sits on --surface-subtle, where plain --text-muted falls short of AA.
   thead th {
     text-align: left;
     padding: 0.5rem 0.75rem;
-    color: var(--text-muted);
+    color: var(--text-muted-on-tint);
     font-size: 0.72rem;
     text-transform: uppercase;
     letter-spacing: 0.05em;
@@ -471,7 +479,7 @@
   .actions-col { width: 1%; white-space: nowrap; text-align: right; }
 
   .notes-row td {
-    color: var(--text-muted);
+    color: var(--text-muted-on-tint);
     font-size: 0.8rem;
     i { margin-right: 0.3rem; }
   }

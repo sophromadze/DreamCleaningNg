@@ -1,11 +1,14 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideHttpClient, withXhr } from '@angular/common/http';
-import { provideRouter } from '@angular/router';
+import { provideRouter, Router } from '@angular/router';
+import { RouterTestingHarness } from '@angular/router/testing';
+import { Location } from '@angular/common';
+import { provideLocationMocks } from '@angular/common/testing';
 import { SOCIAL_AUTH_CONFIG, SocialAuthServiceConfig } from '@abacritt/angularx-social-login';
 
-import { ExpensesComponent } from './expenses.component';
-import { Expense, ExpenseStaffMember } from '../../../services/expense.service';
+import { ExpensesComponent, formatMonthParam, parseMonthParam } from './expenses.component';
+import { Expense, ExpenseStaffMember, GroupedExpenses, GroupedName } from '../../../services/expense.service';
 import { SALARIES_CATEGORY_ID } from '../../../shared/admin/salary-expense.rules';
 
 // A salary names a person. These cover the three states the picker distinguishes — a staff member,
@@ -231,5 +234,232 @@ describe('ExpensesComponent — salaries are paid to a named person', () => {
     req.flush(salaryRow({ categoryId: 1, currency: 'USD' }));
 
     httpMock.match(() => true).forEach(r => r.flush([]));
+  });
+});
+
+// ─── the selected month decides everything on the page ───────────────────────────────────────
+
+describe('ExpensesComponent — the month is the period', () => {
+  let harness: RouterTestingHarness;
+  let httpMock: HttpTestingController;
+  let location: Location;
+
+  function groupedFor(year: number, month: number, overrides: Partial<GroupedExpenses> = {}): GroupedExpenses {
+    const label = new Date(year, month - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    return { year, month, monthLabel: label, monthTotal: 0, chargedToDate: null, toDate: null, categories: [], ...overrides };
+  }
+
+  /** Answers the page's three loads and returns what the grouped request asked for. */
+  function flushLoad(build: (year: number, month: number) => GroupedExpenses = groupedFor) {
+    const req = httpMock.expectOne(r => r.url.includes('/expenses/grouped'));
+    const year = Number(req.request.params.get('year'));
+    const month = Number(req.request.params.get('month'));
+    const today = req.request.params.get('today');
+    req.flush(build(year, month));
+    httpMock.match(r => r.url.includes('/expenses/categories')).forEach(r => r.flush([]));
+    httpMock.match(r => r.url.includes('/expenses/staff')).forEach(r => r.flush([]));
+    return { year, month, today };
+  }
+
+  function open(url: string): Promise<ExpensesComponent> {
+    return harness.navigateByUrl(url, ExpensesComponent);
+  }
+
+  /** Back: the router answers a popstate on a setTimeout, which whenStable alone does not wait for. */
+  async function goBack(): Promise<void> {
+    location.back();
+    await new Promise(resolve => setTimeout(resolve));
+    await settle();
+  }
+
+  async function settle(): Promise<void> {
+    await harness.fixture.whenStable();
+    harness.fixture.detectChanges();
+  }
+
+  function page(): HTMLElement {
+    return harness.routeNativeElement as HTMLElement;
+  }
+
+  function text(): string {
+    return page().textContent?.replace(/\s+/g, ' ') ?? '';
+  }
+
+  const adsLine: GroupedName = {
+    name: 'Google Ads Spend', staffUserId: null, staffUserRemoved: false,
+    monthTotal: 30, allTimeTotal: 2510, monthTotalInCurrency: null, allTimeTotalInCurrency: null, currency: null,
+    entries: [9, 8, 7].map(day => ({
+      id: day, name: 'Google Ads Spend', amount: 10, currency: 'USD' as const, categoryId: 10, categoryName: 'Google Ads',
+      staffUserId: null, staffUserRemoved: false, startDate: `2026-10-0${day}T00:00:00`, isRecurring: false,
+      frequencyMonths: null, endDate: null, prorateByDay: false, notes: null, createdByUserId: 1,
+      createdByUserName: null, createdAt: '2026-10-01T00:00:00', updatedAt: '2026-10-01T00:00:00'
+    }))
+  };
+
+  beforeEach(async () => {
+    TestBed.configureTestingModule({
+      providers: [
+        provideHttpClient(withXhr()),
+        provideHttpClientTesting(),
+        provideRouter([{ path: 'admin/company/expenses', component: ExpensesComponent }]),
+        provideLocationMocks(),
+        {
+          provide: SOCIAL_AUTH_CONFIG,
+          useValue: { autoLogin: false, providers: [], onError: () => {} } as SocialAuthServiceConfig
+        }
+      ]
+    });
+    harness = await RouterTestingHarness.create();
+    // The app starts the popstate listener at bootstrap, which TestBed never runs — without it
+    // Back would change the address and nothing else.
+    TestBed.inject(Router).setUpLocationChangeListener();
+    httpMock = TestBed.inject(HttpTestingController);
+    location = TestBed.inject(Location);
+  });
+
+  afterEach(() => httpMock.verify());
+
+  it('reads and writes the month as yyyy-MM, refusing anything else', () => {
+    expect(parseMonthParam('2026-10')).toEqual({ year: 2026, month: 10 });
+    expect(parseMonthParam('2026-01')).toEqual({ year: 2026, month: 1 });
+    for (const bad of [null, '', '2026-13', '2026-00', '2026-1', '26-10', '2026-10-01', 'abc', '1999-12', '2101-01']) {
+      expect(parseMonthParam(bad)).toBeNull();
+    }
+    expect(formatMonthParam(2026, 3)).toBe('2026-03');
+  });
+
+  it("opens on the current month and sends the browser's own date for the charged-so-far figure", async () => {
+    await open('/admin/company/expenses');
+    const asked = flushLoad();
+
+    const now = new Date();
+    expect(asked.year).toBe(now.getFullYear());
+    expect(asked.month).toBe(now.getMonth() + 1);
+    const day = String(now.getDate()).padStart(2, '0');
+    expect(asked.today).toBe(`${formatMonthParam(now.getFullYear(), now.getMonth() + 1)}-${day}`);
+  });
+
+  it('opens on the month named in the URL', async () => {
+    const component = await open('/admin/company/expenses?month=2026-03');
+    expect(flushLoad()).toEqual(expect.objectContaining({ year: 2026, month: 3 }));
+    expect(component.selYear()).toBe(2026);
+    expect(component.selMonth()).toBe(3);
+  });
+
+  it('puts every month switch in the URL, and Back walks back through them', async () => {
+    const component = await open('/admin/company/expenses?month=2026-10');
+    flushLoad();
+
+    component.prevMonth();
+    await settle();
+    expect(location.path()).toBe('/admin/company/expenses?month=2026-09');
+    expect(flushLoad()).toEqual(expect.objectContaining({ year: 2026, month: 9 }));
+
+    component.prevMonth();
+    await settle();
+    expect(flushLoad()).toEqual(expect.objectContaining({ year: 2026, month: 8 }));
+
+    await goBack();
+    expect(location.path()).toBe('/admin/company/expenses?month=2026-09');
+    expect(flushLoad()).toEqual(expect.objectContaining({ year: 2026, month: 9 }));
+    expect(component.selMonth()).toBe(9);
+
+    await goBack();
+    expect(flushLoad()).toEqual(expect.objectContaining({ year: 2026, month: 10 }));
+  });
+
+  it('crosses the year boundary in both directions', async () => {
+    const component = await open('/admin/company/expenses?month=2026-01');
+    flushLoad();
+
+    component.prevMonth();
+    await settle();
+    expect(location.path()).toBe('/admin/company/expenses?month=2025-12');
+    flushLoad();
+
+    component.nextMonth();
+    await settle();
+    flushLoad();
+    component.nextMonth();
+    await settle();
+    expect(location.path()).toBe('/admin/company/expenses?month=2026-02');
+    flushLoad();
+  });
+
+  it('replaces a malformed month with the current one instead of loading it', async () => {
+    const component = await open('/admin/company/expenses?month=2026-13');
+    await settle();
+
+    expect(location.path()).toBe('/admin/company/expenses');
+    const asked = flushLoad();
+    const now = new Date();
+    expect(asked.month).toBe(now.getMonth() + 1);
+    expect(component.selMonth()).toBe(now.getMonth() + 1);
+  });
+
+  it('ignores a slow answer for a month the user has already left', async () => {
+    const component = await open('/admin/company/expenses?month=2026-10');
+    const october = httpMock.expectOne(r => r.url.includes('/expenses/grouped'));
+    httpMock.match(r => !r.url.includes('/expenses/grouped')).forEach(r => r.flush([]));
+
+    component.prevMonth();
+    await settle();
+    flushLoad();                                   // September arrives first…
+    october.flush(groupedFor(2026, 10));           // …then the stale October answer.
+
+    expect(component.grouped()!.month).toBe(9);
+    expect(component.loading()).toBe(false);
+  });
+
+  it('labels the total with the month on screen and lists only what the server listed for it', async () => {
+    const component = await open('/admin/company/expenses?month=2026-10');
+    flushLoad((y, m) => groupedFor(y, m, {
+      monthTotal: 30,
+      categories: [
+        { categoryId: 10, categoryName: 'Google Ads', displayOrder: 0, monthTotal: 30, names: [adsLine] },
+        { categoryId: 12, categoryName: 'Office', displayOrder: 2, monthTotal: 0, names: [] }
+      ]
+    }));
+    await settle();
+
+    expect(text()).toContain('October 2026 total');
+    expect(text()).not.toContain('This month');
+    // A category with nothing in the month is not shown at all.
+    expect(page().querySelectorAll('.category-block').length).toBe(1);
+
+    component.toggleCategory(10);
+    component.toggleName(10, 'Google Ads Spend');
+    await settle();
+
+    expect(page().querySelectorAll('.entry-table tbody tr').length).toBe(3);
+    // The all-time figure survives only as clearly labelled context, never as the line's total.
+    expect(text()).toContain('All time through October 2026: $ 2,510.00');
+    expect(text()).not.toContain('Total to date across all entries');
+    expect(page().querySelector('.name-total')!.textContent).toContain('30.00');
+    expect(page().querySelector('.category-total')!.textContent).toContain('30.00');
+  });
+
+  it('shows the charged-so-far line only when the server sends one (the running month)', async () => {
+    const component = await open('/admin/company/expenses?month=2026-10');
+    flushLoad((y, m) => groupedFor(y, m, { monthTotal: 320, chargedToDate: 20, toDate: '2026-10-09T00:00:00' }));
+    await settle();
+    expect(text()).toContain('$ 320.00');
+    expect(text()).toContain('Charged through Oct 9: $ 20.00');
+
+    component.prevMonth();
+    await settle();
+    flushLoad((y, m) => groupedFor(y, m, { monthTotal: 50 }));
+    await settle();
+    expect(text()).not.toContain('Charged through');
+  });
+
+  it('says the month is empty rather than showing nothing', async () => {
+    await open('/admin/company/expenses?month=2026-01');
+    flushLoad((y, m) => groupedFor(y, m, {
+      categories: [{ categoryId: 10, categoryName: 'Google Ads', displayOrder: 0, monthTotal: 0, names: [] }]
+    }));
+    await settle();
+
+    expect(text()).toContain('No expenses in January 2026.');
   });
 });

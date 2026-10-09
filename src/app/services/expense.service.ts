@@ -130,11 +130,19 @@ export interface GroupedCategory {
   names: GroupedName[];
 }
 
+// One calendar month. Only names and entries that charge in that month are listed.
 export interface GroupedExpenses {
   year: number;
   month: number;
   monthLabel: string;
+  /** The WHOLE calendar month, including charges dated later in it. */
   monthTotal: number;
+  /**
+   * Running month only: charged up to and including `toDate` — the figure Finances' "This Month"
+   * shows with its projection off. Null for every other month.
+   */
+  chargedToDate?: number | null;
+  toDate?: string | null;
   categories: GroupedCategory[];
 }
 
@@ -175,8 +183,10 @@ export class ExpenseService {
     return this.http.get<ExpenseBreakdown>(`${this.apiUrl}/breakdown`, { params });
   }
 
-  getGrouped(year: number, month: number): Observable<GroupedExpenses> {
-    const params = new HttpParams().set('year', year).set('month', month);
+  /** `today` (yyyy-MM-dd) ends the running month's charged-so-far figure on the caller's own day. */
+  getGrouped(year: number, month: number, today?: string): Observable<GroupedExpenses> {
+    let params = new HttpParams().set('year', year).set('month', month);
+    if (today) params = params.set('today', today);
     return this.http.get<GroupedExpenses>(`${this.apiUrl}/grouped`, { params });
   }
 

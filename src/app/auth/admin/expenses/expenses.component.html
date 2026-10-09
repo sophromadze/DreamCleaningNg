@@ -42,8 +42,16 @@
       }
     </div>
     <div class="month-total">
-      <span class="month-total-label">This month</span>
+      <span class="month-total-label">{{ grouped()?.monthLabel ? grouped()!.monthLabel + ' total' : 'Month total' }}</span>
       <span class="month-total-value">$ {{ (grouped()?.monthTotal || 0) | number:'1.2-2' }}</span>
+      <!-- Running month only: what Finances' "This Month" reports — the total above also counts
+           charges dated later in the month. -->
+      @if (grouped()?.chargedToDate != null && grouped()?.toDate) {
+      <span class="month-total-sub">
+        Charged through {{ formatShortDate(grouped()!.toDate!) }}:
+        $ {{ grouped()!.chargedToDate! | number:'1.2-2' }}
+      </span>
+      }
     </div>
   </div>
 
@@ -302,15 +310,15 @@
   <!-- Grouped list ──────────────────────────────────────────────────────── -->
   @if (!loading() && grouped()) {
   <div class="grouped-list">
-    @if (grouped()!.monthTotal === 0 && grouped()!.categories.length === 0) {
+    @if (!hasEntriesInMonth) {
     <div class="empty-state">
       <i class="fas fa-receipt"></i>
-      <p>No expenses recorded yet. Add your first one above.</p>
+      <p>No expenses in {{ grouped()!.monthLabel }}.</p>
     </div>
     }
-    @for (cat of grouped()!.categories; track $index) {
+    @for (cat of grouped()!.categories; track cat.categoryId) {
 
-      <!-- A category only shows if it has names (any month/all-time activity). -->
+      <!-- A category only shows when something in it charges in the selected month. -->
       @if (cat.names.length > 0) {
       <div class="category-block">
         <div class="category-head" (click)="toggleCategory(cat.categoryId)">
@@ -364,17 +372,17 @@
             <!-- Individual entries for this name -->
             @if (isNameOpen(cat.categoryId, n.name)) {
             <div class="entry-list">
+              <!-- Secondary context only: the line's total is the month figure in its header. -->
               <div class="entry-alltime">
-                <i class="fas fa-coins"></i>
-                Total to date across all entries:
+                All time through {{ grouped()!.monthLabel }}:
                 @if (n.allTimeTotalInCurrency != null) {
-                <strong>
+                <span class="alltime-amount">
                   {{ symbolFor(n.currency) }} {{ n.allTimeTotalInCurrency | number:'1.2-2' }}
-                </strong>
+                </span>
                 }
-                <strong [class.converted-amount]="n.allTimeTotalInCurrency != null">
+                <span class="alltime-amount" [class.converted-amount]="n.allTimeTotalInCurrency != null">
                   $ {{ n.allTimeTotal | number:'1.2-2' }}
-                </strong>
+                </span>
               </div>
 
               <table class="entry-table">
