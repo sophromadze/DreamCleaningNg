@@ -1957,6 +1957,21 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     this.loadOrders();
   }
 
+  /**
+   * Stop recurrence deleted orders. When the order on screen was one of them its panel has nothing
+   * left to show, so it closes and the outcome (with any "tell the cleaner" warning) moves to the
+   * page banner; otherwise the panel already says so itself.
+   */
+  onRecurringOrdersDeleted(event: { deletedOrderIds: number[]; warnings: string[] }): void {
+    const open = this.selectedOrder();
+    if (open && event.deletedOrderIds.includes(open.id)) {
+      this.closeOrderDetails();
+      this.successMessage.set([`Recurrence stopped. ${event.deletedOrderIds.length} order(s) deleted.`, ...event.warnings].join(' '));
+      setTimeout(() => this.clearMessages(), event.warnings.length ? 12000 : 4000);
+    }
+    this.loadOrders();
+  }
+
   private ordersLoadVersion = 0;
 
   loadOrders() {
@@ -3495,17 +3510,20 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
 
     this.deletingOrder.set(true);
     this.adminService.deleteOrder(order.id).subscribe({
-      next: () => {
+      next: (res) => {
         this.deletingOrder.set(false);
-        this.successMessage.set(`Order #${order.id} deleted.`);
-        setTimeout(() => this.clearMessages(), 3000);
+        // A cleaner who had been sent the assignment is named, because nothing tells them the job is off.
+        const warnings = res?.warnings ?? [];
+        this.successMessage.set([`Order #${order.id} deleted.`, ...warnings].join(' '));
+        setTimeout(() => this.clearMessages(), warnings.length ? 12000 : 3000);
         this.closeOrderDetails();
         this.loadOrders();
       },
       error: (err) => {
         this.deletingOrder.set(false);
         this.errorMessage.set(err?.error?.message || 'Failed to delete order.');
-        setTimeout(() => this.clearMessages(), 4000);
+        // The refusal names what to do first (refund, invoice, stop the recurrence) — leave time to read it.
+        setTimeout(() => this.clearMessages(), 10000);
       }
     });
   }

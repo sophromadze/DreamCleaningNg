@@ -2374,7 +2374,9 @@
                     [orderServiceDate]="selectedOrder()!.serviceDate"
                     [canCreate]="userPermissions().permissions.canCreate"
                     [canUpdate]="userPermissions().permissions.canUpdate"
-                    (ordersGenerated)="onRecurringOrdersGenerated()">
+                    [canDeleteOrders]="isSuperAdmin()"
+                    (ordersGenerated)="onRecurringOrdersGenerated()"
+                    (ordersDeleted)="onRecurringOrdersDeleted($event)">
                   </app-recurring-series-panel>
                   }
 

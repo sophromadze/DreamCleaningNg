@@ -9,8 +9,10 @@ import {
   RecurringSeries,
   RecurrenceIntervalUnit,
   SaveRecurringSeries, RecurringPricePreview,
-  RecurringContractOption, MAX_UPCOMING_OCCURRENCE_TARGET
+  RecurringContractOption, MAX_UPCOMING_OCCURRENCE_TARGET,
+  RecurringStopPreview, RecurringStopCandidate, RecurringSkipResult
 } from '../../../services/recurring-order.service';
+import { formatTime12h } from '../../booking/extra-service-display.utils';
 
 /** Sunday-first, the order the service-day chips are shown in. Values are JS/.NET weekday numbers. */
 export const WEEKDAY_CHIPS: { value: number; label: string }[] = [
@@ -116,8 +118,20 @@ export class RecurringSeriesPanelComponent implements OnChanges {
    */
   readonly orderServiceDate = input<string | Date | null>(null);
 
+  /**
+   * Whether Stop recurrence may DELETE orders. Permanent deletion is SuperAdmin-only on the server
+   * (the same rule as the order panel's Delete); anyone who may update a plan may still stop it.
+   */
+  readonly canDeleteOrders = input(false);
+
   /** Raised after a generation pass so the host can refresh its order list. */
   readonly ordersGenerated = output<number[]>();
+
+  /**
+   * Raised after Stop recurrence deleted orders. The host refreshes its list, and closes its
+   * detail panel when the order it is showing was one of them.
+   */
+  readonly ordersDeleted = output<{ deletedOrderIds: number[]; warnings: string[] }>();
 
   readonly series = signal<RecurringSeries | null>(null, { equal: () => false });
   readonly loading = signal(false);
@@ -139,7 +153,22 @@ export class RecurringSeriesPanelComponent implements OnChanges {
   readonly autoRequestPayment = signal(true);
   readonly serviceTime = signal('');
   readonly futureOrdersAction = signal<'Keep' | 'Regenerate' | null>(null);
-  readonly pendingAction = signal<{ kind: 'pause' | 'resume' | 'stop' | 'skip'; orderId?: number } | null>(null);
+  readonly pendingAction = signal<{ kind: 'pause' | 'resume' | 'skip'; orderId?: number } | null>(null);
+
+  // ── Stop recurrence dialog ──────────────────────────────────────────────────────────────
+  /** Null while closed. Lists ONLY the plan's unfinished orders; finished ones are never touched. */
+  readonly stopPreview = signal<RecurringStopPreview | null>(null);
+  readonly stopLoading = signal(false);
+  readonly stopError = signal('');
+  /** The orders ticked for deletion. Every deletable one starts ticked. */
+  readonly stopSelection = signal<ReadonlySet<number>>(new Set());
+  readonly formatTime = formatTime12h;
+
+  readonly deletableStopRows = computed(() => (this.stopPreview()?.orders ?? []).filter(o => o.canDelete));
+  readonly allStopRowsSelected = computed(() => {
+    const rows = this.deletableStopRows();
+    return rows.length > 0 && rows.every(o => this.stopSelection().has(o.orderId));
+  });
   readonly isActive = signal(true);
   readonly notes = signal('');
 
@@ -243,6 +272,7 @@ export class RecurringSeriesPanelComponent implements OnChanges {
 
   private load(): void {
     this.series.set(null);
+    this.stopPreview.set(null);
     this.editing.set(false);
     this.startingNew.set(false);
     this.errorMessage.set('');
@@ -291,7 +321,8 @@ export class RecurringSeriesPanelComponent implements OnChanges {
   }
 
   startSetup(startNew = false): void {
-    if (startNew && (!this.canCreate() || !this.series()?.stoppedAt || this.series()!.templateOrderId !== this.orderId())) return;
+    // ANY order of a stopped plan may start a new one (2026-10), not only the old source.
+    if (startNew && (!this.canCreate() || !this.series()?.stoppedAt)) return;
     this.startingNew.set(startNew);
     this.editing.set(true);
     this.errorMessage.set('');
@@ -351,8 +382,17 @@ export class RecurringSeriesPanelComponent implements OnChanges {
     this.refreshSuggestedFirstCleaning();
   }
 
+  /**
+   * The order a plan is built from. A NEW plan (after Stop) is built from the order on screen —
+   * its own current price and data — never from the stopped plan's old source; an existing plan
+   * keeps reading its own source.
+   */
+  private sourceOrderId(): number | null {
+    return this.startingNew() ? this.orderId() : (this.series()?.templateOrderId ?? this.orderId());
+  }
+
   private loadContractOptions(preselect: boolean): void {
-    const id = this.series()?.templateOrderId ?? this.orderId();
+    const id = this.sourceOrderId();
     if (!id) return;
     this.recurring.contractOptions(id).subscribe({
       next: options => {
@@ -456,7 +496,7 @@ export class RecurringSeriesPanelComponent implements OnChanges {
   private readonly loyaltyAmountToSend = computed<number | null>(() => this.loyaltyDiscountMode() === 'fixed' ? this.recurringLoyaltyDiscountAmount() : null);
 
   refreshPricePreview(): void {
-    const id = this.series()?.templateOrderId ?? this.orderId();
+    const id = this.sourceOrderId();
     const version = ++this.previewRequest;
     this.pricePreview.set(null); this.previewError.set('');
     if (!id) return;
@@ -624,14 +664,92 @@ export class RecurringSeriesPanelComponent implements OnChanges {
       ? this.recurring.skip(this.series()!.id, action.orderId!)
       : this.recurring.setState(this.series()!.id, action.kind);
     request.pipe(finalize(() => { this.saving.set(false); })).subscribe({
-      next: () => {
+      next: (response) => {
         this.pendingAction.set(null);
-        this.noticeMessage.set(action.kind === 'skip' ? 'This cleaning was skipped. Later dates stay on the original schedule.' : 'Recurrence updated. Existing orders are kept.');
+        const warnings = action.kind === 'skip' ? ((response as RecurringSkipResult | null)?.warnings ?? []) : [];
+        this.noticeMessage.set([
+          action.kind === 'skip' ? 'This cleaning was skipped. Later dates stay on the original schedule.' : 'Recurrence updated. Existing orders are kept.',
+          ...warnings
+        ].join(' '));
         this.refresh();
         this.ordersGenerated.emit([]);
       },
       error: err => { this.errorMessage.set(extractApiErrorMessage(err, 'Could not update the recurrence.')); }
     });
+  }
+
+  /** Opens the Stop dialog with the plan's unfinished orders; every deletable one starts ticked. */
+  openStopDialog(): void {
+    const series = this.series();
+    if (!series || !this.canUpdate() || this.stopLoading()) return;
+    this.pendingAction.set(null);
+    this.errorMessage.set('');
+    this.noticeMessage.set('');
+    this.stopError.set('');
+    this.stopLoading.set(true);
+    this.recurring.stopPreview(series.id)
+      .pipe(finalize(() => { this.stopLoading.set(false); }))
+      .subscribe({
+        next: (preview) => {
+          this.stopPreview.set(preview);
+          this.stopSelection.set(new Set(this.canDeleteOrders()
+            ? preview.orders.filter(o => o.canDelete).map(o => o.orderId) : []));
+        },
+        error: err => { this.errorMessage.set(extractApiErrorMessage(err, 'Could not load the orders of this plan.')); }
+      });
+  }
+
+  closeStopDialog(): void {
+    if (this.saving()) return;
+    this.stopPreview.set(null);
+    this.stopError.set('');
+  }
+
+  isStopSelected(row: RecurringStopCandidate): boolean {
+    return this.stopSelection().has(row.orderId);
+  }
+
+  toggleStopRow(row: RecurringStopCandidate): void {
+    if (!row.canDelete || !this.canDeleteOrders()) return;
+    const next = new Set(this.stopSelection());
+    if (next.has(row.orderId)) next.delete(row.orderId); else next.add(row.orderId);
+    this.stopSelection.set(next);
+  }
+
+  /** "Select all / none" — over the deletable rows only; a blocked row can never be ticked. */
+  toggleAllStopRows(): void {
+    if (!this.canDeleteOrders()) return;
+    this.stopSelection.set(this.allStopRowsSelected()
+      ? new Set() : new Set(this.deletableStopRows().map(o => o.orderId)));
+  }
+
+  confirmStop(): void {
+    const series = this.series();
+    if (!series || !this.stopPreview() || this.saving() || !this.canUpdate()) return;
+    const ids = this.canDeleteOrders() ? [...this.stopSelection()] : [];
+    this.saving.set(true);
+    this.stopError.set('');
+    this.recurring.stop(series.id, ids)
+      .pipe(finalize(() => { this.saving.set(false); }))
+      .subscribe({
+        next: (result) => {
+          this.stopPreview.set(null);
+          const deleted = result.deletedOrderIds ?? [];
+          const warnings = result.warnings ?? [];
+          this.noticeMessage.set([
+            deleted.length
+              ? `Recurrence stopped. ${deleted.length} order(s) deleted; the rest stay as ordinary orders.`
+              : 'Recurrence stopped. Existing orders are kept.',
+            ...warnings
+          ].join(' '));
+          this.series.set(result.series);
+          if (result.series) this.seedFormFrom(result.series);
+          if (deleted.length) this.ordersDeleted.emit({ deletedOrderIds: deleted, warnings });
+          else this.ordersGenerated.emit([]);
+        },
+        // Shown inside the dialog: nothing was changed, and the ticks are still there to adjust.
+        error: err => { this.stopError.set(extractApiErrorMessage(err, 'Could not stop the recurrence.')); }
+      });
   }
 
   private refresh(): void {

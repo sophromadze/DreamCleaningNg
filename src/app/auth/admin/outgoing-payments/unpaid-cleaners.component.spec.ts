@@ -70,7 +70,9 @@ describe('UnpaidCleanersComponent', () => {
     expect(text).toContain('$147.00');
     expect(text).toContain('Ben Okafor');
     expect(text).toContain('$189.00');
-    expect(text).toContain('Zelle · 6465550134');
+    expect(text).toContain('Zelle');
+    expect(text).toContain('6465550134');
+    expect(text).toContain('No payment method on file');
     // Unassigned slots are owed too, but not payable here — said so rather than hidden.
     expect(text).toContain('$52.50 is owed to 1 staffing slot');
   });
@@ -140,6 +142,69 @@ describe('UnpaidCleanersComponent', () => {
     expect(component.error()).toContain('changed after the confirmation opened');
     expect(component.confirming()).toBe(false);
     http.expectOne(`${BASE}/cleaners/unpaid`).flush(list());
+  });
+
+  describe('the name filter', () => {
+    const typeName = (value: string) => {
+      const input = fixture.nativeElement.querySelector('#unpaidNameFilter') as HTMLInputElement;
+      input.value = value;
+      input.dispatchEvent(new Event('input'));
+      fixture.detectChanges();
+    };
+
+    it('matches a first name, a surname, or both typed with a space', () => {
+      typeName('ana');
+      expect(component.cleaners().map(c => c.cleanerId)).toEqual([418]);
+
+      typeName('Ben Oka');
+      expect(component.cleaners().map(c => c.cleanerId)).toEqual([419]);
+      expect(fixture.nativeElement.textContent).not.toContain('Ana Reyes');
+
+      typeName('Ana Okafor');
+      expect(component.cleaners()).toEqual([]);
+      expect(fixture.nativeElement.textContent).toContain('No cleaner owed money matches');
+    });
+
+    it('selects, totals and pays only the cleaners on screen', () => {
+      component.toggleAll(true);
+      typeName('Ben');
+
+      expect(component.selectedCleaners().map(c => c.cleanerId)).toEqual([419]);
+      expect(component.selectedTotal()).toBe(42);
+      expect(component.visibleTotal()).toBe(42);
+
+      component.openConfirm();
+      component.confirmPay();
+      const request = http.expectOne(`${BASE}/cleaners/pay`);
+      expect(request.request.body.cleaners.map((c: { cleanerId: number }) => c.cleanerId)).toEqual([419]);
+      request.flush({ payoutIds: [1], cleanerCount: 1, totalPaid: 42, alreadyRecorded: false });
+      http.expectOne(`${BASE}/cleaners/unpaid`).flush(list());
+    });
+  });
+
+  it('copies the payment details alone, and confirms it', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+
+    (fixture.nativeElement.querySelector('.copy-btn') as HTMLButtonElement).click();
+    await Promise.resolve();
+    fixture.detectChanges();
+
+    expect(writeText).toHaveBeenCalledWith('6465550134');
+    expect(component.isCopied(component.cleaners()[0])).toBe(true);
+    // Ben has nothing on file, so there is no button to press for him.
+    expect(fixture.nativeElement.querySelectorAll('.copy-btn').length).toBe(1);
+  });
+
+  it('asks for the month the page is showing, and again when it moves', () => {
+    fixture.componentRef.setInput('from', '2026-08-01');
+    fixture.componentRef.setInput('to', '2026-08-31');
+    fixture.detectChanges();
+
+    const req = http.expectOne(r => r.url === `${BASE}/cleaners/unpaid`);
+    expect(req.request.params.get('from')).toBe('2026-08-01');
+    expect(req.request.params.get('to')).toBe('2026-08-31');
+    req.flush(list());
   });
 
   it('works out today in New York, not in the browser\'s zone', () => {

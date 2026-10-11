@@ -1830,8 +1830,8 @@ export class AdminService {
   }
 
   /** SuperAdmin-only: permanently delete an order (no refund). */
-  deleteOrder(orderId: number): Observable<{ message: string }> {
-    return this.http.delete<{ message: string }>(`${this.apiUrl}/orders/${orderId}`);
+  deleteOrder(orderId: number): Observable<{ message: string; warnings?: string[] }> {
+    return this.http.delete<{ message: string; warnings?: string[] }>(`${this.apiUrl}/orders/${orderId}`);
   }
 
   sendReviewRequest(orderId: number): Observable<any> {

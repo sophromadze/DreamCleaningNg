@@ -73,6 +73,25 @@
     gap: 0.5rem;
   }
 
+  /* Unpaid cleaners: lifts the month so everything still owed is listed. */
+  .month-scope-toggle {
+    padding: 0.3rem 0.8rem;
+    border: 1px solid var(--border-color);
+    border-radius: 999px;
+    background: var(--surface);
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    font-family: inherit;
+    cursor: pointer;
+
+    &.active {
+      background: var(--soft-blue);
+      border-color: var(--primary-color);
+      color: var(--primary-text-elevated);
+      font-weight: 600;
+    }
+  }
+
   .month-label {
     min-width: 10ch;
     text-align: center;
@@ -312,13 +331,23 @@
     }
 
     .cleaners-col {
-      max-width: 200px;
+      min-width: 150px;
 
+      /* Full names, one per line: wraps instead of the Orders tab's one-line ellipsis. */
       .cleaners-names {
         display: block;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
+        max-width: none;
+        overflow: visible;
+        white-space: normal;
+      }
+
+      .cleaners-count-label {
+        color: var(--text-muted);
+      }
+
+      .cleaner-full-name {
+        display: block;
+        color: var(--text-primary);
       }
 
       .no-cleaners {

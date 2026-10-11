@@ -8,6 +8,18 @@
   <div class="view-message error" role="alert">{{ error() }}</div>
   }
 
+  <!-- Narrows the list by name as you type; "Irma Xar" matches Irma Xarebava. -->
+  <div class="history-filters unpaid-filters">
+    <div class="filter-field name-filter">
+      <label for="unpaidNameFilter">Cleaner name</label>
+      <input id="unpaidNameFilter" type="search" placeholder="First or last name"
+             [ngModel]="nameFilter()" (ngModelChange)="nameFilter.set($event)">
+    </div>
+    @if (nameFilter().trim()) {
+    <button type="button" class="btn-link-plain" (click)="nameFilter.set('')">Clear</button>
+    }
+  </div>
+
   <!-- The bar that follows the selection: how many, how much, and the one action. -->
   <div class="selection-bar">
     <label class="select-all">
@@ -18,17 +30,17 @@
     </label>
 
     <div class="selection-totals" aria-live="polite">
-      @if (selected().size) {
-      <span>{{ selected().size }} selected</span>
+      @if (selectedCleaners().length) {
+      <span>{{ selectedCleaners().length }} selected</span>
       <span class="selection-amount">{{ selectedTotal() | currency:'USD' }}</span>
       } @else {
-      <span>Owed in total</span>
-      <span class="selection-amount">{{ (data()?.totalOutstanding ?? 0) | currency:'USD' }}</span>
+      <span>{{ nameFilter().trim() ? 'Owed to these' : 'Owed in total' }}</span>
+      <span class="selection-amount">{{ visibleTotal() | currency:'USD' }}</span>
       }
     </div>
 
     <button type="button" class="btn-pay-selected" (click)="openConfirm()"
-            [disabled]="!selected().size || paying()">
+            [disabled]="!selectedCleaners().length || paying()">
       Mark selected paid
     </button>
   </div>
@@ -39,11 +51,13 @@
 
   @if (data(); as list) {
     @if (!list.cleaners.length) {
-    <div class="view-empty">Nobody is owed anything right now.</div>
+    <div class="view-empty">Nobody is owed anything {{ from() ? 'for this month' : 'right now' }}.</div>
+    } @else if (!cleaners().length) {
+    <div class="view-empty">No cleaner owed money matches “{{ nameFilter().trim() }}”.</div>
     }
 
     <ul class="cleaner-list">
-      @for (cleaner of list.cleaners; track cleaner.cleanerId) {
+      @for (cleaner of cleaners(); track cleaner.cleanerId) {
       <li class="cleaner-card" [class.selected]="isSelected(cleaner)">
         <div class="cleaner-row">
           <input type="checkbox" class="cleaner-check" [id]="'pay-cleaner-' + cleaner.cleanerId"
@@ -55,7 +69,35 @@
             <span class="tag muted-tag">Inactive</span>
             }
           </label>
-          <span class="cleaner-destination">{{ paymentSummary(cleaner) }}</span>
+          <!-- The method is a quiet label; the copy button copies the DETAILS ALONE, ready to
+               paste into a banking app. -->
+          <span class="cleaner-destination">
+            @if (paymentDetails(cleaner)) {
+              @if (methodLabel(cleaner)) {
+              <span class="destination-method">{{ methodLabel(cleaner) }}</span>
+              }
+              <code class="destination-value">{{ paymentDetails(cleaner) }}</code>
+              <button type="button" class="copy-btn" [class.copied]="isCopied(cleaner)"
+                      (click)="copyPaymentDetails(cleaner)"
+                      [attr.aria-label]="'Copy ' + cleanerName(cleaner) + '\'s payment details'"
+                      [title]="isCopied(cleaner) ? 'Copied' : 'Copy'">
+                @if (!isCopied(cleaner)) {
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"
+                     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                </svg>
+                } @else {
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"
+                     stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+                }
+              </button>
+            } @else {
+              {{ paymentSummary(cleaner) }}
+            }
+          </span>
           <span class="cleaner-amount">{{ cleaner.totalOutstanding | currency:'USD' }}</span>
           <button type="button" class="expand-btn" (click)="toggleExpanded(cleaner)"
                   [attr.aria-expanded]="isExpanded(cleaner)"

@@ -115,6 +115,12 @@ export class OutgoingPaymentsComponent implements OnInit, OnDestroy {
    */
   readonly cleanerView = signal<CleanerView>('orders');
 
+  /**
+   * Unpaid cleaners follows the month bar like the Orders view does; "All months" lifts it, because
+   * money owed for a March job is still owed in October. Any move of the month bar turns it off.
+   */
+  readonly unpaidAllMonths = signal(false);
+
   // ===== Staff salaries (Employees tab) =====
   /**
    * The employees' monthly salaries for the month on screen, each split into the two instalments
@@ -328,9 +334,29 @@ export class OutgoingPaymentsComponent implements OnInit, OnDestroy {
     this.syncUrl();
   }
 
-  /** The month bar belongs to the Orders view and the Employees tab; the other two are not monthly. */
+  /**
+   * The month bar belongs to the Orders and Unpaid cleaners views and the Employees tab. Paid
+   * cleaners has its own paid-from / paid-to dates, so a second date control there would compete.
+   */
   get showMonthBar(): boolean {
-    return this.activeTab() === 'employees' || this.cleanerView() === 'orders';
+    return this.activeTab() === 'employees' || this.cleanerView() !== 'paid';
+  }
+
+  get isUnpaidView(): boolean {
+    return this.activeTab() === 'cleaners' && this.cleanerView() === 'unpaid';
+  }
+
+  /** The Unpaid cleaners period as yyyy-MM-dd; null for both under "All months". */
+  get unpaidFrom(): string | null {
+    return this.unpaidAllMonths() ? null : this.toDateParam(this.monthAnchor());
+  }
+
+  get unpaidTo(): string | null {
+    return this.unpaidAllMonths() ? null : this.toDateParam(this.endOfMonth(this.monthAnchor()));
+  }
+
+  toggleUnpaidAllMonths(): void {
+    this.unpaidAllMonths.set(!this.unpaidAllMonths());
   }
 
   /**
@@ -538,18 +564,21 @@ export class OutgoingPaymentsComponent implements OnInit, OnDestroy {
   // ===== Month navigation =====
 
   prevMonth(): void {
+    this.unpaidAllMonths.set(false);
     this.monthAnchor.set(new Date(this.monthAnchor().getFullYear(), this.monthAnchor().getMonth() - 1, 1));
     this.page.set(1);
     this.reloadAll();
   }
 
   nextMonth(): void {
+    this.unpaidAllMonths.set(false);
     this.monthAnchor.set(new Date(this.monthAnchor().getFullYear(), this.monthAnchor().getMonth() + 1, 1));
     this.page.set(1);
     this.reloadAll();
   }
 
   goToCurrentMonth(): void {
+    this.unpaidAllMonths.set(false);
     this.monthAnchor.set(this.startOfMonth(new Date()));
     this.page.set(1);
     this.reloadAll();
@@ -629,26 +658,6 @@ export class OutgoingPaymentsComponent implements OnInit, OnDestroy {
 
   cleanerName(cleaner: OutgoingPaymentCleaner): string {
     return `${cleaner.firstName} ${cleaner.lastName}`.trim() || `Cleaner #${cleaner.cleanerId}`;
-  }
-
-  /** Full names for the row's title tooltip. */
-  cleanerNamesFull(order: OutgoingPaymentOrder): string {
-    return order.cleaners.map(c => this.cleanerName(c)).join(', ');
-  }
-
-  /**
-   * "Irma Xar., Maia Nia." — abbreviated surnames keep the narrow column on one line, the same
-   * trick the Orders tab's cleaners column uses. The full names stay in the tooltip.
-   */
-  cleanerNamesShort(order: OutgoingPaymentOrder): string {
-    return order.cleaners
-      .map(c => {
-        const first = (c.firstName || '').trim();
-        const last = (c.lastName || '').trim();
-        if (!last) return first || `#${c.cleanerId}`;
-        return `${first} ${last.length > 4 ? last.slice(0, 3) + '.' : last}`.trim();
-      })
-      .join(', ');
   }
 
   methodLabel(value: CleanerPaymentMethod | number | null | undefined): string {

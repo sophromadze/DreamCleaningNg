@@ -28,6 +28,42 @@ export interface RecurringOccurrence {
   assignedCleanerCount: number;
 }
 
+/**
+ * One unfinished order of a plan, as the Stop recurrence dialog lists it. Done, cancelled and
+ * refunded orders are never listed and never touched.
+ */
+export interface RecurringStopCandidate {
+  orderId: number;
+  serviceDate: string;
+  serviceTime: string;
+  total: number;
+  status: string;
+  isTemplate: boolean;
+  cleaners: string[];
+  /** False when the order has real payment, invoice or work on it — see blockedReason. */
+  canDelete: boolean;
+  blockedReason: string | null;
+  /** Cleaners who were sent the assignment. Deleting is allowed; somebody has to tell them. */
+  notifiedCleaners: string[];
+}
+
+export interface RecurringStopPreview {
+  seriesId: number;
+  alreadyStopped: boolean;
+  orders: RecurringStopCandidate[];
+}
+
+export interface RecurringStopResult {
+  /** Null when the plan itself was removed (its source and every order were deleted). */
+  series: RecurringSeries | null;
+  deletedOrderIds: number[];
+  warnings: string[];
+}
+
+export interface RecurringSkipResult {
+  warnings: string[];
+}
+
 export interface RecurringSeries {
   recurringLoyaltyDiscountPercent?: number | null;
   /** The same standing discount written as a fixed amount. At most one of the two is ever set. */
@@ -228,8 +264,21 @@ export class RecurringOrderService {
     return this.http.post<RecurringSeries>(`${this.admin}/${seriesId}/state/${action}`, {});
   }
 
-  skip(seriesId: number, orderId: number): Observable<void> {
-    return this.http.post<void>(`${this.admin}/${seriesId}/occurrences/${orderId}/skip`, {});
+  skip(seriesId: number, orderId: number): Observable<RecurringSkipResult | null> {
+    return this.http.post<RecurringSkipResult | null>(`${this.admin}/${seriesId}/occurrences/${orderId}/skip`, {});
+  }
+
+  /** The plan's unfinished orders, each with whether Stop may delete it. */
+  stopPreview(seriesId: number): Observable<RecurringStopPreview> {
+    return this.http.get<RecurringStopPreview>(`${this.admin}/${seriesId}/stop-preview`);
+  }
+
+  /**
+   * Stops the plan permanently and deletes the chosen unfinished orders in one transaction.
+   * Deleting is SuperAdmin-only on the server; an empty list just stops the plan.
+   */
+  stop(seriesId: number, deleteOrderIds: number[]): Observable<RecurringStopResult> {
+    return this.http.post<RecurringStopResult>(`${this.admin}/${seriesId}/stop`, { deleteOrderIds });
   }
 
   /** Fills this series' horizon now. Safe to press twice — generation is idempotent. */

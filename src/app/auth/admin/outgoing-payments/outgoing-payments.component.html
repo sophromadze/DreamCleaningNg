@@ -80,14 +80,21 @@
   <div class="month-bar">
     <div class="month-nav">
       <button class="month-arrow" type="button" (click)="prevMonth()" title="Previous month">‹</button>
-      <span class="month-label">{{ monthLabel }}</span>
+      <span class="month-label">{{ isUnpaidView && unpaidAllMonths() ? 'All months' : monthLabel }}</span>
       <button class="month-arrow" type="button" (click)="nextMonth()" title="Next month">›</button>
       @if (!isCurrentMonth) {
       <button class="btn-link" type="button" (click)="goToCurrentMonth()">This month</button>
       }
+      <!-- Unpaid cleaners only: everything still owed, whatever month the job was in. -->
+      @if (isUnpaidView) {
+      <button type="button" class="month-scope-toggle" [class.active]="unpaidAllMonths()"
+              [attr.aria-pressed]="unpaidAllMonths()" (click)="toggleUnpaidAllMonths()">All months</button>
+      }
     </div>
 
-    @if (data() || salaries()) {
+    <!-- Not on Unpaid cleaners: that view carries its own total, which follows the name filter
+         and "All months", and two different "owed" figures on one screen read as an error. -->
+    @if ((data() || salaries()) && !isUnpaidView) {
     <div class="month-total">
       <span class="month-total-label">Still to pay</span>
       <span class="month-total-value">$ {{ activeTabUnpaid | number:'1.2-2' }}</span>
@@ -446,11 +453,14 @@
 
               <td class="cleaners-col">
                 @if (order.cleaners.length > 0) {
-                <span
-                      class="cleaners-names"
-                      [title]="cleanerNamesFull(order)">
+                <!-- Full first and last names, one cleaner per line — the column wraps rather than
+                     abbreviating, because the surname is what tells two Maias apart. -->
+                <span class="cleaners-names">
                   <!-- "(2 of 3)" when the job was staffed for more people than are on file. -->
-                  {{ cleanerCountLabel(order) }} {{ cleanerNamesShort(order) }}
+                  <span class="cleaners-count-label">{{ cleanerCountLabel(order) }}</span>
+                  @for (cleaner of order.cleaners; track trackByCleaner($index, cleaner)) {
+                  <span class="cleaner-full-name">{{ cleanerName(cleaner) }}</span>
+                  }
                 </span>
                 }
                 @if (order.cleaners.length === 0) {
@@ -537,7 +547,7 @@
   }
 
   @if (cleanerView() === 'unpaid') {
-  <app-unpaid-cleaners (paid)="onPayoutsChanged()" />
+  <app-unpaid-cleaners [from]="unpaidFrom" [to]="unpaidTo" (paid)="onPayoutsChanged()" />
   }
 
   @if (cleanerView() === 'paid') {

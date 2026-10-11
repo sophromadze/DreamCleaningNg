@@ -124,7 +124,7 @@
         @if (o.isTemplate) {
         <span class="rsp-occ-tag">source</span>
         }
-        @if (canUpdate() && o.wasGenerated && !o.isPaid && o.status === 'Pending') {
+        @if (canUpdate() && !o.isPaid && o.status === 'Pending') {
         <button
                 type="button" class="rsp-btn rsp-btn--tiny" (click)="pendingAction.set({kind: 'skip', orderId: o.orderId})">Skip this cleaning</button>
         }
@@ -151,7 +151,7 @@
     }
 
     <div class="rsp-actions">
-      @if (canCreate() && series()!.stoppedAt && series()!.templateOrderId === orderId()) {
+      @if (canCreate() && series()!.stoppedAt) {
       <button type="button"
               class="rsp-btn rsp-btn--primary" (click)="startSetup(true)">Start new recurring plan</button>
       }
@@ -163,7 +163,9 @@
               (click)="pendingAction.set({kind: series()!.isActive ? 'pause' : 'resume'})">{{ series()!.isActive ? 'Pause recurrence' : 'Resume recurrence' }}</button>
       }
       @if (canUpdate() && !series()!.stoppedAt) {
-      <button type="button" class="rsp-btn" (click)="pendingAction.set({kind: 'stop'})">Stop recurrence</button>
+      <button type="button" class="rsp-btn" [disabled]="stopLoading()" (click)="openStopDialog()">
+        {{ stopLoading() ? 'Loading…' : 'Stop recurrence' }}
+      </button>
       }
       @if (canUpdate() && series()!.isActive && !series()!.stoppedAt) {
       <button type="button" class="rsp-btn" (click)="generateNow()" [disabled]="generating()">
@@ -175,10 +177,68 @@
 
   @if (pendingAction()) {
   <div class="rsp-alert rsp-alert--notice">
-    <p>{{ pendingAction()!.kind === 'stop' ? 'Permanently stop this recurrence? Existing orders will stay.' : pendingAction()!.kind === 'skip' ? 'Skip this cleaning only? The anchor and later dates will stay.' : pendingAction()!.kind === 'pause' ? 'Pause new generation? Already-generated orders will stay.' : 'Resume generation from the existing recurrence rule?' }}</p>
+    <p>{{ pendingAction()!.kind === 'skip' ? 'Skip this cleaning only? The anchor and later dates will stay.' : pendingAction()!.kind === 'pause' ? 'Pause new generation? Already-generated orders will stay.' : 'Resume generation from the existing recurrence rule?' }}</p>
     <div class="rsp-actions">
       <button type="button" class="rsp-btn rsp-btn--primary" [disabled]="saving()" (click)="confirmAction()">Confirm</button>
       <button type="button" class="rsp-btn" [disabled]="saving()" (click)="pendingAction.set(null)">Cancel</button>
+    </div>
+  </div>
+  }
+
+  <!-- ── Stop recurrence ─────────────────────────────────────────────────────────────────
+       Lists ONLY the plan's unfinished orders (not Done, cancelled or refunded — those are never
+       touched). Ticked rows are deleted in the same transaction as the stop; unticked ones stay as
+       ordinary orders. A row with real payment, invoice or work on it can't be ticked and says why. -->
+  @if (stopPreview(); as preview) {
+  <div class="rsp-alert rsp-alert--notice rsp-stop" role="dialog" aria-labelledby="rsp-stop-title">
+    <p id="rsp-stop-title" class="rsp-stop-title">Permanently stop this recurrence?</p>
+    @if (preview.orders.length === 0) {
+    <p>No unfinished cleanings — only the schedule stops.</p>
+    } @else {
+      @if (canDeleteOrders()) {
+      <p>Ticked cleanings are deleted permanently. Unticked ones stay as ordinary orders. Completed cleanings are not listed and are never touched.</p>
+      <button type="button" class="rsp-btn rsp-btn--tiny" [disabled]="saving() || deletableStopRows().length === 0"
+              (click)="toggleAllStopRows()">{{ allStopRowsSelected() ? 'Select none' : 'Select all' }}</button>
+      } @else {
+      <p>These cleanings stay as ordinary orders. Only a SuperAdmin can delete orders.</p>
+      }
+    <ul class="rsp-list rsp-stop-list">
+      @for (row of preview.orders; track row.orderId) {
+      <li class="rsp-stop-row" [class.rsp-stop-row--blocked]="!row.canDelete">
+        <label class="rsp-stop-label">
+          @if (canDeleteOrders()) {
+          <input type="checkbox" [checked]="isStopSelected(row)" [disabled]="!row.canDelete || saving()"
+                 (change)="toggleStopRow(row)"
+                 [attr.aria-label]="'Delete order #' + row.orderId" />
+          }
+          <span class="rsp-occ-date">{{ row.serviceDate | date:'EEE d MMM' }}</span>
+          <span class="rsp-stop-time">{{ formatTime(row.serviceTime) }}</span>
+          @if (!series()!.billingControlledByContract) {
+          <span class="rsp-occ-total">{{ row.total | currency:'USD' }}</span>
+          }
+          <span class="rsp-occ-status">{{ row.status }}</span>
+          <span class="rsp-stop-cleaners">{{ row.cleaners.length ? row.cleaners.join(', ') : 'No cleaner' }}</span>
+          @if (row.isTemplate) {
+          <span class="rsp-occ-tag">source</span>
+          }
+        </label>
+        @if (!row.canDelete) {
+        <span class="rsp-stop-reason">{{ row.blockedReason }}</span>
+        } @else if (row.notifiedCleaners.length && isStopSelected(row)) {
+        <span class="rsp-occ-warn">Assignment was sent to {{ row.notifiedCleaners.join(', ') }} — tell them it's off</span>
+        }
+      </li>
+      }
+    </ul>
+    }
+    @if (stopError()) {
+    <p class="rsp-stop-error" role="alert">{{ stopError() }}</p>
+    }
+    <div class="rsp-actions">
+      <button type="button" class="rsp-btn rsp-btn--primary" [disabled]="saving()" (click)="confirmStop()">
+        {{ saving() ? 'Stopping…' : (canDeleteOrders() && stopSelection().size ? 'Stop and delete ' + stopSelection().size : 'Stop recurrence') }}
+      </button>
+      <button type="button" class="rsp-btn" [disabled]="saving()" (click)="closeStopDialog()">Cancel</button>
     </div>
   </div>
   }

@@ -428,3 +428,70 @@ textarea:focus-visible {
   .hide-sm { display: none; }
   .selection-totals, .history-total { margin-left: 0; }
 }
+
+// ── Unpaid cleaners: name filter + copyable payment details ──
+// Same look as the Orders view's payout panel: method as a quiet chip, the details monospaced,
+// and an icon-only copy button that copies the details alone.
+
+.unpaid-filters { margin-bottom: 0.75rem; }
+
+.name-filter {
+  flex: 1 1 16rem;
+  max-width: 22rem;
+
+  input { width: 100%; }
+}
+
+.cleaner-destination {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.destination-method {
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  background: var(--soft-blue);
+  color: var(--primary-text-elevated);
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.destination-value {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  word-break: break-all;
+}
+
+.copy-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.55rem;
+  height: 1.55rem;
+  flex: 0 0 auto;
+  padding: 0;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+
+  &:hover {
+    background: var(--soft-blue);
+    border-color: var(--primary-color);
+    color: var(--primary-text-elevated);
+  }
+
+  &.copied {
+    background: var(--mint-fresh);
+    border-color: var(--mint-fresh-border);
+    color: var(--mint-fresh-text);
+  }
+}

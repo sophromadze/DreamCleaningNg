@@ -200,6 +200,14 @@ describe('OutgoingPaymentsComponent', () => {
     expect(rows[0].textContent).toContain('501');
   });
 
+  it('shows each cleaner by full first and last name in the Cleaners column', () => {
+    render();
+
+    const names = [...fixture.nativeElement.querySelectorAll('td.cleaners-col .cleaner-full-name')]
+      .map((el: Element) => el.textContent!.trim());
+    expect(names).toEqual(['Irma Xaratishvili', 'Maia Niauri']);
+  });
+
   it('asks for 20 a page, matching the Orders tab', () => {
     fixture.detectChanges();
     const req = httpMock.expectOne(r =>
@@ -513,21 +521,6 @@ describe('OutgoingPaymentsComponent', () => {
 
       expect(writeText).not.toHaveBeenCalled();
       expect(component.copiedCleanerId()).toBeNull();
-    });
-  });
-
-  describe('the cleaners column', () => {
-    it('abbreviates surnames to keep the narrow column on one line', () => {
-      expect(component.cleanerNamesShort(order())).toBe('Irma Xar., Maia Nia.');
-    });
-
-    it('keeps the full names for the tooltip', () => {
-      expect(component.cleanerNamesFull(order())).toBe('Irma Xaratishvili, Maia Niauri');
-    });
-
-    it('leaves a short surname alone rather than abbreviating it to nothing', () => {
-      const o = order({ cleaners: [cleaner({ firstName: 'Nato', lastName: 'Kvar' })] });
-      expect(component.cleanerNamesShort(o)).toBe('Nato Kvar');
     });
   });
 
@@ -1414,7 +1407,10 @@ describe('OutgoingPaymentsComponent', () => {
       expect(fixture.nativeElement.querySelector('table.data-table')).not.toBeNull();
     });
 
-    it('switches to Unpaid cleaners in place, keeps it in the URL, and drops the month bar', () => {
+    const noneOwed = () =>
+      ({ cleaners: [], totalOutstanding: 0, lineCount: 0, unassignedOutstanding: 0, unassignedSlotCount: 0 });
+
+    it('switches to Unpaid cleaners in place, keeps it in the URL, and keeps the month bar', () => {
       render();
       const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
 
@@ -1424,12 +1420,51 @@ describe('OutgoingPaymentsComponent', () => {
       expect(navigate).toHaveBeenCalledWith([], expect.objectContaining({
         queryParams: { tab: null, view: 'unpaid' }, replaceUrl: true
       }));
-      // Not a monthly figure: everything owed, whenever the job was.
-      expect(fixture.nativeElement.querySelector('.month-bar')).toBeNull();
+      expect(fixture.nativeElement.querySelector('.month-bar')).not.toBeNull();
       expect(fixture.nativeElement.querySelector('app-unpaid-cleaners')).not.toBeNull();
       expect(fixture.nativeElement.querySelector('table.data-table')).toBeNull();
-      httpMock.expectOne(r => r.url.endsWith('/outgoing-payments/cleaners/unpaid'))
-        .flush({ cleaners: [], totalOutstanding: 0, lineCount: 0, unassignedOutstanding: 0, unassignedSlotCount: 0 });
+
+      // The list is the month on screen.
+      const req = httpMock.expectOne(r => r.url.endsWith('/outgoing-payments/cleaners/unpaid'));
+      expect(req.request.params.get('from')).toBe(component.unpaidFrom);
+      expect(req.request.params.get('to')).toBe(component.unpaidTo);
+      expect(req.request.params.get('from')).toMatch(/^\d{4}-\d{2}-01$/);
+      req.flush(noneOwed());
+    });
+
+    it('"All months" on Unpaid cleaners lists everything owed, and moving the month turns it off', () => {
+      render();
+      component.setCleanerView('unpaid');
+      fixture.detectChanges();
+      httpMock.expectOne(r => r.url.endsWith('/cleaners/unpaid')).flush(noneOwed());
+
+      const toggle = fixture.nativeElement.querySelector('.month-scope-toggle') as HTMLButtonElement;
+      toggle.click();
+      fixture.detectChanges();
+
+      const all = httpMock.expectOne(r => r.url.endsWith('/cleaners/unpaid'));
+      expect(all.request.params.has('from')).toBe(false);
+      expect(all.request.params.has('to')).toBe(false);
+      all.flush(noneOwed());
+      expect(fixture.nativeElement.querySelector('.month-label').textContent).toContain('All months');
+
+      // The Orders list and salaries reload first; flushLoad would also answer the unpaid list.
+      component.prevMonth();
+      httpMock.expectOne(r => r.method === 'GET' && r.url.includes('/salaries')).flush(emptySalaries());
+      flushLoad(list([]));
+      fixture.detectChanges();
+      expect(component.unpaidAllMonths()).toBe(false);
+      expect(httpMock.expectOne(r => r.url.endsWith('/cleaners/unpaid')).request.params.get('from'))
+        .toBe(component.unpaidFrom);
+    });
+
+    it('has no month bar on Paid cleaners, which carries its own dates', () => {
+      render();
+      component.setCleanerView('paid');
+      fixture.detectChanges();
+      expect(fixture.nativeElement.querySelector('.month-bar')).toBeNull();
+      // Paid cleaners loads its own history; not under test here.
+      httpMock.match(() => true);
     });
 
     it('reloads the Orders data when money is recorded on another view', () => {

@@ -110,15 +110,19 @@ describe('RecurringSeriesPanelComponent', () => {
     httpMock.expectNone(CREATE(41));
   });
 
-  it('does not offer a replacement without create permission or from a generated cleaning', () => {
+  it('offers a new plan from ANY order of a stopped plan, but only with create permission', () => {
     open(series({ stoppedAt: '2026-09-10T00:00:00', isActive: false }));
     fixture.componentRef.setInput('canCreate', false); fixture.detectChanges();
     expect(fixture.nativeElement.textContent).not.toContain('Start new recurring plan');
     component.startSetup(true); expect(component.editing()).toBe(false);
+    // Opened from a cleaning the stopped plan generated, not from its source (2026-10).
     fixture.componentRef.setInput('canCreate', true); component.series()!.templateOrderId = 99;
     component.series.set(component.series()); fixture.detectChanges();
-    expect(fixture.nativeElement.textContent).not.toContain('Start new recurring plan');
-    component.startSetup(true); expect(component.editing()).toBe(false);
+    expect(fixture.nativeElement.textContent).toContain('Start new recurring plan');
+    component.startSetup(true); expect(component.editing()).toBe(true);
+    // The new plan is priced from the order on screen (41), not the stopped plan's source (99).
+    httpMock.expectOne(CREATE(41) + '/preview').flush({ sourceDiscounts: [] });
+    httpMock.expectNone(CREATE(99) + '/preview');
   });
 
   it('says a one-off cleaning is a one-off cleaning', () => {
@@ -352,7 +356,7 @@ describe('RecurringSeriesPanelComponent', () => {
     request.flush(series({ recurringLoyaltyDiscountPercent: 15 }));
   });
 
-  for (const state of ['pause', 'resume', 'stop'] as const) {
+  for (const state of ['pause', 'resume'] as const) {
     it('sends ' + state + ' to the lifecycle route', () => {
       open(); component.pendingAction.set({ kind: state }); component.confirmAction();
       const request = httpMock.expectOne(environment.apiUrl + '/admin/recurring-series/3/state/' + state);
@@ -360,6 +364,115 @@ describe('RecurringSeriesPanelComponent', () => {
       httpMock.expectOne(environment.apiUrl + '/admin/recurring-series/3').flush(series());
     });
   }
+
+  // ── Stop recurrence, optionally deleting the unfinished cleanings (2026-10) ─────────────
+
+  const STOP_PREVIEW = environment.apiUrl + '/admin/recurring-series/3/stop-preview';
+  const STOP = environment.apiUrl + '/admin/recurring-series/3/stop';
+  const stopRows = {
+    seriesId: 3, alreadyStopped: false,
+    orders: [
+      { orderId: 42, serviceDate: '2999-10-18T00:00:00', serviceTime: '09:00:00', total: 150, status: 'Pending',
+        isTemplate: false, cleaners: ['Nino Beridze'], canDelete: true, blockedReason: null, notifiedCleaners: ['Nino Beridze'] },
+      { orderId: 43, serviceDate: '2999-11-01T00:00:00', serviceTime: '09:00:00', total: 150, status: 'Pending',
+        isTemplate: false, cleaners: [], canDelete: false, blockedReason: 'Paid — refund first', notifiedCleaners: [] },
+      { orderId: 44, serviceDate: '2999-11-15T00:00:00', serviceTime: '14:30:00', total: 150, status: 'Pending',
+        isTemplate: false, cleaners: [], canDelete: true, blockedReason: null, notifiedCleaners: [] }
+    ]
+  };
+
+  function openStop(superAdmin = true): void {
+    open();
+    fixture.componentRef.setInput('canDeleteOrders', superAdmin); fixture.detectChanges();
+    const button = Array.from(fixture.nativeElement.querySelectorAll('button') as NodeListOf<HTMLButtonElement>)
+      .find(b => b.textContent?.includes('Stop recurrence'))!;
+    button.click();
+    httpMock.expectOne(STOP_PREVIEW).flush(stopRows);
+    fixture.detectChanges();
+  }
+
+  function checkboxes(): HTMLInputElement[] {
+    return Array.from(fixture.nativeElement.querySelectorAll('.rsp-stop-row input[type=checkbox]'));
+  }
+
+  it('Stop lists the unfinished orders, ticks every deletable one, and disables a blocked one with its reason', () => {
+    openStop();
+    const boxes = checkboxes();
+    expect(boxes.length).toBe(3);
+    expect(boxes.map(b => b.checked)).toEqual([true, false, true]);
+    expect(boxes[1].disabled).toBe(true);
+    const text = fixture.nativeElement.textContent as string;
+    expect(text).toContain('Paid — refund first');
+    expect(text).toContain('2:30 PM');
+    expect(text).toContain('Nino Beridze');
+    expect(text).toContain("tell them it's off");
+    expect(text).toContain('Stop and delete 2');
+  });
+
+  it('select none / all only ever covers the deletable rows', () => {
+    openStop();
+    component.toggleAllStopRows();
+    expect([...component.stopSelection()]).toEqual([]);
+    component.toggleAllStopRows();
+    expect([...component.stopSelection()].sort()).toEqual([42, 44]);
+    component.toggleStopRow(stopRows.orders[1]);
+    expect(component.stopSelection().has(43)).toBe(false);
+  });
+
+  it('confirming stops and deletes the ticked orders in one call, and tells the host', () => {
+    openStop();
+    component.toggleStopRow(stopRows.orders[2]); // untick 44: it stays as an ordinary order
+    const deleted = vi.spyOn(component.ordersDeleted, 'emit').mockReturnValue(undefined);
+    component.confirmStop();
+    const request = httpMock.expectOne(STOP);
+    expect(request.request.method).toBe('POST');
+    expect(request.request.body).toEqual({ deleteOrderIds: [42] });
+    request.flush({ series: series({ stoppedAt: '2026-10-11T00:00:00', isActive: false }), deletedOrderIds: [42],
+      warnings: ['Order #42 (Mon Oct 18): Nino Beridze had been sent the assignment — let them know the job is off.'] });
+    fixture.detectChanges();
+    expect(component.stopPreview()).toBeNull();
+    expect(deleted).toHaveBeenCalledWith({ deletedOrderIds: [42], warnings: [expect.stringContaining('Nino Beridze')] });
+    expect(component.noticeMessage()).toContain('1 order(s) deleted');
+    expect(component.noticeMessage()).toContain('let them know');
+    expect(component.series()!.stoppedAt).toBeTruthy();
+  });
+
+  it('a refusal stays inside the dialog with the ticks intact', () => {
+    openStop();
+    component.confirmStop();
+    httpMock.expectOne(STOP).flush({ message: 'Nothing was changed. These cannot be deleted: #42 — Paid — refund first.' },
+      { status: 400, statusText: 'Bad Request' });
+    fixture.detectChanges();
+    expect(component.stopPreview()).not.toBeNull();
+    expect(fixture.nativeElement.textContent).toContain('Nothing was changed.');
+    expect([...component.stopSelection()].sort()).toEqual([42, 44]);
+  });
+
+  it('an Admin who may not delete orders gets no checkboxes and stops without deleting', () => {
+    openStop(false);
+    expect(checkboxes().length).toBe(0);
+    expect(fixture.nativeElement.textContent).toContain('Only a SuperAdmin can delete orders');
+    component.confirmStop();
+    const request = httpMock.expectOne(STOP);
+    expect(request.request.body).toEqual({ deleteOrderIds: [] });
+    request.flush({ series: series({ stoppedAt: '2026-10-11T00:00:00', isActive: false }), deletedOrderIds: [], warnings: [] });
+    expect(component.noticeMessage()).toContain('Existing orders are kept');
+  });
+
+  it('offers Skip on any Pending unpaid cleaning — the source too — and shows its warning', () => {
+    const s = series();
+    s.occurrences[0] = { ...s.occurrences[0], serviceDate: '2999-10-04T00:00:00', status: 'Pending', isPaid: false };
+    open(s);
+    const skips = Array.from(fixture.nativeElement.querySelectorAll('button') as NodeListOf<HTMLButtonElement>)
+      .filter(b => b.textContent?.includes('Skip this cleaning'));
+    expect(skips.length).toBe(2);
+    component.pendingAction.set({ kind: 'skip', orderId: 41 }); component.confirmAction();
+    httpMock.expectOne(environment.apiUrl + '/admin/recurring-series/3/occurrences/41/skip')
+      .flush({ warnings: ['Order #41: Nino Beridze had been sent the assignment — let them know the job is off.'] });
+    httpMock.expectOne(environment.apiUrl + '/admin/recurring-series/3').flush(series());
+    expect(component.noticeMessage()).toContain('This cleaning was skipped');
+    expect(component.noticeMessage()).toContain('Nino Beridze');
+  });
 
   // ── Service days, days of month and the upcoming-cleanings count (2026-10) ─────────────
 

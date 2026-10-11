@@ -512,9 +512,15 @@ export class OutgoingPaymentService {
 
   // ── Unpaid cleaners / Paid cleaners ──
 
-  /** Every cleaner owed money right now, across all finished orders, with the lines. */
-  getUnpaidCleaners(): Observable<UnpaidCleanersList> {
-    return this.http.get<UnpaidCleanersList>(`${this.apiUrl}/cleaners/unpaid`);
+  /**
+   * Every cleaner owed money right now, with the lines. from/to (yyyy-MM-dd service dates)
+   * narrow it to a period; without them it is every finished order.
+   */
+  getUnpaidCleaners(from?: string | null, to?: string | null): Observable<UnpaidCleanersList> {
+    let params = new HttpParams();
+    if (from) params = params.set('from', from);
+    if (to) params = params.set('to', to);
+    return this.http.get<UnpaidCleanersList>(`${this.apiUrl}/cleaners/unpaid`, { params });
   }
 
   /**
