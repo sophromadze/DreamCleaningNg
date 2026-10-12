@@ -414,6 +414,15 @@ export interface AssignedCleanerAdmin {
    * the existing Send / Resend controls stay the only thing that mails or texts a cleaner.
    */
   autoAssignedFromSeriesId?: number | null;
+
+  /**
+   * Order panel → Cleaners → Hide tips (2026-10): this cleaner's assignment email / SMS print no
+   * tip. Send, Send-all and Resend all honour it.
+   */
+  tipsHiddenFromCleaner?: boolean;
+
+  /** Outgoing Payments does not pay this cleaner the tip. Only ever true while hidden. */
+  tipsWithheldFromPayout?: boolean;
 }
 
 export interface UsersResponse {
@@ -779,6 +788,12 @@ export interface OrderCleanerPayrollLine {
   /** An admin set this rate by hand on Outgoing Payments — rendered as "OWN RATE". */
   rateOverridden: boolean;
   salary: number;
+  /** This cleaner's tip share as it will be PAID — 0 when withheld. */
+  tips?: number;
+  /** The office withheld this cleaner's tip (Cleaners tab → Hide tips). */
+  tipsWithheld?: boolean;
+  /** What the withheld share would have been. */
+  withheldTips?: number;
 }
 
 /**
@@ -2169,6 +2184,20 @@ export class AdminService {
       `${this.apiUrl}/orders/${orderId}/send-cleaner-assignment-mails`,
       {}
     );
+  }
+
+  /**
+   * Hides one cleaner's tip on this order from their notifications, and decides whether
+   * Outgoing Payments still pays it. The FULL state is sent, never a toggle, so a double-click
+   * lands on the same answer. `withholdFromPayout` is refused unless `hideFromCleaner` is set.
+   */
+  updateCleanerTips(
+    orderId: number,
+    cleanerId: number,
+    state: { hideFromCleaner: boolean; withholdFromPayout: boolean }
+  ): Observable<{ tipsHiddenFromCleaner: boolean; tipsWithheldFromPayout: boolean }> {
+    return this.http.put<{ tipsHiddenFromCleaner: boolean; tipsWithheldFromPayout: boolean }>(
+      `${this.apiUrl}/orders/${orderId}/cleaners/${cleanerId}/tips`, state);
   }
 
   /** Re-sends assignment email for one cleaner and restarts reminder flow only for that cleaner. */

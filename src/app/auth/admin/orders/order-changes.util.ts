@@ -44,6 +44,7 @@ function titleFor(row: AuditLog): string {
     if (action === 'Delete') return 'Order deleted';
   }
   if (type === 'OrderServicesUpdate') return 'Services changed';
+  if (type === 'CleanerTipsDecision') return 'Cleaner tips changed';
   if (type === 'CleanerAssignment') {
     if (action === 'Assigned') return 'Cleaner assigned';
     if (action === 'Removed') return 'Cleaner removed';
@@ -134,6 +135,14 @@ function linesFor(row: AuditLog, rawOld: any, rawNew: any): string[] {
   }
 
   if (type === 'Order' && row.action === 'Create') return [];
+
+  // Hide tips / Pay tips: the cleaner's name is on both sides (context, not a change), so it
+  // would never reach the field diff — lead with it, or the entry cannot say whose tip it was.
+  if (type === 'CleanerTipsDecision') {
+    const tipsLog: any = { ...row, oldValues: normalizeAuditValues(rawOld), newValues: normalizeAuditValues(rawNew) };
+    const who = rawNew?.Cleaner ?? rawOld?.Cleaner;
+    return [...(who ? [String(who)] : []), ...fieldLines(tipsLog)];
+  }
 
   const log: any = { ...row, oldValues: normalizeAuditValues(rawOld), newValues: normalizeAuditValues(rawNew) };
   const lines = fieldLines(log);

@@ -5050,6 +5050,71 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
+  // ===== Tips withheld from one cleaner (2026-10) =====
+
+  /** Which cleaner's tip buttons are mid-save, as `orderId:cleanerId`. */
+  readonly savingCleanerTipsKey = signal<string | null>(null);
+
+  /**
+   * Hide tips / Show tips / Pay tips / Don't pay tips. Same gate as editing the wages
+   * (`canEditCleanerPayroll`): it moves what a cleaner is paid, never a customer price.
+   */
+  get canEditCleanerTips(): boolean {
+    return this.canEditCleanerPayroll && this.canViewCleanerPayroll();
+  }
+
+  isSavingCleanerTips(orderId: number, cleanerId: number): boolean {
+    return this.savingCleanerTipsKey() === `${orderId}:${cleanerId}`;
+  }
+
+  /**
+   * Hide tips → hidden from the cleaner's assignment email / SMS AND left out of Outgoing
+   * Payments. While hidden, Pay tips puts the tip back into Outgoing Payments only (the cleaner
+   * still is not told). Show tips restores both.
+   */
+  setCleanerTips(
+    orderId: number,
+    cleaner: AssignedCleanerAdmin,
+    state: { hideFromCleaner: boolean; withholdFromPayout: boolean }
+  ): void {
+    if (this.savingCleanerTipsKey() !== null) return;
+
+    this.savingCleanerTipsKey.set(`${orderId}:${cleaner.id}`);
+    this.errorMessage.set('');
+
+    this.adminService.updateCleanerTips(orderId, cleaner.id, state)
+      .pipe(finalize(() => this.savingCleanerTipsKey.set(null)))
+      .subscribe({
+        next: (result) => {
+          // Patch the row in place so the buttons flip at once; the reloads below confirm it.
+          cleaner.tipsHiddenFromCleaner = result.tipsHiddenFromCleaner;
+          cleaner.tipsWithheldFromPayout = result.tipsWithheldFromPayout;
+          this.assignedCleanersCache.set(this.assignedCleanersCache());
+
+          this.successMessage.set(!result.tipsHiddenFromCleaner
+            ? `Tips are visible to ${cleaner.name} again and paid in Outgoing Payments.`
+            : result.tipsWithheldFromPayout
+              ? `Tips hidden from ${cleaner.name} and not paid in Outgoing Payments.`
+              : `Tips still hidden from ${cleaner.name}, but paid in Outgoing Payments.`);
+          this.clearMessagesAfterDelay();
+
+          this.adminService.getAssignedCleanersWithIds(orderId).subscribe({
+            next: (list) => {
+              this.assignedCleanersCache().set(orderId, list);
+              this.assignedCleanersCache.set(this.assignedCleanersCache());
+            },
+            error: () => { /* optional cache refresh */ }
+          });
+          if (this.canViewCleanerPayroll() && this.selectedOrder()?.id === orderId) {
+            this.loadOrderCleanerPayroll(orderId);
+          }
+        },
+        error: (err) => {
+          this.errorMessage.set(extractApiErrorMessage(err, "Could not change this cleaner's tips."));
+        }
+      });
+  }
+
   updateOrderStatus(
     order: AdminOrderList,
     newStatus: string,

@@ -60,4 +60,17 @@ describe('buildOrderChangeEntries', () => {
     expect(entries[0].lines).toEqual(['maria@example.com']);
     expect(entries[1].title).toBe('Cleaner removed');
   });
+
+  it("names whose tip was hidden — the cleaner is on both sides, so the diff alone would not", () => {
+    const [entry] = buildOrderChangeEntries([{
+      id: 9, entityType: 'CleanerTipsDecision', action: 'Update', createdAt: at(0) as any, changedBy: 'Ana Admin',
+      oldValues: JSON.stringify({ Cleaner: 'Marekh Tabidze', TipsShownToCleaner: 'Yes', TipsPaidToCleaner: 'Yes' }),
+      newValues: JSON.stringify({ Cleaner: 'Marekh Tabidze', TipsShownToCleaner: 'No', TipsPaidToCleaner: 'No' })
+    } as any]);
+
+    expect(entry.title).toBe('Cleaner tips changed');
+    expect(entry.lines[0]).toBe('Marekh Tabidze');
+    expect(entry.lines.some(l => l.startsWith('Tips In Cleaner Emails') && l.includes('Yes') && l.includes('No'))).toBe(true);
+    expect(entry.lines.some(l => l.startsWith('Tips Paid To Cleaner'))).toBe(true);
+  });
 });

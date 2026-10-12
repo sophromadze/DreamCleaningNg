@@ -2024,6 +2024,78 @@ describe('OrdersComponent', () => {
       expect(component.successMessage()).toContain('notified via email');
     });
   });
+
+  /**
+   * Cleaners tab → Hide tips / Pay tips / Show tips (2026-10). The office decides a cleaner did
+   * not earn the customer's tip: their assignment email/SMS print none, and Outgoing Payments
+   * does not pay it unless "Pay tips" is pressed.
+   */
+  describe("hiding a cleaner's tips", () => {
+    const admin = (role: string, canUpdate = true) => {
+      component.isSuperAdmin.set(role === 'SuperAdmin');
+      component.userRole.set(role);
+      component.userPermissions.set({ role, permissions: { canUpdate } } as any);
+    };
+
+    let svc: AdminService;
+
+    beforeEach(() => {
+      svc = TestBed.inject(AdminService);
+      vi.spyOn(svc, 'getAssignedCleanersWithIds').mockReturnValue(of([]));
+      vi.spyOn(component as any, 'loadOrderCleanerPayroll').mockImplementation(() => {});
+    });
+
+    it('is offered to Admins and SuperAdmins, never to a Moderator', () => {
+      admin('Admin');
+      expect(component.canEditCleanerTips).toBe(true);
+      admin('SuperAdmin');
+      expect(component.canEditCleanerTips).toBe(true);
+      admin('Moderator', false);
+      expect(component.canEditCleanerTips).toBe(false);
+    });
+
+    it('Hide tips sends the FULL state and flips the row at once', () => {
+      admin('Admin');
+      const cleaner = { id: 2, name: 'Marekh Tabidze' } as any;
+      const spy = vi.spyOn(svc, 'updateCleanerTips')
+        .mockReturnValue(of({ tipsHiddenFromCleaner: true, tipsWithheldFromPayout: true }));
+
+      component.setCleanerTips(315, cleaner, { hideFromCleaner: true, withholdFromPayout: true });
+
+      expect(spy).toHaveBeenCalledWith(315, 2, { hideFromCleaner: true, withholdFromPayout: true });
+      expect(cleaner.tipsHiddenFromCleaner).toBe(true);
+      expect(cleaner.tipsWithheldFromPayout).toBe(true);
+      expect(component.successMessage()).toContain('not paid in Outgoing Payments');
+      expect(component.savingCleanerTipsKey()).toBeNull();
+    });
+
+    it('Pay tips keeps the tip hidden from the cleaner but pays it', () => {
+      admin('Admin');
+      const cleaner = { id: 2, name: 'Marekh Tabidze', tipsHiddenFromCleaner: true, tipsWithheldFromPayout: true } as any;
+      vi.spyOn(svc, 'updateCleanerTips')
+        .mockReturnValue(of({ tipsHiddenFromCleaner: true, tipsWithheldFromPayout: false }));
+
+      component.setCleanerTips(315, cleaner, { hideFromCleaner: true, withholdFromPayout: false });
+
+      expect(cleaner.tipsHiddenFromCleaner).toBe(true);
+      expect(cleaner.tipsWithheldFromPayout).toBe(false);
+      expect(component.successMessage()).toContain('but paid in Outgoing Payments');
+    });
+
+    it("surfaces the server's reason when the change is refused", () => {
+      admin('Admin');
+      const cleaner = { id: 2, name: 'Marekh Tabidze' } as any;
+      vi.spyOn(svc, 'updateCleanerTips').mockReturnValue(throwError(() => ({
+        status: 400, error: { message: 'Hide the tip from the cleaner before withholding it from their pay.' }
+      })));
+
+      component.setCleanerTips(315, cleaner, { hideFromCleaner: false, withholdFromPayout: true });
+
+      expect(component.errorMessage()).toContain('Hide the tip from the cleaner');
+      expect(cleaner.tipsHiddenFromCleaner).toBeUndefined();
+      expect(component.savingCleanerTipsKey()).toBeNull();
+    });
+  });
 });
 
 /**

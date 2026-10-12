@@ -105,6 +105,9 @@ export const AUDIT_FIELD_LABELS: { [field: string]: string } = {
   RateSource: 'Rate Follows',
   HoursSource: 'Hours Follow',
   AppliedTo: 'Applied To',
+  // Order panel → Cleaners → Hide tips / Pay tips (CleanerTipsDecision rows).
+  TipsShownToCleaner: 'Tips In Cleaner Emails',
+  TipsPaidToCleaner: 'Tips Paid To Cleaner',
   OwnRatesDropped: 'Own Rates Dropped (now on the order rate)',
   PaidAmount: 'Amount Paid',
   PaidVia: 'Paid Via',
@@ -327,6 +330,8 @@ const AUDIT_CONTEXT_ENTITY_TYPES = new Set([
   'CleanerPayrollOverride',
   'OrderCleanerHourlyRate',
   'CleanerPayout',
+  // Cleaners tab → Hide tips: the row must say WHOSE tip it was.
+  'CleanerTipsDecision',
 ]);
 
 export function auditRowShowsContext(entityType?: string | null): boolean {
@@ -566,6 +571,7 @@ export const AUDIT_ENTITY_LABELS: { [entityType: string]: string } = {
   SpecialOfferGrant: 'Special Offer Grant',
   Apartment: 'Address',
   CleanerPayrollOverride: 'Payroll Override',
+  CleanerTipsDecision: 'Cleaner Tips',
   OrderCleanerHourlyRate: 'Order Hourly Rate',
   OrderCleanerCount: 'Order Cleaner Count',
   CleanerPayout: 'Cleaner Payout',

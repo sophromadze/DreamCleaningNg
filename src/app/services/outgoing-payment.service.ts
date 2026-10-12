@@ -113,7 +113,14 @@ export interface OutgoingPaymentCleaner {
   /** Rate is off the service type's default — this drives the per-line warning pill. */
   rateDiffersFromDefault: boolean;
   salary: number;
+  /** This person's tip share as PAID — 0 when the office withheld it. */
   tips: number;
+  /**
+   * The office withheld this cleaner's tip (order panel → Cleaners → Hide tips, without
+   * "Pay tips"). `tips` is then 0 and `withheldTips` is what the share would have been.
+   */
+  tipsWithheld?: boolean;
+  withheldTips?: number;
   /** salary + tips: what actually gets handed to this person. */
   payout: number;
   isPaid: boolean;

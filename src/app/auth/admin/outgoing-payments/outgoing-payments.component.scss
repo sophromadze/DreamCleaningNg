@@ -1422,3 +1422,9 @@
     .inst-note { min-width: 0; flex: 1 1 auto; }
   }
 }
+
+// A tip withheld from this cleaner in the order's Cleaners tab (2026-10) — shown so the payout
+// beside it is explained, in the same orange the order panel uses for that decision.
+.figure-tips-withheld .figure-value {
+  color: var(--warning-orange-text);
+}

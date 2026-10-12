@@ -785,6 +785,17 @@
                 <span class="figure-value">$ {{ cleaner.tips | number:'1.2-2' }}</span>
               </div>
               }
+              <!-- Withheld from the order panel's Cleaners tab ("Hide tips"): the share is not
+                   in the payout. "Pay tips" there puts it back. -->
+              @if (cleaner.tipsWithheld) {
+              <div class="figure figure-tips-withheld">
+                <span class="figure-label">Tips</span>
+                <span class="figure-value"
+                      title="Withheld from this cleaner in the order's Cleaners tab — not included in the payout">
+                  $ {{ (cleaner.withheldTips ?? 0) | number:'1.2-2' }} not paid
+                </span>
+              </div>
+              }
               <div class="figure figure-total">
                 <span class="figure-label">Payout</span>
                 <span class="figure-value">$ {{ cleaner.payout | number:'1.2-2' }}</span>
@@ -981,7 +992,8 @@
         <div class="panel-foot">
           <span class="foot-label">Order payout</span>
           <span class="foot-value">$ {{ order.totalPayout | number:'1.2-2' }}</span>
-          <span class="foot-sub">wages $ {{ order.totalSalary | number:'1.2-2' }} + tips $ {{ order.tips | number:'1.2-2' }}</span>
+          <!-- Tips as PAID (payout − wages): a tip withheld from a cleaner is not handed over. -->
+          <span class="foot-sub">wages $ {{ order.totalSalary | number:'1.2-2' }} + tips $ {{ (order.totalPayout - order.totalSalary) | number:'1.2-2' }}</span>
         </div>
       </section>
 

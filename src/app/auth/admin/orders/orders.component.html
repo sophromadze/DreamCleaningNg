@@ -2687,6 +2687,10 @@
                               @if (line.hoursOverridden) {
                               <span class="cp-pill cp-pill--hours">EDITED</span>
                               }
+                              @if (line.tipsWithheld) {
+                              <span class="cp-pill cp-pill--tips"
+                                    title="This cleaner's tip is not paid in Outgoing Payments">TIP ${{ (line.withheldTips ?? 0).toFixed(2) }} NOT PAID</span>
+                              }
                               @if (canEditCleanerPayroll && !line.isUnassignedSlot) {
                               <button type="button" class="action-btn small edit cp-edit-btn"
                                       [disabled]="savingPayroll()"
@@ -2798,6 +2802,45 @@
                       @if (!cleaner.autoAssignedFromSeriesId && !cleaner.assignmentNotificationSentAt) {
                       <span
                             class="cleaner-mail-pending" title="Assignment email not sent yet">Pending email</span>
+                      }
+                      <!--
+                        TIPS HIDDEN (2026-10). The office decided this cleaner did not earn the
+                        customer's tip: Send / Send-all / Resend print no tip for them. While hidden,
+                        "Pay tips" puts the tip back into Outgoing Payments only — the cleaner still
+                        is not told. "Show tips" restores both.
+                      -->
+                      @if (cleaner.tipsHiddenFromCleaner) {
+                      <span class="cleaner-tips-hidden"
+                            [title]="cleaner.tipsWithheldFromPayout
+                              ? 'Tips are not in this cleaner\'s emails and are not paid in Outgoing Payments'
+                              : 'Tips are not in this cleaner\'s emails, but are paid in Outgoing Payments'">
+                        {{ cleaner.tipsWithheldFromPayout ? 'Tips hidden · not paid' : 'Tips hidden · paid' }}
+                      </span>
+                      }
+                      @if (canEditCleanerTips) {
+                        @if (!cleaner.tipsHiddenFromCleaner) {
+                        <button type="button" class="cleaner-tips-btn"
+                                (click)="setCleanerTips(selectedOrder()!.id, cleaner, { hideFromCleaner: true, withholdFromPayout: true })"
+                                [disabled]="savingCleanerTipsKey() !== null"
+                                title="Leave tips out of this cleaner's emails and out of their pay">
+                          {{ isSavingCleanerTips(selectedOrder()!.id, cleaner.id) ? 'Saving…' : 'Hide tips' }}
+                        </button>
+                        } @else {
+                        <button type="button" class="cleaner-tips-btn"
+                                (click)="setCleanerTips(selectedOrder()!.id, cleaner, { hideFromCleaner: true, withholdFromPayout: !cleaner.tipsWithheldFromPayout })"
+                                [disabled]="savingCleanerTipsKey() !== null"
+                                [title]="cleaner.tipsWithheldFromPayout
+                                  ? 'Pay this cleaner the tip in Outgoing Payments (it stays out of their emails)'
+                                  : 'Stop paying this cleaner the tip in Outgoing Payments'">
+                          {{ isSavingCleanerTips(selectedOrder()!.id, cleaner.id) ? 'Saving…' : (cleaner.tipsWithheldFromPayout ? 'Pay tips' : 'Don\'t pay tips') }}
+                        </button>
+                        <button type="button" class="cleaner-tips-btn"
+                                (click)="setCleanerTips(selectedOrder()!.id, cleaner, { hideFromCleaner: false, withholdFromPayout: false })"
+                                [disabled]="savingCleanerTipsKey() !== null"
+                                title="Show tips in this cleaner's emails again and pay them">
+                          Show tips
+                        </button>
+                        }
                       }
                       <button type="button" class="resend-cleaner-mail-btn"
                               (click)="resendCleanerAssignmentMail(selectedOrder()!.id, cleaner)"
