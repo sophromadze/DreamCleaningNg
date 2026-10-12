@@ -606,6 +606,49 @@
       font-size: 11px;
       color: var(--cd-text-muted);
     }
+
+    // The cleaner's tips - gold, and kept apart from every wage figure (see .work-stats).
+    span.info-tips {
+      font-weight: 600;
+      color: var(--amber-text);
+    }
+  }
+}
+
+// Work & pay stats under the info grid (2026-10). Excel-like: no gap, one shared 1px line between
+// cells - the block draws the top and left edges, each cell its right and bottom - so no line is
+// ever doubled. Label + value read exactly like .info-grid's.
+.work-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  margin-bottom: 14px;
+  border-top: 1px solid var(--cd-border);
+  border-left: 1px solid var(--cd-border);
+
+  > div {
+    min-width: 0;
+    padding: 8px 10px;
+    border-right: 1px solid var(--cd-border);
+    border-bottom: 1px solid var(--cd-border);
+
+    label {
+      display: block;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      color: var(--cd-text-muted);
+      margin-bottom: 2px;
+    }
+    span { font-size: 14px; color: var(--cd-text); }
+  }
+
+  @media (max-width: 640px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+
+    // Without the money row there are three cells; the third spans the row rather than leaving
+    // an open notch in the grid.
+    &:not(.with-pay) > div:last-child { grid-column: 1 / -1; }
   }
 }
 

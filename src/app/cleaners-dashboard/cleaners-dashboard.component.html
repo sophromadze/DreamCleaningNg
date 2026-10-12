@@ -325,7 +325,11 @@
             <span>{{ linkedAccountLabel(selectedDetail()) }}</span>
           </div>
           }
-          <div><label>Jobs Completed</label><span>{{ jobsCompletedCount }}</span></div>
+          <!-- Jobs Completed moved into the stats block below; Tips takes its slot. Money, so the
+               SERVER decides who gets it (workStats.includesPay). -->
+          @if (showsPay) {
+          <div><label>Tips</label><span class="info-tips">{{ workStats!.tips | currency:'USD' }}</span></div>
+          }
           <div><label>Operating areas</label><span>{{ boroughsDisplay(selectedDetail()!.operatingAreas) }}</span></div>
           @if (selectedDetail()!.nationality) {
           <div><label>Nationality</label><span>{{ selectedDetail()!.nationality }}</span></div>
@@ -341,6 +345,22 @@
             <label>Restriction reason</label>
             <span>{{ selectedDetail()!.restrictedReason || '—' }}</span>
           </div>
+          }
+        </div>
+
+        <!--
+          Work & pay, all-time, completed orders only (Helpers/CleanerWorkStats). Excel-like cells:
+          3 x 2 on wide screens, 2 x 3 on small ones. The second row is money and appears only when
+          the server sent it; wages here NEVER include tips (Tips has its own cell above).
+        -->
+        <div class="work-stats" [class.with-pay]="showsPay">
+          <div><label>Jobs Completed</label><span>{{ jobsCompletedCount }}</span></div>
+          <div><label>Total hours worked</label><span>{{ formatWorkedMinutes(workStats?.totalMinutesWorked) }}</span></div>
+          <div><label>Avg hours per day</label><span>{{ formatWorkedMinutes(workStats?.averageMinutesPerDay) }}</span></div>
+          @if (showsPay) {
+          <div><label>Paid out</label><span>{{ workStats!.paidOut | currency:'USD' }}</span></div>
+          <div><label>Remaining to pay</label><span>{{ workStats!.remainingToPay | currency:'USD' }}</span></div>
+          <div><label>Avg earned per cleaning</label><span>{{ workStats!.averageEarnedPerJob | currency:'USD' }}</span></div>
           }
         </div>
 

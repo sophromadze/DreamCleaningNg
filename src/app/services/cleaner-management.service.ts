@@ -134,6 +134,31 @@ export interface CleanerDetail extends CleanerListItem {
    * the API will accept.
    */
   isEmailManagedByAccount?: boolean;
+
+  /** All-time work and pay figures for the panel (backend Helpers/CleanerWorkStats). */
+  workStats?: CleanerWorkStats | null;
+}
+
+/**
+ * What the cleaner has done and been paid, over their COMPLETED orders, all-time. Computed on the
+ * server from the payroll lines - never re-derived here. The four money fields are null unless the
+ * SERVER decided this viewer may see them (`includesPay`); the panel renders that answer as given.
+ */
+export interface CleanerWorkStats {
+  jobsCompleted: number;
+  /** Sum of the cleaner's payroll minutes. */
+  totalMinutesWorked: number;
+  daysWorked: number;
+  averageMinutesPerDay: number;
+  includesPay: boolean;
+  /** Wages handed over so far - never tips. */
+  paidOut?: number | null;
+  /** Wages owed for completed orders, not paid yet - never tips. */
+  remainingToPay?: number | null;
+  /** Wages per completed order - never tips. */
+  averageEarnedPerJob?: number | null;
+  /** The cleaner's tip shares on completed orders (withheld tips excluded). */
+  tips?: number | null;
 }
 
 export interface CreateCleanerPayload {

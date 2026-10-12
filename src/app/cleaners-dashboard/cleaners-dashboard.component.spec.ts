@@ -411,4 +411,75 @@ describe('CleanersDashboardComponent', () => {
       imgs.forEach(i => expect(i.getAttribute('referrerpolicy')).toBe('no-referrer'));
     });
   });
+
+  /**
+   * WORK & PAY STATS (2026-10): all-time figures over completed orders, computed by the server
+   * (Helpers/CleanerWorkStats). The money - wages paid, wages owed, wage per cleaning and tips - is
+   * only SENT to SuperAdmins and direct-save-granted Admins; the panel renders whatever arrived
+   * and never mixes tips into a wage figure.
+   */
+  describe('work & pay stats', () => {
+    const detail = (workStats: any) => ({
+      id: 80, firstName: 'Maria', lastName: 'K', phone: '7185551234', email: 'maria@example.com',
+      ranking: 1, experience: 'Standard', alreadyWorkedWithUs: true,
+      busyDaysOfWeek: [], vacations: [], notes: [], assignedOrders: [],
+      isActive: true, createdAt: '2026-01-01T00:00:00Z', workStats
+    });
+
+    const work = { jobsCompleted: 4, totalMinutesWorked: 660, daysWorked: 3, averageMinutesPerDay: 220 };
+
+    const render = (workStats: any): HTMLElement => {
+      fixture.componentRef.setInput('embedded', true);
+      fixture.componentRef.setInput('focusCleanerId', 80);
+      fixture.detectChanges();
+      httpMock.expectOne(r => r.url.endsWith('/admin/cleaners/80')).flush(detail(workStats));
+      fixture.detectChanges();
+      return fixture.nativeElement as HTMLElement;
+    };
+
+    const cells = (el: HTMLElement, selector: string) =>
+      Array.from(el.querySelectorAll(`${selector} > div`)).map(d => ({
+        label: d.querySelector('label')?.textContent?.trim(),
+        value: d.querySelector('span')?.textContent?.trim()
+      }));
+
+    it('shows all six figures, wages without tips, and Tips in the info grid for a viewer allowed the money', () => {
+      const el = render({
+        ...work, includesPay: true,
+        paidOut: 145, remainingToPay: 81, averageEarnedPerJob: 56.5, tips: 35
+      });
+
+      expect(cells(el, '.work-stats')).toEqual([
+        { label: 'Jobs Completed', value: '4' },
+        { label: 'Total hours worked', value: '11h' },
+        { label: 'Avg hours per day', value: '3h 40m' },
+        { label: 'Paid out', value: '$145.00' },
+        { label: 'Remaining to pay', value: '$81.00' },
+        { label: 'Avg earned per cleaning', value: '$56.50' }
+      ]);
+      expect(el.querySelector('.work-stats')!.classList).toContain('with-pay');
+
+      // Tips sits in the TOP grid where Jobs Completed used to be - and only there.
+      const info = cells(el, '.info-grid');
+      expect(info.find(c => c.label === 'Tips')?.value).toBe('$35.00');
+      expect(info.some(c => c.label === 'Jobs Completed')).toBe(false);
+      expect(el.querySelector('.info-grid .info-tips')).not.toBeNull();
+      expect(cells(el, '.work-stats').some(c => c.label === 'Tips')).toBe(false);
+    });
+
+    it('shows only the work figures, and no Tips, when the server sent no money', () => {
+      const el = render({ ...work, includesPay: false, paidOut: null, remainingToPay: null, averageEarnedPerJob: null, tips: null });
+
+      expect(cells(el, '.work-stats').map(c => c.label)).toEqual(['Jobs Completed', 'Total hours worked', 'Avg hours per day']);
+      expect(el.querySelector('.work-stats')!.classList).not.toContain('with-pay');
+      expect(cells(el, '.info-grid').some(c => c.label === 'Tips')).toBe(false);
+      expect(el.textContent).not.toContain('Paid out');
+    });
+
+    it('leaves the rest of the info grid as it was', () => {
+      const el = render({ ...work, includesPay: true, paidOut: 0, remainingToPay: 0, averageEarnedPerJob: 0, tips: 0 });
+
+      expect(cells(el, '.info-grid').map(c => c.label)).toEqual(['ID', 'Email', 'Tips', 'Operating areas', 'Experience']);
+    });
+  });
 });

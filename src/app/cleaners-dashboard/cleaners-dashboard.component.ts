@@ -12,6 +12,7 @@ import {
   CleanerManagementService,
   CleanerListItem,
   CleanerDetail,
+  CleanerWorkStats,
   CreateCleanerPayload,
   UpdateCleanerPayload,
   CreateCleanerNotePayload,
@@ -25,6 +26,7 @@ import {
   normalizeCleanerPaymentMethod
 } from '../services/cleaner-management.service';
 import { compressImage } from '../utils/image-compression';
+import { DurationUtils } from '../utils/duration.utils';
 import { normalizePhone10, sanitizePhoneInput, telHrefUS } from '../utils/phone.utils';
 
 /** The two halves of the cleaners section: the PEOPLE, and every CLEANING. */
@@ -1008,7 +1010,28 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
   }
 
   get jobsCompletedCount(): number {
-    return this.completedOrders.length;
+    return this.workStats?.jobsCompleted ?? this.completedOrders.length;
+  }
+
+  // ── Work & pay stats (2026-10) ──
+  //
+  // Every figure is the SERVER's (Helpers/CleanerWorkStats, from the payroll lines Outgoing
+  // Payments pays); nothing here recomputes one. Whether the money cells appear is the server's
+  // answer too: `includesPay` is true only for a SuperAdmin or an Admin with the direct-save grant,
+  // and for anyone else the amounts never reach the browser at all.
+
+  get workStats(): CleanerWorkStats | null {
+    return this.selectedDetail()?.workStats ?? null;
+  }
+
+  /** Wages and tips are on screen only when the server sent them. */
+  get showsPay(): boolean {
+    return !!this.workStats?.includesPay;
+  }
+
+  /** Payroll minutes as "152h 30m" — the same format the payroll screens print per cleaner. */
+  formatWorkedMinutes(minutes: number | null | undefined): string {
+    return DurationUtils.formatMinutes(Math.round(minutes ?? 0));
   }
 
   get lastCompletedJobDate(): string | null {
