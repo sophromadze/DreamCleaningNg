@@ -5056,11 +5056,13 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   readonly savingCleanerTipsKey = signal<string | null>(null);
 
   /**
-   * Hide tips / Show tips / Pay tips / Don't pay tips. Same gate as editing the wages
-   * (`canEditCleanerPayroll`): it moves what a cleaner is paid, never a customer price.
+   * Who SEES the tips controls at all — the Hide/Show/Pay buttons, the "Tips hidden" chip and the
+   * wage-row pill: SuperAdmin, and an Admin holding the direct-save grant (owner's call,
+   * 2026-10-12). `canSaveOrderEditsDirectly` is that exact answer (OrderEditApprovalPolicy, read
+   * from the DB by `admin/permissions`); the server refuses everyone else with 403.
    */
   get canEditCleanerTips(): boolean {
-    return this.canEditCleanerPayroll && this.canViewCleanerPayroll();
+    return this.canEditCleanerPayroll && this.canViewCleanerPayroll() && this.canSaveOrderEditsDirectly();
   }
 
   isSavingCleanerTips(orderId: number, cleanerId: number): boolean {

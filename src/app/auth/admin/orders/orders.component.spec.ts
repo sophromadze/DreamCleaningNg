@@ -2031,10 +2031,12 @@ describe('OrdersComponent', () => {
    * does not pay it unless "Pay tips" is pressed.
    */
   describe("hiding a cleaner's tips", () => {
-    const admin = (role: string, canUpdate = true) => {
+    // Granted by default: the handler tests below are about what a permitted click does.
+    const admin = (role: string, canUpdate = true, directSave = role !== 'Moderator') => {
       component.isSuperAdmin.set(role === 'SuperAdmin');
       component.userRole.set(role);
       component.userPermissions.set({ role, permissions: { canUpdate } } as any);
+      component.canSaveOrderEditsDirectly.set(directSave);
     };
 
     let svc: AdminService;
@@ -2045,11 +2047,14 @@ describe('OrdersComponent', () => {
       vi.spyOn(component as any, 'loadOrderCleanerPayroll').mockImplementation(() => {});
     });
 
-    it('is offered to Admins and SuperAdmins, never to a Moderator', () => {
-      admin('Admin');
-      expect(component.canEditCleanerTips).toBe(true);
+    it('is offered to SuperAdmins and to Admins who save without approval — nobody else', () => {
+      // Owner's call, 2026-10-12: the direct-save grant decides, not the Admin role alone.
       admin('SuperAdmin');
       expect(component.canEditCleanerTips).toBe(true);
+      admin('Admin', true, true);
+      expect(component.canEditCleanerTips).toBe(true);
+      admin('Admin', true, false);
+      expect(component.canEditCleanerTips).toBe(false);
       admin('Moderator', false);
       expect(component.canEditCleanerTips).toBe(false);
     });
