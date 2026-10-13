@@ -9,12 +9,14 @@ import { GooglePlacesService, formatReviewCount } from '../../../services/google
 import { SpecialOfferService, PublicSpecialOffer } from '../../../services/special-offer.service';
 import { BookingService, ServiceType, Service } from '../../../services/booking.service';
 import { BookingFormData, FormPersistenceService } from '../../../services/form-persistence.service';
+import { BookingCatalogueStore } from '../../../services/booking-catalogue-store.service';
 import { SSR_RESPONSE_CONTEXT } from '../../ssr/ssr-response.token';
 import { SSR_CATALOGUE } from '../../ssr/ssr-catalogue.token';
 import { resolveRenderedOffers } from '../../ssr/rendered-offers';
 import {
-  HERO_CHOICE_COOKIE, HeroChoice, decodeHeroChoice, readCookie, validateHeroChoice
-} from '../../booking/hero-choice-cookie';
+  BOOKING_CHOICE_COOKIE, ResolveChoiceOptions, decodeBookingChoice, readBookingChoice, resolveBookingChoice, seedDraftFromChoice
+} from '../../booking/booking-choice-cookie';
+import { readCookie } from '../../ssr/read-cookie';
 import { ShimmerDirective } from '../../directives/shimmer.directive';
 import {
   calculateQuote, QuoteInput, ExtraServiceLineInput,
@@ -87,11 +89,17 @@ let ssrServiceTypesOutageLogged = false;
 export const HERO_SERVICE_TYPES_KEY = makeStateKey<ServiceType[]>('home-hero.service-types');
 
 /**
- * The saved choice the SERVER rendered the form from (read from the visitor's hero cookie), or
- * absent. The hydrating browser applies exactly this - never its own cookie or storage - so its
- * first render matches the HTML it received even if that HTML were ever stale or cached.
+ * The saved choice the SERVER rendered the form from (read from the visitor's booking-choice
+ * cookie, resolved against the hero's catalogue), or absent. The hydrating browser applies exactly
+ * this - never its own cookie or storage - so its first render matches the HTML it received even if
+ * that HTML were ever stale or cached.
  */
-export const HERO_CHOICE_KEY = makeStateKey<HeroChoice>('home-hero.choice');
+export const HERO_CHOICE_KEY = makeStateKey<BookingFormData>('home-hero.choice');
+
+/** The types the hero draws: regular ones only, never poll or custom (see applyServiceTypes). */
+const HERO_CHOICE_OPTIONS: ResolveChoiceOptions = {
+  acceptType: type => type.isActive !== false && !type.hasPoll && !type.isCustom
+};
 
 /**
  * The advertised first-time offer the SERVER rendered the welcome coupon from (server.ts's
@@ -192,6 +200,8 @@ export class HomeHeroComponent implements OnInit, OnDestroy {
   private specialOfferService = inject(SpecialOfferService);
   private bookingService = inject(BookingService);
   private formPersistenceService = inject(FormPersistenceService);
+  private bookingCatalogueStore = inject(BookingCatalogueStore);
+  private bookingPrefetched = false;
   private router = inject(Router);
   private platformId = inject<Object>(PLATFORM_ID);
 
@@ -450,10 +460,10 @@ export class HomeHeroComponent implements OnInit, OnDestroy {
     this.isLoadingServiceTypes.set(false);
 
     if (!this.isBrowser) {
-      // A returning visitor's choice comes from their hero cookie (browser storage is out of
-      // reach here). Anything the current catalogue cannot show falls back to the default form.
-      const choice = validateHeroChoice(
-        decodeHeroChoice(readCookie(this.ssrContext?.requestCookies, HERO_CHOICE_COOKIE)), this.serviceTypes());
+      // A returning visitor's choice comes from their booking-choice cookie (browser storage is
+      // out of reach here), by key. Anything the current catalogue cannot show falls back to the
+      // default form.
+      const choice = readBookingChoice(this.ssrContext?.requestCookies, this.serviceTypes(), HERO_CHOICE_OPTIONS);
       if (choice) {
         this.applySavedChoice(choice, false);
         this.transferState.set(HERO_CHOICE_KEY, choice);
@@ -493,13 +503,22 @@ export class HomeHeroComponent implements OnInit, OnDestroy {
     this.formPersistenceService.loadFormData();
     const stored = this.formPersistenceService.getFormData();
     if (stored) this.restoreContactFields(stored);
+    else this.adoptCookieChoice();
     this.saveMainPageFormData();
   }
 
-  /** The hero cookie read in the browser, for a tab whose storage holds no saved form. */
-  private cookieChoice(): HeroChoice | null {
-    return validateHeroChoice(
-      decodeHeroChoice(readCookie(this.document.cookie, HERO_CHOICE_COOKIE)), this.serviceTypes());
+  /**
+   * The booking-choice cookie read in the browser, for a tab whose storage holds no saved form.
+   * The whole choice - including the extras, plan and date only /booking shows - is first seeded
+   * into this tab's storage, so the hero's own save (which merges only its fields) cannot write
+   * the cookie back without them. Returns the part the hero draws, or null.
+   */
+  private adoptCookieChoice(): BookingFormData | null {
+    const decoded = decodeBookingChoice(readCookie(this.document.cookie, BOOKING_CHOICE_COOKIE));
+    const resolved = resolveBookingChoice(decoded, this.serviceTypes(), HERO_CHOICE_OPTIONS);
+    if (!decoded || !resolved) return null;
+    this.formPersistenceService.saveFormData(seedDraftFromChoice(decoded, resolved));
+    return resolved;
   }
 
   /**
@@ -521,7 +540,7 @@ export class HomeHeroComponent implements OnInit, OnDestroy {
     const stored = this.formPersistenceService.getFormData();
     // Browser storage first, as before. The cookie covers a tab whose storage is empty (a new
     // tab, or storage cleared) while the 24-hour choice still stands.
-    const savedData = stored ?? this.cookieChoice();
+    const savedData = stored ?? this.adoptCookieChoice();
     if (stored) this.restoreContactFields(stored);
 
     if (savedData) {
@@ -820,13 +839,25 @@ export class HomeHeroComponent implements OnInit, OnDestroy {
     this.saveMainPageFormData();
   }
 
+  /**
+   * The visitor started using the form: fetch what /booking draws step 1 from (catalogue, plans,
+   * blocked slots) and its code, once, so Continue lands on a fully drawn page.
+   */
+  prefetchBooking() {
+    if (this.bookingPrefetched) return;
+    this.bookingPrefetched = true;
+    this.bookingCatalogueStore.prefetch();
+  }
+
   /** Persist main page card state so refresh and navigation to booking restore it. */
   private saveMainPageFormData() {
     if (!this.isBrowser || !this.selectedServiceType()) return;
     this.formPersistenceService.updateFormData({
       selectedServiceTypeId: this.selectedServiceType()!.id.toString(),
+      selectedServiceTypeKey: this.selectedServiceType()!.serviceKey ?? null,
       selectedServices: this.selectedServices().map(ss => ({
         serviceId: ss.service.id.toString(),
+        serviceKey: ss.service.serviceKey,
         quantity: ss.quantity
       })),
       cleaningType: this.cleaningTypeControl.value || 'normal',
@@ -1040,8 +1071,10 @@ export class HomeHeroComponent implements OnInit, OnDestroy {
     // Save form data
     const formData = {
       selectedServiceTypeId: this.selectedServiceType()!.id.toString(),
+      selectedServiceTypeKey: this.selectedServiceType()!.serviceKey ?? null,
       selectedServices: this.selectedServices().map(ss => ({
         serviceId: ss.service.id.toString(),
+        serviceKey: ss.service.serviceKey,
         quantity: ss.quantity
       })),
       cleaningType: this.cleaningTypeControl.value || 'normal',

@@ -78,3 +78,12 @@ export function staticCacheControl(relativePath: string): string | null {
   }
   return null;
 }
+
+/**
+ * The booking page (Angular route `booking`, no children). Its render reads the visitor's
+ * session and booking cookie, so server.ts looks the session up for it alone and always marks
+ * the HTML private.
+ */
+export function isBookingPage(path: string): boolean {
+  return path === '/booking' || path === '/booking/';
+}

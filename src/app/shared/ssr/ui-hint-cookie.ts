@@ -1,4 +1,4 @@
-import { readCookie } from '../booking/hero-choice-cookie';
+import { readCookie } from './read-cookie';
 
 /**
  * A small first-party LAYOUT hint, so the server can render the signed-in header exactly as the

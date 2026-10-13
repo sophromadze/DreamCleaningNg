@@ -1,6 +1,5 @@
 import { Component, ChangeDetectionStrategy, output, input, signal } from '@angular/core';
 import { ExtraService } from '../../../services/booking.service';
-import { ShimmerDirective } from '../../directives/shimmer.directive';
 import { QuantityControlComponent } from '../quantity-control/quantity-control.component';
 import {
   getExtraServiceImage,
@@ -30,7 +29,7 @@ export interface ExtraServiceSelection {
  */
 @Component({
   selector: 'app-extra-services-grid',
-  imports: [ShimmerDirective, QuantityControlComponent, IconComponent],
+  imports: [QuantityControlComponent, IconComponent],
   templateUrl: './extra-services-grid.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./extra-services-grid.component.scss']
@@ -45,7 +44,7 @@ export class ExtraServicesGridComponent {
   readonly sameDayServiceAvailable = input(true);
   /** Booking-only: tooltip text shown on the disabled same-day card. */
   readonly sameDayDisabledReason = input('');
-  /** Booking-only: shows the shimmer placeholder row. */
+  /** Booking-only: shows the static placeholder row (same size as the cards, no animation). */
   readonly loading = input(false);
   /** Booking-only: responsive max-width computed by the page. */
   readonly containerMaxWidth = input<number | null>(null);

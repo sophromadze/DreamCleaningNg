@@ -12,11 +12,11 @@
 
 <div class="extra-services-container" [class.collapsed]="!showAll()" [style.max-width.px]="containerMaxWidth()"
      tabindex="0" role="region" aria-label="Extra services">
-  <!-- Shimmer row when loading (matches real card layout) -->
+  <!-- Placeholder row while loading (matches real card layout; static, no animation) -->
   @if (loading()) {
   <div class="extra-services extra-services-shimmer-row">
     @for (i of shimmerCards; track i) {
-    <div class="extra-service-card-shimmer" [shimmer]="true"></div>
+    <div class="extra-service-card-shimmer"></div>
     }
   </div>
   }

@@ -1,7 +1,7 @@
 import {
   ANONYMOUS_UI_HINT, UI_HINT_COOKIE, decodeUiHint, encodeUiHint, hasUiHint, readUiHint, uiHintForUser, writeUiHintCookie
 } from './ui-hint-cookie';
-import { readCookie } from '../booking/hero-choice-cookie';
+import { readCookie } from './read-cookie';
 
 describe('dc_ui layout hint', () => {
   afterEach(() => writeUiHintCookie(document, ANONYMOUS_UI_HINT));

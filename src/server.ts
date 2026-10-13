@@ -6,13 +6,15 @@ import { dirname, join, relative, resolve } from 'node:path';
 import { readFileSync } from 'node:fs';
 import { SSR_RESPONSE_CONTEXT, SsrResponseContext } from './app/shared/ssr/ssr-response.token';
 import { SSR_CATALOGUE, SsrCatalogue } from './app/shared/ssr/ssr-catalogue.token';
-import type { ServiceType } from './app/services/booking.service';
+import type { BlockedTimeSlot, ServiceType, Subscription } from './app/services/booking.service';
+import { SSR_BOOKING_SESSION } from './app/shared/ssr/ssr-booking-session.token';
+import { loadBookingSession } from './ssr-booking-session';
 import type { PublicSpecialOffer } from './app/services/special-offer.service';
 import { renderLlmsTxt } from './llms-txt';
-import { CATALOGUE_TTL_MS, createCatalogueCache, createPublicOffersCache } from './catalogue-cache';
+import { CATALOGUE_TTL_MS, createCatalogueCache, createPublicListCache, createPublicOffersCache } from './catalogue-cache';
 import { ALLOWED_HOSTS, rejectedHeader } from './host-guard';
 import { removeNoscriptStylesheet } from './noscript-stylesheet';
-import { isMissingFileRequest, isStaticFileRequest, permanentRedirectLocation, staticCacheControl } from './server-routing';
+import { isBookingPage, isMissingFileRequest, isStaticFileRequest, permanentRedirectLocation, staticCacheControl } from './server-routing';
 import { environment } from './environments/environment';
 
 // Same backend as server-url.interceptor.ts (environment.ssrApiOrigin - production:
@@ -59,6 +61,12 @@ export function app(): express.Express {
   // The public special offers, held the same way, so the home hero's welcome coupon is in the
   // server render instead of popping in after hydration. Same TTL as the catalogue.
   const publicOffers = createPublicOffersCache(`${BACKEND_URL}/api/special-offers/public`);
+  // The booking page's other public lists, so step 1 is drawn whole on the server: the plans, and
+  // the blocked time slots (a 60-second TTL - a day an admin blocks should reach the default date
+  // quickly; the same URL the browser asks for, so both see the same range).
+  const subscriptions = createPublicListCache(`${BACKEND_URL}/api/booking/subscriptions`, 'booking plans');
+  const blockedTimeSlots = createPublicListCache(`${BACKEND_URL}/api/booking/blocked-time-slots`, 'blocked time slots',
+    { ttlMs: 60_000, maxAgeMs: 10 * 60_000 });
 
   // /llms.txt is generated, not a file: its prices are the same MarketingPrices the pages show.
   // Registered before the static handler and the 404 guard below. Any backend failure
@@ -143,15 +151,23 @@ export function app(): express.Express {
     // slug) can set statusCode and the SSR response uses it instead of 200.
     const responseContext: SsrResponseContext = { statusCode: null, requestCookies: headers.cookie ?? null };
 
-    // Normally answered from memory; waits (briefly) only on a cold cache.
-    const [snapshot, offers] = await Promise.all([
+    // Normally answered from memory; waits (briefly) only on a cold cache. The booking page also
+    // gets its plans, blocked slots and - for a signed-in visitor - their own booking context,
+    // looked up with their access_token cookie alone (ssr-booking-session.ts, 400 ms cap).
+    const booking = isBookingPage(req.path);
+    const [snapshot, offers, plans, blocked, bookingSession] = await Promise.all([
       catalogue.get(SSR_CATALOGUE_WAIT_MS),
-      publicOffers.get(SSR_CATALOGUE_WAIT_MS)
+      publicOffers.get(SSR_CATALOGUE_WAIT_MS),
+      booking ? subscriptions.get(SSR_CATALOGUE_WAIT_MS) : null,
+      booking ? blockedTimeSlots.get(SSR_CATALOGUE_WAIT_MS) : null,
+      booking ? loadBookingSession(BACKEND_URL, headers.cookie) : null
     ]);
     const ssrCatalogue: SsrCatalogue = {
       serviceTypes: snapshot.serviceTypes as ServiceType[] | null,
       prices: snapshot.prices,
-      publicOffers: offers as PublicSpecialOffer[] | null
+      publicOffers: offers as PublicSpecialOffer[] | null,
+      subscriptions: plans as Subscription[] | null,
+      blockedTimeSlots: blocked as BlockedTimeSlot[] | null
     };
 
     renderApplication(
@@ -167,6 +183,7 @@ export function app(): express.Express {
           { provide: APP_BASE_HREF, useValue: baseUrl },
           { provide: SSR_RESPONSE_CONTEXT, useValue: responseContext },
           { provide: SSR_CATALOGUE, useValue: ssrCatalogue },
+          { provide: SSR_BOOKING_SESSION, useValue: bookingSession },
         ],
       }
     )
@@ -179,11 +196,12 @@ export function app(): express.Express {
       if (responseContext.statusCode === 404) {
         res.set('Cache-Control', 'no-store');
         res.set('X-Robots-Tag', 'noindex');
-      } else if (responseContext.renderedFromCookie) {
-        // This HTML carries one visitor's saved hero choice (dc_hero_choice) or their signed-in
-        // layout (dc_ui: header pill/badge, welcome coupon): a shared cache (Cloudflare, which
-        // today does not cache HTML at all) must never store it for anyone else. no-cache rather
-        // than no-store keeps the page eligible for the back/forward cache.
+      } else if (booking || responseContext.renderedFromCookie) {
+        // This HTML carries one visitor's saved booking choice (dc_booking_choice), their
+        // signed-in layout (dc_ui: header pill/badge) or - on /booking, ALWAYS marked - their own
+        // offers, plan and discounts plus a per-render offer pick: a shared cache (Cloudflare,
+        // which today does not cache HTML at all) must never store it for anyone else. no-cache
+        // rather than no-store keeps the page eligible for the back/forward cache.
         res.set('Cache-Control', 'private, no-cache');
         res.set('Vary', 'Cookie');
       }

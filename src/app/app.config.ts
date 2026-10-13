@@ -15,6 +15,7 @@ import {
 } from '@abacritt/angularx-social-login';
 import { environment } from '../environments/environment';
 import { ScrollRestoreService } from './services/scroll-restore.service';
+import { BookingCatalogueStore } from './services/booking-catalogue-store.service';
 
 // Auth is no longer awaited in APP_INITIALIZER so that protected routes (profile, admin)
 // can show a loading shimmer until auth is ready instead of flashing the login page.
@@ -95,8 +96,11 @@ export const appConfig: ApplicationConfig = {
     ),
     // Back/Forward restores land without the animated trip from the top - see ScrollRestoreService.
     // Started before the first navigation so its bookkeeping matches the router's.
+    // Pointing at (or focusing) a link to /booking prefetches its data - see BookingCatalogueStore.
     provideAppInitializer(() => {
-      if (isPlatformBrowser(inject(PLATFORM_ID))) inject(ScrollRestoreService).start();
+      if (!isPlatformBrowser(inject(PLATFORM_ID))) return;
+      inject(ScrollRestoreService).start();
+      inject(BookingCatalogueStore).watchBookLinks();
     }),
 
     // Social auth configuration with platform check. Since angularx-social-login 2.5,

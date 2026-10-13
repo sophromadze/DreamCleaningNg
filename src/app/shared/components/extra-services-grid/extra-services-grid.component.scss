@@ -830,6 +830,29 @@
   pointer-events: none !important;
 }
 
+/* ---- Booking page container width ----
+   The booking page used to compute this in TypeScript from window.innerWidth and bind it as an
+   inline style, so the server's HTML (no window) and the browser's first render disagreed and
+   the row moved on hydration. Same formula as CSS, so it is in the server's HTML:
+   below 1200px: viewport - 60px (never under 300px); exactly 1200px: 1140px;
+   1201-1509px: linear from 697px up to 950px; from 1510px: 950px.
+   Booking-only: the page puts `booking-extras-grid` on this component (order-edit does not). */
+:host(.booking-extras-grid) .extra-services-container {
+  max-width: max(calc(100vw - 60px), 300px);
+
+  @media (min-width: 1200px) {
+    max-width: 1140px;
+  }
+
+  @media (min-width: 1201px) {
+    max-width: calc(950px - (1510px - 100vw) * 0.81877);
+  }
+
+  @media (min-width: 1510px) {
+    max-width: 950px;
+  }
+}
+
 /* ---- Horizontal scrollbar — theme-aware ----
    .extra-services-container has `overflow-y: hidden`, which forces
    the horizontal axis to `auto` and renders a scrollbar when the

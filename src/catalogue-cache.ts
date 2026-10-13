@@ -15,7 +15,10 @@
  *   is down or gated (SIR answers 401) costs one cheap attempt per window, never one per render.
  *
  * The public special offers (GET api/special-offers/public, the home hero's welcome coupon) are
- * held the same way by createPublicOffersCache, on the same refresh core (2026-10).
+ * held the same way by createPublicOffersCache, on the same refresh core (2026-10). So are the
+ * booking page's other public lists (createPublicListCache): the plans (api/booking/subscriptions)
+ * and the blocked time slots (api/booking/blocked-time-slots, on a 60-second TTL because an admin
+ * blocking a day should reach the first paint quickly).
  *
  * Nothing is written to disk.
  */
@@ -50,6 +53,10 @@ export interface CatalogueCache {
 
 interface CacheOptions {
   now?: () => number;
+  /** Fresh window; CATALOGUE_TTL_MS when absent. */
+  ttlMs?: number;
+  /** How long a last good copy outlives failed refreshes; CATALOGUE_MAX_AGE_MS when absent. */
+  maxAgeMs?: number;
   fetchImpl?: typeof fetch;
   log?: Pick<Console, 'warn'>;
 }
@@ -69,6 +76,8 @@ function createRefreshingListCache<S>(
   const now = options.now ?? Date.now;
   const fetchImpl = options.fetchImpl ?? fetch;
   const log = options.log ?? console;
+  const ttlMs = options.ttlMs ?? CATALOGUE_TTL_MS;
+  const maxAgeMs = options.maxAgeMs ?? CATALOGUE_MAX_AGE_MS;
 
   let good: { snapshot: S; fetchedAt: number } | null = null;
   let lastFailureAt: number | null = null;
@@ -97,11 +106,11 @@ function createRefreshingListCache<S>(
     return inFlight;
   };
 
-  const usable = () => (good && now() - good.fetchedAt < CATALOGUE_MAX_AGE_MS ? good.snapshot : null);
+  const usable = () => (good && now() - good.fetchedAt < maxAgeMs ? good.snapshot : null);
 
   return {
     async get(waitMs: number): Promise<S> {
-      const fresh = good && now() - good.fetchedAt < CATALOGUE_TTL_MS;
+      const fresh = good && now() - good.fetchedAt < ttlMs;
       if (!fresh && !(lastFailureAt !== null && now() - lastFailureAt < RETRY_AFTER_FAILURE_MS)) {
         void refresh();
       }
@@ -174,6 +183,22 @@ export function createPublicOffersCache(url: string, options: CacheOptions = {})
     body => body,
     (error, hasGoodCopy) => `[special offers] Public offers unavailable (${error}); ` +
       (hasGoodCopy ? 'keeping the last good copy for up to 30 minutes.' : 'the welcome coupon is left to the browser.'),
+    options
+  );
+}
+
+/**
+ * Any other small public list the booking page draws its first paint from (plans, blocked time
+ * slots). With no usable copy the render leaves that part to the browser, which fetches it after
+ * hydration exactly as before. `label` names the list in the one warning a failure streak gets.
+ */
+export function createPublicListCache(url: string, label: string, options: CacheOptions = {}): PublicOffersCache {
+  return createRefreshingListCache<unknown[] | null>(
+    url,
+    null,
+    body => body,
+    (error, hasGoodCopy) => `[${label}] unavailable (${error}); ` +
+      (hasGoodCopy ? 'keeping the last good copy.' : 'the browser loads it after hydration.'),
     options
   );
 }

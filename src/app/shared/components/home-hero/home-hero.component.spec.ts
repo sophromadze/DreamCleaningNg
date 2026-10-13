@@ -6,7 +6,9 @@ import { HttpTestingController } from '@angular/common/http/testing';
 import {
   HomeHeroComponent, HERO_CHOICE_KEY, HERO_OFFERS_KEY, HERO_SERVICE_TYPES_KEY, SSR_SERVICE_TYPES_TIMEOUT_MS, trimServiceTypesForHero
 } from './home-hero.component';
-import { HERO_CHOICE_COOKIE, HeroChoice, readCookie, writeHeroChoiceCookie } from '../../booking/hero-choice-cookie';
+import { BOOKING_CHOICE_COOKIE, writeBookingChoiceCookie } from '../../booking/booking-choice-cookie';
+import { readCookie } from '../../ssr/read-cookie';
+import type { BookingFormData } from '../../../services/form-persistence.service';
 import { SSR_RESPONSE_CONTEXT, SsrResponseContext } from '../../ssr/ssr-response.token';
 import { SSR_CATALOGUE } from '../../ssr/ssr-catalogue.token';
 import { ANONYMOUS_UI_HINT, writeUiHintCookie } from '../../ssr/ui-hint-cookie';
@@ -261,11 +263,11 @@ describe('HomeHeroComponent server-rendered form', () => {
     minValue: 2, maxValue: 8, displayOrder: 1, thresholds: [], rateTiers: []
   } as any;
   const residential = {
-    id: 1, name: 'Residential Cleaning', basePrice: 90, timeDuration: 120, isActive: true,
+    id: 1, name: 'Residential Cleaning', serviceKey: 'residential', basePrice: 90, timeDuration: 120, isActive: true,
     hasPoll: false, isCustom: false, displayOrder: 1, services: [bedrooms, bathrooms], extraServices: []
   } as any;
   const office = {
-    id: 2, name: 'Office Cleaning', basePrice: 100, timeDuration: 120, isActive: true,
+    id: 2, name: 'Office Cleaning', serviceKey: 'office', basePrice: 100, timeDuration: 120, isActive: true,
     hasPoll: false, isCustom: false, displayOrder: 2, services: [hours], extraServices: []
   } as any;
   const TYPES = [residential, office];
@@ -277,7 +279,7 @@ describe('HomeHeroComponent server-rendered form', () => {
    * list (and, with `serverChoice`, rendered it from the visitor's hero cookie).
    */
   function create(platform: 'browser' | 'server',
-                  opts: { requestCookies?: string; transfer?: boolean; serverChoice?: HeroChoice } = {}) {
+                  opts: { requestCookies?: string; transfer?: boolean; serverChoice?: BookingFormData } = {}) {
     const ssrContext: SsrResponseContext = { statusCode: null, requestCookies: opts.requestCookies ?? null };
     TestBed.configureTestingModule({
       providers: [
@@ -309,22 +311,25 @@ describe('HomeHeroComponent server-rendered form', () => {
   const stored = () => JSON.parse(sessionStorage.getItem(STORAGE_KEY) || 'null');
   const saveStorage = (data: object) =>
     sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ ...data, savedAt: Date.now() }));
-  const heroCookie = () => readCookie(document.cookie, HERO_CHOICE_COOKIE);
+  const heroCookie = () => readCookie(document.cookie, BOOKING_CHOICE_COOKIE);
   const quantity = (hero: HomeHeroComponent, key: string) =>
     hero.selectedServices().find(s => s.service.serviceKey === key)?.quantity;
   const typeLabel = (fixture: ComponentFixture<HomeHeroComponent>) =>
     (fixture.nativeElement as HTMLElement).querySelector('.dropdown-toggle__label span')?.textContent?.trim();
-  const OFFICE_CHOICE: HeroChoice = {
-    selectedServiceTypeId: '2', selectedServices: [{ serviceId: '21', quantity: 5 }], cleaningType: 'normal'
+  /** What the server resolves OFFICE_COOKIE to: ids AND keys, by key against the catalogue. */
+  const OFFICE_CHOICE: BookingFormData = {
+    selectedServiceTypeId: '2', selectedServiceTypeKey: 'office',
+    selectedServices: [{ serviceId: '21', serviceKey: 'hours', quantity: 5 }], selectedExtraServices: [], cleaningType: 'normal'
   };
+  const OFFICE_COOKIE = '2.office.n...hours~5......';
 
   beforeEach(() => {
     sessionStorage.removeItem(STORAGE_KEY);
-    writeHeroChoiceCookie(document, null);
+    writeBookingChoiceCookie(document, null);
   });
   afterEach(() => {
     sessionStorage.removeItem(STORAGE_KEY);
-    writeHeroChoiceCookie(document, null);
+    writeBookingChoiceCookie(document, null);
     (HomeHeroComponent as any).lastServiceTypes = null;
   });
 
@@ -354,8 +359,8 @@ describe('HomeHeroComponent server-rendered form', () => {
       expect(shipped).toEqual(trimServiceTypesForHero(TYPES));
     });
 
-    it('renders a returning visitor\'s form from the hero cookie and flags the response', () => {
-      const { fixture, hero, http, ssrContext } = create('server', { requestCookies: 'a=1; dc_hero_choice=1.2.n.-.21-5; b=2' });
+    it('renders a returning visitor\'s form from the booking-choice cookie (by key) and flags the response', () => {
+      const { fixture, hero, http, ssrContext } = create('server', { requestCookies: `a=1; dc_booking_choice=${OFFICE_COOKIE}; b=2` });
       serviceTypesRequest(http).flush(TYPES);
       fixture.detectChanges();
 
@@ -366,9 +371,11 @@ describe('HomeHeroComponent server-rendered form', () => {
       expect(ssrContext.renderedFromCookie).toBe(true);
     });
 
-    for (const value of ['garbage', '1.99.n.-.11-3', '2.1.n.-.11-3', '1.1.x.-.11-3', '1.1.n.-.11-3%3Cscript%3E', '']) {
+    // Includes the retired ID-based format ('1.2.n.-.21-5'): ids are never trusted any more.
+    for (const value of ['garbage', '1.2.n.-.21-5', '2.unknown-type.n...hours~5......', '2.office.x...hours~5......',
+                         '2.office.n...hours~5%3Cscript%3E......', '2.Office.n...hours~5......', '']) {
       it(`ignores an unusable cookie (${JSON.stringify(value)}): default form, response not flagged`, () => {
-        const { hero, http, ssrContext } = create('server', { requestCookies: `dc_hero_choice=${value}` });
+        const { hero, http, ssrContext } = create('server', { requestCookies: `dc_booking_choice=${value}` });
         serviceTypesRequest(http).flush(TYPES);
 
         expect(hero.selectedServiceType()?.id).toBe(1);
@@ -378,8 +385,16 @@ describe('HomeHeroComponent server-rendered form', () => {
       });
     }
 
+    it('ignores the retired dc_hero_choice cookie entirely', () => {
+      const { hero, http, ssrContext } = create('server', { requestCookies: 'dc_hero_choice=1.2.n.-.21-5' });
+      serviceTypesRequest(http).flush(TYPES);
+
+      expect(hero.selectedServiceType()?.id).toBe(1);
+      expect(ssrContext.renderedFromCookie).toBeFalsy();
+    });
+
     it('drops an out-of-range quantity and keeps the rest of the choice', () => {
-      const { hero, http } = create('server', { requestCookies: 'dc_hero_choice=1.1.n.-.11-3_12-60' });
+      const { hero, http } = create('server', { requestCookies: 'dc_booking_choice=2.residential.n...bedrooms~3_bathrooms~60......' });
       serviceTypesRequest(http).flush(TYPES);
 
       expect(quantity(hero, 'bedrooms')).toBe(3);
@@ -419,7 +434,7 @@ describe('HomeHeroComponent server-rendered form', () => {
 
     it('cookie render: the first render IS the saved form, and hydration changes nothing', () => {
       // Its own cookie disagrees on purpose: the browser follows what the SERVER drew.
-      writeHeroChoiceCookie(document, { selectedServiceTypeId: '1', selectedServices: [], cleaningType: 'normal' });
+      writeBookingChoiceCookie(document, { selectedServiceTypeKey: 'residential', selectedServices: [], cleaningType: 'normal' });
       const { fixture, hero } = create('browser', { transfer: true, serverChoice: OFFICE_CHOICE });
 
       expect(hero.selectedServiceType()?.id).toBe(2);
@@ -433,7 +448,7 @@ describe('HomeHeroComponent server-rendered form', () => {
       expect(quantity(hero, 'hours')).toBe(5);
       // This tab's (empty) storage and the cookie now match the form on screen.
       expect(stored()?.selectedServiceTypeId).toBe('2');
-      expect(heroCookie()).toBe('1.2.n.-.21-5');
+      expect(heroCookie()).toBe(OFFICE_COOKIE);
     });
 
     it('cookie render keeps the contact details already in storage when it syncs', () => {
@@ -455,12 +470,12 @@ describe('HomeHeroComponent server-rendered form', () => {
 
       expect(hero.selectedServiceType()?.id).toBe(1);
       expect(stored()?.selectedServiceTypeId).toBe('1');
-      expect(heroCookie()).toMatch(/^1\.1\.n\./);
+      expect(heroCookie()).toMatch(/^2\.residential\.n\./);
     });
 
     it('no cookie yet, storage present: matches the server first, restores after hydration, then writes the cookie', () => {
       saveStorage({ selectedServiceTypeId: '1', selectedServices: [{ serviceId: '11', quantity: 3 }, { serviceId: '12', quantity: 2 }] });
-      writeHeroChoiceCookie(document, null);
+      writeBookingChoiceCookie(document, null);
       const { fixture, hero } = create('browser', { transfer: true });
 
       // Hydration pass: the server's default form, and the saved choices left untouched.
@@ -471,12 +486,13 @@ describe('HomeHeroComponent server-rendered form', () => {
 
       expect(quantity(hero, 'bedrooms')).toBe(3);
       expect(quantity(hero, 'bathrooms')).toBe(2);
-      expect(heroCookie()).toBe('1.1.n.-.11-3_12-2');
+      // A draft saved before keys existed is written back WITH them, so the cookie can name it.
+      expect(heroCookie()).toBe('2.residential.n...bedrooms~3_bathrooms~2......');
     });
 
     it('no cookie yet, storage holds another type: switches to it after hydration', () => {
       saveStorage({ selectedServiceTypeId: '2', selectedServices: [{ serviceId: '21', quantity: 5 }] });
-      writeHeroChoiceCookie(document, null);
+      writeBookingChoiceCookie(document, null);
       const { fixture, hero } = create('browser', { transfer: true });
       expect(hero.selectedServiceType()?.id).toBe(1);
 
@@ -510,13 +526,26 @@ describe('HomeHeroComponent server-rendered form', () => {
     });
 
     it('takes the cookie when this tab\'s storage is empty', () => {
-      writeHeroChoiceCookie(document, OFFICE_CHOICE);
+      writeBookingChoiceCookie(document, OFFICE_CHOICE);
       const { hero, http } = create('browser');
       serviceTypesRequest(http).flush(TYPES);
 
       expect(hero.selectedServiceType()?.id).toBe(2);
       expect(quantity(hero, 'hours')).toBe(5);
       expect(stored()?.selectedServiceTypeId).toBe('2');
+    });
+
+    it('a new tab keeps what only /booking shows (extras, plan, date) when the hero saves', () => {
+      // Written by /booking in another tab; this tab's storage is empty.
+      document.cookie = 'dc_booking_choice=2.office.n...hours~5.fridge~1~0.14.20261020.0930..; Path=/';
+      const { hero, http } = create('browser');
+      serviceTypesRequest(http).flush(TYPES);
+
+      expect(hero.selectedServiceType()?.id).toBe(2);
+      // The hero's catalogue has no extras or plans: they are kept by key for /booking to resolve.
+      expect(stored()?.selectedExtraServices).toEqual([{ extraServiceId: '', extraServiceKey: 'fridge', quantity: 1, hours: 0 }]);
+      expect(stored()?.selectedSubscriptionDays).toBe(14);
+      expect(heroCookie()).toBe('2.office.n...hours~5.fridge~1~0.14.20261020.0930..');
     });
   });
 });

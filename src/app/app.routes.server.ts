@@ -6,8 +6,13 @@ export const serverRoutes: ServerRoute[] = [
   { path: 'admin/**', renderMode: RenderMode.Client },
   { path: 'profile', renderMode: RenderMode.Client },
   { path: 'profile/**', renderMode: RenderMode.Client },
-  { path: 'booking', renderMode: RenderMode.Client },
-  { path: 'booking/**', renderMode: RenderMode.Client },
+  // The booking page is rendered per request (2026-10): step 1 is drawn on the server from the
+  // visitor's booking-choice cookie and, when signed in, their own session (server.ts), and the
+  // response is always private. Never Client (it would ship an empty shell) and never Prerender
+  // (it would freeze one visitor's form). server.ts renders with renderApplication, which renders
+  // every route regardless; these entries state the intent for the route extractor.
+  { path: 'booking', renderMode: RenderMode.Server },
+  { path: 'booking/**', renderMode: RenderMode.Server },
   // The cleaner portal is behind auth and has no SEO value; prerendering it would only ship an
   // empty shell and fire its API calls during the build pass.
   { path: 'cleaner-portal', renderMode: RenderMode.Client },

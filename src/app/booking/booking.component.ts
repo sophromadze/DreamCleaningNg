@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ChangeDetectorRef, PLATFORM_ID, afterNextRender, Injector, runInInjectionContext, ElementRef, inject, ChangeDetectionStrategy, viewChild, signal, computed } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef, PLATFORM_ID, afterNextRender, Injector, runInInjectionContext, ElementRef, inject, ChangeDetectionStrategy, viewChild, signal, computed, TransferState } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, FormControl, Validators, AbstractControl, ValidationErrors } from '@angular/forms';
 import { Router, RouterModule, ActivatedRoute } from '@angular/router';
@@ -24,7 +24,6 @@ import { DurationSelectorComponent } from './duration-selector/duration-selector
 import { TimeSelectorComponent } from './time-selector/time-selector.component';
 import { DateSelectorComponent } from './date-selector/date-selector.component';
 import { AdminService, UserAdmin } from '../services/admin.service';
-import { ShimmerDirective } from '../shared/directives/shimmer.directive';
 import { GoogleMapsLoaderService } from '../services/google-maps-loader.service';
 import { FloorTypeSelectorComponent, FloorTypeSelection } from '../shared/components/floor-type-selector/floor-type-selector.component';
 import { AdminUserSearchComponent } from './admin-user-search/admin-user-search.component';
@@ -132,6 +131,12 @@ import { faUserShield } from '../shared/icons/glyphs/faUserShield';
 import { faXmark } from '../shared/icons/glyphs/faXmark';
 import { debugTimersPaused } from '../shared/debug-timers';
 import { formViewRefresher } from '../shared/forms/form-view-refresher';
+import { SSR_CATALOGUE } from '../shared/ssr/ssr-catalogue.token';
+import { SSR_RESPONSE_CONTEXT } from '../shared/ssr/ssr-response.token';
+import { SSR_BOOKING_SESSION, SsrBookingSession } from '../shared/ssr/ssr-booking-session.token';
+import { fillDraftIdsFromKeys, readBookingChoice } from '../shared/booking/booking-choice-cookie';
+import { BookingCatalogueStore } from '../services/booking-catalogue-store.service';
+import { BOOKING_INITIAL_STATE_KEY, BookingInitialState, addDaysToIsoDate, newYorkToday } from './booking-initial-state';
 
 /** Address-name presets. Anything that isn't one of the fixed labels is "Other" (free text). */
 type AddressNameType = 'Home' | 'Office' | 'Other';
@@ -186,7 +191,7 @@ export function adminMethodIsSettled(method: AdminBookingPaymentMethod): boolean
 
 @Component({
   selector: 'app-booking',
-  imports: [CommonModule, FormsModule, ReactiveFormsModule, RouterModule, DurationSelectorComponent, TimeSelectorComponent, DateSelectorComponent, ShimmerDirective, FloorTypeSelectorComponent, CleaningTypeDetailsExpandableComponent, MoveInOutChecklistComponent, AdminUserSearchComponent, RegisterCustomerModalComponent, ReorderSectionComponent, QuantityControlComponent, ExtraServicesGridComponent, OrderSummaryCardComponent, IconComponent],
+  imports: [CommonModule, FormsModule, ReactiveFormsModule, RouterModule, DurationSelectorComponent, TimeSelectorComponent, DateSelectorComponent, FloorTypeSelectorComponent, CleaningTypeDetailsExpandableComponent, MoveInOutChecklistComponent, AdminUserSearchComponent, RegisterCustomerModalComponent, ReorderSectionComponent, QuantityControlComponent, ExtraServicesGridComponent, OrderSummaryCardComponent, IconComponent],
   // This page-level BookingService must get the APP's HttpClient (app.config: authInterceptor).
   // Never add HttpClientModule to `imports` above: it gave this component a private HttpClient
   // with no interceptors, so the service's calls skipped refresh-on-401 and session revocation.
@@ -219,6 +224,55 @@ export class BookingComponent implements OnInit, OnDestroy {
   private googleMapsLoader = inject(GoogleMapsLoaderService);
   private bubbleRewardsService = inject(BubbleRewardsService);
   private invoiceService = inject(InvoiceService);
+  private transferState = inject(TransferState);
+  private bookingCatalogueStore = inject(BookingCatalogueStore);
+  /** Server only (absent in the browser): server.ts's in-memory lists, the request's cookies, the session. */
+  private ssrCatalogue = inject(SSR_CATALOGUE, { optional: true });
+  private ssrContext = inject(SSR_RESPONSE_CONTEXT, { optional: true });
+  private ssrSession = inject(SSR_BOOKING_SESSION, { optional: true });
+
+  /**
+   * True while this page is being HYDRATED over the server's HTML (created by the app's first
+   * navigation in the browser). Its first render must reproduce that HTML exactly, so it draws
+   * from the server's BookingInitialState and reads its own storage, cookie and auth state only
+   * after that render (reconcileAfterHydration). An in-app navigation renders from scratch.
+   */
+  private hydrating = false;
+  /** What step 1 was first drawn from (server render / hydration); null otherwise. */
+  private initialState: BookingInitialState | null = null;
+  private reconciled = false;
+  /**
+   * Off until the page has read the visitor's saved draft. Every save before that point (the
+   * server's and hydration's drawing of the form) would overwrite the draft - contact details
+   * included - with a form that has not been restored yet.
+   */
+  private persistenceReady = false;
+  /**
+   * Whether the catalogue on screen is fresh server data (the server render, or a request made by
+   * this page or less than a minute before it). A per-tab copy older than that is DRAWN at once
+   * but never priced into a booking: Book Now waits until fresh data has replaced it.
+   */
+  readonly catalogueFresh = signal(false);
+  /** The signed-in user the server drew this page for (their session), or null. */
+  private sessionUserId: number | null = null;
+  private sessionPermissionKnown = false;
+  /** The server already knows the plans / blocked slots / guest offer; the browser does not ask again. */
+  private subscriptionsKnown = false;
+  private blockedSlotsKnown = false;
+  private guestOfferKnown = false;
+  private publicDataRequested = false;
+  /**
+   * The role every role-dependent part of the page is DRAWN for (admin windows, extra prices,
+   * same-day rules). Server and hydration take it from the session the server rendered; it then
+   * follows the signed-in user (checkAdminStatus). Reading AuthService directly here would let a
+   * cached browser user disagree with the server's HTML on the first render.
+   */
+  private readonly renderRole = signal<string | null>(null);
+  /**
+   * The Reorder button for the signed-in user, known from the server's session without loading
+   * their order list (that list is fetched when the button is opened). Null: unknown.
+   */
+  readonly hasOrdersHint = signal<boolean | null>(null);
 
   protected readonly icons = { faBolt, faBroom, faCheck, faChevronDown, faCircleCheck, faCircleInfo, faCoins, faLock, faPiggyBank, faPlus, faShieldHalved, faSprayCanSparkles, faStar, faTag, faTriangleExclamation, faUserCheck, faUserPlus, faUserShield, faXmark };
 
@@ -259,7 +313,7 @@ export class BookingComponent implements OnInit, OnDestroy {
    * extra without the 4-hour-notice / time-of-day restrictions that apply to customers.
    */
   get isAdminOrSuperAdmin(): boolean {
-    const role = this.authService.currentUserValue?.role;
+    const role = this.renderRole();
     return role === 'Admin' || role === 'SuperAdmin';
   }
 
@@ -444,10 +498,8 @@ export class BookingComponent implements OnInit, OnDestroy {
   // Extra services toggle
   showAllExtraServices = false;
   extraServicesToShow = 4; // Default for desktop, will be updated based on screen size
-  readonly extraServicesContainerMaxWidth = signal(950); // Initial max-width in pixels (stays fixed above 1510px)
   private resizeHandler = () => {
     this.updateExtraServicesToShow();
-    this.updateExtraServicesContainerMaxWidth();
     this.cdr.detectChanges();
   };
   
@@ -758,55 +810,64 @@ export class BookingComponent implements OnInit, OnDestroy {
       }
     }
 
+    // Step 1 drawn whole on the FIRST render, on the server and in the hydrating browser alike:
+    // the server builds the state (catalogue, plans, blocked slots, the visitor's booking-choice
+    // cookie, their session) and ships it in TransferState; hydration draws exactly that before
+    // reading anything of its own. See booking-initial-state.ts.
+    // Hydrating exactly when the server's state is waiting for this page. (router.navigated is no
+    // test here: the route's async guard can finish the first navigation's bookkeeping before
+    // this page is created.) The key is removed once read, so an in-app visit never sees it.
+    this.hydrating = this.isBrowser && this.transferState.hasKey(BOOKING_INITIAL_STATE_KEY);
+    if (this.isBrowser && !this.hydrating) {
+      // An in-app navigation: the app's auth state is already the truth to draw from.
+      this.renderRole.set(this.authService.currentUserValue?.role ?? null);
+    }
+    this.initialState = this.takeInitialState();
+    if (this.initialState) this.applyInitialState(this.initialState);
+
     // Only run initialization in browser environment
     if (!this.isBrowser) return;
 
     // MUST run before anything reads the saved draft (loadSavedFormData / applyServiceTypes).
-    this.discardAdminDraftIfPresent();
+    // Hydration defers it with the rest of the storage reads (reconcileAfterHydration): its banner
+    // would otherwise be in the first render but not in the server's HTML.
+    if (!this.initialState) this.discardAdminDraftIfPresent();
 
     // Check same day service availability
     this.checkSameDayServiceAvailability();
-    
-    // Update extra services to show based on screen size
+
+    // Update extra services to show based on screen size. (The extras grid's max-width is CSS
+    // now - booking.component.scss - so the server's HTML already has it.)
     this.updateExtraServicesToShow();
-    this.updateExtraServicesContainerMaxWidth();
-    
+
     // Set up periodic check for same day service availability (every minute)
     const intervalId = debugTimersPaused() ? undefined : setInterval(() => {
       this.checkSameDayServiceAvailability();
     }, 60000); // Check every minute
-    
+
     // Store interval ID for cleanup
     this.destroy$.subscribe(() => {
       clearInterval(intervalId);
     });
-    
+
     // Add window resize listener for responsive extra services
     window.addEventListener('resize', this.resizeHandler);
     // Close expanded booking summary when user scrolls on mobile/tablet
     window.addEventListener('scroll', this.summaryScrollCloseHandler, { passive: true });
-    
-    // Set minimum date to tomorrow (not 2 days from now)
-    this.minDate = new Date();
-    this.minDate.setDate(this.minDate.getDate() + 1); // Changed from +2 to +1
-    this.minDate.setHours(0, 0, 0, 0);
-    
-    // Set default date to tomorrow
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const year = tomorrow.getFullYear();
-    const month = String(tomorrow.getMonth() + 1).padStart(2, '0');
-    const day = String(tomorrow.getDate()).padStart(2, '0');
-    const formattedDate = `${year}-${month}-${day}`;
-    
-    // Set default values
-    this.serviceDate.setValue(formattedDate);
-    this.serviceTime.setValue('08:00');
-    this.ensureValidServiceTimeForSelectedDate();
+
+    // Minimum date: tomorrow in New York (the business's calendar, on every device).
+    this.minDate = this.parseServiceDate(this.newYorkTomorrow())!;
+
+    if (!this.initialState) {
+      // Default date/time: tomorrow (New York) at 8:00.
+      this.serviceDate.setValue(this.newYorkTomorrow());
+      this.serviceTime.setValue('08:00');
+      this.ensureValidServiceTimeForSelectedDate();
+    }
 
     // Ensure custom pricing FormControls have proper default values
     this.initializeCustomPricingDefaults();
-    
+
     // Subscribe to promo code value changes to keep both input fields synchronized
     this.promoCode.valueChanges
       .pipe(takeUntil(this.destroy$))
@@ -814,25 +875,36 @@ export class BookingComponent implements OnInit, OnDestroy {
         // Force change detection to update both input fields
         this.cdr.detectChanges();
       });
-    
-    // Load saved form data if exists
-    this.loadSavedFormData();
-    this.ensureValidServiceTimeForSelectedDate();
-    
-    // Do NOT sync URL here: calling updateBookingStepUrl() on init caused a navigation that
-    // could reset the component or overwrite restored form data. Step is only updated when
-    // user clicks Next/Previous (nextStep/previousStep).
-    
-    // Mark booking as started if we have any saved data
-    if (this.formPersistenceService.hasSavedData()) {
-      this.formPersistenceService.markBookingStarted();
+
+    if (this.initialState) {
+      // The visitor's own storage is read once the server's HTML has been hydrated.
+      runInInjectionContext(this.injector, () => {
+        afterNextRender(() => this.reconcileAfterHydration());
+      });
+    } else {
+      // Load saved form data if exists
+      this.loadSavedFormData();
+      this.ensureValidServiceTimeForSelectedDate();
+      this.persistenceReady = true;
+      // The public data (catalogue, plans, blocked slots) never waits for auth: this tab's copy
+      // is drawn in the first frame, and only the signed-in user's own data follows later.
+      this.loadPublicData();
+
+      // Do NOT sync URL here: calling updateBookingStepUrl() on init caused a navigation that
+      // could reset the component or overwrite restored form data. Step is only updated when
+      // user clicks Next/Previous (nextStep/previousStep).
+
+      // Mark booking as started if we have any saved data
+      if (this.formPersistenceService.hasSavedData()) {
+        this.formPersistenceService.markBookingStarted();
+      }
     }
-    
+
     // Initialize entry method to "I will be home" only if no saved data exists
     if (!this.entryMethod.value) {
       this.entryMethod.setValue('I will be home');
     }
-    
+
     // Refresh special offers when the user logs in or out so guest "first-time" offers
     // are replaced with the user's actual personalized offers after login.
     this.authService.currentUser
@@ -843,40 +915,52 @@ export class BookingComponent implements OnInit, OnDestroy {
         takeUntil(this.destroy$)
       )
       .subscribe(() => {
-        this.loadSpecialOffers();
+        // Not when the offers on screen already belong to whoever is signed in now (the server
+        // drew them from this user's session, and auth has only just caught up).
+        if (!this.offersCovered()) this.loadSpecialOffers();
       });
 
-    // Wait for auth service to be initialized before proceeding; run loaders after next render (SSR-safe)
+    // Wait for auth service to be initialized before proceeding. Hydration runs everything after
+    // its first render (the server drew it from the session, never from this browser's auth
+    // state); an in-app navigation runs at once, so whatever this tab already holds is drawn in
+    // its first frame.
     this.authService.isInitialized$.pipe(
       takeUntil(this.destroy$)
     ).subscribe(isInitialized => {
-      if (isInitialized) {
+      if (!isInitialized) return;
+      const start = () => {
         this.checkAdminStatus();
         const runLoaders = () => {
+          this.reconcileAfterHydration();
+          this.loadPublicData();
           this.loadInitialData();
-          this.loadBlockedTimeSlots();
           this.setupFormListeners();
-          this.loadSpecialOffers();
-          this.loadOrders();
+          if (this.offersCovered()) {
+            this.loading().promoBanner = false;
+            this.loading.set(this.loading());
+          } else {
+            this.loadSpecialOffers();
+          }
+          if (!this.ordersCovered()) this.loadOrders();
           this.loading().partnership = false;
           this.loading.set(this.loading());
         };
-        if (this.isBrowser) {
-          runInInjectionContext(this.injector, () => {
-            afterNextRender(() => {
-              if (this.authService.isLoggedIn()) {
-                this.authService.refreshUserProfile().pipe(
-                  takeUntil(this.destroy$)
-                ).subscribe({
-                  next: runLoaders,
-                  error: runLoaders
-                });
-              } else {
-                runLoaders();
-              }
-            });
+        // The server already drew this user's profile from their session: no refresh call.
+        if (this.authService.isLoggedIn() && !this.sessionCovers()) {
+          this.authService.refreshUserProfile().pipe(
+            takeUntil(this.destroy$)
+          ).subscribe({
+            next: runLoaders,
+            error: runLoaders
           });
+        } else {
+          runLoaders();
         }
+      };
+      if (this.hydrating) {
+        runInInjectionContext(this.injector, () => afterNextRender(start));
+      } else {
+        start();
       }
     });
 
@@ -1104,8 +1188,17 @@ export class BookingComponent implements OnInit, OnDestroy {
     }
   }
 
-  /** Apply loaded service types: sort, restore saved selection or default. */
+  /** Apply loaded service types: sort, restore the saved selection (this tab's draft) or the default. */
   private applyServiceTypes(serviceTypes: ServiceType[]) {
+    this.setServiceTypes(serviceTypes);
+    // Re-hydrate from sessionStorage so we use persisted state (user may have come from main or returned to booking)
+    this.formPersistenceService.loadFormData();
+    const stored = this.formPersistenceService.getFormData();
+    this.restoreSelection(stored ? fillDraftIdsFromKeys(stored, this.serviceTypes(), this.subscriptions()) : null, true);
+  }
+
+  /** Sorts the catalogue (types, their services and extras by displayOrder) and puts it on screen. */
+  private setServiceTypes(serviceTypes: ServiceType[]) {
     this.serviceTypes.set(serviceTypes.sort((a, b) => {
       const orderA = a.displayOrder || 999;
       const orderB = b.displayOrder || 999;
@@ -1128,9 +1221,15 @@ export class BookingComponent implements OnInit, OnDestroy {
       }
     });
     if (this.errorMessage() === 'Failed to load service types') this.errorMessage.set('');
-    // Re-hydrate from sessionStorage so we use persisted state (user may have come from main or returned to booking)
-    this.formPersistenceService.loadFormData();
-    const savedData = this.formPersistenceService.getFormData();
+  }
+
+  /**
+   * Draws a saved draft - this tab's storage, or the server's cookie choice - on the current
+   * catalogue: service type, quantities, property type, extras, cleaning type. No draft (or one
+   * whose type is gone): the default form. `persist` false writes nothing (server render,
+   * hydration), and nothing here reads storage, so all three produce the same form.
+   */
+  private restoreSelection(savedData: BookingFormData | null, persist: boolean) {
     const savedServiceType = savedData?.selectedServiceTypeId ? this.serviceTypes().find(st => String(st.id) === String(savedData.selectedServiceTypeId)) : null;
     if (savedData?.selectedServiceTypeId && savedServiceType) {
         this.serviceTypeControl.setValue(savedServiceType.id);
@@ -1192,12 +1291,12 @@ export class BookingComponent implements OnInit, OnDestroy {
         }
         this.normalizeCleaningTypeForSelectedServiceType();
         this.calculateTotal();
-        this.saveFormData(); // Persist restored state (quantities + deep extra) so it's not overwritten by defaults
+        if (persist) this.saveFormData(); // Persist restored state (quantities + deep extra) so it's not overwritten by defaults
     } else {
       const residentialCleaning = findResidentialServiceType(this.serviceTypes());
       if (residentialCleaning) {
         this.serviceTypeControl.setValue(residentialCleaning.id);
-        this.selectServiceType(residentialCleaning);
+        this.selectServiceType(residentialCleaning, !persist);
         // Honor ?cleaningType=deep (e.g. "most requested service" CTA) on a fresh booking
         if (this.preselectDeepCleaning && this.canSelectDeepCleaning) {
           const hasDeep = this.selectedExtraServices().some(s => s.extraService.isDeepCleaning);
@@ -1214,56 +1313,340 @@ export class BookingComponent implements OnInit, OnDestroy {
           }
           this.cleaningType.setValue(this.getCurrentCleaningType());
           this.normalizeCleaningTypeForSelectedServiceType();
-          this.saveFormData();
+          if (persist) this.saveFormData();
         }
         this.calculateTotal();
       }
     }
   }
 
-  private loadInitialData() {
-    if (!this.isBrowser) return;
+  /** Every catalogue-dependent placeholder flag off: the form is drawn from real data. */
+  private markCatalogueLoaded() {
+    const flags = this.loading();
+    flags.serviceTypes = false;
+    flags.serviceDetails = false;
+    flags.cleaningTypes = false;
+    flags.extras = false;
+    flags.availableDates = false;
+    flags.timeSlots = false;
+    flags.summary = false;
+    flags.pricing = false;
+    this.loading.set(flags);
+  }
+
+  /** Tomorrow's date in New York, YYYY-MM-DD: the default (and, for customers, the earliest) date. */
+  private newYorkTomorrow(): string {
+    return addDaysToIsoDate(this.initialState?.today ?? newYorkToday(), 1);
+  }
+
+  /**
+   * The state step 1 is first drawn from, or null.
+   * - Server: built from server.ts's in-memory lists (deep copies - those objects are shared by
+   *   every render, and this page sorts and annotates what it is given), the visitor's
+   *   booking-choice cookie and their session, then handed to the browser in TransferState.
+   *   Null when the server has no catalogue: the page goes out with its placeholders and the
+   *   browser loads it after hydration, as it did before.
+   * - Hydrating browser: exactly what the server drew from.
+   * - In-app navigation: null (the page draws from this tab's own state).
+   */
+  private takeInitialState(): BookingInitialState | null {
+    if (!this.isBrowser) {
+      const catalogue = this.ssrCatalogue;
+      if (!catalogue?.serviceTypes?.length) return null;
+      const copy = <T>(value: T): T => JSON.parse(JSON.stringify(value));
+      const serviceTypes = copy(catalogue.serviceTypes);
+      const subscriptions = catalogue.subscriptions ? copy(catalogue.subscriptions) : null;
+      const session = this.ssrSession ? copy(this.ssrSession) : null;
+      const state: BookingInitialState = {
+        serviceTypes,
+        subscriptions,
+        blockedTimeSlots: catalogue.blockedTimeSlots ? copy(catalogue.blockedTimeSlots) : null,
+        today: newYorkToday(),
+        // Keys only, against this catalogue; anything unresolvable is simply not part of it.
+        choice: readBookingChoice(this.ssrContext?.requestCookies, serviceTypes, { subscriptions }),
+        session
+      };
+      // A guest's Special Discount card shows ONE public offer picked at random. Picked here,
+      // once, so the browser shows the same one.
+      if (!session && catalogue.publicOffers) {
+        const offers = catalogue.publicOffers;
+        state.guestOffer = offers.length ? copy(offers[Math.floor(Math.random() * offers.length)]) : null;
+      }
+      this.transferState.set(BOOKING_INITIAL_STATE_KEY, state);
+      return state;
+    }
+    if (this.hydrating && this.transferState.hasKey(BOOKING_INITIAL_STATE_KEY)) {
+      const state = this.transferState.get(BOOKING_INITIAL_STATE_KEY, null);
+      this.transferState.remove(BOOKING_INITIAL_STATE_KEY);
+      return state;
+    }
+    return null;
+  }
+
+  /**
+   * Draws step 1 from the initial state, synchronously, writing nothing. Runs identically on the
+   * server and in the hydrating browser, so the two renders are the same.
+   */
+  private applyInitialState(state: BookingInitialState) {
+    this.catalogueFresh.set(true);
+    if (this.isBrowser) {
+      this.bookingCatalogueStore.remember('serviceTypes', state.serviceTypes);
+      if (state.subscriptions) this.bookingCatalogueStore.remember('subscriptions', state.subscriptions);
+      if (state.blockedTimeSlots) this.bookingCatalogueStore.remember('blockedTimeSlots', state.blockedTimeSlots);
+    }
+
+    // Who it is drawn for, first: the role decides admin-only rendering below.
+    const session = state.session;
+    if (session) this.applySession(session);
+
+    if (!session && state.guestOffer !== undefined) {
+      this.applyGuestOffer(state.guestOffer);
+      this.guestOfferKnown = true;
+      this.loading().promoBanner = false;
+      this.loading.set(this.loading());
+    }
+    if (!session) {
+      // A guest has no orders to reorder.
+      this.loading().previousOrders = false;
+      this.loading.set(this.loading());
+    }
+
+    if (state.blockedTimeSlots) {
+      this.applyBlockedTimeSlots(state.blockedTimeSlots);
+      this.blockedSlotsKnown = true;
+    }
+
+    // Date and time: the saved ones when still bookable, else tomorrow (New York) at 8:00.
+    const choice = state.choice;
+    const tomorrow = this.newYorkTomorrow();
+    const choiceType = choice ? state.serviceTypes.find(t => String(t.id) === choice.selectedServiceTypeId) : undefined;
+    const sameDayChosen = !!choice?.selectedExtraServices?.some(saved =>
+      choiceType?.extraServices?.find(e => String(e.id) === saved.extraServiceId)?.isSameDayService);
+    const savedDate = choice?.serviceDate;
+    const dateUsable = !!savedDate && (savedDate >= tomorrow || (sameDayChosen && savedDate === state.today));
+    this.serviceDate.setValue(dateUsable ? savedDate! : tomorrow);
+    this.serviceTime.setValue(choice?.serviceTime ?? '08:00');
+    if (choice?.tips != null) this.tips.setValue(normalizeTipAmount(choice.tips));
+    if (choice?.cleaningType) this.cleaningType.setValue(choice.cleaningType);
+    if (choice?.floorTypes?.length) this.floorTypes.set([...choice.floorTypes]);
+
+    // The catalogue and the selection. Plans are set afterwards so the plan choice below sees the
+    // whole picture (draft plan, live plan, preference) rather than whatever selectServiceType
+    // picks on its way through.
+    this.setServiceTypes(state.serviceTypes);
+    this.restoreSelection(choice, false);
+    if (state.subscriptions) {
+      this.applySubscriptionsList(state.subscriptions, choice);
+      this.subscriptionsKnown = true;
+    }
+
+    this.isSameDaySelected.set(this.selectedExtraServices().some(s => s.extraService.isSameDayService));
+    this.ensureValidServiceTimeForSelectedDate();
+    this.adjustDefaultDateIfBlocked();
+    this.checkSameDayServiceAvailability();
+    this.calculateTotal();
+    this.markCatalogueLoaded();
+  }
+
+  /** The signed-in visitor's booking context from the server's session lookup. */
+  private applySession(session: SsrBookingSession) {
+    const user = session.user;
+    this.sessionUserId = user.id;
+    this.renderRole.set(user.role);
+    this.currentUser.set({ ...user });
+    this.isAdmin.set(user.role === 'Admin' || user.role === 'SuperAdmin' || user.role === 'Moderator');
+    this.isSuperAdmin = user.role === 'SuperAdmin';
+    this.isModerator.set(user.role === 'Moderator');
+    if (session.canRegisterCustomers != null) {
+      this.canRegisterCustomers.set(session.canRegisterCustomers);
+      this.sessionPermissionKnown = true;
+    }
+    this.hasFirstTimeDiscount = user.firstTimeOrder;
+    this.loyaltyDiscountPercentage.set(session.loyaltyDiscountPercentage || 0);
+    if (session.points) this.applyPointsSummary(session.points);
+    if (session.subscription) {
+      this.applyUserSubscriptionResponse(session.subscription);
+    }
+    if (session.specialOffers) {
+      this.applyUserOffers(session.specialOffers as UserSpecialOffer[]);
+      this.loading().promoBanner = false;
+      this.loading.set(this.loading());
+    }
+    if (session.hasPreviousOrders != null) {
+      this.hasOrdersHint.set(session.hasPreviousOrders);
+      this.loading().previousOrders = false;
+      this.loading.set(this.loading());
+    }
+  }
+
+  /** True while the signed-in user is the one the server drew this page for. */
+  private sessionCovers(): boolean {
+    return this.sessionUserId != null && this.authService.currentUserValue?.id === this.sessionUserId;
+  }
+
+  /** The offers on screen are already the right ones for whoever is (or isn't) signed in. */
+  private offersCovered(): boolean {
+    if (this.isAdminMode()) return false;
+    if (this.authService.isLoggedIn()) return this.sessionCovers() && !!this.initialState?.session?.specialOffers;
+    return this.guestOfferKnown && !this.sessionUserId;
+  }
+
+  /** The Reorder button is already right without loading the order list (a guest's costs nothing). */
+  private ordersCovered(): boolean {
+    if (this.isAdminMode() || !this.authService.isLoggedIn()) return false;
+    return this.sessionCovers() && this.hasOrdersHint() != null;
+  }
+
+  /** Whether step 1 shows the Reorder button. */
+  showReorderButton(): boolean {
+    if (this.loading().previousOrders || this.currentStep() !== 1) return false;
+    if (this.previousOrders().length > 0) return true;
+    // The session's flag speaks for the signed-in user themselves - never for an admin's target,
+    // and not once somebody else (or nobody) is signed in.
+    return !this.selectedTargetUser() && !!this.hasOrdersHint()
+      && this.sessionUserId != null && this.currentUser()?.id === this.sessionUserId;
+  }
+
+  /**
+   * After the server's HTML has been hydrated: read this tab's storage. When the form was drawn
+   * from the booking-choice cookie, storage only adds what the cookie never carries (contact and
+   * address details, notes, consents, promo code text, poll answers, unkeyed extras) - into
+   * fields whose size does not change. When it was not (no cookie yet, or an unusable one), this
+   * is the old restore from storage, now after hydration. Then one save brings the draft and the
+   * cookie in step with what is on screen.
+   */
+  private reconcileAfterHydration() {
+    if (!this.initialState || this.reconciled) return;
+    this.reconciled = true;
+
+    this.discardAdminDraftIfPresent();
+    this.formPersistenceService.loadFormData();
+    const stored = this.formPersistenceService.getFormData();
+
+    if (stored && this.initialState.choice) {
+      this.restoreNonCookieFields(stored);
+    } else if (stored) {
+      this.loadSavedFormData();
+      this.restoreSelection(fillDraftIdsFromKeys(stored, this.serviceTypes(), this.subscriptions()), false);
+      if (this.subscriptions().length) this.applySubscriptionsList(this.subscriptions(), stored);
+      this.isSameDaySelected.set(this.selectedExtraServices().some(s => s.extraService.isSameDayService));
+      this.ensureValidServiceTimeForSelectedDate();
+      this.adjustDefaultDateIfBlocked();
+      this.calculateTotal();
+    }
+
+    this.persistenceReady = true;
+    this.saveFormData();
+    if (this.formPersistenceService.hasSavedData()) {
+      this.formPersistenceService.markBookingStarted();
+    }
+  }
+
+  /** The draft's fields the booking-choice cookie never carries (see reconcileAfterHydration). */
+  private restoreNonCookieFields(savedData: BookingFormData) {
+    const formValues: any = {};
+    const keys: (keyof BookingFormData)[] = ['entryMethod', 'customEntryMethod', 'specialInstructions',
+      'contactFirstName', 'contactLastName', 'contactEmail', 'contactPhone', 'selectedApartmentId',
+      'serviceAddress', 'aptSuite', 'city', 'state', 'zipCode', 'promoCode'];
+    for (const key of keys) if (savedData[key]) formValues[key] = savedData[key];
+    // Restored even when empty: a blank name is the customer's "Other, unnamed" choice.
+    if (savedData.apartmentName !== undefined) formValues.apartmentName = savedData.apartmentName;
+    if (savedData.smsConsent !== undefined) formValues.smsConsent = savedData.smsConsent;
+    if (savedData.cancellationConsent !== undefined) formValues.cancellationConsent = savedData.cancellationConsent;
+    if (savedData.termsConsent !== undefined) formValues.termsConsent = savedData.termsConsent;
+    this.bookingForm.patchValue(formValues);
+
+    if (savedData.floorTypeOther && this.floorTypes().includes('other')) this.floorTypeOther.set(savedData.floorTypeOther);
+
+    const type = this.selectedServiceType();
+    if (!type || String(type.id) !== String(savedData.selectedServiceTypeId)) return;
+
+    if (this.showPollForm() && savedData.pollAnswers) {
+      if (this.pollQuestions().length) this.pollAnswers.set({ ...savedData.pollAnswers });
+      else this.savedPollData = savedData.pollAnswers;
+    }
+
+    // An extra without a key cannot travel in the cookie: it comes back from this tab's draft.
+    let added = false;
+    for (const saved of savedData.selectedExtraServices ?? []) {
+      const extra = type.extraServices?.find(e => String(e.id) === String(saved.extraServiceId));
+      if (!extra || extra.extraServiceKey || isExtraCleaners(extra)) continue;
+      if (this.selectedExtraServices().some(s => s.extraService.id === extra.id)) continue;
+      this.selectedExtraServices().push({ extraService: extra, quantity: saved.quantity || 1, hours: saved.hours || (extra.hasHours ? 0.5 : 0) });
+      added = true;
+    }
+    if (added) {
+      this.selectedExtraServices.set(this.selectedExtraServices());
+      this.isSameDaySelected.set(this.selectedExtraServices().some(s => s.extraService.isSameDayService));
+      this.cleaningType.setValue(this.getCurrentCleaningType());
+      this.calculateTotal();
+    }
+  }
+
+  /**
+   * The catalogue, the plans and the blocked time slots: public, so never behind auth. Once per
+   * page; whatever the server's state already gave is not asked for again.
+   */
+  private loadPublicData() {
+    if (!this.isBrowser || this.publicDataRequested) return;
+    this.publicDataRequested = true;
     this.errorMessage.set('');
 
-    this.bookingService.getServiceTypes().pipe(
-      takeUntil(this.destroy$)
-    ).subscribe({
-      next: (serviceTypes) => {
-        this.applyServiceTypes(serviceTypes);
-        this.loading().serviceTypes = false;
-        this.loading.set(this.loading());
-        this.loading().serviceDetails = false;
-        this.loading.set(this.loading());
-        this.loading().cleaningTypes = false;
-        this.loading.set(this.loading());
-        this.loading().extras = false;
-        this.loading.set(this.loading());
-        this.loading().availableDates = false;
-        this.loading.set(this.loading());
-        this.loading().timeSlots = false;
-        this.loading.set(this.loading());
-        this.loading().summary = false;
-        this.loading.set(this.loading());
-        this.loading().pricing = false;
-        this.loading.set(this.loading());
-      },
-      error: (error) => {
-        console.error('Failed to load service types:', error);
-        this.errorMessage.set('Failed to load service types');
-        this.loading().serviceTypes = false;
-        this.loading.set(this.loading());
-        this.loading().serviceDetails = false;
-        this.loading.set(this.loading());
-        this.loading().extras = false;
-        this.loading.set(this.loading());
-        this.loading().cleaningTypes = false;
-        this.loading.set(this.loading());
-        this.loading().availableDates = false;
-        this.loading.set(this.loading());
-        this.loading().timeSlots = false;
-        this.loading.set(this.loading());
+    // The catalogue. Fresh server data (the server render, or a request made by this page or
+    // just before it) is used as it is. A per-tab copy older than that is drawn at once, then
+    // replaced by fresh data - which always wins, and is what Book Now prices.
+    if (!this.catalogueFresh()) {
+      if (!this.serviceTypes().length && !this.bookingCatalogueStore.isFresh('serviceTypes')) {
+        const stored = this.bookingCatalogueStore.peek('serviceTypes');
+        if (stored) {
+          this.applyServiceTypes(stored);
+          this.markCatalogueLoaded();
+        }
       }
-    });
+      this.bookingCatalogueStore.load('serviceTypes').pipe(
+        takeUntil(this.destroy$)
+      ).subscribe({
+        next: (serviceTypes) => {
+          // Keep what is on screen: the restore below reads it back from the draft.
+          if (this.selectedServiceType()) this.saveFormData();
+          this.applyServiceTypes(serviceTypes);
+          this.catalogueFresh.set(true);
+          this.markCatalogueLoaded();
+        },
+        error: (error) => {
+          console.error('Failed to load service types:', error);
+          this.errorMessage.set('Failed to load service types');
+          const flags = this.loading();
+          flags.serviceTypes = false;
+          flags.serviceDetails = false;
+          flags.extras = false;
+          flags.cleaningTypes = false;
+          flags.availableDates = false;
+          flags.timeSlots = false;
+          this.loading.set(flags);
+        }
+      });
+    }
+
+    if (!this.subscriptionsKnown) {
+      this.bookingCatalogueStore.load('subscriptions').pipe(
+        takeUntil(this.destroy$)
+      ).subscribe({
+        next: (subscriptions) => {
+          this.applySubscriptionsList(subscriptions, this.formPersistenceService.getFormData());
+        },
+        error: (error) => {
+          console.error('Failed to load subscriptions:', error);
+          this.errorMessage.set('Failed to load subscriptions');
+        }
+      });
+    }
+
+    if (!this.blockedSlotsKnown) this.loadBlockedTimeSlots();
+  }
+
+  private loadInitialData() {
+    if (!this.isBrowser) return;
 
     this.locationService.getStates().pipe(
       takeUntil(this.destroy$)
@@ -1287,88 +1670,53 @@ export class BookingComponent implements OnInit, OnDestroy {
       error: () => {}
     });
 
-    this.bookingService.getSubscriptions().pipe(
-      takeUntil(this.destroy$)
-    ).subscribe({
-      next: (subscriptions) => {
-        this.subscriptions.set(subscriptions.sort((a, b) => {
-          const orderA = a.displayOrder || 999;
-          const orderB = b.displayOrder || 999;
-          return orderA - orderB;
-        }));
-        if (this.errorMessage() === 'Failed to load subscriptions') this.errorMessage.set('');
-        if (this.isAdminMode() && this.selectedTargetUser()) {
-          this.loadUserSubscription(this.selectedTargetUser()!.id);
-          this.loadLoyaltyDiscount(this.selectedTargetUser()!.id);
-          return;
-        }
-        if (this.hasActiveSubscription() && this.userSubscription()) {
-          this.updateSelectedSubscription();
-          return;
-        }
-        const savedData = this.formPersistenceService.getFormData();
-        if (savedData?.selectedSubscriptionId) {
-          const savedSubscription = this.subscriptions().find(s => String(s.id) === String(savedData.selectedSubscriptionId));
-          if (savedSubscription) {
-            this.selectedSubscription.set(savedSubscription);
-            return;
-          }
-        }
-        if (this.subscriptions().length > 0) {
-          const oneTimeSubscription = this.findOneTimeSubscription();
-          this.selectedSubscription.set(oneTimeSubscription);
-        }
-        // Last, so a draft in progress always wins over a standing preference. The two loads
-        // race, so this is attempted from both of them and is a no-op once one has landed.
-        this.applyPreferredSubscription();
-      },
-      error: (error) => {
-        console.error('Failed to load subscriptions:', error);
-        this.errorMessage.set('Failed to load subscriptions');
-      }
-    });
-    
     // Load current user data
     this.authService.currentUser.pipe(
       takeUntil(this.destroy$)
     ).subscribe(user => {
-      this.currentUser.set(user);
+      // What the server drew from this user's session is not asked for again.
+      const covered = !!user && user.id === this.sessionUserId;
+      this.currentUser.set(covered ? { ...this.currentUser(), ...user } : user);
       // Re-evaluate same-day availability once we know the role — Admin/SuperAdmin are exempt
       // from the time restriction, so the flag must reflect the user even if it was set before
       // the user resolved during early init.
       this.checkSameDayServiceAvailability();
       if (user) {
-        this.hasFirstTimeDiscount = user.firstTimeOrder;
-        if (this.isBrowser) this.loadBubblePointsOptions();
-        
+        if (!covered) {
+          this.hasFirstTimeDiscount = user.firstTimeOrder;
+          if (this.isBrowser) this.loadBubblePointsOptions();
+        }
+
         // Check if we have saved form data
         const savedData = this.formPersistenceService.getFormData();
         const returnedFromLoginStep3 = this.route.snapshot.queryParamMap.get('step') === '3';
-        
+        // The session's profile is the freshest copy the page has of who this is.
+        const profile = covered ? this.initialState!.session!.user : user;
+
         // If user just logged in from Book Now (step=3 in URL), use their real account email/name
         if (user && savedData && returnedFromLoginStep3) {
           this.bookingForm.patchValue({
-            contactFirstName: user.firstName || '',
-            contactLastName: user.lastName || '',
-            contactEmail: user.email || ''
+            contactFirstName: profile.firstName || '',
+            contactLastName: profile.lastName || '',
+            contactEmail: profile.email || ''
           });
         } else if (!savedData || !savedData.contactFirstName) {
           // Only pre-fill contact info if there's no saved data
           this.bookingForm.patchValue({
-            contactFirstName: user.firstName,
-            contactLastName: user.lastName,
-            contactEmail: user.email,
-            contactPhone: user.phone || ''
+            contactFirstName: profile.firstName,
+            contactLastName: profile.lastName,
+            contactEmail: profile.email,
+            contactPhone: profile.phone || ''
           });
         }
-        
+
         // Load user apartments
         this.profileService.getApartments().pipe(
           takeUntil(this.destroy$)
         ).subscribe({
           next: (apartments) => {
             this.userApartments.set(apartments);
-            
+
             // Only auto-fill with first apartment if no saved apartment selection
             if (apartments.length > 0 && !savedData?.selectedApartmentId) {
               const firstApartment = apartments[0];
@@ -1382,23 +1730,74 @@ export class BookingComponent implements OnInit, OnDestroy {
             }
           }
         });
-        
-        // Load user subscription after loading user data
-        this.loadUserSubscription();
-        // Same trigger fans out to the loyalty discount loader — both are user-context state
-        // that needs to refresh whenever the booking page sees a new effective user.
-        this.loadLoyaltyDiscount();
+
+        if (!covered) {
+          // Load user subscription after loading user data
+          this.loadUserSubscription();
+          // Same trigger fans out to the loyalty discount loader — both are user-context state
+          // that needs to refresh whenever the booking page sees a new effective user.
+          this.loadLoyaltyDiscount();
+        }
       }
     });
   }
 
+  /**
+   * The plans list arrived (server state or request): put it on screen and decide which plan is
+   * selected - the target customer's in Admin Mode, else a live plan, else the draft's, else the
+   * one-off plan and then the profile preference. `draft` is the draft the form was drawn from.
+   */
+  private applySubscriptionsList(subscriptions: Subscription[], draft: BookingFormData | null) {
+    this.subscriptions.set(subscriptions.sort((a, b) => {
+      const orderA = a.displayOrder || 999;
+      const orderB = b.displayOrder || 999;
+      return orderA - orderB;
+    }));
+    if (this.errorMessage() === 'Failed to load subscriptions') this.errorMessage.set('');
+    if (this.isAdminMode() && this.selectedTargetUser()) {
+      this.loadUserSubscription(this.selectedTargetUser()!.id);
+      this.loadLoyaltyDiscount(this.selectedTargetUser()!.id);
+      return;
+    }
+    if (this.hasActiveSubscription() && this.userSubscription()) {
+      this.updateSelectedSubscription();
+      return;
+    }
+    const savedPlan = draft?.selectedSubscriptionId
+      ? this.subscriptions().find(s => String(s.id) === String(draft.selectedSubscriptionId))
+      : draft?.selectedSubscriptionDays != null
+        ? this.subscriptions().find(s => s.subscriptionDays === draft.selectedSubscriptionDays)
+        : undefined;
+    if (savedPlan) {
+      this.selectedSubscription.set(savedPlan);
+      this.calculateTotal();
+      return;
+    }
+    if (this.subscriptions().length > 0) {
+      const oneTimeSubscription = this.findOneTimeSubscription();
+      this.selectedSubscription.set(oneTimeSubscription);
+    }
+    // Last, so a draft in progress always wins over a standing preference. The two loads
+    // race, so this is attempted from both of them and is a no-op once one has landed.
+    this.applyPreferredSubscription(draft);
+    this.calculateTotal();
+  }
+
   loadCities(state: string) {
+    // The states load and the state control's own listener both ask for the default state's
+    // cities on the first visit; one request answers both.
+    if (this.citiesRequestedFor === state) return;
+    this.citiesRequestedFor = state;
     this.locationService.getCities(state).subscribe({
       next: (cities) => {
         this.cities.set(cities);
+      },
+      error: () => {
+        if (this.citiesRequestedFor === state) this.citiesRequestedFor = null;
       }
     });
   }
+  private citiesRequestedFor: string | null = null;
 
   /**
    * Point the City options at the given state. Driven by the `state` control's valueChanges so
@@ -1408,6 +1807,7 @@ export class BookingComponent implements OnInit, OnDestroy {
   private syncCitiesToState(state: string | null | undefined) {
     if (!state) {
       this.cities.set([]);
+      this.citiesRequestedFor = null;
       return;
     }
 
@@ -1418,6 +1818,7 @@ export class BookingComponent implements OnInit, OnDestroy {
     // claiming e.g. Brooklyn for a New Jersey street.
     if (this.states().length > 0 && !this.states().includes(state)) {
       this.cities.set([]);
+      this.citiesRequestedFor = null;
       if (this.bookingForm.get('city')?.value) {
         this.bookingForm.patchValue({ city: '' });
       }
@@ -1504,16 +1905,8 @@ export class BookingComponent implements OnInit, OnDestroy {
       // Admins / SuperAdmins may keep Same Day Service on any date — never auto-remove it for them.
       // (Customer flow/timing below is unchanged.)
       if (this.isSameDaySelected() && newDate && !this.isAdminOrSuperAdmin) {
-        const today = new Date();
-        
-        // Parse the selected date without timezone issues
-        const [year, month, day] = newDate.split('-').map(Number);
-        const selectedDate = new Date(year, month - 1, day);
-        
-        // Compare dates using YYYY-MM-DD format to avoid timezone issues
-        const todayFormatted = today.getFullYear() + '-' + 
-          String(today.getMonth() + 1).padStart(2, '0') + '-' + 
-          String(today.getDate()).padStart(2, '0');
+        // "Today" is New York's, like every other date on this page.
+        const todayFormatted = newYorkToday();
         
         // Check if the selected date is not today
         if (newDate !== todayFormatted) {
@@ -1544,16 +1937,23 @@ export class BookingComponent implements OnInit, OnDestroy {
     // applyServiceTypes() runs (when API returns). If we save before that (e.g. after
     // loadSavedFormData() patched the form and valueChanges fired), we'd wipe good data.
     if (!this.selectedServiceType()) return;
+    // Nothing is written before this page has read the visitor's draft (server render, and the
+    // hydration pass that redraws the server's form): see persistenceReady.
+    if (!this.persistenceReady) return;
 
     const formData: BookingFormData = {
-      // Service Type and Services
+      // Service Type and Services. The keys travel next to the ids: they are what the
+      // booking-choice cookie is written from (FormPersistenceService).
       selectedServiceTypeId: this.selectedServiceType()!.id ? String(this.selectedServiceType()!.id) : undefined,
+      selectedServiceTypeKey: this.selectedServiceType()!.serviceKey ?? null,
       selectedServices: this.selectedServices().map(s => ({
         serviceId: String(s.service.id),
+        serviceKey: s.service.serviceKey,
         quantity: s.quantity
       })),
       selectedExtraServices: this.selectedExtraServices().map(es => ({
         extraServiceId: String(es.extraService.id),
+        extraServiceKey: es.extraService.extraServiceKey ?? null,
         quantity: es.quantity,
         hours: es.hours
       })),
@@ -1567,6 +1967,7 @@ export class BookingComponent implements OnInit, OnDestroy {
 
       // Selected Subscription
       selectedSubscriptionId: this.selectedSubscription()?.id ? String(this.selectedSubscription()!.id) : undefined,
+      selectedSubscriptionDays: this.selectedSubscription()?.subscriptionDays,
       
       // Consent checkboxes
       smsConsent: this.smsConsent.value,
@@ -1665,15 +2066,8 @@ export class BookingComponent implements OnInit, OnDestroy {
       this.entryMethodDropdownOpen.set(false);
       this.isSummaryCollapsed.set(false);
       
-      // Set default date and time
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      const year = tomorrow.getFullYear();
-      const month = String(tomorrow.getMonth() + 1).padStart(2, '0');
-      const day = String(tomorrow.getDate()).padStart(2, '0');
-      const formattedDate = `${year}-${month}-${day}`;
-      
-      this.serviceDate.setValue(formattedDate);
+      // Set default date and time (tomorrow in New York)
+      this.serviceDate.setValue(this.newYorkTomorrow());
       this.serviceTime.setValue('08:00');
       this.cleaningType.setValue('normal');
       this.tips.setValue(0);
@@ -3412,20 +3806,20 @@ private updateDateRestrictions() {
     const lines: SummaryLine[] = [];
     if (mobile && !this.selectedServiceType()) return lines;
 
-    lines.push({ label: 'Service Type:', value: this.selectedServiceType()?.name || (mobile ? '' : '—'), shimmer: !mobile && this.loading().serviceTypes });
+    lines.push({ label: 'Service Type:', value: this.selectedServiceType()?.name || (mobile ? '' : '—') });
 
     if (this.showCustomPricing()) {
-      lines.push({ label: 'Number of Cleaners:', value: `${this.customCleaners.value}`, shimmer: !mobile && this.loading().serviceTypes });
-      lines.push({ label: 'Duration:', value: this.formatDuration(this.customDuration.value), shimmer: !mobile && this.loading().serviceTypes });
+      lines.push({ label: 'Number of Cleaners:', value: `${this.customCleaners.value}` });
+      lines.push({ label: 'Duration:', value: this.formatDuration(this.customDuration.value) });
     } else {
       if (this.selectedSubscription()) {
-        lines.push({ label: 'Cleaning frequency:', value: this.selectedSubscription()!.name || (mobile ? '' : '—'), shimmer: !mobile && this.loading().summary });
+        lines.push({ label: 'Cleaning frequency:', value: this.selectedSubscription()!.name || (mobile ? '' : '—') });
       }
-      lines.push({ label: 'Duration:', value: this.formatDuration(this.calculation().totalDuration), shimmer: !mobile && this.loading().summary });
+      lines.push({ label: 'Duration:', value: this.formatDuration(this.calculation().totalDuration) });
       // Cleaner count is only a customer-facing concept for cleaner+hours service
       // types; for regular types the team decides staffing (admin-set, never shown).
       if (this.hasCleanerServices()) {
-        lines.push({ label: 'Number of Cleaners:', value: `${this.calculatedMaidsCount()}`, shimmer: !mobile && this.loading().summary });
+        lines.push({ label: 'Number of Cleaners:', value: `${this.calculatedMaidsCount()}` });
       }
     }
 
@@ -3433,15 +3827,13 @@ private updateDateRestrictions() {
     if (hasDateTime || !mobile) {
       lines.push({
         label: 'Date & Time:',
-        value: hasDateTime ? `${formatDate(this.serviceDate.value, 'MMM d', 'en-US')} at ${this.formatTime(this.serviceTime.value)}` : '—',
-        shimmer: !mobile && this.loading().summary
+        value: hasDateTime ? `${formatDate(this.serviceDate.value, 'MMM d', 'en-US')} at ${this.formatTime(this.serviceTime.value)}` : '—'
       });
     }
     return lines;
   }
 
   getSummaryPriceLines(mobile: boolean): SummaryLine[] {
-    const shimmer = !mobile && this.loading().pricing;
     const lines: SummaryLine[] = [];
 
     // Additional levels, shown ONLY when they cost something. A one-level house and an apartment
@@ -3450,18 +3842,17 @@ private updateDateRestrictions() {
     if (additionalLevelsCost > 0) {
       lines.push({
         label: `Additional levels (${(this.levelsQuantity() ?? 1) - 1}):`,
-        value: `$${additionalLevelsCost.toFixed(2)}`,
-        shimmer
+        value: `$${additionalLevelsCost.toFixed(2)}`
       });
     }
 
-    lines.push({ label: 'Subtotal:', value: `$${this.calculation().subTotal.toFixed(2)}`, shimmer });
+    lines.push({ label: 'Subtotal:', value: `$${this.calculation().subTotal.toFixed(2)}` });
 
     if (this.subscriptionDiscountAmount() > 0) {
       lines.push({
         label: `Plan discount (${this.userSubscription()?.discountPercentage}%):`,
         value: `-$${this.subscriptionDiscountAmount().toFixed(2)}`,
-        rowClass: 'subscription-discount', valueClass: 'discount', shimmer
+        rowClass: 'subscription-discount', valueClass: 'discount'
       });
     }
 
@@ -3469,7 +3860,7 @@ private updateDateRestrictions() {
       lines.push({
         label: `Loyalty Discount (${this.loyaltyDiscountPercentage()}%):`,
         value: `-$${this.loyaltyDiscountAmount().toFixed(2)}`,
-        valueClass: 'discount', shimmer
+        valueClass: 'discount'
       });
     }
 
@@ -3480,14 +3871,14 @@ private updateDateRestrictions() {
       } else if (this.promoCodeApplied()) {
         label = 'Promo Code Discount' + (this.promoIsPercentage() ? ` (${this.promoDiscount()}%)` : '');
       }
-      lines.push({ label, value: `-$${this.promoOrFirstTimeDiscountAmount().toFixed(2)}`, valueClass: 'discount', shimmer });
+      lines.push({ label, value: `-$${this.promoOrFirstTimeDiscountAmount().toFixed(2)}`, valueClass: 'discount' });
     }
 
     if (this.giftCardApplied()) {
       lines.push({
         label: 'Gift Card Discount:',
         value: `-$${this.getGiftCardDisplayInfo().amountToUse.toFixed(2)}`,
-        rowClass: 'gift-card-discount', valueClass: 'discount', shimmer
+        rowClass: 'gift-card-discount', valueClass: 'discount'
       });
     }
 
@@ -3495,7 +3886,7 @@ private updateDateRestrictions() {
       lines.push({
         label: `${mobile ? 'Bubble Points' : 'Points'} (${formatNumber(this.selectedPointsToRedeem(), 'en-US')} pts):`,
         value: `-$${formatNumber(this.pointsDiscountAmount(), 'en-US', '1.2-2')}`,
-        rowClass: 'points-discount', valueClass: 'discount', shimmer
+        rowClass: 'points-discount', valueClass: 'discount'
       });
     }
 
@@ -3503,14 +3894,14 @@ private updateDateRestrictions() {
       lines.push({
         label: 'Reward Balance:',
         value: `-$${this.userBubbleCredits().toFixed(2)}`,
-        rowClass: 'points-discount', valueClass: 'discount', shimmer
+        rowClass: 'points-discount', valueClass: 'discount'
       });
     }
 
-    lines.push({ label: 'Sales Tax (8.875%):', value: `$${this.calculation().tax.toFixed(2)}`, shimmer });
+    lines.push({ label: 'Sales Tax (8.875%):', value: `$${this.calculation().tax.toFixed(2)}` });
 
     if (this.tipsAmount > 0) {
-      lines.push({ label: 'Tips for Cleaners:', value: `$${this.tipsAmount.toFixed(2)}`, shimmer });
+      lines.push({ label: 'Tips for Cleaners:', value: `$${this.tipsAmount.toFixed(2)}` });
     }
 
     return lines;
@@ -3749,6 +4140,13 @@ private updateDateRestrictions() {
 
     if (this.showPollForm()) {
       this.submitPollForm();
+      return;
+    }
+
+    // Never price a booking from an older per-tab copy of the catalogue: fresh data replaces it
+    // within moments of the page opening (loadInitialData), and Book Now waits for it.
+    if (!this.catalogueFresh()) {
+      this.errorMessage.set('Updating prices, please try again in a moment.');
       return;
     }
 
@@ -4224,12 +4622,8 @@ private updateDateRestrictions() {
   getMinDateString(): string {
     // Admins / SuperAdmins may book any date with no minimum (incl. today / past dates).
     if (this.isAdminOrSuperAdmin) return '';
-    const today = new Date();
-    const tomorrow = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
-    const year = tomorrow.getFullYear();
-    const month = String(tomorrow.getMonth() + 1).padStart(2, '0');
-    const day = String(tomorrow.getDate()).padStart(2, '0'); // Tomorrow
-    return `${year}-${month}-${day}`;
+    // Tomorrow in New York, on server and browser alike.
+    return this.newYorkTomorrow();
   }
 
   get apartmentName() { return this.bookingForm.get('apartmentName') as FormControl; }
@@ -4282,17 +4676,20 @@ loadBubblePointsOptions(): void {
       });
     } else {
       this.bubbleRewardsService.getSummary().subscribe({
-        next: (summary) => {
-          this.bubblePointsEnabled.set(!!summary.pointsSystemEnabled);
-          this.bubblePointsPerDollar.set(summary.guide?.pointsPerDollar ?? 0);
-          if (!summary.pointsSystemEnabled) return;
-          this.userBubblePoints.set(summary.currentPoints);
-          this.userBubbleCredits.set(summary.bubbleCredits ?? 0);
-          this.bubblePointsOptions.set(summary.availableRedemptions);
-        },
+        next: (summary) => this.applyPointsSummary(summary),
         error: () => {}
       });
     }
+  }
+
+  /** GET api/bubble-points/summary's answer (from the request, or the server's session). */
+  private applyPointsSummary(summary: any) {
+    this.bubblePointsEnabled.set(!!summary.pointsSystemEnabled);
+    this.bubblePointsPerDollar.set(summary.guide?.pointsPerDollar ?? 0);
+    if (!summary.pointsSystemEnabled) return;
+    this.userBubblePoints.set(summary.currentPoints);
+    this.userBubbleCredits.set(summary.bubbleCredits ?? 0);
+    this.bubblePointsOptions.set(summary.availableRedemptions ?? []);
   }
 
   selectPointsToRedeem(points: number): void {
@@ -4347,15 +4744,7 @@ loadBubblePointsOptions(): void {
     } else if (this.authService.isLoggedIn()) {
       this.specialOfferService.getMySpecialOffers().subscribe({
         next: (offers) => {
-          this.userSpecialOffers.set(offers);
-          const firstTimeOffer = findFirstTimeOffer(offers, BookingComponent.legacyFirstTimeOfferCased);
-          if (firstTimeOffer) {
-            this.firstTimeDiscountPercentage = firstTimeOffer.discountValue;
-            this.hasFirstTimeDiscountOffer = true;
-          } else {
-            this.hasFirstTimeDiscountOffer = false;
-          }
-          this.hasFirstTimeDiscount = offers.some(o => this.isFirstTimeOffer(o));
+          this.applyUserOffers(offers);
           setPromoLoaded();
         },
         error: (error) => {
@@ -4368,25 +4757,7 @@ loadBubblePointsOptions(): void {
     } else {
       this.specialOfferService.getPublicSpecialOffers().subscribe({
         next: (offers) => {
-          if (offers && offers.length > 0) {
-            const randomIndex = Math.floor(Math.random() * offers.length);
-            const randomOffer = offers[randomIndex];
-            this.userSpecialOffers.set([{
-              id: randomOffer.id,
-              specialOfferId: randomOffer.id,
-              name: randomOffer.name,
-              description: randomOffer.description,
-              isPercentage: randomOffer.isPercentage,
-              discountValue: randomOffer.discountValue,
-              expiresAt: undefined,
-              isUsed: false,
-              icon: randomOffer.icon,
-              badgeColor: randomOffer.badgeColor,
-              minimumOrderAmount: randomOffer.minimumOrderAmount
-            }]);
-          } else {
-            this.userSpecialOffers.set([]);
-          }
+          this.applyGuestOffer(offers && offers.length > 0 ? offers[Math.floor(Math.random() * offers.length)] : null);
           setPromoLoaded();
         },
         error: (error) => {
@@ -4396,6 +4767,40 @@ loadBubblePointsOptions(): void {
         }
       });
     }
+  }
+
+  /** A signed-in user's own offers (from the request, or the server's session). */
+  private applyUserOffers(offers: UserSpecialOffer[]) {
+    this.userSpecialOffers.set(offers);
+    const firstTimeOffer = findFirstTimeOffer(offers, BookingComponent.legacyFirstTimeOfferCased);
+    if (firstTimeOffer) {
+      this.firstTimeDiscountPercentage = firstTimeOffer.discountValue;
+      this.hasFirstTimeDiscountOffer = true;
+    } else {
+      this.hasFirstTimeDiscountOffer = false;
+    }
+    this.hasFirstTimeDiscount = offers.some(o => this.isFirstTimeOffer(o));
+  }
+
+  /** A guest's Special Discount card: one public offer (picked by the caller), or none. */
+  private applyGuestOffer(offer: PublicSpecialOffer | null) {
+    if (!offer) {
+      this.userSpecialOffers.set([]);
+      return;
+    }
+    this.userSpecialOffers.set([{
+      id: offer.id,
+      specialOfferId: offer.id,
+      name: offer.name,
+      description: offer.description,
+      isPercentage: offer.isPercentage,
+      discountValue: offer.discountValue,
+      expiresAt: undefined,
+      isUsed: false,
+      icon: offer.icon,
+      badgeColor: offer.badgeColor,
+      minimumOrderAmount: offer.minimumOrderAmount
+    }]);
   }
 
   loadOrders() {
@@ -4415,6 +4820,8 @@ loadBubblePointsOptions(): void {
     orders$.subscribe({
       next: (orders) => {
         this.previousOrders.set(orders.filter(order => !order.isCustomServiceType));
+        // The list itself now answers whether there is anything to reorder.
+        this.hasOrdersHint.set(null);
         this.isLoadingOrders.set(false);
         this.loading().previousOrders = false;
         this.loading.set(this.loading());
@@ -4438,12 +4845,15 @@ loadBubblePointsOptions(): void {
 
   // Admin methods
   checkAdminStatus() {
+    // From here on the page is drawn for whoever is actually signed in.
+    this.renderRole.set(this.authService.currentUserValue?.role ?? null);
     if (this.authService.isLoggedIn()) {
       const user = this.authService.currentUserValue;
       this.isAdmin.set(user?.role === 'Admin' || user?.role === 'SuperAdmin' || user?.role === 'Moderator');
       this.isSuperAdmin = user?.role === 'SuperAdmin';
       this.isModerator.set(user?.role === 'Moderator');
-      this.loadRegisterCustomerPermission();
+      // The server already asked on this user's behalf (their session).
+      if (!(this.sessionPermissionKnown && this.sessionCovers())) this.loadRegisterCustomerPermission();
     } else {
       this.isAdmin.set(false);
       this.isSuperAdmin = false;
@@ -5481,34 +5891,7 @@ loadBubblePointsOptions(): void {
     }
   
     this.bookingService.getUserSubscription().subscribe({
-      next: (data) => {
-        const rawExpiry =
-          data?.subscriptionExpiryDate ??
-          data?.expiryDate ??
-          data?.expiresAt ??
-          data?.subscriptionExpiresAt;
-
-        const expiryMs = rawExpiry ? new Date(rawExpiry).getTime() : NaN;
-        const isExpired = rawExpiry && !Number.isNaN(expiryMs) && expiryMs <= Date.now();
-
-        // Carried on both branches of the response: a customer with no live plan is exactly the
-        // one whose profile choice should decide which chip starts selected.
-        this.preferredSubscriptionId = data?.preferredSubscriptionId ?? null;
-
-        if (data?.hasSubscription && !isExpired) {
-          this.hasActiveSubscription.set(true);
-          this.userSubscription.set(data);
-
-          // If subscription is already loaded, update the selection
-          if (this.subscriptions() && this.subscriptions().length > 0) {
-            this.updateSelectedSubscription();
-          }
-        } else {
-          this.hasActiveSubscription.set(false);
-          this.userSubscription.set(null);
-          this.applyPreferredSubscription();
-        }
-      },
+      next: (data) => this.applyUserSubscriptionResponse(data),
       error: (error) => {
         // Only log error if it's not a 401 (which is expected for logged out users)
         if (error.status !== 401) {
@@ -5518,6 +5901,36 @@ loadBubblePointsOptions(): void {
         this.userSubscription.set(null);
       }
     });
+  }
+
+  /** GET api/booking/user-subscription's answer (from the request, or the server's session). */
+  private applyUserSubscriptionResponse(data: any) {
+    const rawExpiry =
+      data?.subscriptionExpiryDate ??
+      data?.expiryDate ??
+      data?.expiresAt ??
+      data?.subscriptionExpiresAt;
+
+    const expiryMs = rawExpiry ? new Date(rawExpiry).getTime() : NaN;
+    const isExpired = rawExpiry && !Number.isNaN(expiryMs) && expiryMs <= Date.now();
+
+    // Carried on both branches of the response: a customer with no live plan is exactly the
+    // one whose profile choice should decide which chip starts selected.
+    this.preferredSubscriptionId = data?.preferredSubscriptionId ?? null;
+
+    if (data?.hasSubscription && !isExpired) {
+      this.hasActiveSubscription.set(true);
+      this.userSubscription.set(data);
+
+      // If subscription is already loaded, update the selection
+      if (this.subscriptions() && this.subscriptions().length > 0) {
+        this.updateSelectedSubscription();
+      }
+    } else {
+      this.hasActiveSubscription.set(false);
+      this.userSubscription.set(null);
+      this.applyPreferredSubscription();
+    }
   }
 
   /**
@@ -5530,12 +5943,12 @@ loadBubblePointsOptions(): void {
    *     a booking being taken for somebody else.
    * It changes no price: it selects a chip the customer could have tapped themselves.
    */
-  private applyPreferredSubscription(): void {
+  private applyPreferredSubscription(draft: BookingFormData | null = this.formPersistenceService.getFormData()): void {
     if (this.isAdminMode()) return;
     if (this.hasActiveSubscription()) return;
     if (!this.preferredSubscriptionId) return;
     if (!this.subscriptions() || this.subscriptions().length === 0) return;
-    if (this.formPersistenceService.getFormData()?.selectedSubscriptionId) return;
+    if (draft?.selectedSubscriptionId || draft?.selectedSubscriptionDays != null) return;
 
     const preferred = this.subscriptions().find(s => s.id === this.preferredSubscriptionId);
     if (!preferred || preferred.id === this.selectedSubscription()?.id) return;
@@ -5739,35 +6152,6 @@ loadBubblePointsOptions(): void {
     }
   }
 
-  updateExtraServicesContainerMaxWidth() {
-    if (!this.isBrowser) return;
-    
-    const windowWidth = window.innerWidth;
-    
-    if (windowWidth >= 1510) {
-      // If window width is 1510px or MORE, keep max-width at 950px (fixed)
-      this.extraServicesContainerMaxWidth.set(950);
-    } else if (windowWidth >= 1200) {
-      // Between 1200px and 1510px: proportional reduction
-      // At 1510px → 950px
-      // At 1201px → 758px
-      // Linear interpolation
-      const ratio = (windowWidth - 1510) / (1201 - 1510); // ratio from 0 at 1510px to 1 at 1201px
-      this.extraServicesContainerMaxWidth.set(950 + (697 - 950) * ratio);
-      
-      // At exactly 1200px, jump to 1140px
-      if (windowWidth >= 1200 && windowWidth < 1201) {
-        this.extraServicesContainerMaxWidth.set(1140);
-      }
-    } else {
-      // Below 1200px: resize reducing by 1px for each 1px window reduction
-      // At 1200px → 1140px
-      // For each 1px decrease in window width, reduce container max-width by 1px (but keep min at 300px)
-      const widthDifference = 1200 - windowWidth; // How much smaller than 1200px
-      this.extraServicesContainerMaxWidth.set(Math.max(1140 - widthDifference, 300));
-    }
-  }
-
   getExtraServiceTooltip(extra: ExtraService): string {
     // Booking-specific: a disabled Same Day Service explains why instead.
     if (extra.isSameDayService && !this.isSameDayServiceAvailable()) {
@@ -5921,24 +6305,29 @@ loadBubblePointsOptions(): void {
   }
 
   loadBlockedTimeSlots() {
-    this.bookingService.getBlockedTimeSlots().pipe(takeUntil(this.destroy$)).subscribe({
+    this.bookingCatalogueStore.load('blockedTimeSlots').pipe(takeUntil(this.destroy$)).subscribe({
       next: (slots) => {
-        this.blockedTimeSlots.set(slots);
-        this.blockedFullDays.set(new Set<string>());
-        this.blockedHoursMap.set(new Map<string, Set<string>>());
-        for (const slot of slots) {
-          if (slot.isFullDay) {
-            this.blockedFullDays().add(slot.date);
-          } else if (slot.blockedHours) {
-            this.blockedHoursMap().set(slot.date, new Set(slot.blockedHours.split(',')));
-          }
-        }
-        this.blockedFullDays.set(this.blockedFullDays());
-        this.blockedHoursMap.set(this.blockedHoursMap());
+        this.applyBlockedTimeSlots(slots);
         // After loading blocked slots, adjust default date/time if currently on a blocked slot
         this.adjustDefaultDateIfBlocked();
-      }
+      },
+      error: () => {}
     });
+  }
+
+  private applyBlockedTimeSlots(slots: BlockedTimeSlot[]) {
+    this.blockedTimeSlots.set(slots);
+    this.blockedFullDays.set(new Set<string>());
+    this.blockedHoursMap.set(new Map<string, Set<string>>());
+    for (const slot of slots) {
+      if (slot.isFullDay) {
+        this.blockedFullDays().add(slot.date);
+      } else if (slot.blockedHours) {
+        this.blockedHoursMap().set(slot.date, new Set(slot.blockedHours.split(',')));
+      }
+    }
+    this.blockedFullDays.set(this.blockedFullDays());
+    this.blockedHoursMap.set(this.blockedHoursMap());
   }
 
   /** If the current default date is fully blocked, advance to the next available date.

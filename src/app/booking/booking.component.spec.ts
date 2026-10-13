@@ -1567,6 +1567,8 @@ describe('BookingComponent', () => {
     function asRole(role: string | null) {
       const auth: any = (component as any).authService;
       vi.spyOn(auth, 'currentUserValue', 'get').mockReturnValue(role ? { role } : null);
+      // The page draws for the role it last synced from auth (the server's session until then).
+      component.checkAdminStatus();
     }
 
     it('shows them to an Admin', () => {

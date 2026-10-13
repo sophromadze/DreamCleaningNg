@@ -1,4 +1,4 @@
-import { CATALOGUE_MAX_AGE_MS, CATALOGUE_TTL_MS, createCatalogueCache, createPublicOffersCache } from './catalogue-cache';
+import { CATALOGUE_MAX_AGE_MS, CATALOGUE_TTL_MS, createCatalogueCache, createPublicListCache, createPublicOffersCache } from './catalogue-cache';
 
 const residential = (minimumPrice: number) => [{ serviceKey: 'residential', basePrice: 0, minimumPrice, services: [] }];
 
@@ -112,6 +112,44 @@ describe('public offers cache', () => {
   it('is null (the browser then fetches the offers itself) when the backend never answered', async () => {
     respond = () => Promise.reject(new Error('ECONNREFUSED'));
     expect(await make().get(1000)).toBeNull();
+    expect(calls).toBe(1);
+  });
+});
+
+describe('public list cache (booking plans, blocked time slots)', () => {
+  let now: number;
+  let calls: number;
+  let body: unknown;
+  const fetchImpl = (() => { calls++; return Promise.resolve(new Response(JSON.stringify(body), { status: 200 })); }) as unknown as typeof fetch;
+  const log = { warn: vi.fn().mockName('warn') };
+  const flush = () => new Promise(resolve => setTimeout(resolve, 0));
+
+  beforeEach(() => { now = 1_000_000; calls = 0; log.warn.mockClear(); });
+
+  it('honours its own TTL: blocked slots refresh after a minute, not after five', async () => {
+    body = [{ id: 1, date: '2026-10-14', isFullDay: true }];
+    const cache = createPublicListCache('http://backend/api/booking/blocked-time-slots', 'blocked time slots',
+      { now: () => now, fetchImpl, log, ttlMs: 60_000, maxAgeMs: 600_000 });
+    expect(await cache.get(1000)).toEqual(body);
+
+    now += 59_000;
+    await cache.get(1000);
+    expect(calls).toBe(1);
+
+    body = [];
+    now += 2_000;
+    await cache.get(1000);
+    await flush();
+    expect(await cache.get(1000)).toEqual([]);
+    expect(calls).toBe(2);
+  });
+
+  it('defaults to the catalogue TTL', async () => {
+    body = [{ id: 1, subscriptionDays: 0 }];
+    const cache = createPublicListCache('http://backend/api/booking/subscriptions', 'booking plans', { now: () => now, fetchImpl, log });
+    await cache.get(1000);
+    now += CATALOGUE_TTL_MS - 1;
+    await cache.get(1000);
     expect(calls).toBe(1);
   });
 });

@@ -1,17 +1,27 @@
 import { PLATFORM_ID, inject, DOCUMENT, Service } from '@angular/core';
 import { BehaviorSubject } from 'rxjs';
 import { isPlatformBrowser } from '@angular/common';
-import { writeHeroChoiceCookie } from '../shared/booking/hero-choice-cookie';
+import { writeBookingChoiceCookie } from '../shared/booking/booking-choice-cookie';
 
 export interface BookingFormData {
   // Service Type and Services
   selectedServiceTypeId?: string;
+  /**
+   * The catalogue KEYS of the selections (ServiceType.serviceKey, Service.serviceKey,
+   * ExtraService.extraServiceKey, Subscription.subscriptionDays), stored next to the ids. The ids
+   * drive the in-tab restore as before; the keys are what the booking-choice cookie is written
+   * from (booking-choice-cookie.ts), so the server can resolve them against its own catalogue.
+   * Absent on drafts saved before 2026-10 and on unkeyed rows; the cookie then simply omits them.
+   */
+  selectedServiceTypeKey?: string | null;
   selectedServices?: Array<{
     serviceId: string;
+    serviceKey?: string | null;
     quantity: number;
   }>;
   selectedExtraServices?: Array<{
     extraServiceId: string;
+    extraServiceKey?: string | null;
     quantity: number;
     hours: number;
   }>;
@@ -44,6 +54,8 @@ export interface BookingFormData {
 
   // Selected Subscription
   selectedSubscriptionId?: string;
+  /** The selected plan's period - a plan's identity (see selectedServiceTypeKey). */
+  selectedSubscriptionDays?: number;
   
   // Custom Pricing Data
   customAmount?: number;
@@ -135,8 +147,8 @@ export class FormPersistenceService {
       
       sessionStorage.setItem(this.STORAGE_KEY, JSON.stringify(dataToSave));
       this.formDataSubject.next(dataToSave);
-      // The home hero's part of it, for the server render (see hero-choice-cookie.ts).
-      writeHeroChoiceCookie(this.document, dataToSave);
+      // Its non-personal part, for the server render of the hero and /booking (booking-choice-cookie.ts).
+      writeBookingChoiceCookie(this.document, dataToSave);
     } catch (error) {
       console.error('Error saving form data:', error);
     }
@@ -187,7 +199,7 @@ export class FormPersistenceService {
     try {
       sessionStorage.removeItem(this.STORAGE_KEY);
       this.formDataSubject.next(null);
-      writeHeroChoiceCookie(this.document, null);
+      writeBookingChoiceCookie(this.document, null);
     } catch (error) {
       console.error('Error clearing form data:', error);
     }

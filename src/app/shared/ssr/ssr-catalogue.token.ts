@@ -1,5 +1,5 @@
 import { InjectionToken } from '@angular/core';
-import type { ServiceType } from '../../services/booking.service';
+import type { BlockedTimeSlot, ServiceType, Subscription } from '../../services/booking.service';
 import type { MarketingPrices } from '../pricing/marketing-price-format';
 import type { PublicSpecialOffer } from '../../services/special-offer.service';
 
@@ -20,6 +20,10 @@ export interface SsrCatalogue {
    * the backend is unreachable; the browser then fetches it after hydration, as it used to.
    */
   publicOffers?: PublicSpecialOffer[] | null;
+  /** GET api/booking/subscriptions, held the same way (the booking page's plans). */
+  subscriptions?: Subscription[] | null;
+  /** GET api/booking/blocked-time-slots, held on a 60-second TTL (the booking page's default date). */
+  blockedTimeSlots?: BlockedTimeSlot[] | null;
 }
 
 export const SSR_CATALOGUE = new InjectionToken<SsrCatalogue>('SSR_CATALOGUE');

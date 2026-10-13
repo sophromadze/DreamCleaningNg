@@ -231,8 +231,9 @@
 
         @if (!showPollForm() && currentStep() === 1) {
         <div class="booking-form-top">
-          <!-- Reorder Section - only when loaded and user has previous orders (no shimmer; guests and users without orders don't see it) -->
-          @if (!loading().previousOrders && previousOrders().length > 0 && currentStep() === 1) {
+          <!-- Reorder Section - only for a signed-in user with previous orders. Known from the
+               server's session on a refresh (showReorderButton); the list loads when opened. -->
+          @if (showReorderButton()) {
           <app-reorder-section
             [orders]="previousOrders()"
             [isLoading]="isLoadingOrders()"
@@ -277,9 +278,11 @@
         
         <!-- PART 1: Service Selection and Configuration -->
         <div class="form-step" [class.active]="currentStep() === 1" [class.hidden]="currentStep() !== 1">
-          <!-- Your offers: one shimmer while loading, then section with content. Hidden for poll service types (no payment). -->
+          <!-- Your offers. Drawn by the server on a refresh; only an in-app visit with nothing
+               known yet reserves the space (no animation) until they load. Hidden for poll service
+               types (no payment). -->
           @if (loading().promoBanner && !showPollForm()) {
-          <div class="special-offers-loading-shimmer" [shimmer]="true"></div>
+          <div class="special-offers-loading-shimmer"></div>
           }
           @if (!loading().promoBanner && userSpecialOffers().length > 0 && !showPollForm()) {
           <section class="special-offers-section">
@@ -343,7 +346,7 @@
             <div class="service-type-selection">
               <div class="form-group">
                 <label>Service Type <span class="required">*</span></label>
-                <div class="service-type-dropdown" [shimmer]="loading().serviceTypes">
+                <div class="service-type-dropdown">
                   <button
                     type="button"
                     class="dropdown-toggle"
@@ -656,7 +659,7 @@
 
               <div class="form-group">
                 <label>Service Date <span class="required">*</span></label>
-                <div class="date-time-field" [shimmer]="loading().availableDates">
+                <div class="date-time-field">
                   <app-date-selector
                     [value]="serviceDate.value"
                     [minDate]="getMinDateString()"
@@ -684,8 +687,8 @@
                 <div class="date-time-field date-time-field--time">
                   @if (loading().timeSlots) {
                   <div class="time-shimmer-fields">
-                    <div class="time-field-shimmer" [shimmer]="true"></div>
-                    <div class="time-field-shimmer" [shimmer]="true"></div>
+                    <div class="time-field-shimmer"></div>
+                    <div class="time-field-shimmer"></div>
                   </div>
                   }
                   @if (!loading().timeSlots) {
@@ -727,9 +730,9 @@
               }
               <label>Cleaning Type <span class="required">*</span></label>
               <div class="cleaning-type-selection">
-                <!-- Shimmer when loading service types or cleaning types (visible on page refresh) -->
+                <!-- Same-size empty slot while the catalogue is unknown (an in-app visit with no copy yet) -->
                 @if (loading().serviceTypes || loading().cleaningTypes) {
-                <div class="cleaning-type-buttons" [shimmer]="true"></div>
+                <div class="cleaning-type-buttons"></div>
                 }
                 <!-- Real buttons when loaded and this service type has deep cleaning -->
                 @if (!loading().serviceTypes && !loading().cleaningTypes && selectedServiceType() && isResidentialCleaningServiceType() && canSelectDeepCleaning) {
@@ -784,9 +787,9 @@
             <!-- Step 4: Services (Bedrooms / Bathrooms / SqFt) -->
             <section class="booking-section">
               <div class="services">
-                <!-- Single full-width shimmer when loading and no services yet -->
+                <!-- Same-size empty slot while there are no services yet -->
                 @if (loading().serviceDetails && selectedServices().length === 0) {
-                <div class="services-shimmer-single" [shimmer]="true"></div>
+                <div class="services-shimmer-single"></div>
                 }
                 <!-- Levels is excluded here even though it is an ordinary service: it has its own
                      gated block above, and rendering it twice would let a customer set a level
@@ -798,7 +801,7 @@
                   
                   <!-- Quantity Control Input -->
                   @if (selected.service.inputType === 'dropdown') {
-                  <div class="service-input" [shimmer]="loading().serviceDetails">
+                  <div class="service-input">
                     <app-quantity-control class="quantity-control" [label]="selected.service.name"
                       [value]="selected.service.serviceKey === 'bedrooms' && selected.quantity === 0 ? 'Studio' : selected.quantity"
                       [decrementDisabled]="selected.quantity <= getServiceMinValue(selected.service)"
@@ -811,7 +814,7 @@
 
                   <!-- Slider Input for Square Feet -->
                   @if (selected.service.isRangeInput) {
-                  <div class="service-input slider-input" [shimmer]="loading().serviceDetails">
+                  <div class="service-input slider-input">
                     <div class="slider-container">
                       <span class="slider-quantity">{{ selected.quantity }}</span>
                       <!-- Index-based: the allowed Sq.ft values are a list, not a fixed step
@@ -969,6 +972,7 @@
             }
 
             <app-extra-services-grid
+              class="booking-extras-grid"
               [extras]="getExtraServicesToDisplay()"
               [selections]="selectedExtraServices()"
               [tooltips]="mobileTooltips"
@@ -976,7 +980,6 @@
               [sameDayDisabledReason]="sameDayServiceDisabledReason()"
               [loading]="loading().extras"
               [showPrices]="showExtraServicePrices"
-              [containerMaxWidth]="extraServicesContainerMaxWidth()"
               (cardClick)="onExtraServiceCardClick($event)"
               (quantityChange)="updateExtraServiceQuantity($event.extra, $event.quantity)"
               (hoursChange)="updateExtraServiceHours($event.extra, $event.hours)">
@@ -1053,7 +1056,7 @@
               <div class="date-time-selection">
                 <div class="form-group">
                   <label>Service Date <span class="required">*</span></label>
-                  <div class="date-time-field" [shimmer]="loading().availableDates">
+                  <div class="date-time-field">
                     <app-date-selector
                       [value]="serviceDate.value"
                       [minDate]="getMinDateString()"
@@ -1081,8 +1084,8 @@
                   <div class="date-time-field date-time-field--time">
                     @if (loading().timeSlots) {
                     <div class="time-shimmer-fields">
-                      <div class="time-field-shimmer" [shimmer]="true"></div>
-                      <div class="time-field-shimmer" [shimmer]="true"></div>
+                      <div class="time-field-shimmer"></div>
+                      <div class="time-field-shimmer"></div>
                     </div>
                     }
                     @if (!loading().timeSlots) {
@@ -1120,7 +1123,7 @@
                       ({{ userSubscription()?.discountPercentage }}% discount)</span>
               </div>
               }
-              <div class="subscription-options" [shimmer]="loading().serviceTypes">
+              <div class="subscription-options">
                 @for (subscription of subscriptions(); track subscription.id) {
                 <div class="subscription-card"
                      [class.selected]="selectedSubscription()?.id === subscription.id"
@@ -2408,7 +2411,7 @@
       </div>
 
       <!-- Right Side - Booking Summary (Fixed) -->
-<!-- Card always visible when not in poll form; only dynamic values shimmer -->
+<!-- Card always visible when not in poll form -->
 @if (!showPollForm()) {
 <div class="booking-summary">
   <app-order-summary-card
@@ -2419,14 +2422,13 @@
     [priceLines]="getSummaryPriceLines(false)"
     totalLabel="Total:"
     [totalValue]="'$' + calculation().total.toFixed(2)"
-    [totalShimmer]="loading().pricing"
     [estimatedPoints]="getEstimatedPointsDisplay()"
     (toggleCollapsed)="toggleBookingSummary()">
 
-    <!-- Promo Code Section - static input, no shimmer on section -->
+    <!-- Promo Code Section - static input -->
     <div summary-top class="promo-code-section" [class.hidden]="isSummaryCollapsed()">
       <div class="promo-code">
-        <div class="promo-input" [shimmer]="loading().summary">
+        <div class="promo-input">
           <input
             type="text"
             [value]="promoCode.value"
@@ -2461,11 +2463,11 @@
       <div class="next-order-title">Continue with {{ selectedSubscription()!.name }} plan:</div>
       <div class="price-item">
         <span>Discount ({{ selectedSubscription()!.discountPercentage }}%):</span>
-        <span class="discount" [shimmer]="loading().pricing">${{ nextOrderDiscount().toFixed(2) }}</span>
+        <span class="discount">${{ nextOrderDiscount().toFixed(2) }}</span>
       </div>
       <div class="price-item next-total">
         <span>Continue Order Total:</span>
-        <span [shimmer]="loading().pricing" class="summary-value">${{ nextOrderTotal().toFixed(2) }}</span>
+        <span class="summary-value">${{ nextOrderTotal().toFixed(2) }}</span>
       </div>
     </div>
     }

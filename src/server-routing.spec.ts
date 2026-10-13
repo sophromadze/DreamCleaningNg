@@ -1,5 +1,6 @@
 import {
   PERMANENT_REDIRECTS,
+  isBookingPage,
   isMissingFileRequest,
   isStaticFileRequest,
   permanentRedirectLocation,
@@ -80,6 +81,16 @@ describe('server-routing (server.ts request routing, Express 4 behaviour)', () =
     }
     for (const rel of ['main-ABC.js', 'styles-X.css', 'img/responsive/x-640.webp', 'fonts/poppins.woff2', 'favicon.ico', 'nyc-zip-codes.json', 'media/images/x.png', 'IMAGES/x.png']) {
       expect(staticCacheControl(rel), rel).toBeNull();
+    }
+  });
+});
+
+describe('isBookingPage (the one route rendered with the visitor\'s session, always private)', () => {
+  it('matches the booking page only', () => {
+    expect(isBookingPage('/booking')).toBe(true);
+    expect(isBookingPage('/booking/')).toBe(true);
+    for (const other of ['/', '/booking-confirmation', '/booking-success/12', '/bookings', '/admin/booking', '/Booking']) {
+      expect(isBookingPage(other), other).toBe(false);
     }
   });
 });

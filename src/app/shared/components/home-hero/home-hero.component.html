@@ -13,7 +13,9 @@
   <div class="hero-grid">
 
     <!-- ===== Booking form card (right) ===== -->
-    <aside class="booking-form-card">
+    <!-- Starting to use the form prefetches /booking's data (BookingCatalogueStore), so the
+         handoff draws step 1 at once. -->
+    <aside class="booking-form-card" (pointerenter)="prefetchBooking()" (pointerdown)="prefetchBooking()" (focusin)="prefetchBooking()">
       <header class="booking-form-card__header">
         <div>
           <p class="booking-form-card__step">Step 1 of 3</p>
