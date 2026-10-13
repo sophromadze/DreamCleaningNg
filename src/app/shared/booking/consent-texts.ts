@@ -37,4 +37,4 @@ export const CANCELLATION_CONSENT_TEXT =
 
 /** Terms label, up to the links. */
 export const TERMS_CONSENT_LEAD =
-  "I have read and agree to Dream Cleaning's ";
+  "I have read and agree to Dream Cleaning NYC's ";
