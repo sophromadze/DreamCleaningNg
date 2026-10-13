@@ -10,10 +10,10 @@ describe('Recurring order list refresh', () => {
     const c: any = TestBed.createComponent(OrdersComponent).componentInstance;
     const oldRead = new Subject<any[]>(), freshRead = new Subject<any[]>();
     c.ordersLoadVersion = 0; c.userRole.set('SuperAdmin'); c.isSuperAdmin.set(true); c.loadingStates.set({});
-    c.assignedCleanersCache.set(new Map()); c.cleanersLoadedSet.set(new Set()); c.residentialVariantCache.set(new Map());
+    c.assignedCleanersCache.set(new Map()); c.cleanersLoadedSet.set(new Set());
     c.adminService = { getAllOrders: vi.fn().mockReturnValueOnce(oldRead).mockReturnValueOnce(freshRead) };
     c.orderReminderService = { initialize: vi.fn() };
-    for (const name of ['clearMessages', 'preloadResidentialVariants', 'preloadAssignedCleaners', 'preloadStaffingWarnings',
+    for (const name of ['clearMessages', 'preloadAssignedCleaners', 'preloadStaffingWarnings',
       'loadPendingOrderEdits', 'calculateStatistics', 'initializeStickyHeader', 'updateStickyHeader']) c[name] = vi.fn().mockName(name);
     c.loadOrders(); c.onRecurringOrdersGenerated();
     freshRead.next([{ id: 1, total: 100 }, { id: 2, total: 200 }]);

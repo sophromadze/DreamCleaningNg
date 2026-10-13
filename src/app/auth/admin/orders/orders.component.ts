@@ -110,6 +110,8 @@ export interface OrderEditChange {
 
 // Extended interface for admin orders with additional properties
 export interface AdminOrderList extends OrderList {
+  /** Deep cleaning, decided by the server for the whole list (see AdminService AdminOrderList). */
+  isDeepCleaning?: boolean;
   userId: number;
   contactEmail: string;
   contactFirstName: string;
@@ -401,7 +403,6 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   /** Tracks which orders have had their cleaners loaded (to distinguish "loading" from "not assigned") */
   readonly cleanersLoadedSet = signal<Set<number>>(new Set(), { equal: () => false });
   /** Cached resolved residential variant for list rows (without opening details). */
-  readonly residentialVariantCache = signal<Map<number, 'Deep' | 'Regular'>>(new Map(), { equal: () => false });
   /** The per-cleaner wage breakdown for the order whose detail panel is open. */
   readonly selectedOrderPayroll = signal<OrderCleanerPayroll | null>(null, { equal: () => false });
   readonly loadingOrderPayroll = signal(false);
@@ -1417,8 +1418,6 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
           row.serviceTypeName = result.serviceTypeName;
           this.orders.set(this.orders());
         }
-        this.residentialVariantCache().delete(orderId);
-        this.residentialVariantCache.set(this.residentialVariantCache());
         this.isSavingCustomServiceName.set(false);
         this.showCustomServiceNameEditor = false;
       },
@@ -1987,8 +1986,6 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     this.assignedCleanersCache.set(this.assignedCleanersCache());
     this.cleanersLoadedSet().clear();
     this.cleanersLoadedSet.set(this.cleanersLoadedSet());
-    this.residentialVariantCache().clear();
-    this.residentialVariantCache.set(this.residentialVariantCache());
     this.clearMessages();
 
     if (this.userRole() && this.userRole() !== 'Customer') {
@@ -1996,7 +1993,6 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
         next: (orders) => {
           if (version !== this.ordersLoadVersion) return;
           this.orders.set(orders as AdminOrderList[]);
-          this.preloadResidentialVariants();
           this.preloadAssignedCleaners();
           this.preloadStaffingWarnings();
           this.orderReminderService.initialize(this.orders());
@@ -2034,7 +2030,6 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
         next: (orders) => {
           if (version !== this.ordersLoadVersion) return;
           this.orders.set(orders as AdminOrderList[]);
-          this.preloadResidentialVariants();
         },
         error: (error) => {
           if (version !== this.ordersLoadVersion) return;
@@ -2139,46 +2134,6 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     this.cdr.detectChanges();
   }
 
-  /** Preload Deep/Regular variant for residential rows from order details API. */
-  private preloadResidentialVariants() {
-    const residentialOrders = this.orders().filter(order => this.isResidentialServiceType(order));
-    if (residentialOrders.length === 0) return;
-
-    const batchSize = 10;
-
-    const loadBatch = (startIndex: number) => {
-      const batch = residentialOrders.slice(startIndex, startIndex + batchSize);
-      if (batch.length === 0) return;
-
-      const requests = batch.map(order =>
-        this.adminService.getOrderDetails(order.id).pipe(catchError(() => of(null)))
-      );
-
-      forkJoin(requests).subscribe({
-        next: (detailsList) => {
-          detailsList.forEach((details, index) => {
-            const orderId = batch[index].id;
-            const isDeep = this.resolveIsDeepResidential(batch[index] as any, details as any);
-            this.residentialVariantCache().set(orderId, isDeep ? 'Deep' : 'Regular');
-          });
-          this.residentialVariantCache.set(this.residentialVariantCache());
-          this.cdr.detectChanges();
-        },
-        complete: () => {
-          const nextIndex = startIndex + batchSize;
-          if (nextIndex < residentialOrders.length) {
-            setTimeout(() => loadBatch(nextIndex), 80);
-          }
-        }
-      });
-    };
-
-    // Background enrichment, one batch after another for as long as there are residential orders,
-    // so it can easily outlast the 10s hydration window: it starts once the app is first stable
-    // (an immediate start when it already is), instead of keeping a freshly loaded /admin
-    // unstable until the last batch lands (NG0506).
-    this.appRef.whenStable().then(() => loadBatch(0));
-  }
 
   // Bumped whenever order DATA changes (load, status update, edit save) so the
   // memoized stats recompute. Filter-input changes are part of the cache key directly.
@@ -5594,8 +5549,11 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
 
     const isResidential = this.isResidentialServiceType(order);
     if (isResidential) {
-      const cachedVariant = this.residentialVariantCache().get(order.id);
-      if (cachedVariant) return cachedVariant;
+      // The server decides for the whole list (isDeepCleaning). Only the row whose panel is open
+      // is re-judged from its freshly loaded details, so an edit there shows at once.
+      if (!selectedOrderForRow && typeof order.isDeepCleaning === 'boolean') {
+        return order.isDeepCleaning ? 'Deep' : 'Regular';
+      }
 
       const extras: any[] =
         (Array.isArray(orderAny?.extraServices) ? orderAny.extraServices : [])
@@ -8256,6 +8214,9 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
         if (orderIndex !== -1) {
           const updatedOrder = this.orders()[orderIndex];
           updatedOrder.contactFirstName = o.contactFirstName;
+          this.orders.set(this.orders());
+          // Deep / Regular follows the saved extras (the list's own answer is from load time).
+          updatedOrder.isDeepCleaning = this.resolveIsDeepResidential(updatedOrder, o);
           this.orders.set(this.orders());
           updatedOrder.contactLastName = o.contactLastName;
           this.orders.set(this.orders());

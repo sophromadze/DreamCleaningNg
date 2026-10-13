@@ -332,15 +332,27 @@ export class AccountStatusService {
 
   // ------------------------------------------------------------------------------------------
 
-  /** The signed-in-only services, in their own chunk (see header-account.services). */
-  private accountServices() {
-    return import('../header/header-account.services').then(m => ({
-      orders: this.injector.get(m.OrderService),
-      contracts: this.injector.get(m.ContractService),
-      invoices: this.injector.get(m.InvoiceService),
-      tasks: this.injector.get(m.TaskService),
-      blog: this.injector.get(m.BlogService)
-    }));
+  /**
+   * The signed-in-only services, in their own chunk (see header-account.services). If this
+   * service's injector is destroyed while the chunk loads (an app teardown, a test), the promise
+   * simply never settles: nothing is asked of a destroyed injector, and no caller runs.
+   */
+  private accountServices(): Promise<{
+    orders: import('./order.service').OrderService;
+    contracts: import('./contract.service').ContractService;
+    invoices: import('./invoice.service').InvoiceService;
+    tasks: import('./task.service').TaskService;
+    blog: import('./blog.service').BlogService;
+  }> {
+    return import('../header/header-account.services').then(m => this.destroyed
+      ? new Promise<never>(() => {})
+      : {
+          orders: this.injector.get(m.OrderService),
+          contracts: this.injector.get(m.ContractService),
+          invoices: this.injector.get(m.InvoiceService),
+          tasks: this.injector.get(m.TaskService),
+          blog: this.injector.get(m.BlogService)
+        });
   }
 }
 

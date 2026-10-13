@@ -1,5 +1,6 @@
 import type { MockInstance } from 'vitest';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ApplicationRef } from '@angular/core';
 
 import { OrdersComponent } from './orders.component';
 import { round2, calculateQuote, buildQuoteInputFromSelections, percentOf } from '../../../shared/pricing/order-pricing.calculator';
@@ -2672,5 +2673,47 @@ describe('OrdersComponent — edits price like booking (2026-10)', () => {
     component.editOrderTotalInput.set(250);
     component.onEditTotalChange();
     expect(dto().priceTypedByAdmin).toBe(true);
+  });
+});
+
+/**
+ * 2026-10: "Deep" / "Regular" on a residential row comes from the list itself
+ * (AdminOrderList.isDeepCleaning, decided by the server in one grouped query). The tab used to
+ * fetch every residential order's full details on load - 261 requests on a dev /admin - and the
+ * label read "Regular" until each one's batch arrived.
+ */
+describe('OrdersComponent residential Deep / Regular label', () => {
+  let component: OrdersComponent;
+  const row = (id: number, isDeepCleaning?: boolean) => ({
+    id, serviceTypeName: 'Residential Cleaning', serviceTypeKey: 'residential', isDeepCleaning
+  }) as any;
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({ providers: [...testProviders], imports: [OrdersComponent] }).compileComponents();
+    component = TestBed.createComponent(OrdersComponent).componentInstance;
+  });
+
+  it('reads the server\'s answer from the row', () => {
+    expect(component.getServiceTypeDisplay(row(1, true))).toBe('Deep');
+    expect(component.getServiceTypeDisplay(row(2, false))).toBe('Regular');
+  });
+
+  it('the row whose panel is open follows its freshly loaded details (an edit shows at once)', () => {
+    component.selectedOrder.set({ id: 3, extraServices: [{ extraServiceName: 'Deep Cleaning', extraServiceKey: 'deep-cleaning', isDeepCleaning: true }], services: [] } as any);
+
+    expect(component.getServiceTypeDisplay(row(3, false))).toBe('Deep');
+  });
+
+  it('loading the list makes no per-order request', async () => {
+    const admin = TestBed.inject(AdminService);
+    const details = vi.spyOn(admin, 'getOrderDetails');
+    vi.spyOn(admin, 'getAllOrders').mockReturnValue(of([row(1, true), row(2, false), row(3, false)]) as any);
+    component.userRole.set('SuperAdmin');
+
+    component.loadOrders();
+    await TestBed.inject(ApplicationRef).whenStable();
+    await new Promise(resolve => setTimeout(resolve, 200));
+
+    expect(details).not.toHaveBeenCalled();
   });
 });

@@ -225,6 +225,12 @@ export interface MonthlyFinancialRate {
 export interface AdminOrderList {
   id: number;
   userId: number;
+  /**
+   * The order is a Deep cleaning - decided by the server for the whole list in one grouped query
+   * (Helpers/ResidentialCleaningVariant.cs), so a residential row reads "Deep" / "Regular" from the
+   * first frame. Absent from an older API, where the row falls back to its own fields.
+   */
+  isDeepCleaning?: boolean;
   /** Regular (false) or Commercial (true) — the Orders sub-tab the order is listed under. */
   isCommercial?: boolean;
   /** A Done request is waiting for approval on this order. */
