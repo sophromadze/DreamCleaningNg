@@ -278,12 +278,9 @@
         
         <!-- PART 1: Service Selection and Configuration -->
         <div class="form-step" [class.active]="currentStep() === 1" [class.hidden]="currentStep() !== 1">
-          <!-- Your offers. Drawn by the server on a refresh; only an in-app visit with nothing
-               known yet reserves the space (no animation) until they load. Hidden for poll service
-               types (no payment). -->
-          @if (loading().promoBanner && !showPollForm()) {
-          <div class="special-offers-loading-shimmer"></div>
-          }
+          <!-- Your offers. Drawn by the server on a refresh, and from the prefetched booking
+               context on an in-app visit (the /booking resolver waits for it), so there is no
+               placeholder to collapse. Hidden for poll service types (no payment). -->
           @if (!loading().promoBanner && userSpecialOffers().length > 0 && !showPollForm()) {
           <section class="special-offers-section">
             <h2 class="special-offers-heading">Special Discount</h2>

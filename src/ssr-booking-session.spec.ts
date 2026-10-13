@@ -23,7 +23,13 @@ describe('loadBookingSession (server render of a signed-in /booking)', () => {
       '/api/profile/special-offers': json([{ id: 3, name: 'Welcome back' }]),
       '/api/booking/user-subscription': json({ hasSubscription: false, preferredSubscriptionId: 4 }),
       '/api/bubble-points/summary': json({ pointsSystemEnabled: true, currentPoints: 260 }),
-      '/api/order': json([{ id: 9, isCustomServiceType: true }, { id: 10, isCustomServiceType: false }]),
+      '/api/order': json([{ id: 9, isCustomServiceType: true, status: 'Done', isPaid: true }, { id: 10, isCustomServiceType: false, status: 'Pending', isPaid: false, paymentMethod: 'Normal' }]),
+      '/api/bubble-points/header-summary': json({ points: 260, pointsSystemEnabled: true }),
+      '/api/my-contracts/has-contracts': json({ hasContracts: false }),
+      '/api/my-invoices/has-invoices': json({ hasInvoices: true }),
+      '/api/admin/personal-tasks/pending-count': json(2),
+      '/api/admin/personal-tasks/unchecked-done-count': json(0),
+      '/api/admin/blog/pending-count': json({ count: 3 }),
       '/api/admin/permissions': json({ permissions: { canCreate: true } })
     };
   });
@@ -37,7 +43,7 @@ describe('loadBookingSession (server render of a signed-in /booking)', () => {
   it('forwards ONLY the access_token cookie - never refresh_token or anything else', async () => {
     await load(`dc_ui=u; refresh_token=REFRESH; access_token=${TOKEN}; dc_attribution=x`);
 
-    expect(calls.length).toBe(5);
+    expect(calls.length).toBe(8);
     for (const call of calls) {
       expect(call.headers['Cookie']).toBe(`access_token=${TOKEN}`);
       expect(JSON.stringify(call.headers)).not.toContain('REFRESH');
@@ -54,7 +60,13 @@ describe('loadBookingSession (server render of a signed-in /booking)', () => {
       subscription: { hasSubscription: false, preferredSubscriptionId: 4 },
       points: { pointsSystemEnabled: true, currentPoints: 260 },
       hasPreviousOrders: true,
-      canRegisterCustomers: false
+      canRegisterCustomers: false,
+      // The header's state from the same lookup (shipped separately, read by AccountStatusService).
+      account: {
+        userId: 71, hasUnpaidOrders: true, hasContracts: false, hasInvoices: true,
+        headerSummary: { points: 260, pointsSystemEnabled: true },
+        hasPendingPersonalTasks: false, hasUncheckedDoneTasks: false, pendingBlogDrafts: 0
+      }
     });
     // The order list is reduced to a flag and the saved addresses never leave the server.
     expect(JSON.stringify(session)).not.toContain('Main St');
@@ -67,6 +79,22 @@ describe('loadBookingSession (server render of a signed-in /booking)', () => {
 
     expect(session!.canRegisterCustomers).toBe(true);
     expect(calls.map(c => c.url)).toContain('http://backend/api/admin/permissions');
+    expect(session!.account).toMatchObject({ hasPendingPersonalTasks: true, hasUncheckedDoneTasks: false, pendingBlogDrafts: 3 });
+  });
+
+  it('never asks for staff counts for a customer', async () => {
+    await load(`access_token=${TOKEN}`);
+
+    expect(calls.some(c => /\/api\/admin\//.test(c.url))).toBe(false);
+  });
+
+  it('leaves the header state to the browser when any part of it did not answer', async () => {
+    answers['/api/my-invoices/has-invoices'] = json('down', 503);
+
+    const session = await load(`access_token=${TOKEN}`);
+
+    expect(session!.user.id).toBe(71);
+    expect(session!.account).toBeNull();
   });
 
   it('renders as a guest when the session is expired, revoked or refused', async () => {

@@ -21,6 +21,7 @@
  */
 import type { SsrBookingSession } from './app/shared/ssr/ssr-booking-session.token';
 import { readCookie } from './app/shared/ssr/read-cookie';
+import { hasUnpaidOrder, isInternalRole, isStaffRole } from './app/shared/account/account-status';
 
 export const SESSION_TIMEOUT_MS = 400;
 export const ACCESS_TOKEN_COOKIE = 'access_token';
@@ -64,19 +65,35 @@ export async function loadBookingSession(
     }
   };
 
-  const [profile, specialOffers, subscription, points, orders] = await Promise.all([
+  const [profile, specialOffers, subscription, points, orders, headerSummary, contracts, invoices] = await Promise.all([
     get<Record<string, any>>('/api/profile'),
     get<unknown[]>('/api/profile/special-offers'),
     get<Record<string, unknown>>('/api/booking/user-subscription'),
     get<Record<string, unknown>>('/api/bubble-points/summary'),
-    get<Array<{ isCustomServiceType?: boolean }>>('/api/order')
+    get<Array<{ isCustomServiceType?: boolean }>>('/api/order'),
+    // The header's own state, so the page makes none of these calls after hydration.
+    get<any>('/api/bubble-points/header-summary'),
+    get<{ hasContracts?: boolean }>('/api/my-contracts/has-contracts'),
+    get<{ hasInvoices?: boolean }>('/api/my-invoices/has-invoices')
   ]);
 
   if (!profile || typeof profile['id'] !== 'number' || typeof profile['role'] !== 'string') return null;
   const role = profile['role'] as string;
   const staff = STAFF_ROLES.has(role);
-  // Staff only (the Register User button), so a customer's render never pays for it.
-  const permissions = staff ? await get<{ permissions?: { canCreate?: boolean } }>('/api/admin/permissions') : null;
+  // Staff only (the Register User button, the task and blog indicators), so a customer's render
+  // never pays for it.
+  const [permissions, pendingTasks, uncheckedDone, blogDrafts] = staff
+    ? await Promise.all([
+        get<{ permissions?: { canCreate?: boolean } }>('/api/admin/permissions'),
+        isStaffRole(role) ? get<number>('/api/admin/personal-tasks/pending-count') : Promise.resolve(0),
+        isStaffRole(role) ? get<number>('/api/admin/personal-tasks/unchecked-done-count') : Promise.resolve(0),
+        isInternalRole(role) ? get<{ count?: number }>('/api/admin/blog/pending-count') : Promise.resolve({ count: 0 })
+      ])
+    : [null, 0, 0, { count: 0 }];
+  const cleaner = role === 'Cleaner';
+  // Every part must have answered, or the browser would show a wrong indicator until its next load.
+  const accountComplete = Array.isArray(orders) && headerSummary !== null
+    && (cleaner || (contracts && invoices)) && pendingTasks !== null && uncheckedDone !== null && blogDrafts !== null;
 
   return {
     user: {
@@ -93,6 +110,16 @@ export async function loadBookingSession(
     subscription: subscription && typeof subscription === 'object' ? subscription : null,
     points: points && typeof points === 'object' ? points : null,
     hasPreviousOrders: Array.isArray(orders) ? orders.some(o => !o?.isCustomServiceType) : null,
-    canRegisterCustomers: !staff ? false : permissions ? !!permissions.permissions?.canCreate : null
+    canRegisterCustomers: !staff ? false : permissions ? !!permissions.permissions?.canCreate : null,
+    account: accountComplete ? {
+      userId: profile['id'],
+      hasUnpaidOrders: hasUnpaidOrder(orders as any[]),
+      hasContracts: !cleaner && !!contracts?.hasContracts,
+      hasInvoices: !cleaner && !!invoices?.hasInvoices,
+      headerSummary: headerSummary ?? null,
+      hasPendingPersonalTasks: Number(pendingTasks) > 0,
+      hasUncheckedDoneTasks: Number(uncheckedDone) > 0,
+      pendingBlogDrafts: Number((blogDrafts as { count?: number })?.count ?? 0)
+    } : null
   };
 }

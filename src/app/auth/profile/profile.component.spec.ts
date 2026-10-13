@@ -120,7 +120,7 @@ describe('ProfileComponent', () => {
       const c = withOrders(11);
       c.ordersPage.set(2);
       const remaining = Array.from({ length: 10 }, (_, i) => order(i + 1));
-      (c as any).orderService = { getUserOrders: () => of(remaining) };
+      (c as any).accountStatus = { orders: () => of(remaining) };
       c.loadOrders();
       expect(c.orders()!.length).toBe(10);
       expect(c.ordersPage()).toBe(1);
@@ -129,7 +129,7 @@ describe('ProfileComponent', () => {
     it('keeps the current page when the reload still fills it', () => {
       const c = withOrders(20);
       c.ordersPage.set(2);
-      (c as any).orderService = { getUserOrders: () => of(Array.from({ length: 20 }, (_, i) => order(i + 1))) };
+      (c as any).accountStatus = { orders: () => of(Array.from({ length: 20 }, (_, i) => order(i + 1))) };
       c.loadOrders();
       expect(c.ordersPage()).toBe(2);
     });
@@ -154,7 +154,7 @@ describe('ProfileComponent', () => {
     it('says so when the list could not be loaded', () => {
       const c = bare();
       (c as any).ordersPerPage = ORDERS_PER_PAGE;
-      (c as any).orderService = { getUserOrders: () => throwError(() => ({ error: { message: 'Nope' } })) };
+      (c as any).accountStatus = { orders: () => throwError(() => ({ error: { message: 'Nope' } })) };
       c.loadOrders();
       expect(c.ordersError()).toBe('Nope');
       expect(c.orders()).toEqual([]);

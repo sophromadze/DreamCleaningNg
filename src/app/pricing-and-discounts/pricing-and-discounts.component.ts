@@ -6,6 +6,7 @@ import { MarketingPricingService } from '../shared/pricing/marketing-pricing.ser
 import { formatMarketingMoney, joinWithAnd, listStartingPrices } from '../shared/pricing/marketing-price-format';
 import { SpecialOfferService, PublicSpecialOffer } from '../services/special-offer.service';
 import { BookingService } from '../services/booking.service';
+import { BookingCatalogueStore } from '../services/booking-catalogue-store.service';
 import { AuthService } from '../services/auth.service';
 import { AuthModalService } from '../services/auth-modal.service';
 import { IconComponent } from '../shared/icons/icon.component';
@@ -37,6 +38,7 @@ interface RecurringPlan {
 export class PricingAndDiscountsComponent implements OnInit, OnDestroy {
   private specialOfferService = inject(SpecialOfferService);
   private bookingService = inject(BookingService);
+  private bookingCatalogueStore = inject(BookingCatalogueStore);
   private authService = inject(AuthService);
   private authModalService = inject(AuthModalService);
   private platformId = inject<Object>(PLATFORM_ID);
@@ -143,7 +145,8 @@ export class PricingAndDiscountsComponent implements OnInit, OnDestroy {
 
   /** Loads active recurring plans (weekly / bi-weekly / monthly) and their discounts. */
   private loadRecurringPlans(): void {
-    this.bookingService.getSubscriptions().subscribe({
+    // Through the per-tab store: it is the same list /booking's prefetch loads on this page.
+    this.bookingCatalogueStore.load('subscriptions').subscribe({
       next: (subs) => {
         this.recurringPlans.set((subs || [])
           // The endpoint only returns active plans; keep the ones that actually discount.

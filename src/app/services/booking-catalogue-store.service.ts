@@ -16,7 +16,7 @@ export type BookingCataloguePart = keyof Parts;
  * the copy and asks for nothing; past it the copy is still drawn at once (instead of empty
  * placeholders) but the page fetches again, the fresh answer wins, and Book Now waits for it.
  */
-export const BOOKING_COPY_FRESH_MS = 60_000;
+export const BOOKING_COPY_FRESH_MS = 10_000;
 
 /**
  * The booking page's public data, held for this browser tab (2026-10): the catalogue, the plans

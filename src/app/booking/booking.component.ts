@@ -136,6 +136,8 @@ import { SSR_RESPONSE_CONTEXT } from '../shared/ssr/ssr-response.token';
 import { SSR_BOOKING_SESSION, SsrBookingSession } from '../shared/ssr/ssr-booking-session.token';
 import { fillDraftIdsFromKeys, readBookingChoice } from '../shared/booking/booking-choice-cookie';
 import { BookingCatalogueStore } from '../services/booking-catalogue-store.service';
+import { AccountStatusService } from '../services/account-status.service';
+import { ACCOUNT_STATUS_KEY } from '../shared/account/account-status';
 import { BOOKING_INITIAL_STATE_KEY, BookingInitialState, addDaysToIsoDate, newYorkToday } from './booking-initial-state';
 
 /** Address-name presets. Anything that isn't one of the fixed labels is "Other" (free text). */
@@ -226,6 +228,10 @@ export class BookingComponent implements OnInit, OnDestroy {
   private invoiceService = inject(InvoiceService);
   private transferState = inject(TransferState);
   private bookingCatalogueStore = inject(BookingCatalogueStore);
+  /** The signed-in account's shared state: order list, booking context (AccountStatusService). */
+  private accountStatus = inject(AccountStatusService);
+  /** The signed-in context this page was drawn from (server session, or this tab's prefetch). */
+  private sessionContext: SsrBookingSession | null = null;
   /** Server only (absent in the browser): server.ts's in-memory lists, the request's cookies, the session. */
   private ssrCatalogue = inject(SSR_CATALOGUE, { optional: true });
   private ssrContext = inject(SSR_RESPONSE_CONTEXT, { optional: true });
@@ -821,6 +827,11 @@ export class BookingComponent implements OnInit, OnDestroy {
     if (this.isBrowser && !this.hydrating) {
       // An in-app navigation: the app's auth state is already the truth to draw from.
       this.renderRole.set(this.authService.currentUserValue?.role ?? null);
+      // This user's booking context, prefetched by AccountStatusService (idle time, Book link
+      // intent, the /booking resolver): their offers, plan, points and Reorder button are drawn in
+      // the first frame instead of arriving after it.
+      const context = this.accountStatus.peekBookingContext();
+      if (context && context.user.id === this.authService.currentUserValue?.id) this.applySession(context);
     }
     this.initialState = this.takeInitialState();
     if (this.initialState) this.applyInitialState(this.initialState);
@@ -1373,6 +1384,10 @@ export class BookingComponent implements OnInit, OnDestroy {
         state.guestOffer = offers.length ? copy(offers[Math.floor(Math.random() * offers.length)]) : null;
       }
       this.transferState.set(BOOKING_INITIAL_STATE_KEY, state);
+      // The header's account state is part of the same lookup: not fetched again after hydration.
+      // It travels under its own key (AccountStatusService reads it), not twice.
+      if (session?.account) this.transferState.set(ACCOUNT_STATUS_KEY, session.account);
+      if (session) delete session.account;
       return state;
     }
     if (this.hydrating && this.transferState.hasKey(BOOKING_INITIAL_STATE_KEY)) {
@@ -1397,7 +1412,11 @@ export class BookingComponent implements OnInit, OnDestroy {
 
     // Who it is drawn for, first: the role decides admin-only rendering below.
     const session = state.session;
-    if (session) this.applySession(session);
+    if (session) {
+      this.applySession(session);
+      // A later in-app visit to /booking draws from it too (fresh for a minute).
+      this.accountStatus.rememberBookingContext(session);
+    }
 
     if (!session && state.guestOffer !== undefined) {
       this.applyGuestOffer(state.guestOffer);
@@ -1450,6 +1469,7 @@ export class BookingComponent implements OnInit, OnDestroy {
 
   /** The signed-in visitor's booking context from the server's session lookup. */
   private applySession(session: SsrBookingSession) {
+    this.sessionContext = session;
     const user = session.user;
     this.sessionUserId = user.id;
     this.renderRole.set(user.role);
@@ -1487,7 +1507,7 @@ export class BookingComponent implements OnInit, OnDestroy {
   /** The offers on screen are already the right ones for whoever is (or isn't) signed in. */
   private offersCovered(): boolean {
     if (this.isAdminMode()) return false;
-    if (this.authService.isLoggedIn()) return this.sessionCovers() && !!this.initialState?.session?.specialOffers;
+    if (this.authService.isLoggedIn()) return this.sessionCovers() && !!this.sessionContext?.specialOffers;
     return this.guestOfferKnown && !this.sessionUserId;
   }
 
@@ -1691,7 +1711,7 @@ export class BookingComponent implements OnInit, OnDestroy {
         const savedData = this.formPersistenceService.getFormData();
         const returnedFromLoginStep3 = this.route.snapshot.queryParamMap.get('step') === '3';
         // The session's profile is the freshest copy the page has of who this is.
-        const profile = covered ? this.initialState!.session!.user : user;
+        const profile = covered ? this.sessionContext!.user : user;
 
         // If user just logged in from Book Now (step=3 in URL), use their real account email/name
         if (user && savedData && returnedFromLoginStep3) {
@@ -4813,9 +4833,10 @@ loadBubblePointsOptions(): void {
     this.isLoadingOrders.set(true);
 
     // In admin mode with a selected user, load that user's orders instead of admin's
+    // The signed-in user's own list is the one the header shares (AccountStatusService).
     const orders$ = this.isAdminMode() && this.selectedTargetUser()
       ? this.adminService.getUserOrders(this.selectedTargetUser()!.id)
-      : this.orderService.getUserOrders();
+      : this.accountStatus.orders(30_000);
 
     orders$.subscribe({
       next: (orders) => {

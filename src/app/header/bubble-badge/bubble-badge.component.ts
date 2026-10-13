@@ -1,10 +1,8 @@
-import { Component, OnInit, OnDestroy, PLATFORM_ID, ChangeDetectionStrategy, inject, output, signal } from '@angular/core';
+import { Component, PLATFORM_ID, ChangeDetectionStrategy, effect, inject, output, signal, untracked } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
-import { Router, RouterModule, NavigationEnd } from '@angular/router';
-import { Subject, Subscription } from 'rxjs';
-import { takeUntil, filter } from 'rxjs/operators';
-import { BubbleRewardsService, HeaderSummary } from '../../services/bubble-rewards.service';
-import { AuthService } from '../../services/auth.service';
+import { Router, RouterModule } from '@angular/router';
+import type { HeaderSummary } from '../../services/bubble-rewards.service';
+import { AccountStatusService } from '../../services/account-status.service';
 
 @Component({
   selector: 'app-bubble-badge',
@@ -13,13 +11,13 @@ import { AuthService } from '../../services/auth.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './bubble-badge.component.scss'
 })
-export class BubbleBadgeComponent implements OnInit, OnDestroy {
-  private bubbleRewardsService = inject(BubbleRewardsService);
-  private authService = inject(AuthService);
+export class BubbleBadgeComponent {
+  /** The header summary is loaded once per page load and shared (AccountStatusService). */
+  private accountStatus = inject(AccountStatusService);
   private router = inject(Router);
   private platformId = inject<Object>(PLATFORM_ID);
 
-  readonly summary = signal<HeaderSummary | null>(null);
+  readonly summary = this.accountStatus.headerSummary;
   /**
    * Whether the points system is on for this account, reported after each load so the header can
    * drop the slot (and remember the answer for the next server render) when it is off.
@@ -35,72 +33,18 @@ export class BubbleBadgeComponent implements OnInit, OnDestroy {
     points: 0, tier: 'Bubble', tierEmoji: '', credits: 0, pointsSystemEnabled: true,
     tierProgressPercent: 0, nextTierName: null
   };
-  isLoading = false;
   readonly showTooltip = signal(false);
   isBrowser: boolean;
-  private destroy$ = new Subject<void>();
-  private visibilityHandler?: () => void;
 
   constructor() {
     this.isBrowser = isPlatformBrowser(this.platformId);
-  }
-
-  ngOnInit(): void {
-    if (!this.isBrowser) return;
-
-    // Load on auth change
-    this.authService.currentUser
-      .pipe(takeUntil(this.destroy$))
-      .subscribe(user => {
-        if (user) {
-          this.loadSummary();
-        } else {
-          this.summary.set(null);
-        }
-      });
-
-    // Reload on page visibility change (tab focus)
-    this.visibilityHandler = () => {
-      if (!document.hidden && this.authService.isLoggedIn()) {
-        this.loadSummary();
-      }
-    };
-    document.addEventListener('visibilitychange', this.visibilityHandler);
-
-    // Reload on navigation (e.g. after booking)
-    this.router.events
-      .pipe(
-        filter(e => e instanceof NavigationEnd),
-        takeUntil(this.destroy$)
-      )
-      .subscribe(() => {
-        if (this.authService.isLoggedIn()) {
-          this.loadSummary();
-        }
-      });
-  }
-
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
-    if (this.visibilityHandler) {
-      document.removeEventListener('visibilitychange', this.visibilityHandler);
-    }
-  }
-
-  loadSummary(): void {
-    this.isLoading = true;
-    this.bubbleRewardsService.getHeaderSummary().subscribe({
-      next: (data) => {
-        this.summary.set(data);
-        this.isLoading = false;
-        this.availability.emit(!!data?.pointsSystemEnabled);
-      },
-      error: () => {
-        this.isLoading = false;
-        // No badge to show: give the reserved slot back rather than leave an invisible gap.
-        this.availability.emit(false);
-      }
+    // Tell the header, once per answer, whether the points system is on for this account (a
+    // failed load counts as off: the reserved slot is given back rather than left as a gap).
+    effect(() => {
+      const state = this.accountStatus.headerSummaryState();
+      if (state === 'unknown') return;
+      const data = this.accountStatus.headerSummary();
+      untracked(() => this.availability.emit(state === 'ok' && !!data?.pointsSystemEnabled));
     });
   }
 

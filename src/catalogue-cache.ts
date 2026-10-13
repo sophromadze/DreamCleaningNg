@@ -20,6 +20,11 @@
  * and the blocked time slots (api/booking/blocked-time-slots, on a 60-second TTL because an admin
  * blocking a day should reach the first paint quickly).
  *
+ * Changes made in admin reach them within seconds, not at the end of the TTL: the backend keeps a
+ * change stamp in memory (GET api/booking/catalogue-version), watchCatalogueVersion polls it every
+ * 2 seconds and invalidates the caches when it moves. If the backend or the stamp is unavailable
+ * nothing breaks - the TTL above simply remains the refresh.
+ *
  * Nothing is written to disk.
  */
 import {
@@ -49,6 +54,8 @@ export interface CatalogueCache {
    * all (cold start, or the last good one is older than CATALOGUE_MAX_AGE_MS).
    */
   get(waitMs: number): Promise<CatalogueSnapshot>;
+  /** The copy is out of date: keep serving it, and refresh now. */
+  invalidate(): void;
 }
 
 interface CacheOptions {
@@ -72,7 +79,7 @@ function createRefreshingListCache<S>(
   toSnapshot: (body: unknown[]) => S,
   describeFailure: (error: string, hasGoodCopy: boolean) => string,
   options: CacheOptions
-): { get(waitMs: number): Promise<S> } {
+): { get(waitMs: number): Promise<S>; invalidate(): void } {
   const now = options.now ?? Date.now;
   const fetchImpl = options.fetchImpl ?? fetch;
   const log = options.log ?? console;
@@ -109,6 +116,12 @@ function createRefreshingListCache<S>(
   const usable = () => (good && now() - good.fetchedAt < maxAgeMs ? good.snapshot : null);
 
   return {
+    invalidate() {
+      // Stale but still usable (well inside the max age), so renders never wait for it.
+      if (good) good = { ...good, fetchedAt: now() - ttlMs };
+      lastFailureAt = null;
+      void refresh();
+    },
     async get(waitMs: number): Promise<S> {
       const fresh = good && now() - good.fetchedAt < ttlMs;
       if (!fresh && !(lastFailureAt !== null && now() - lastFailureAt < RETRY_AFTER_FAILURE_MS)) {
@@ -170,6 +183,8 @@ export function createCatalogueCache(url: string, options: CacheOptions = {}): C
 export interface PublicOffersCache {
   /** The public offers as the backend returned them; null when there is no usable copy. */
   get(waitMs: number): Promise<unknown[] | null>;
+  /** The copy is out of date: keep serving it, and refresh now. */
+  invalidate(): void;
 }
 
 /**
@@ -201,4 +216,47 @@ export function createPublicListCache(url: string, label: string, options: Cache
       (hasGoodCopy ? 'keeping the last good copy.' : 'the browser loads it after hydration.'),
     options
   );
+}
+
+export const CATALOGUE_VERSION_POLL_MS = 2_000;
+const CATALOGUE_VERSION_TIMEOUT_MS = 1_000;
+
+interface VersionWatchOptions {
+  fetchImpl?: typeof fetch;
+  intervalMs?: number;
+  timeoutMs?: number;
+}
+
+/**
+ * Polls the backend's catalogue change stamp (GET api/booking/catalogue-version - in memory, never a
+ * database query) and calls `onChange` when it moves, so the caches above refresh within seconds of
+ * an admin edit. One request at a time (a slow answer skips the next tick rather than piling up),
+ * each with a short timeout. The first answer only records the stamp. Any failure - backend down,
+ * an older backend without the endpoint - is silent: the caches keep their TTL refresh.
+ */
+export function watchCatalogueVersion(url: string, onChange: () => void, options: VersionWatchOptions = {}): { stop(): void } {
+  const fetchImpl = options.fetchImpl ?? fetch;
+  let last: string | null = null;
+  let busy = false;
+  const tick = async () => {
+    if (busy) return;
+    busy = true;
+    try {
+      const response = await fetchImpl(url, { signal: AbortSignal.timeout(options.timeoutMs ?? CATALOGUE_VERSION_TIMEOUT_MS) });
+      if (!response.ok) return;
+      const version = (await response.json() as { version?: unknown })?.version;
+      if (typeof version !== 'string') return;
+      if (last !== null && version !== last) onChange();
+      last = version;
+    } catch {
+      // Unreachable or slow: the TTL refresh stands in.
+    } finally {
+      busy = false;
+    }
+  };
+  const timer = setInterval(() => void tick(), options.intervalMs ?? CATALOGUE_VERSION_POLL_MS);
+  // Never keeps the process alive on its own.
+  (timer as { unref?: () => void }).unref?.();
+  void tick();
+  return { stop: () => clearInterval(timer) };
 }

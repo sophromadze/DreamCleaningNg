@@ -12,6 +12,7 @@ import {
 import { AuthService } from '../../services/auth.service';
 import { LocationService } from '../../services/location.service';
 import { OrderService, OrderList, Order } from '../../services/order.service';
+import { AccountStatusService, ORDERS_REUSE_MS } from '../../services/account-status.service';
 import { Router } from '@angular/router';
 import { SpecialOfferService, UserSpecialOffer } from '../../services/special-offer.service';
 import { ShimmerDirective } from '../../shared/directives/shimmer.directive';
@@ -119,8 +120,10 @@ export class ProfileComponent implements OnInit {
   // Both are business-customer areas. A residential customer has neither, and a link to an
   // empty page reads as something broken, so each one is drawn only once the cheap boolean
   // behind it comes back true. Same two endpoints the header menu uses.
-  readonly hasInvoices = signal(false);
-  readonly hasContracts = signal(false);
+  /** Shared with the header menu: loaded once per page load (AccountStatusService). */
+  private accountStatus = inject(AccountStatusService);
+  readonly hasInvoices = this.accountStatus.hasInvoices;
+  readonly hasContracts = this.accountStatus.hasContracts;
 
   // ── Refer a Friend (Overview) ────────────────────────────────────────────────────────
   // Empty until `GET api/referral/my-code` answers; the shared card hides itself while so.
@@ -254,14 +257,9 @@ export class ProfileComponent implements OnInit {
    */
   private loadCommercialLinks(): void {
     if (!isPlatformBrowser(this.platformId)) return;
-    this.invoiceService.hasMyInvoices().subscribe({
-      next: res => this.hasInvoices.set(res?.hasInvoices ?? false),
-      error: () => this.hasInvoices.set(false)
-    });
-    this.contractService.hasMyContracts().subscribe({
-      next: res => this.hasContracts.set(res?.hasContracts ?? false),
-      error: () => this.hasContracts.set(false)
-    });
+    // Opening the profile refreshes the shared answers, unless they were loaded a moment ago
+    // (a full load of this page: the header's own load is that answer).
+    this.accountStatus.refreshAccountFlags();
   }
 
   /**
@@ -731,9 +729,14 @@ export class ProfileComponent implements OnInit {
 
   // ══ The customer's cleanings ═══════════════════════════════════════════════════════════
 
-  loadOrders() {
+  /**
+   * The customer's orders, through the list the header's unpaid dot shares (AccountStatusService):
+   * opening the page refreshes it unless it was loaded a moment ago, and a change made here
+   * (cancel) asks for a fresh one with maxAgeMs 0.
+   */
+  loadOrders(maxAgeMs = ORDERS_REUSE_MS) {
     this.ordersError.set('');
-    this.orderService.getUserOrders().subscribe({
+    this.accountStatus.orders(maxAgeMs).subscribe({
       next: (orders: OrderList[]) => {
         this.orders.set(orders);
         // A cancellation can empty the last page. Step back rather than showing a blank list.
@@ -942,7 +945,7 @@ export class ProfileComponent implements OnInit {
       next: () => {
         this.cancellingOrderId.set(null);
         this.closeCancelModal();
-        this.loadOrders();
+        this.loadOrders(0);
         this.notifyOrdersChanged();
       },
       error: (error) => {
@@ -964,7 +967,7 @@ export class ProfileComponent implements OnInit {
     this.orderService.cancelOrder(orderId, { reason: 'Customer cancelled unpaid order' }).subscribe({
       next: () => {
         this.cancellingOrderId.set(null);
-        this.loadOrders();
+        this.loadOrders(0);
         this.notifyOrdersChanged();
       },
       error: (error) => {

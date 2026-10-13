@@ -21,6 +21,7 @@ import { maintenanceGuard } from './guards/maintenance.guard';
 import { clientOnlyGuard } from './guards/client-only.guard';
 import { realEmailGuard } from './guards/real-email.guard';
 import { bookingSuccessGuard } from './guards/booking-success.guard';
+import { bookingDataResolver } from './booking/booking-data.resolver';
 import { pageViewGuard } from './guards/page-view.guard';
 import { companyLandingGuard } from './guards/company-landing.guard';
 import { passwordSetupGuard } from './guards/password-setup.guard';
@@ -257,6 +258,8 @@ export const routes: Routes = [
     path: 'booking',
     loadComponent: () => import('./booking/booking.component').then(m => m.BookingComponent),
     canActivate: [maintenanceGuard],
+    // In-app visits wait (max 400 ms) for step 1's data, so the page is drawn whole at once.
+    resolve: { prefetched: bookingDataResolver },
     data: {
       title: 'Book Cleaning Service | Dream Cleaning NYC',
       description: ((p) => `Book professional cleaning in NYC online in under 2 minutes.${standardAndDeep(p)} Instant estimates. Brooklyn, Manhattan & Queens.`) as PricedDescription

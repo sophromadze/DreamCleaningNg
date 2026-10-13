@@ -1,4 +1,5 @@
 import { InjectionToken } from '@angular/core';
+import type { AccountStatusSnapshot } from '../account/account-status';
 
 /**
  * What the booking page's first paint needs to know about a SIGNED-IN visitor, fetched by
@@ -34,6 +35,12 @@ export interface SsrBookingSession {
   hasPreviousOrders: boolean | null;
   /** Staff only: GET api/permissions -> permissions.canCreate (the Register User button). */
   canRegisterCustomers: boolean | null;
+  /**
+   * What the header shows about this account (unpaid dot, My Contracts / My Invoices, points
+   * badge, staff indicators), so it is not fetched again after hydration. Absent when a part of
+   * it did not answer - the browser then loads it once, as on every other page.
+   */
+  account?: AccountStatusSnapshot | null;
 }
 
 export const SSR_BOOKING_SESSION = new InjectionToken<SsrBookingSession | null>('SSR_BOOKING_SESSION');

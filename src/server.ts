@@ -11,7 +11,7 @@ import { SSR_BOOKING_SESSION } from './app/shared/ssr/ssr-booking-session.token'
 import { loadBookingSession } from './ssr-booking-session';
 import type { PublicSpecialOffer } from './app/services/special-offer.service';
 import { renderLlmsTxt } from './llms-txt';
-import { CATALOGUE_TTL_MS, createCatalogueCache, createPublicListCache, createPublicOffersCache } from './catalogue-cache';
+import { CATALOGUE_TTL_MS, createCatalogueCache, createPublicListCache, createPublicOffersCache, watchCatalogueVersion } from './catalogue-cache';
 import { ALLOWED_HOSTS, rejectedHeader } from './host-guard';
 import { removeNoscriptStylesheet } from './noscript-stylesheet';
 import { isBookingPage, isMissingFileRequest, isStaticFileRequest, permanentRedirectLocation, staticCacheControl } from './server-routing';
@@ -67,6 +67,14 @@ export function app(): express.Express {
   const subscriptions = createPublicListCache(`${BACKEND_URL}/api/booking/subscriptions`, 'booking plans');
   const blockedTimeSlots = createPublicListCache(`${BACKEND_URL}/api/booking/blocked-time-slots`, 'blocked time slots',
     { ttlMs: 60_000, maxAgeMs: 10 * 60_000 });
+  // An admin edit to prices, types, extras, plans, offers or blocked slots refreshes all four
+  // within ~2 seconds (the backend's in-memory change stamp); the TTLs above remain the fallback.
+  watchCatalogueVersion(`${BACKEND_URL}/api/booking/catalogue-version`, () => {
+    catalogue.invalidate();
+    publicOffers.invalidate();
+    subscriptions.invalidate();
+    blockedTimeSlots.invalidate();
+  });
 
   // /llms.txt is generated, not a file: its prices are the same MarketingPrices the pages show.
   // Registered before the static handler and the 404 guard below. Any backend failure

@@ -18,11 +18,12 @@ import type { ContractService } from '../services/contract.service';
 import type { InvoiceService } from '../services/invoice.service';
 import type { SignalRService } from '../services/signalr.service';
 import { canViewAdminPage } from '../shared/admin-viewable-pages';
-import { combineLatest, Subject, fromEvent } from 'rxjs';
-import { takeUntil, filter, debounceTime, map } from 'rxjs/operators';
+import { combineLatest, Subject } from 'rxjs';
+import { takeUntil, filter, map } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
 import { HeaderAccountMenuComponent } from './header-account-menu/header-account-menu.component';
 import { UiHintService } from '../shared/ssr/ui-hint.service';
+import { AccountStatusService } from '../services/account-status.service';
 import { debugTimersPaused } from '../shared/debug-timers';
 
 interface HeaderAccountServices {
@@ -58,6 +59,8 @@ export class HeaderComponent implements OnInit, OnDestroy {
   phoneNumber = inject(PhoneNumberService);
   private injector = inject(Injector);
   private uiHint = inject(UiHintService);
+  /** The account state the menu shows, loaded once per page load and shared (AccountStatusService). */
+  private accountStatus = inject(AccountStatusService);
   private platformId = inject<Object>(PLATFORM_ID);
 
   private destroy$ = new Subject<void>();
@@ -73,14 +76,16 @@ export class HeaderComponent implements OnInit, OnDestroy {
   isAuthInitialized = false;
   readonly isMobile = signal(false);
   readonly showAuthUI = signal(false); // Only show auth UI when we have a definitive answer
-  readonly hasUnpaidOrders = signal(false); // Track if user has unpaid orders
+  readonly hasUnpaidOrders = this.accountStatus.hasUnpaidOrders; // Track if user has unpaid orders
   readonly hasUnviewedNewOrders = signal(false); // Track if there are new orders not viewed by admins
-  hasPendingPersonalTasks = false; // Track if admin has pending personal tasks
-  hasUncheckedDoneTasks = false; // Track if admin has unchecked completed tasks they created
-  readonly pendingBlogDrafts = signal(0); // AI blog drafts waiting for review (staff badge)
+  /** Admin has pending personal tasks. */
+  get hasPendingPersonalTasks(): boolean { return this.accountStatus.hasPendingPersonalTasks(); }
+  /** Admin has unchecked completed tasks they created. */
+  get hasUncheckedDoneTasks(): boolean { return this.accountStatus.hasUncheckedDoneTasks(); }
+  readonly pendingBlogDrafts = this.accountStatus.pendingBlogDrafts; // AI blog drafts waiting for review (staff badge)
   readonly blogPublicVisible = signal(false); // Admin-driven master switch; false = "Soon" span (safe default)
   /** Business customer with at least one contract — drives the My Contracts menu entry. */
-  readonly hasContracts = signal(false);
+  readonly hasContracts = this.accountStatus.hasContracts;
   /**
    * Business customer with at least one ISSUED invoice — drives the My Invoices menu entry.
    *
@@ -88,7 +93,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
    * work is routinely invoiced without a signed agreement, and a signed agreement may have
    * nothing billed against it yet.
    */
-  readonly hasInvoices = signal(false);
+  readonly hasInvoices = this.accountStatus.hasInvoices;
   stickyCtaVisible = false; // When true, hide header mobile call icon (sticky CTA bar is shown)
   readonly nyTime = signal<string>(''); // Live New York time for admins/superadmins
   /**
@@ -203,25 +208,13 @@ export class HeaderComponent implements OnInit, OnDestroy {
         } else if (!this.isAdminOrSuperAdmin) {
           this.stopNyTimeClock();
         }
-        // Check for unpaid orders when user is logged in
-        this.checkUnpaidOrders();
-        // Check pending personal tasks and unchecked done tasks for admins
-        if (this.isAdminOrSuperAdmin) {
-          this.checkPendingPersonalTasks();
-          this.checkUncheckedDoneTasks();
-        }
-        if (this.isInternalUser) {
-          this.checkPendingBlogDrafts();
-        }
-        // Business customers get My Contracts / My Invoices entries on their own evidence.
-        this.checkMyContracts();
-        this.checkMyInvoices();
+        // The menu's indicators (unpaid dot, My Contracts / My Invoices, staff badges) come from
+        // AccountStatusService, which loads them once per user. Only the staff feeds start here.
+        void this.loadAccountServices();
       } else if (isInitialized) {
         // Only clear user data if auth service is initialized and user is null
         this.currentUser.set(null);
         this.userInitials.set('');
-        this.hasUnpaidOrders.set(false);
-        this.hasPendingPersonalTasks = false;
         if (this.isBrowser) {
           this.stopNyTimeClock();
           this.clearUserCache();
@@ -257,48 +250,8 @@ export class HeaderComponent implements OnInit, OnDestroy {
         this.isLoginMenuOpen.set(false);
       });
 
-    // Listen to router navigation events to refresh unpaid orders check
-    if (this.isBrowser) {
-      this.router.events
-        .pipe(
-          filter(event => event instanceof NavigationEnd),
-          takeUntil(this.destroy$)
-        )
-        .subscribe(() => {
-          // Refresh unpaid orders check after navigation
-          if (this.currentUser()) {
-            this.checkUnpaidOrders();
-            if (this.isAdminOrSuperAdmin) {
-              this.checkPendingPersonalTasks();
-              this.checkUncheckedDoneTasks();
-            }
-          }
-        });
-
-      // Also refresh when window regains focus (in case user cancels order and stays on same page)
-      fromEvent(window, 'focus')
-        .pipe(
-          debounceTime(500), // Debounce to avoid too many checks
-          takeUntil(this.destroy$)
-        )
-        .subscribe(() => {
-          if (this.currentUser()) {
-            this.checkUnpaidOrders();
-          }
-        });
-
-      // Listen for custom event when orders are updated (e.g., after cancellation)
-      fromEvent(window, 'ordersUpdated')
-        .pipe(
-          debounceTime(300), // Small delay to ensure backend has processed the cancellation
-          takeUntil(this.destroy$)
-        )
-        .subscribe(() => {
-          if (this.currentUser()) {
-            this.checkUnpaidOrders();
-          }
-        });
-    }
+    // The unpaid dot and the other indicators refresh on their own events (AccountStatusService),
+    // never on every navigation or focus.
 
     // Hide header mobile call icon when sticky CTA bar is visible (avoids duplicate call buttons)
     this.stickyCtaService.visible$
@@ -391,140 +344,9 @@ export class HeaderComponent implements OnInit, OnDestroy {
     this.nyTime.set(`${hour}:${minute}`);
   }
 
-  private checkUnpaidOrders() {
-    if (!this.isBrowser) return;
-
-    this.loadAccountServices().then(s => s.orders.getUserOrders()
-      .pipe(takeUntil(this.destroy$))
-      .subscribe({
-        next: (orders) => {
-          // The dot means "something here can be paid on the website". Cash / Zelle / Check /
-          // Other / Invoice orders keep isPaid=false by backend design but are never paid here
-          // (create-payment-intent refuses them), so only a Stripe ('Normal') order can owe its
-          // booking payment. A top-up (pendingUpdateAmount) is only ever set on an isPaid order.
-          this.hasUnpaidOrders.set(orders.some(order =>
-            order.status !== 'Cancelled' &&
-            order.status !== 'Refunded' &&
-            (
-              (!order.isPaid && (!order.paymentMethod || order.paymentMethod === 'Normal')) ||
-              ((order.pendingUpdateAmount ?? 0) > 0.01)
-            )
-          ));
-        },
-        error: (error) => {
-          // Silently fail - don't show error for unpaid orders check
-          console.error('Error checking unpaid orders:', error);
-          this.hasUnpaidOrders.set(false);
-        }
-      }));
-  }
-
   // Public method to refresh unpaid orders check (can be called from other components)
   refreshUnpaidOrdersCheck() {
-    this.checkUnpaidOrders();
-  }
-
-  private checkPendingPersonalTasks(): void {
-    if (!this.isBrowser) return;
-    this.loadAccountServices().then(s => s.tasks.getPendingPersonalTaskCount()
-      .pipe(takeUntil(this.destroy$))
-      .subscribe({
-        next: (count) => {
-          this.hasPendingPersonalTasks = count > 0;
-          this.cdr.detectChanges();
-        },
-        error: () => {
-          this.hasPendingPersonalTasks = false;
-          this.hasUncheckedDoneTasks = false;
-        }
-      }));
-  }
-
-  /**
-   * Decides whether to draw the My Contracts entry. Uses the dedicated boolean endpoint rather
-   * than fetching the contract list: this runs for every logged-in user on every page, and all
-   * the menu needs is one yes/no. The server applies both halves of the rule (business-flagged
-   * AND actually owns a contract), so nothing here has to know what a business flag is.
-   */
-  private checkMyContracts(): void {
-    if (!this.isBrowser) return;
-    // A cleaner's login has no customer side at all, so the check is skipped rather than fired
-    // and discarded — same reasoning as the customer entries hidden from them below.
-    if (this.isCleanerAccount) {
-      this.hasContracts.set(false);
-      return;
-    }
-
-    this.loadAccountServices().then(s => s.contracts.hasMyContracts()
-      .pipe(takeUntil(this.destroy$))
-      .subscribe({
-        next: (res: { hasContracts: boolean }) => {
-          this.hasContracts.set(res?.hasContracts ?? false);
-          this.cdr.detectChanges();
-        },
-        // Safe default: a failed check hides the link rather than offering one that 403s.
-        error: () => {
-          this.hasContracts.set(false);
-        }
-      }));
-  }
-
-  /**
-   * Decides whether to draw the My Invoices entry.
-   *
-   * A SEPARATE CHECK from My Contracts, not a reuse of it: a commercial client can be invoiced
-   * without a signed agreement — a trial clean, ad-hoc work, a verbal arrangement — and can
-   * equally have a contract with nothing billed against it yet. Each entry appears on its own
-   * evidence, and both are cheap booleans applying the business-flag rule server-side.
-   */
-  private checkMyInvoices(): void {
-    if (!this.isBrowser) return;
-    if (this.isCleanerAccount) {
-      this.hasInvoices.set(false);
-      return;
-    }
-
-    this.loadAccountServices().then(s => s.invoices.hasMyInvoices()
-      .pipe(takeUntil(this.destroy$))
-      .subscribe({
-        next: (res: { hasInvoices: boolean }) => {
-          this.hasInvoices.set(res?.hasInvoices ?? false);
-          this.cdr.detectChanges();
-        },
-        error: () => {
-          this.hasInvoices.set(false);
-        }
-      }));
-  }
-
-  private checkPendingBlogDrafts(): void {
-    if (!this.isBrowser) return;
-    this.loadAccountServices().then(s => s.blog.adminGetPendingCount()
-      .pipe(takeUntil(this.destroy$))
-      .subscribe({
-        next: (res) => {
-          this.pendingBlogDrafts.set(res?.count ?? 0);
-          this.cdr.detectChanges();
-        },
-        error: () => {
-          this.pendingBlogDrafts.set(0);
-        }
-      }));
-  }
-
-  private checkUncheckedDoneTasks(): void {
-    if (!this.isBrowser) return;
-    this.loadAccountServices().then(s => s.tasks.getUncheckedDoneCount()
-      .pipe(takeUntil(this.destroy$))
-      .subscribe({
-        next: (count) => {
-          this.hasUncheckedDoneTasks = count > 0;
-          this.cdr.detectChanges();
-        },
-        error: () => {
-          this.hasUncheckedDoneTasks = false;
-        }
-      }));
+    this.accountStatus.refreshOrders();
   }
 
   /** Admin indicator for new orders (the service itself decides who is an audience for it). */
@@ -543,10 +365,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
       takeUntil(this.destroy$),
       filter(e => e !== null && e.type === 'personal')
     ).subscribe(() => {
-      if (this.isAdminOrSuperAdmin) {
-        this.checkPendingPersonalTasks();
-        this.checkUncheckedDoneTasks();
-      }
+      this.accountStatus.refreshStaffCounts();
     });
   }
 

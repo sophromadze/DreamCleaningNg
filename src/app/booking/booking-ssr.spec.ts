@@ -12,6 +12,10 @@ import { BOOKING_CHOICE_COOKIE, writeBookingChoiceCookie } from '../shared/booki
 import { readCookie } from '../shared/ssr/read-cookie';
 import { BookingCatalogueStore } from '../services/booking-catalogue-store.service';
 import { NO_MARKETING_PRICES } from '../shared/pricing/marketing-prices';
+import { NEVER } from 'rxjs';
+import { ACCOUNT_STATUS_KEY } from '../shared/account/account-status';
+import { AccountStatusService } from '../services/account-status.service';
+import { AuthService } from '../services/auth.service';
 
 /**
  * Step 1 of /booking is drawn on the SERVER (catalogue, plans and blocked slots from server.ts's
@@ -158,6 +162,15 @@ describe('BookingComponent server render and hydration', () => {
       expect(state.guestOffer).toBeUndefined();
     });
 
+    it('ships the header state from the same session lookup, under its own key and only once', () => {
+      const account = { userId: 71, hasUnpaidOrders: true, hasContracts: false, hasInvoices: true, headerSummary: null,
+        hasPendingPersonalTasks: false, hasUncheckedDoneTasks: false, pendingBlogDrafts: 0 };
+      const { state } = serverRender(null, { ...SESSION, account });
+
+      expect(TestBed.inject(TransferState).get(ACCOUNT_STATUS_KEY, null)).toEqual(account);
+      expect((state.session as any).account).toBeUndefined();
+    });
+
     it('never mutates server.ts\'s shared catalogue copy', () => {
       const shared = catalogue().reverse();
       const before = JSON.stringify(shared);
@@ -276,6 +289,22 @@ describe('BookingComponent server render and hydration', () => {
       http.match(r => r.url.endsWith('/booking/service-types')).forEach(r => r.flush(catalogue()));
       expect(page.catalogueFresh()).toBe(true);
     });
+  });
+
+  it('an in-app visit draws a signed-in visitor from the prefetched context: offers and Reorder in the first frame', () => {
+    TestBed.configureTestingModule({ providers: [...testProviders], imports: [BookingComponent] });
+    const auth = TestBed.inject(AuthService) as any;
+    vi.spyOn(auth, 'currentUserValue', 'get').mockReturnValue({ id: 71, role: 'Customer' });
+    // The first frame only: auth has not reported yet (its loaders would then run as usual).
+    auth.isInitialized$ = NEVER;
+    const accountStatus = TestBed.inject(AccountStatusService);
+    vi.spyOn(accountStatus, 'peekBookingContext').mockReturnValue(SESSION);
+    const fixture = TestBed.createComponent(BookingComponent);
+    fixture.componentRef.changeDetectorRef.detectChanges();
+
+    expect(text(fixture)).toContain('Loyal customer');
+    expect(fixture.componentInstance.showReorderButton()).toBe(true);
+    expect((fixture.nativeElement as HTMLElement).querySelector('.special-offers-loading-shimmer')).toBeNull();
   });
 
   it('the hidden clear-all keeps working and deletes the booking-choice cookie', () => {

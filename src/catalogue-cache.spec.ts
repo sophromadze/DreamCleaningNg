@@ -1,4 +1,4 @@
-import { CATALOGUE_MAX_AGE_MS, CATALOGUE_TTL_MS, createCatalogueCache, createPublicListCache, createPublicOffersCache } from './catalogue-cache';
+import { CATALOGUE_MAX_AGE_MS, CATALOGUE_TTL_MS, createCatalogueCache, createPublicListCache, createPublicOffersCache, watchCatalogueVersion } from './catalogue-cache';
 
 const residential = (minimumPrice: number) => [{ serviceKey: 'residential', basePrice: 0, minimumPrice, services: [] }];
 
@@ -151,5 +151,90 @@ describe('public list cache (booking plans, blocked time slots)', () => {
     now += CATALOGUE_TTL_MS - 1;
     await cache.get(1000);
     expect(calls).toBe(1);
+  });
+});
+
+describe('immediate refresh after an admin edit', () => {
+  const flush = () => new Promise(resolve => setTimeout(resolve, 0));
+
+  it('invalidate() keeps serving the last copy and refreshes now, inside the TTL', async () => {
+    let body: unknown = [{ id: 1, subscriptionDays: 7, discountPercentage: 10 }];
+    let calls = 0;
+    const fetchImpl = (() => { calls++; return Promise.resolve(new Response(JSON.stringify(body), { status: 200 })); }) as unknown as typeof fetch;
+    const cache = createPublicListCache('http://backend/api/booking/subscriptions', 'booking plans', { fetchImpl, log: { warn: () => {} } });
+    await cache.get(1000);
+
+    body = [{ id: 1, subscriptionDays: 7, discountPercentage: 15 }];
+    cache.invalidate();
+    expect(((await cache.get(1000)) as any[])[0].discountPercentage).toBe(10); // never waits
+    await flush();
+    expect(((await cache.get(1000)) as any[])[0].discountPercentage).toBe(15);
+    expect(calls).toBe(2);
+  });
+
+  describe('watchCatalogueVersion', () => {
+    let versions: Array<string | Error>;
+    let requests: number;
+    let inFlight: number;
+    let maxInFlight: number;
+    const fetchImpl = (async () => {
+      requests++; inFlight++; maxInFlight = Math.max(maxInFlight, inFlight);
+      try {
+        const next = versions.shift() ?? versions[versions.length - 1];
+        if (next instanceof Error) throw next;
+        return new Response(JSON.stringify({ version: next }), { status: 200 });
+      } finally { inFlight--; }
+    }) as unknown as typeof fetch;
+
+    beforeEach(() => { versions = []; requests = 0; inFlight = 0; maxInFlight = 0; vi.useFakeTimers(); });
+    afterEach(() => vi.useRealTimers());
+
+    it('records the first stamp, then calls back only when it moves', async () => {
+      versions = ['a-0', 'a-0', 'a-1', 'a-1'];
+      const onChange = vi.fn();
+      const watch = watchCatalogueVersion('http://backend/v', onChange, { fetchImpl, intervalMs: 2000 });
+
+      await vi.advanceTimersByTimeAsync(0);
+      expect(onChange).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(2000);
+      expect(onChange).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(2000);
+      expect(onChange).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(2000);
+      expect(onChange).toHaveBeenCalledTimes(1);
+      watch.stop();
+    });
+
+    it('a backend restart (new boot id) counts as a change', async () => {
+      versions = ['a-5', 'b-0'];
+      const onChange = vi.fn();
+      const watch = watchCatalogueVersion('http://backend/v', onChange, { fetchImpl, intervalMs: 2000 });
+      await vi.advanceTimersByTimeAsync(2000);
+      expect(onChange).toHaveBeenCalledTimes(1);
+      watch.stop();
+    });
+
+    it('stays silent while the backend is unreachable and never overlaps requests', async () => {
+      const hanging = (() => { requests++; inFlight++; maxInFlight = Math.max(maxInFlight, inFlight); return new Promise(() => {}); }) as unknown as typeof fetch;
+      const onChange = vi.fn();
+      const watch = watchCatalogueVersion('http://backend/v', onChange, { fetchImpl: hanging, intervalMs: 2000 });
+      await vi.advanceTimersByTimeAsync(10_000);
+
+      expect(requests).toBe(1);
+      expect(maxInFlight).toBe(1);
+      expect(onChange).not.toHaveBeenCalled();
+      watch.stop();
+    });
+
+    it('a failed poll changes nothing; the next good answer is compared with the last good one', async () => {
+      versions = ['a-1', new Error('ECONNREFUSED'), 'a-1', 'a-2'];
+      const onChange = vi.fn();
+      const watch = watchCatalogueVersion('http://backend/v', onChange, { fetchImpl, intervalMs: 2000 });
+      await vi.advanceTimersByTimeAsync(4000);
+      expect(onChange).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(2000);
+      expect(onChange).toHaveBeenCalledTimes(1);
+      watch.stop();
+    });
   });
 });
