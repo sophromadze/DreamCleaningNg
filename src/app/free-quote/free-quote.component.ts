@@ -49,7 +49,9 @@ export class FreeQuoteComponent implements OnInit {
       email: ['', [Validators.required, Validators.email]],
       homeAddress: ['', [Validators.required]],
       cleaningType: ['', [Validators.required]],
-      message: ['', [Validators.required]]
+      message: ['', [Validators.required]],
+      // Optional — never blocks submit. Stored on the CRM lead (Lead.SmsConsent).
+      smsConsent: [false]
     });
     this.watchForm(this.quoteForm);
   }
@@ -88,7 +90,8 @@ export class FreeQuoteComponent implements OnInit {
       email: formValue.email,
       homeAddress: formValue.homeAddress,
       cleaningType: formValue.cleaningType,
-      message: formValue.message
+      message: formValue.message,
+      smsConsent: formValue.smsConsent === true
     };
 
     this.http.post(`${environment.apiUrl}/contact/quote-request`, quoteData)

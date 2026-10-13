@@ -346,7 +346,7 @@ export class BookingService {
    */
   acceptPaymentConsent(
     orderId: number,
-    consents: { smsConsent: boolean; cancellationConsent: boolean; termsConsent: boolean },
+    consents: { smsConsent: boolean; smsConsentShown?: boolean; cancellationConsent: boolean; termsConsent: boolean },
     guestToken?: string
   ): Observable<{ orderId: number; acceptedAt: string }> {
     const query = guestToken ? `?guestToken=${encodeURIComponent(guestToken)}` : '';

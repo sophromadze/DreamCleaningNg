@@ -71,7 +71,6 @@ export interface AuthorizeArrangementRequest {
   allowBackupFallback: boolean;
   acceptTerms: boolean;
   termsVersion: string;
-  smsConsent?: boolean;
   cancellationFeeConsent?: boolean;
   termsOfServiceConsent?: boolean;
 }

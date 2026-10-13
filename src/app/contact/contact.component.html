@@ -97,26 +97,25 @@
           }
         </div>
 
-        <!-- SMS Consent Checkbox -->
+        <!-- Optional SMS consent (RingCentral / 10DLC campaign wording, same as /free-quote). The phone
+             number follows PhoneNumberService; links open in a new tab so the form keeps its input. -->
         <div class="form-group">
           <div class="checkbox-group">
             <input 
               type="checkbox" 
               id="smsConsent" 
               formControlName="smsConsent" 
-              class="form-checkbox"
-              [class.error]="hasError('smsConsent')">
+              class="form-checkbox">
             <label for="smsConsent" class="checkbox-label">
-              I consent to receive Customer care text messages from Dream Cleaning. Reply STOP to opt-out; Reply HELP for support; Message and data rates apply; Messaging frequency may vary. Visit 
-              <a routerLink="/privacy-policy" target="_blank">Privacy Policy</a> and 
-              <a routerLink="/terms-and-conditions" target="_blank">Terms of Service</a>.
+              By checking this box, you agree to receive SMS messages from Dream Cleaning related to your
+              inquiry, booking confirmations, appointment reminders and updates, and payment notices.
+              You may reply STOP to opt out at any time. Reply HELP to
+              <a [href]="phoneNumber.telHref()">{{ phoneNumber.displayNumber() }}</a> for assistance.
+              Messages and data rates may apply. Message frequency will vary. Learn more on our
+              <a routerLink="/privacy-policy" target="_blank">Privacy Policy</a> page and
+              <a routerLink="/terms-and-conditions" target="_blank">Terms &amp; Conditions</a>.
             </label>
           </div>
-          @if (hasError('smsConsent')) {
-          <span class="error-message">
-            {{ getErrorMessage('smsConsent') }}
-          </span>
-          }
         </div>
   
         <!-- Submit Button -->

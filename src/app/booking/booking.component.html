@@ -1931,7 +1931,7 @@
           </section>
           }
 
-          <!-- SMS Consent Checkbox -->
+          <!-- SMS Consent Checkbox — OPTIONAL (no asterisk, never blocks booking). -->
           @if (!showPollForm() && !isAdminMode()) {
           <div class="sms-consent-section">
             <div class="checkbox-group">
@@ -1939,21 +1939,12 @@
                 type="checkbox" 
                 id="smsConsent" 
                 [formControl]="smsConsent" 
-                class="form-checkbox"
-                [class.error]="smsConsent.invalid && smsConsent.touched">
+                class="form-checkbox">
               <label for="smsConsent" class="checkbox-label">
-                {{ smsConsentLead }}
-                <a routerLink="/privacy-policy" target="_blank">Privacy Policy</a> and 
-                <a routerLink="/terms-and-conditions" target="_blank">Terms of Service</a>. <span class="required">*</span>
+                {{ smsConsentBeforePhone }}<a [href]="phoneNumber.telHref()">{{ phoneNumber.displayNumber() }}</a>{{ smsConsentAfterPhone }}<a routerLink="/privacy-policy" target="_blank">Privacy Policy</a> page and
+                <a routerLink="/terms-and-conditions" target="_blank">Terms &amp; Conditions</a>.
               </label>
             </div>
-            @if (smsConsent.invalid && smsConsent.touched) {
-            <div class="error-message">
-              @if (smsConsent.errors?.['required']) {
-              <div>SMS consent is required to proceed with booking</div>
-              }
-            </div>
-            }
           </div>
           }
 

@@ -163,10 +163,10 @@
             class="form-checkbox"
             [(ngModel)]="smsConsent"
             [disabled]="consentSubmitting()">
+          <!-- Optional: never blocks "Agree & Continue". -->
           <label for="payment-sms-consent" class="checkbox-label">
-            {{ smsConsentLead }}
-            <a routerLink="/privacy-policy" target="_blank">Privacy Policy</a> and
-            <a routerLink="/terms-and-conditions" target="_blank">Terms of Service</a>. <span class="required">*</span>
+            {{ smsConsentBeforePhone }}<a [href]="phoneNumber.telHref()">{{ phoneNumber.displayNumber() }}</a>{{ smsConsentAfterPhone }}<a routerLink="/privacy-policy" target="_blank">Privacy Policy</a> page and
+            <a routerLink="/terms-and-conditions" target="_blank">Terms &amp; Conditions</a>.
           </label>
         </div>
 

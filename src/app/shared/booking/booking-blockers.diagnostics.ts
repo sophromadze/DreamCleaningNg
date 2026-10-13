@@ -178,7 +178,6 @@ const STEP_GATED_CONTROLS = new Set([
   'city',
   'state',
   'zipCode',
-  'smsConsent',
   'cancellationConsent',
   'termsConsent'
 ]);

@@ -9,6 +9,7 @@ import {
 import { InvoiceService, InvoiceClientOption } from '../services/invoice.service';
 import { BillingService } from '../services/billing.service';
 import { AuthService } from '../services/auth.service';
+import { PhoneNumberService } from '../services/phone-number.service';
 import { AuthModalService } from '../services/auth-modal.service';
 import { ProfileService } from '../services/profile.service';
 import { LocationService } from '../services/location.service';
@@ -99,7 +100,8 @@ import {
   resolveSupplyChecklistFacts
 } from '../shared/booking/supply-checklist.utils';
 import {
-  SMS_CONSENT_LEAD,
+  SMS_CONSENT_BEFORE_PHONE,
+  SMS_CONSENT_AFTER_PHONE,
   CANCELLATION_CONSENT_TEXT,
   TERMS_CONSENT_LEAD
 } from '../shared/booking/consent-texts';
@@ -681,7 +683,12 @@ export class BookingComponent implements OnInit, OnDestroy {
 
   // Consent copy — shared with the payment page's gate for admin-created orders, so both
   // surfaces always show the same wording (see shared/booking/consent-texts.ts).
-  readonly smsConsentLead = SMS_CONSENT_LEAD;
+  readonly smsConsentBeforePhone = SMS_CONSENT_BEFORE_PHONE;
+  /** What the optional SMS box SHOWED (the signed-in account's saved setting; unticked for a guest).
+   *  Sent with the booking, so an untick is an opt-out only when it really was shown ticked. */
+  private smsConsentShown = false;
+  readonly smsConsentAfterPhone = SMS_CONSENT_AFTER_PHONE;
+  protected readonly phoneNumber = inject(PhoneNumberService);
   readonly cancellationConsentText = CANCELLATION_CONSENT_TEXT;
   readonly termsConsentLead = TERMS_CONSENT_LEAD;
   // Search box UI lives in AdminUserSearchComponent; the page owns the selection.
@@ -763,7 +770,7 @@ export class BookingComponent implements OnInit, OnDestroy {
         }
       ]],
       cleaningType: ['normal', Validators.required], // Add new form control for cleaning type
-      smsConsent: [false, [Validators.requiredTrue]],
+      smsConsent: [false], // optional — SMS consent is never a condition of booking
       cancellationConsent: [false, [Validators.requiredTrue]],
       termsConsent: [false, [Validators.requiredTrue]]
     });
@@ -1167,7 +1174,8 @@ export class BookingComponent implements OnInit, OnDestroy {
     // come back as an unfixable "minimum $10" error on a form the customer never touched.
     if (savedData.tips !== undefined) formValues.tips = normalizeTipAmount(savedData.tips);
     if (savedData.cleaningType) formValues.cleaningType = savedData.cleaningType;
-    if (savedData.smsConsent !== undefined) formValues.smsConsent = savedData.smsConsent;
+    // smsConsent is never restored from a draft: the box shows the account's saved setting, and an
+    // unticked draft over a recorded consent would read as an opt-out (SmsConsentRules).
     if (savedData.cancellationConsent !== undefined) formValues.cancellationConsent = savedData.cancellationConsent;
     if (savedData.termsConsent !== undefined) formValues.termsConsent = savedData.termsConsent;
     if (savedData.bedroomsQuantity !== undefined) this.bedroomsQuantityControl.setValue(savedData.bedroomsQuantity);
@@ -1571,7 +1579,8 @@ export class BookingComponent implements OnInit, OnDestroy {
     for (const key of keys) if (savedData[key]) formValues[key] = savedData[key];
     // Restored even when empty: a blank name is the customer's "Other, unnamed" choice.
     if (savedData.apartmentName !== undefined) formValues.apartmentName = savedData.apartmentName;
-    if (savedData.smsConsent !== undefined) formValues.smsConsent = savedData.smsConsent;
+    // smsConsent is never restored from a draft: the box shows the account's saved setting, and an
+    // unticked draft over a recorded consent would read as an opt-out (SmsConsentRules).
     if (savedData.cancellationConsent !== undefined) formValues.cancellationConsent = savedData.cancellationConsent;
     if (savedData.termsConsent !== undefined) formValues.termsConsent = savedData.termsConsent;
     this.bookingForm.patchValue(formValues);
@@ -1702,6 +1711,12 @@ export class BookingComponent implements OnInit, OnDestroy {
       // the user resolved during early init.
       this.checkSameDayServiceAvailability();
       if (user) {
+        // The optional SMS box starts from the saved setting - never pre-ticked when consent was
+        // never recorded - unless the visitor already changed it on this page.
+        if (!this.smsConsent.dirty) {
+          this.smsConsentShown = !!user.smsConsentGiven;
+          this.smsConsent.setValue(this.smsConsentShown, { emitEvent: false });
+        }
         if (!covered) {
           this.hasFirstTimeDiscount = user.firstTimeOrder;
           if (this.isBrowser) this.loadBubblePointsOptions();
@@ -4332,6 +4347,7 @@ private updateDateRestrictions() {
       // what was charged. On an unpriced type it is the only record of the answer.
       levelsQuantity: this.levelsQuantity(),
       smsConsent: formValue.smsConsent,
+      smsConsentShown: this.smsConsentShown,
       cancellationConsent: formValue.cancellationConsent,
       termsConsent: formValue.termsConsent,
       uploadedPhotos: this.preparePhotosForSubmission(),
@@ -5040,13 +5056,13 @@ loadBubblePointsOptions(): void {
 
   get consentsSatisfied(): boolean {
     return this.consentsWaived() || (
-      this.smsConsent.value === true &&
       this.cancellationConsent.value === true &&
       this.termsConsent.value === true);
   }
 
   applyConsentValidators(): void {
-    for (const control of [this.smsConsent, this.cancellationConsent, this.termsConsent]) {
+    // SMS consent is optional, so it never gets a validator.
+    for (const control of [this.cancellationConsent, this.termsConsent]) {
       control.setValidators(this.consentsWaived() ? [] : [Validators.requiredTrue]);
       control.updateValueAndValidity();
     }

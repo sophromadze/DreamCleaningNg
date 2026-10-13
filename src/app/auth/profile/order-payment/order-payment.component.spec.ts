@@ -132,7 +132,7 @@ describe('OrderPaymentComponent — consent gate', () => {
     component.smsConsent.set(true);
     component.cancellationConsent.set(true);
     component.acceptConsentAndContinue();
-    // Two of three: still nothing recorded, still nothing chargeable.
+    // Terms still unticked: nothing recorded, nothing chargeable.
     expect(bookingService.acceptPaymentConsent).not.toHaveBeenCalled();
     expect(bookingService.createPaymentIntentForOrder).not.toHaveBeenCalled();
 
@@ -140,10 +140,42 @@ describe('OrderPaymentComponent — consent gate', () => {
     component.acceptConsentAndContinue();
 
     expect(bookingService.acceptPaymentConsent).toHaveBeenCalledWith(
-      7, { smsConsent: true, cancellationConsent: true, termsConsent: true }, undefined
+      7, { smsConsent: true, smsConsentShown: false, cancellationConsent: true, termsConsent: true }, undefined
     );
     expect(bookingService.createPaymentIntentForOrder).toHaveBeenCalled();
     expect(component.showPaymentSection).toBe(true);
+  });
+
+  it('lets the payer continue without the optional SMS consent', () => {
+    setup(makeOrder({ bookedByAdmin: true }));
+
+    component.cancellationConsent.set(true);
+    component.termsConsent.set(true);
+    component.acceptConsentAndContinue();
+
+    expect(bookingService.acceptPaymentConsent).toHaveBeenCalledWith(
+      7, { smsConsent: false, smsConsentShown: false, cancellationConsent: true, termsConsent: true }, undefined
+    );
+    expect(bookingService.createPaymentIntentForOrder).toHaveBeenCalled();
+  });
+
+  it('shows the owner\'s saved SMS setting, and reports it so an untick can be an explicit opt-out', () => {
+    setup(makeOrder({ bookedByAdmin: true, smsConsentGiven: true }));
+    expect(component.smsConsent()).toBe(true);
+
+    component.smsConsent.set(false);
+    component.cancellationConsent.set(true);
+    component.termsConsent.set(true);
+    component.acceptConsentAndContinue();
+
+    expect(bookingService.acceptPaymentConsent).toHaveBeenCalledWith(
+      7, { smsConsent: false, smsConsentShown: true, cancellationConsent: true, termsConsent: true }, undefined
+    );
+  });
+
+  it('never pre-ticks the SMS box when consent was never recorded', () => {
+    setup(makeOrder({ bookedByAdmin: true, smsConsentGiven: false }));
+    expect(component.smsConsent()).toBe(false);
   });
 
   it('does not ask a self-booking customer to consent again', () => {

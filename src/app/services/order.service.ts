@@ -263,6 +263,8 @@ export interface Order {
    *  it themselves. Such an order's customer never saw the /booking consent checkboxes, so the
    *  payment page collects them before the first payment. */
   bookedByAdmin?: boolean;
+  /** What the payment page's optional SMS box shows for the order's owner. */
+  smsConsentGiven?: boolean;
   /** When the payer accepted the SMS / cancellation-fee / terms consents on the payment page.
    *  Null/undefined on an admin-created order means it cannot be paid yet. */
   paymentConsentAcceptedAt?: string | null;

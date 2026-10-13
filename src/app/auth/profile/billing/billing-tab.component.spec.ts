@@ -118,16 +118,17 @@ describe('BillingTabComponent', () => {
     expect(toggle.disabled).toBe(true);
   });
 
-  it('requires all three booking consents before authorising office-booked charges', () => {
+  it('requires the two booking consents before authorising office-booked charges - never SMS (10DLC)', () => {
     setup([card(1, { isPrimary: true })]);
     billing.getTerms.mockReturnValue(of({ scope: 'office', version: 'v1', text: 'terms' }));
     component.openTerms('arrangement', component.autoPay()!.arrangements[0]);
+    fixture.detectChanges();
+    // No SMS agreement is offered, let alone required.
+    expect(fixture.nativeElement.textContent).not.toMatch(/text messages/i);
 
     component.terms()!.accepted = true;
     component.terms.set(component.terms());
     expect(component.termsCanSubmit).toBe(false);
-    component.terms()!.smsConsent = true;
-    component.terms.set(component.terms());
     component.terms()!.cancellationFeeConsent = true;
     component.terms.set(component.terms());
     expect(component.termsCanSubmit).toBe(false);

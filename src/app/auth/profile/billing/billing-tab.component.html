@@ -396,10 +396,9 @@
     </div>
 
     @if (terms()!.arrangement?.scope === 'office') {
-      <p class="billing-muted">These three agreements apply to every order our office books for you:</p>
-      <label class="check"><input type="checkbox" [(ngModel)]="terms()!.smsConsent" [disabled]="terms()!.submitting"><span>I agree to receive customer-care text messages (see above).</span></label>
+      <p class="billing-muted">These two agreements apply to every order our office books for you:</p>
       <label class="check"><input type="checkbox" [(ngModel)]="terms()!.cancellationFeeConsent" [disabled]="terms()!.submitting"><span>I agree to the $70 late-cancellation fee and booking-accuracy terms (see above).</span></label>
-      <label class="check"><input type="checkbox" [(ngModel)]="terms()!.termsOfServiceConsent" [disabled]="terms()!.submitting"><span>I have read and agree to the <a routerLink="/privacy-policy" target="_blank">Privacy Policy</a> and <a routerLink="/terms-and-conditions" target="_blank">Terms and Conditions</a>.</span></label>
+      <label class="check"><input type="checkbox" [(ngModel)]="terms()!.termsOfServiceConsent" [disabled]="terms()!.submitting"><span>I have read and agree to the <a routerLink="/privacy-policy" target="_blank">Privacy Policy</a> and <a routerLink="/terms-and-conditions" target="_blank">Terms of Service</a>.</span></label>
     }
 
     <label class="check check--strong">

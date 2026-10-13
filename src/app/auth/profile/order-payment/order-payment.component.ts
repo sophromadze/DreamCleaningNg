@@ -8,9 +8,11 @@ import { BookingService } from '../../../services/booking.service';
 import { OrderService, Order, OrderPartialPayment } from '../../../services/order.service';
 import { StripeService } from '../../../services/stripe.service';
 import { BillingService, SavedCard, cardLabel } from '../../../services/billing.service';
+import { PhoneNumberService } from '../../../services/phone-number.service';
 import { SaveCardModalComponent } from '../../../shared/components/save-card-modal/save-card-modal.component';
 import {
-  SMS_CONSENT_LEAD,
+  SMS_CONSENT_BEFORE_PHONE,
+  SMS_CONSENT_AFTER_PHONE,
   CANCELLATION_CONSENT_TEXT,
   TERMS_CONSENT_LEAD
 } from '../../../shared/booking/consent-texts';
@@ -120,10 +122,15 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
   readonly consentSubmitting = signal(false);
   readonly consentError = signal('');
   readonly smsConsent = signal(false);
+  /** What the optional SMS box SHOWED (the owner's saved setting). Sent along, so an untick is an
+   *  opt-out only when the box really was shown ticked - see the backend's SmsConsentRules. */
+  private smsConsentShown = false;
   readonly cancellationConsent = signal(false);
   readonly termsConsent = signal(false);
   // Same wording as the booking form — one source, two surfaces.
-  readonly smsConsentLead = SMS_CONSENT_LEAD;
+  readonly smsConsentBeforePhone = SMS_CONSENT_BEFORE_PHONE;
+  readonly smsConsentAfterPhone = SMS_CONSENT_AFTER_PHONE;
+  protected readonly phoneNumber = inject(PhoneNumberService);
   readonly cancellationConsentText = CANCELLATION_CONSENT_TEXT;
   readonly termsConsentLead = TERMS_CONSENT_LEAD;
 
@@ -333,6 +340,10 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
         this.consentRequired.set(this.paymentType() !== 'update' && !!order.bookedByAdmin);
         this.consentAccepted.set(!!order.paymentConsentAcceptedAt);
         this.consentAcceptedAt.set(order.paymentConsentAcceptedAt ?? null);
+        // The optional SMS box starts from the owner's saved setting - never pre-ticked when
+        // consent was never recorded.
+        this.smsConsentShown = !!order.smsConsentGiven;
+        this.smsConsent.set(this.smsConsentShown);
 
         // Saved cards — logged-in owner only (guest/token payers never see them), and only while
         // the server's rollout switch is on. Any failure leaves the ordinary card form.
@@ -570,8 +581,8 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
   }
 
 
-  /** All three consents ticked — the only state from which the payer may continue. */
-  readonly allConsentsChecked = computed<boolean>(() => this.smsConsent() && this.cancellationConsent() && this.termsConsent());
+  /** The two REQUIRED consents ticked — the only state from which the payer may continue. SMS is optional. */
+  readonly allConsentsChecked = computed<boolean>(() => this.cancellationConsent() && this.termsConsent());
 
   /** The card form / Apple Pay / Pay button are shown only once consent is settled. */
   /**
@@ -598,7 +609,7 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
     this.consentError.set('');
     this.bookingService.acceptPaymentConsent(
       this.orderId(),
-      { smsConsent: true, cancellationConsent: true, termsConsent: true },
+      { smsConsent: this.smsConsent(), smsConsentShown: this.smsConsentShown, cancellationConsent: true, termsConsent: true },
       this.isGuestMode() ? this.guestToken! : undefined
     ).subscribe({
       next: (res) => {

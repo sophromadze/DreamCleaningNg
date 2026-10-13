@@ -20,7 +20,6 @@ interface TermsDialog {
   loading: boolean;
   allowBackup: boolean;
   accepted: boolean;
-  smsConsent: boolean;
   cancellationFeeConsent: boolean;
   termsOfServiceConsent: boolean;
   submitting: boolean;
@@ -355,7 +354,7 @@ export class BillingTabComponent implements OnInit, OnDestroy {
       title: kind === 'general' ? 'Turn on Automatic Payments' : `Authorize: ${arrangement!.title}`,
       text: '', version: '', loading: true,
       allowBackup: arrangement?.allowBackupFallback ?? false,
-      accepted: false, smsConsent: false, cancellationFeeConsent: false, termsOfServiceConsent: false,
+      accepted: false, cancellationFeeConsent: false, termsOfServiceConsent: false,
       submitting: false, error: ''
     });
     this.loadTermsText();
@@ -392,7 +391,8 @@ export class BillingTabComponent implements OnInit, OnDestroy {
   get termsCanSubmit(): boolean {
     const t = this.terms();
     if (!t || t.loading || t.submitting || !t.accepted || !t.version) return false;
-    if (t.arrangement?.scope === 'office') return t.smsConsent && t.cancellationFeeConsent && t.termsOfServiceConsent;
+    // SMS consent is never part of it (10DLC): only the two required agreements.
+    if (t.arrangement?.scope === 'office') return t.cancellationFeeConsent && t.termsOfServiceConsent;
     return true;
   }
 
@@ -413,7 +413,6 @@ export class BillingTabComponent implements OnInit, OnDestroy {
           allowBackupFallback: t.allowBackup,
           acceptTerms: true,
           termsVersion: t.version,
-          smsConsent: t.smsConsent,
           cancellationFeeConsent: t.cancellationFeeConsent,
           termsOfServiceConsent: t.termsOfServiceConsent
         });

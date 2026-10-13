@@ -2,19 +2,30 @@
  * SINGLE SOURCE OF TRUTH for the wording of the three booking consents.
  *
  * They are shown on TWO surfaces and must read identically on both:
- *   1. /booking — every self-service booking is blocked until all three are ticked.
+ *   1. /booking — a self-service booking is blocked until the cancellation and terms boxes are
+ *      ticked. The SMS box is OPTIONAL (2026-10, RingCentral 10DLC: SMS consent may never be a
+ *      condition of booking) — it never blocks the booking or the payment page.
  *   2. /order/:id/pay — an admin-created order re-asks the customer for the same three
  *      agreements before their first payment, because the admin ticked them on the phone.
  *
  * The SMS and terms labels end with links to /privacy-policy and /terms-and-conditions, so
- * they are split into a leading sentence here and the anchors stay in each template.
+ * they are split into a leading sentence here and the anchors stay in each template. The SMS
+ * label also carries the company phone number (PhoneNumberService) mid-sentence, so it is split
+ * around it too.
  * Change the wording (e.g. the cancellation fee amount) HERE and both surfaces follow.
  */
 
-/** SMS label, up to "Visit " — the Privacy Policy / Terms links follow in the template. */
-export const SMS_CONSENT_LEAD =
-  'I consent to receive Customer care text messages from Dream Cleaning. Reply STOP to opt-out; ' +
-  'Reply HELP for support; Message and data rates apply; Messaging frequency may vary. Visit ';
+/**
+ * SMS label (RingCentral wording, same as /contact and /free-quote), split around the phone
+ * number: BEFORE + <phone link> + AFTER + <Privacy Policy> page and <Terms & Conditions>.
+ */
+export const SMS_CONSENT_BEFORE_PHONE =
+  'By checking this box, you agree to receive SMS messages from Dream Cleaning related to your ' +
+  'booking, including booking confirmations, appointment reminders and updates, and payment ' +
+  'notices. You may reply STOP to opt out at any time. Reply HELP to ';
+
+export const SMS_CONSENT_AFTER_PHONE =
+  ' for assistance. Messages and data rates may apply. Message frequency will vary. Learn more on our ';
 
 /** Cancellation-fee + booking-accuracy label. Self-contained — no links. */
 export const CANCELLATION_CONSENT_TEXT =

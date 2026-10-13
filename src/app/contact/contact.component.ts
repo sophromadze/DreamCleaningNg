@@ -52,7 +52,7 @@ export class ContactComponent implements OnInit {
         Validators.maxLength(10)
       ]],
       message: ['', [Validators.required]],
-      smsConsent: [false, [Validators.requiredTrue]]
+      smsConsent: [false] // optional — never blocks submit
     });
     this.watchForm(this.contactForm);
   }

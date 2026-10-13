@@ -32,6 +32,8 @@ export interface UserDto {
   viewablePages?: string[];
   /** True when a SuperAdmin has granted this Admin direct order-edit saves (see order-edit-approval.policy.ts). */
   canEditOrdersWithoutApproval?: boolean;
+  /** What the optional SMS consent boxes show: consent recorded and still on (server SmsConsentRules). */
+  smsConsentGiven?: boolean;
 }
 
 interface AuthResponse {
