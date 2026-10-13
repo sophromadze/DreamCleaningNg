@@ -9,7 +9,6 @@ import {
 import { InvoiceService, InvoiceClientOption } from '../services/invoice.service';
 import { BillingService } from '../services/billing.service';
 import { AuthService } from '../services/auth.service';
-import { PhoneNumberService } from '../services/phone-number.service';
 import { AuthModalService } from '../services/auth-modal.service';
 import { ProfileService } from '../services/profile.service';
 import { LocationService } from '../services/location.service';
@@ -100,8 +99,7 @@ import {
   resolveSupplyChecklistFacts
 } from '../shared/booking/supply-checklist.utils';
 import {
-  SMS_CONSENT_BEFORE_PHONE,
-  SMS_CONSENT_AFTER_PHONE,
+  SMS_CONSENT_LEAD,
   CANCELLATION_CONSENT_TEXT,
   TERMS_CONSENT_LEAD
 } from '../shared/booking/consent-texts';
@@ -683,12 +681,10 @@ export class BookingComponent implements OnInit, OnDestroy {
 
   // Consent copy — shared with the payment page's gate for admin-created orders, so both
   // surfaces always show the same wording (see shared/booking/consent-texts.ts).
-  readonly smsConsentBeforePhone = SMS_CONSENT_BEFORE_PHONE;
+  readonly smsConsentLead = SMS_CONSENT_LEAD;
   /** What the optional SMS box SHOWED (the signed-in account's saved setting; unticked for a guest).
    *  Sent with the booking, so an untick is an opt-out only when it really was shown ticked. */
   private smsConsentShown = false;
-  readonly smsConsentAfterPhone = SMS_CONSENT_AFTER_PHONE;
-  protected readonly phoneNumber = inject(PhoneNumberService);
   readonly cancellationConsentText = CANCELLATION_CONSENT_TEXT;
   readonly termsConsentLead = TERMS_CONSENT_LEAD;
   // Search box UI lives in AdminUserSearchComponent; the page owns the selection.

@@ -8,11 +8,9 @@ import { BookingService } from '../../../services/booking.service';
 import { OrderService, Order, OrderPartialPayment } from '../../../services/order.service';
 import { StripeService } from '../../../services/stripe.service';
 import { BillingService, SavedCard, cardLabel } from '../../../services/billing.service';
-import { PhoneNumberService } from '../../../services/phone-number.service';
 import { SaveCardModalComponent } from '../../../shared/components/save-card-modal/save-card-modal.component';
 import {
-  SMS_CONSENT_BEFORE_PHONE,
-  SMS_CONSENT_AFTER_PHONE,
+  SMS_CONSENT_LEAD,
   CANCELLATION_CONSENT_TEXT,
   TERMS_CONSENT_LEAD
 } from '../../../shared/booking/consent-texts';
@@ -128,9 +126,7 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
   readonly cancellationConsent = signal(false);
   readonly termsConsent = signal(false);
   // Same wording as the booking form — one source, two surfaces.
-  readonly smsConsentBeforePhone = SMS_CONSENT_BEFORE_PHONE;
-  readonly smsConsentAfterPhone = SMS_CONSENT_AFTER_PHONE;
-  protected readonly phoneNumber = inject(PhoneNumberService);
+  readonly smsConsentLead = SMS_CONSENT_LEAD;
   readonly cancellationConsentText = CANCELLATION_CONSENT_TEXT;
   readonly termsConsentLead = TERMS_CONSENT_LEAD;
 

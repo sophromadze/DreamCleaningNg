@@ -1941,7 +1941,7 @@
                 [formControl]="smsConsent" 
                 class="form-checkbox">
               <label for="smsConsent" class="checkbox-label">
-                {{ smsConsentBeforePhone }}<a [href]="phoneNumber.telHref()">{{ phoneNumber.displayNumber() }}</a>{{ smsConsentAfterPhone }}<a routerLink="/privacy-policy" target="_blank">Privacy Policy</a> page and
+                {{ smsConsentLead }}<a routerLink="/privacy-policy" target="_blank">Privacy Policy</a> page and
                 <a routerLink="/terms-and-conditions" target="_blank">Terms &amp; Conditions</a>.
               </label>
             </div>
@@ -1972,7 +1972,7 @@
           </div>
           }
 
-          <!-- Privacy Policy and Terms of Service Consent Checkbox -->
+          <!-- Privacy Policy and Terms & Conditions Consent Checkbox -->
           @if (!showPollForm() && !isAdminMode()) {
           <div class="terms-consent-section">
             <div class="checkbox-group">
@@ -1985,13 +1985,13 @@
               <label for="termsConsent" class="checkbox-label">
                 {{ termsConsentLead }}
                 <a routerLink="/privacy-policy" target="_blank">Privacy Policy</a> and
-                <a routerLink="/terms-and-conditions" target="_blank">Terms of Service</a>. <span class="required">*</span>
+                <a routerLink="/terms-and-conditions" target="_blank">Terms &amp; Conditions</a>. <span class="required">*</span>
               </label>
             </div>
             @if (termsConsent.invalid && termsConsent.touched) {
             <div class="error-message">
               @if (termsConsent.errors?.['required']) {
-              <div>You must accept the Privacy Policy and Terms of Service to proceed with booking</div>
+              <div>You must accept the Privacy Policy and Terms &amp; Conditions to proceed with booking</div>
               }
             </div>
             }

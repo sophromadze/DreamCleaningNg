@@ -9,23 +9,22 @@
  *      agreements before their first payment, because the admin ticked them on the phone.
  *
  * The SMS and terms labels end with links to /privacy-policy and /terms-and-conditions, so
- * they are split into a leading sentence here and the anchors stay in each template. The SMS
- * label also carries the company phone number (PhoneNumberService) mid-sentence, so it is split
- * around it too.
+ * they are split into a leading sentence here and the anchors stay in each template. The link
+ * texts are the TITLES of those pages ("Privacy Policy", "Terms & Conditions").
  * Change the wording (e.g. the cancellation fee amount) HERE and both surfaces follow.
  */
 
 /**
- * SMS label (RingCentral wording, same as /contact and /free-quote), split around the phone
- * number: BEFORE + <phone link> + AFTER + <Privacy Policy> page and <Terms & Conditions>.
+ * SMS label (RingCentral wording, the same sentence as /contact and /free-quote), up to the links:
+ * LEAD + <Privacy Policy> page and <Terms & Conditions>. "Reply HELP for assistance" names no
+ * number on purpose: a reply goes to the number the text came from (the RingCentral sender,
+ * config RingCentral:FromNumber), which can differ from the support number shown on the site.
  */
-export const SMS_CONSENT_BEFORE_PHONE =
-  'By checking this box, you agree to receive SMS messages from Dream Cleaning related to your ' +
+export const SMS_CONSENT_LEAD =
+  'By checking this box, you agree to receive SMS messages from Dream Cleaning NYC related to your ' +
   'booking, including booking confirmations, appointment reminders and updates, and payment ' +
-  'notices. You may reply STOP to opt out at any time. Reply HELP to ';
-
-export const SMS_CONSENT_AFTER_PHONE =
-  ' for assistance. Messages and data rates may apply. Message frequency will vary. Learn more on our ';
+  'notices. You may reply STOP to opt out at any time. Reply HELP for assistance. Messages and ' +
+  'data rates may apply. Message frequency will vary. Learn more on our ';
 
 /** Cancellation-fee + booking-accuracy label. Self-contained — no links. */
 export const CANCELLATION_CONSENT_TEXT =
