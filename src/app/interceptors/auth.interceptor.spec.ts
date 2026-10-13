@@ -9,6 +9,7 @@ import { of, throwError, Subject } from 'rxjs';
 import { authInterceptor, resetRefreshState, SESSION_REVOKED_HEADER } from './auth.interceptor';
 import { AuthService } from '../services/auth.service';
 import { environment } from '../../environments/environment';
+import { NETWORK_RETRY_DELAY_MS, networkRetryInterceptor } from '../shared/http/backend-reachability';
 
 /**
  * A ROLE CHANGE LOGS THE ACCOUNT OUT EVEN IF NOBODY IS AT THE SCREEN (2026-09).
@@ -340,6 +341,118 @@ describe('authInterceptor — the intermittent auto-logout', () => {
     http.get('/api/admin/orders').subscribe({ next: () => {}, error: () => {} });
     backend.expectOne('/api/admin/orders').flush(
       { message: 'Unauthorized' }, { status: 401, statusText: 'Unauthorized' });
+
+    expect(logout).toHaveBeenCalled();
+  });
+});
+
+/**
+ * A BACKEND RESTART DURING A TOKEN REFRESH IS NOT A LOGOUT (2026-10).
+ *
+ * A deploy restarts the API. A refresh that hits that window gets no answer (connection closed,
+ * Apache / Cloudflare 502-524), and the session probe behind it fails the same way. The probe used
+ * to read ANY failure as "session gone" and log out - which under cookie auth also deletes the
+ * cookies. Only a real 401 / 403 is an answer about the session; anything else fails this one
+ * request and leaves the session alone.
+ */
+describe('authInterceptor — a backend restart during a token refresh', () => {
+  let http: HttpClient;
+  let backend: HttpTestingController;
+  let auth: AuthService;
+  let logout: Mock;
+  let refresh: Mock;
+  const probeUrl = `${environment.apiUrl}/auth/current-user`;
+  const expire = (url: string) =>
+    backend.expectOne(url).flush({ message: 'Unauthorized' }, { status: 401, statusText: 'Unauthorized' });
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    resetRefreshState();
+
+    TestBed.configureTestingModule({
+      providers: [
+        provideHttpClient(withXhr(), withInterceptors([authInterceptor, networkRetryInterceptor])),
+        provideHttpClientTesting(),
+        provideRouter([]),
+        {
+          provide: SOCIAL_AUTH_CONFIG,
+          useValue: { autoLogin: false, providers: [], onError: () => {} } as SocialAuthServiceConfig,
+        },
+      ],
+    });
+
+    http = TestBed.inject(HttpClient);
+    backend = TestBed.inject(HttpTestingController);
+    auth = TestBed.inject(AuthService);
+
+    logout = vi.spyOn(auth, 'logout').mockImplementation(() => {});
+    vi.spyOn(auth, 'isLoggedIn').mockReturnValue(true);
+    refresh = vi.spyOn(auth, 'refreshToken');
+  });
+
+  afterEach(() => {
+    backend.verify();
+    resetRefreshState();
+    vi.useRealTimers();
+  });
+
+  for (const status of [0, 502, 503, 504, 520, 524, 500]) {
+    it(`keeps the session when the refresh itself got no answer (${status || 'connection closed'})`, () => {
+      refresh.mockReturnValue(throwError(() => new HttpErrorResponse({ status })));
+
+      let received: unknown;
+      http.get('/api/admin/orders').subscribe({ next: () => {}, error: (err) => (received = err) });
+      expire('/api/admin/orders');
+
+      // Probing a backend that is not there would fail the same way: no probe, no logout.
+      backend.expectNone(probeUrl);
+      expect(logout).not.toHaveBeenCalled();
+      // This one request fails; the caller still hears about it.
+      expect((received as HttpErrorResponse).status).toBe(status);
+    });
+  }
+
+  it('keeps the session when the refresh was refused but the probe cannot reach the backend', () => {
+    refresh.mockReturnValue(throwError(() => new HttpErrorResponse(
+      { status: 401, error: { message: 'Invalid refresh token' } })));
+
+    let received: unknown;
+    http.get('/api/admin/orders').subscribe({ next: () => {}, error: (err) => (received = err) });
+    expire('/api/admin/orders');
+
+    // The probe retries once (it opts in), then gives up without an answer.
+    backend.expectOne(probeUrl).error(new ProgressEvent('error'), { status: 0 });
+    vi.advanceTimersByTime(NETWORK_RETRY_DELAY_MS);
+    backend.expectOne(probeUrl).flush('down', { status: 502, statusText: 'Bad Gateway' });
+
+    expect(logout).not.toHaveBeenCalled();
+    expect(received).toBeTruthy();
+  });
+
+  it('recovers when the probe\'s retry finds the backend back', () => {
+    refresh.mockReturnValue(throwError(() => new HttpErrorResponse(
+      { status: 401, error: { message: 'Invalid refresh token' } })));
+
+    let body: unknown;
+    http.get('/api/admin/orders').subscribe({ next: (b) => (body = b), error: () => {} });
+    expire('/api/admin/orders');
+
+    backend.expectOne(probeUrl).flush('down', { status: 503, statusText: 'Service Unavailable' });
+    vi.advanceTimersByTime(NETWORK_RETRY_DELAY_MS);
+    backend.expectOne(probeUrl).flush({ id: 7 });
+    backend.expectOne('/api/admin/orders').flush({ orders: [] });
+
+    expect(body).toEqual({ orders: [] } as any);
+    expect(logout).not.toHaveBeenCalled();
+  });
+
+  it('still logs out when the probe is refused (401 / 403)', () => {
+    refresh.mockReturnValue(throwError(() => new HttpErrorResponse(
+      { status: 401, error: { message: 'Invalid refresh token' } })));
+
+    http.get('/api/admin/orders').subscribe({ next: () => {}, error: () => {} });
+    expire('/api/admin/orders');
+    backend.expectOne(probeUrl).flush({ message: 'Forbidden' }, { status: 403, statusText: 'Forbidden' });
 
     expect(logout).toHaveBeenCalled();
   });

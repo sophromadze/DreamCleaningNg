@@ -9,6 +9,7 @@ import { Order, OrderList, OrderPartialPayment, OrderPaymentBalance } from './or
 import { Apartment, CreateApartment } from './profile.service';
 import { UserSpecialOffer } from './special-offer.service';
 import { PaymentMethodValue } from '../shared/payment-method';
+import { withRetryWhenUnreachable } from '../shared/http/backend-reachability';
 
 // ─── "Recreate this order" preview (mirrors DTOs/ReorderDtos.cs) ────────────────────────────
 
@@ -1808,7 +1809,7 @@ export class AdminService {
     // Note: Just use /orders, not /admin/orders because apiUrl already includes /admin
     const params = includeHidden ? new HttpParams().set('includeHidden', 'true') : undefined;
     const entry = { includeHidden, at: Date.now(), done: false, request: null as unknown as Observable<AdminOrderList[]> };
-    entry.request = this.http.get<AdminOrderList[]>(`${this.apiUrl}/orders`, { params }).pipe(
+    entry.request = this.http.get<AdminOrderList[]>(`${this.apiUrl}/orders`, { params, context: withRetryWhenUnreachable() }).pipe(
       tap({
         next: () => { entry.done = true; entry.at = Date.now(); },
         error: () => { if (this.allOrders === entry) this.allOrders = null; }
@@ -2545,7 +2546,7 @@ export class AdminService {
 
   getActiveOrderReminders(): Observable<{ orderId: number; type: string; triggeredAt: string }[]> {
     return this.http.get<{ orderId: number; type: string; triggeredAt: string }[]>(
-      `${this.apiUrl}/orders/active-reminders`
+      `${this.apiUrl}/orders/active-reminders`, { context: withRetryWhenUnreachable() }
     );
   }
 
@@ -2553,14 +2554,14 @@ export class AdminService {
   // Used as the safety net so an acknowledged reminder never re-appears for anyone.
   getAcknowledgedReminders(): Observable<{ orderId: number; type: string }[]> {
     return this.http.get<{ orderId: number; type: string }[]>(
-      `${this.apiUrl}/orders/acknowledged-reminders`
+      `${this.apiUrl}/orders/acknowledged-reminders`, { context: withRetryWhenUnreachable() }
     );
   }
 
   // New Order Notifications. The highlight is per-admin and expires 24h after the order was
   // created, so the caller needs createdAt to age a row out without a round trip.
   getUnviewedNewOrders(): Observable<UnviewedNewOrder[]> {
-    return this.http.get<UnviewedNewOrder[]>(`${this.apiUrl}/orders/unviewed-new`);
+    return this.http.get<UnviewedNewOrder[]>(`${this.apiUrl}/orders/unviewed-new`, { context: withRetryWhenUnreachable() });
   }
 
   markOrderViewed(orderId: number): Observable<{ message: string }> {

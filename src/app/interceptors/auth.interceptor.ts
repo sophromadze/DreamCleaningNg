@@ -7,6 +7,7 @@ import { AuthService } from '../services/auth.service';
 import { Router } from '@angular/router';
 import { environment } from '../../environments/environment';
 import { deviceTokenHeaderValue } from '../services/two-factor.service';
+import { isAuthRejection, isBackendUnreachable, withRetryWhenUnreachable } from '../shared/http/backend-reachability';
 
 /**
  * Set by the API on the 401 it returns for a session an admin has REVOKED — today, a role
@@ -341,9 +342,21 @@ function recoverOrEndSession(
     return endSession();
   }
 
+  // The refresh got no answer at all (2026-10): the backend is restarting under a deploy, or a
+  // gateway / 5xx stood in for it. That says nothing about the session, and probing a backend that
+  // is not there would only fail the same way - so this request fails and the session is left
+  // exactly as it is. The next request after the restart renews normally.
+  if (isBackendUnreachable(refreshError)
+      || (refreshError instanceof HttpErrorResponse && refreshError.status >= 500)) {
+    return throwError(() => refreshError);
+  }
+
   return probeSession(next, useCookieAuth).pipe(
-    switchMap(alive => {
-      if (!alive) return endSession();
+    switchMap(answer => {
+      // Only a refused probe (401 / 403) ends the session. A probe that got no answer keeps it:
+      // this request fails, nobody is signed out.
+      if (answer === 'ended') return endSession();
+      if (answer === 'unknown') return throwError(() => refreshError);
 
       // Something else renewed us. Treat that as this tab's renewal too, so the rest of the burst
       // skips the refresh entirely instead of arriving here one at a time.
@@ -353,19 +366,27 @@ function recoverOrEndSession(
   );
 }
 
-/** GET /auth/current-user with whatever credentials this browser holds right now. */
-function probeSession(next: HttpHandlerFn, useCookieAuth: boolean): Observable<boolean> {
-  let probe = new HttpRequest<unknown>('GET', `${environment.apiUrl}/auth/current-user`);
+/**
+ * GET /auth/current-user with whatever credentials this browser holds right now: 'alive', 'ended'
+ * (refused: 401 / 403) or 'unknown' (no answer about the session - the backend unreachable after
+ * the one retry, a 5xx, a stream that ended without a response). Only 'ended' signs anybody out.
+ */
+export type SessionProbeAnswer = 'alive' | 'ended' | 'unknown';
+
+function probeSession(next: HttpHandlerFn, useCookieAuth: boolean): Observable<SessionProbeAnswer> {
+  let probe = new HttpRequest<unknown>('GET', `${environment.apiUrl}/auth/current-user`, null, {
+    context: withRetryWhenUnreachable()
+  });
   probe = applyToken(probe, null, useCookieAuth);
 
   return next(probe).pipe(
     filter(event => event.type === HttpEventType.Response),
     take(1),
-    map(() => true),
+    map((): SessionProbeAnswer => 'alive'),
     // A stream that ends without a response at all must read as "could not tell", never as an
     // answer — `switchMap` would otherwise never fire and the caller's request would hang.
-    defaultIfEmpty(false),
-    catchError(() => of(false))
+    defaultIfEmpty<SessionProbeAnswer, SessionProbeAnswer>('unknown'),
+    catchError(error => of<SessionProbeAnswer>(isAuthRejection(error) ? 'ended' : 'unknown'))
   );
 }
 

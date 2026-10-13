@@ -14,6 +14,14 @@ import {
   ACCOUNT_STATUS_KEY, AccountStatusSnapshot, hasUnpaidOrder, isInternalRole, isStaffRole
 } from '../shared/account/account-status';
 import type { SsrBookingSession } from '../shared/ssr/ssr-booking-session.token';
+import { withRetryWhenUnreachable } from '../shared/http/backend-reachability';
+
+/**
+ * Error handler for the header's flags, counts and badge: a failed check is not news about the
+ * account (the backend may be restarting - its GETs already retried once), so the last good value
+ * stays. Before any load the signals hold their defaults (false / 0), which is what is shown then.
+ */
+const keepLastValue = () => {};
 
 /** How long a loaded order list / booking context is reused before it is asked for again. */
 export const ORDERS_REUSE_MS = 2_000;
@@ -165,8 +173,8 @@ export class AccountStatusService {
     this.loadHeaderSummary();
     if (role !== 'Cleaner') {
       this.accountServices().then(s => {
-        s.contracts.hasMyContracts().subscribe({ next: r => this.hasContracts.set(!!r?.hasContracts), error: () => this.hasContracts.set(false) });
-        s.invoices.hasMyInvoices().subscribe({ next: r => this.hasInvoices.set(!!r?.hasInvoices), error: () => this.hasInvoices.set(false) });
+        s.contracts.hasMyContracts().subscribe({ next: r => this.hasContracts.set(!!r?.hasContracts), error: keepLastValue });
+        s.invoices.hasMyInvoices().subscribe({ next: r => this.hasInvoices.set(!!r?.hasInvoices), error: keepLastValue });
       });
     } else {
       this.hasContracts.set(false);
@@ -175,7 +183,7 @@ export class AccountStatusService {
     if (isStaffRole(role)) this.refreshStaffCounts();
     if (isInternalRole(role)) {
       this.accountServices().then(s => s.blog.adminGetPendingCount()
-        .subscribe({ next: r => this.pendingBlogDrafts.set(r?.count ?? 0), error: () => this.pendingBlogDrafts.set(0) }));
+        .subscribe({ next: r => this.pendingBlogDrafts.set(r?.count ?? 0), error: keepLastValue }));
     }
   }
 
@@ -187,8 +195,8 @@ export class AccountStatusService {
     if (!this.isBrowser || !this.user || this.user.role === 'Cleaner') return;
     if (Date.now() - this.loadedAt < maxAgeMs) return;
     this.accountServices().then(s => {
-      s.contracts.hasMyContracts().subscribe({ next: r => this.hasContracts.set(!!r?.hasContracts), error: () => this.hasContracts.set(false) });
-      s.invoices.hasMyInvoices().subscribe({ next: r => this.hasInvoices.set(!!r?.hasInvoices), error: () => this.hasInvoices.set(false) });
+      s.contracts.hasMyContracts().subscribe({ next: r => this.hasContracts.set(!!r?.hasContracts), error: keepLastValue });
+      s.invoices.hasMyInvoices().subscribe({ next: r => this.hasInvoices.set(!!r?.hasInvoices), error: keepLastValue });
     });
   }
 
@@ -197,7 +205,8 @@ export class AccountStatusService {
     if (!this.isBrowser || !this.user) return;
     this.rewards.getHeaderSummary().subscribe({
       next: data => { this.headerSummary.set(data); this.headerSummaryState.set('ok'); },
-      error: () => { this.headerSummary.set(null); this.headerSummaryState.set('unavailable'); }
+      // A failure keeps the badge's last good numbers; only a badge that never had any says so.
+      error: () => { if (this.headerSummaryState() !== 'ok') { this.headerSummary.set(null); this.headerSummaryState.set('unavailable'); } }
     });
   }
 
@@ -207,18 +216,18 @@ export class AccountStatusService {
     this.accountServices().then(s => {
       s.tasks.getPendingPersonalTaskCount().subscribe({
         next: count => this.hasPendingPersonalTasks.set(count > 0),
-        error: () => { this.hasPendingPersonalTasks.set(false); this.hasUncheckedDoneTasks.set(false); }
+        error: keepLastValue
       });
       s.tasks.getUncheckedDoneCount().subscribe({
         next: count => this.hasUncheckedDoneTasks.set(count > 0),
-        error: () => this.hasUncheckedDoneTasks.set(false)
+        error: keepLastValue
       });
     });
   }
 
   /** Re-checks the unpaid dot (fresh order list). */
   refreshOrders() {
-    this.orders(0).subscribe({ error: () => this.hasUnpaidOrders.set(false) });
+    this.orders(0).subscribe({ error: keepLastValue });
   }
 
   /**
@@ -233,17 +242,20 @@ export class AccountStatusService {
     if (this.orders$ && (this.ordersInFlight || Date.now() - this.ordersAt < maxAgeMs)) return this.orders$;
     const userId = this.user.id;
     this.ordersInFlight = true;
-    this.orders$ = from(this.accountServices()).pipe(
+    const orders$: Observable<OrderList[]> = from(this.accountServices()).pipe(
       switchMap(s => s.orders.getUserOrders()),
       tap(orders => {
         if (this.user?.id !== userId) return;
         this.ordersAt = Date.now();
         this.hasUnpaidOrders.set(hasUnpaidOrder(orders));
       }),
+      // A failed load is not an answer to reuse: the next caller asks again.
+      tap({ error: () => { if (this.orders$ === orders$) { this.orders$ = null; this.ordersAt = 0; } } }),
       finalize(() => { this.ordersInFlight = false; }),
       shareReplay({ bufferSize: 1, refCount: false })
     );
-    return this.orders$;
+    this.orders$ = orders$;
+    return orders$;
   }
   private ordersInFlight = false;
 
@@ -274,7 +286,7 @@ export class AccountStatusService {
     if (!this.isBrowser || !this.user) return of(null);
     if (this.bookingContext$) return this.bookingContext$;
     const user = this.user;
-    const get = <T>(path: string) => this.http.get<T>(`${this.apiUrl}${path}`).pipe(catchError(() => of(null)));
+    const get = <T>(path: string) => this.http.get<T>(`${this.apiUrl}${path}`, { context: withRetryWhenUnreachable() }).pipe(catchError(() => of(null)));
     this.bookingContext$ = forkJoin({
       profile: get<any>('/profile'),
       specialOffers: get<unknown[]>('/profile/special-offers'),

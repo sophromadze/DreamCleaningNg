@@ -1,6 +1,7 @@
 import { PLATFORM_ID, inject, Service } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { environment } from '../../environments/environment';
+import { secureCookieAttribute } from '../shared/ssr/cookie-security';
 
 /**
  * First-touch acquisition attribution, GA4 Default Channel Group style.
@@ -325,9 +326,11 @@ export class AttributionService {
   }
 
   private writeCookieSeconds(name: string, value: string, maxAgeSeconds: number): void {
-    // Not httpOnly (JS-set cookies can't be) and SameSite=Lax so it survives ad-click navigations.
-    // Raw values travel URI-encoded; reading decodes them again.
+    // Not httpOnly (JS-set cookies can't be, and this service reads them) and SameSite=Lax so it
+    // survives ad-click navigations. Secure on https (2026-10, see cookie-security.ts): both cookies
+    // are re-written on every visit, so a returning visitor's older non-Secure ones are upgraded in
+    // place with the same value and expiry. Raw values travel URI-encoded; reading decodes them.
     document.cookie =
-      `${name}=${encodeURIComponent(value)}; path=/; max-age=${Math.max(0, Math.floor(maxAgeSeconds))}; SameSite=Lax`;
+      `${name}=${encodeURIComponent(value)}; path=/; max-age=${Math.max(0, Math.floor(maxAgeSeconds))}; SameSite=Lax${secureCookieAttribute(document)}`;
   }
 }

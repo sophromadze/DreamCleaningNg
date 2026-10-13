@@ -1,4 +1,5 @@
 import { readCookie } from './read-cookie';
+import { secureCookieAttribute } from './cookie-security';
 
 /**
  * A small first-party LAYOUT hint, so the server can render the signed-in header exactly as the
@@ -67,7 +68,7 @@ export function hasUiHint(cookieHeader: string | null | undefined): boolean {
 export function writeUiHintCookie(doc: Document, hint: UiHint): void {
   const value = encodeUiHint(hint);
   if ((readCookie(doc.cookie, UI_HINT_COOKIE) ?? null) === value) return;
-  const attributes = `; Path=/; SameSite=Lax; Secure; Max-Age=${value ? UI_HINT_MAX_AGE_SECONDS : 0}`;
+  const attributes = `; Path=/; SameSite=Lax${secureCookieAttribute(doc)}; Max-Age=${value ? UI_HINT_MAX_AGE_SECONDS : 0}`;
   doc.cookie = `${UI_HINT_COOKIE}=${value ?? ''}${attributes}`;
 }
 

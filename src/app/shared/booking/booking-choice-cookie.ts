@@ -2,6 +2,7 @@ import type { BookingFormData } from '../../services/form-persistence.service';
 import type { ExtraService, ServiceType, Subscription } from '../../services/booking.service';
 import { BEDROOMS_SERVICE_KEY, PROPERTY_TYPE_APARTMENT, PROPERTY_TYPE_HOUSE, normalizePropertyType } from './property-type.utils';
 import { readCookie } from '../ssr/read-cookie';
+import { secureCookieAttribute } from '../ssr/cookie-security';
 
 /**
  * The visitor's booking choice - the non-personal part of the saved booking draft - mirrored into
@@ -210,10 +211,10 @@ export function readBookingChoice(
 export function writeBookingChoiceCookie(doc: Document, data: BookingFormData | null | undefined): void {
   const value = encodeBookingChoice(data);
   // Always written, even unchanged: every save renews the 24 hours, exactly as it renews the draft.
-  const attributes = `; Path=/; SameSite=Lax; Secure; Max-Age=${value ? BOOKING_CHOICE_MAX_AGE_SECONDS : 0}`;
+  const attributes = `; Path=/; SameSite=Lax${secureCookieAttribute(doc)}; Max-Age=${value ? BOOKING_CHOICE_MAX_AGE_SECONDS : 0}`;
   doc.cookie = `${BOOKING_CHOICE_COOKIE}=${value ?? ''}${attributes}`;
   if (readCookie(doc.cookie, LEGACY_HERO_CHOICE_COOKIE) !== null) {
-    doc.cookie = `${LEGACY_HERO_CHOICE_COOKIE}=; Path=/; SameSite=Lax; Secure; Max-Age=0`;
+    doc.cookie = `${LEGACY_HERO_CHOICE_COOKIE}=; Path=/; SameSite=Lax${secureCookieAttribute(doc)}; Max-Age=0`;
   }
 }
 

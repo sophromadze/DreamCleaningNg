@@ -2,6 +2,7 @@ import { inject, Service } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
+import { withRetryWhenUnreachable } from '../shared/http/backend-reachability';
 
 export interface HeaderSummary {
   points: number;
@@ -154,7 +155,7 @@ export class BubbleRewardsService {
   // ─── Client Endpoints ────────────────────────────────────────────────────────
 
   getHeaderSummary(): Observable<HeaderSummary> {
-    return this.http.get<HeaderSummary>(`${this.apiUrl}/bubble-points/header-summary`);
+    return this.http.get<HeaderSummary>(`${this.apiUrl}/bubble-points/header-summary`, { context: withRetryWhenUnreachable() });
   }
 
   getSummary(): Observable<RewardsSummary> {

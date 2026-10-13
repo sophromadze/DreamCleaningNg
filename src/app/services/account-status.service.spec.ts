@@ -93,6 +93,76 @@ describe('AccountStatusService', () => {
     expect(count('/blog/pending-count')).toBe(1);
   });
 
+  /**
+   * 2026-10: during a deploy has-contracts, has-invoices and admin/blog/pending-count failed
+   * together (net::ERR_CONNECTION_CLOSED) and each error handler set its flag to false / 0, so the
+   * menu lost My Contracts and the counts until the next load. A failed check is not news about the
+   * account: every flag, count and badge keeps its last good value.
+   */
+  describe('a failed reload keeps the last good values', () => {
+    const fail = (status: number) => http.match(() => true).forEach((r: TestRequest) => status === 0
+      ? r.error(new ProgressEvent('error'), { status: 0 })
+      : r.flush('down', { status, statusText: 'Down' }));
+
+    for (const status of [0, 502, 500, 404]) {
+      it(`on ${status || 'connection closed'}`, async () => {
+        const service = setup();
+        user$.next(ADMIN);
+        await settle();
+        answer('/api/order', [{ status: 'Pending', isPaid: false, paymentMethod: 'Normal' }]);
+        answer('/header-summary', { points: 260, pointsSystemEnabled: true });
+        answer('/has-contracts', { hasContracts: true });
+        answer('/has-invoices', { hasInvoices: true });
+        answer('/personal-tasks/pending-count', 2);
+        answer('/personal-tasks/unchecked-done-count', 1);
+        answer('/blog/pending-count', { count: 3 });
+
+        // The tab comes back after a while: everything is asked again - and fails.
+        (service as any).loadAll();
+        await settle();
+        fail(status);
+
+        expect(service.hasUnpaidOrders()).toBe(true);
+        expect(service.headerSummary()?.points).toBe(260);
+        expect(service.headerSummaryState()).toBe('ok');
+        expect(service.hasContracts()).toBe(true);
+        expect(service.hasInvoices()).toBe(true);
+        expect(service.hasPendingPersonalTasks()).toBe(true);
+        expect(service.hasUncheckedDoneTasks()).toBe(true);
+        expect(service.pendingBlogDrafts()).toBe(3);
+      });
+    }
+
+    it('before any good answer, a failure shows today\'s defaults', async () => {
+      const service = setup();
+      user$.next(ADMIN);
+      await settle();
+      fail(0);
+
+      expect(service.hasUnpaidOrders()).toBe(false);
+      expect(service.hasContracts()).toBe(false);
+      expect(service.hasInvoices()).toBe(false);
+      expect(service.pendingBlogDrafts()).toBe(0);
+      expect(service.headerSummary()).toBeNull();
+      expect(service.headerSummaryState()).toBe('unavailable');
+    });
+
+    it('a failed order list is not reused: the next caller asks again', async () => {
+      const service = setup();
+      user$.next(CUSTOMER);
+      await settle();
+      answer('/api/order', []);
+      fail(0); // the rest
+      service.orders(0).subscribe({ error: () => {} });
+      await settle();
+      fail(0);
+
+      service.orders(60_000).subscribe({ error: () => {} });
+      await settle();
+      expect(count('/api/order')).toBe(1);
+    });
+  });
+
   it('takes the server\'s snapshot on /booking instead of fetching anything', async () => {
     const service = setup({
       userId: 71, hasUnpaidOrders: true, hasContracts: false, hasInvoices: true,

@@ -2,6 +2,7 @@ import { inject, Service } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
+import { withRetryWhenUnreachable } from '../shared/http/backend-reachability';
 
 /*
  * Commercial invoicing API client.
@@ -1154,7 +1155,7 @@ export class InvoiceService {
    * it must stay a boolean and never fetch the list.
    */
   hasMyInvoices(): Observable<{ hasInvoices: boolean }> {
-    return this.http.get<{ hasInvoices: boolean }>(`${environment.apiUrl}/my-invoices/has-invoices`);
+    return this.http.get<{ hasInvoices: boolean }>(`${environment.apiUrl}/my-invoices/has-invoices`, { context: withRetryWhenUnreachable() });
   }
 
   /** Every ISSUED invoice belonging to the signed-in business account. Drafts are never returned. */

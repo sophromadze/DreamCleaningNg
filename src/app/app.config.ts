@@ -4,6 +4,7 @@ import { provideHttpClient, withFetch, withInterceptorsFromDi, withInterceptors 
 import { routes } from './app.routes';
 import { provideClientHydration, withEventReplay } from '@angular/platform-browser';
 import { authInterceptor } from './interceptors/auth.interceptor';
+import { networkRetryInterceptor } from './shared/http/backend-reachability';
 import { importProvidersFrom } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { 
@@ -61,7 +62,9 @@ export const appConfig: ApplicationConfig = {
     
     provideHttpClient(
       withFetch(),
-      withInterceptors([authInterceptor])
+      // networkRetryInterceptor sits INSIDE authInterceptor: a retried request carries the same
+      // credentials, and a 401 still reaches the auth handling once.
+      withInterceptors([authInterceptor, networkRetryInterceptor])
     ),
     // No zone.js: change detection runs when a signal a view reads changes, a template event fires, an
     // async pipe emits, or markForCheck() is called - and SSR waits only for PendingTasks (HttpClient

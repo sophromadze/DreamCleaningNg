@@ -2,6 +2,7 @@ import { inject, Service } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
+import { withRetryWhenUnreachable } from '../shared/http/backend-reachability';
 
 export interface OrderList {
   /**
@@ -402,7 +403,7 @@ export class OrderService {
   private apiUrl = environment.apiUrl;
 
   getUserOrders(): Observable<OrderList[]> {
-    return this.http.get<OrderList[]>(`${this.apiUrl}/order`);
+    return this.http.get<OrderList[]>(`${this.apiUrl}/order`, { context: withRetryWhenUnreachable() });
   }
 
   getOrderById(orderId: number): Observable<Order> {

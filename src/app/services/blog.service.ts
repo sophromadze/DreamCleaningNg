@@ -2,6 +2,7 @@ import { inject, Service } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
+import { withRetryWhenUnreachable } from '../shared/http/backend-reachability';
 
 // ===== Public =====
 
@@ -186,7 +187,7 @@ export class BlogService {
   }
 
   adminGetPendingCount(): Observable<{ count: number }> {
-    return this.http.get<{ count: number }>(`${this.apiUrl}/admin/blog/pending-count`);
+    return this.http.get<{ count: number }>(`${this.apiUrl}/admin/blog/pending-count`, { context: withRetryWhenUnreachable() });
   }
 
   adminGetPost(id: number): Observable<BlogPostAdmin> {

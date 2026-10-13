@@ -2,11 +2,12 @@ import { Injector, PLATFORM_ID, inject, Service } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { BehaviorSubject, Observable, of, throwError, timeout, from, defer } from 'rxjs';
 import { map, tap, catchError, switchMap, filter, take, first, finalize } from 'rxjs/operators';
-import { Router } from '@angular/router';
+import { NavigationStart, Router } from '@angular/router';
 import { isPlatformBrowser } from '@angular/common';
 import { environment } from '../../environments/environment';
 import { storeDeviceToken } from './two-factor.service';
 import { ANONYMOUS_UI_HINT, writeUiHintCookie } from '../shared/ssr/ui-hint-cookie';
+import { isAuthRejection, withRetryWhenUnreachable } from '../shared/http/backend-reachability';
 import {
   SocialAuthService,
   SocialUser
@@ -243,34 +244,99 @@ export class AuthService {
     }
 
     // For cookie auth, check current user from server
-    this.http.get<UserDto>(`${this.apiUrl}/auth/current-user`, { withCredentials: true })
+    this.checkStartupSession();
+  }
+
+  /**
+   * GET auth/current-user at start-up (cookie auth). Only a 401 / 403 says "signed out" (2026-10).
+   *
+   * Anything else - the backend restarting under a deploy (connection closed, 502/503/504,
+   * Cloudflare 520-524, a 5xx, a timeout) - is NOT an answer about the session. It used to sign the
+   * visitor out for the rest of the page load: header "Sign in", protected pages bounced to /login.
+   * Now the GET retries once (withRetryWhenUnreachable) and, if the backend is still away:
+   * - with the header cache's user (the constructor already restored it): stay signed in;
+   * - without one: the session is UNKNOWN - auth stays uninitialized, so the header keeps its
+   *   shimmer and the guards wait instead of redirecting.
+   * Either way it asks again until it gets an answer (backoff, the tab coming back, coming back
+   * online, the next navigation).
+   */
+  private checkStartupSession(): void {
+    if (this.sessionRecheck?.inFlight) return;
+    if (this.sessionRecheck) this.sessionRecheck.inFlight = true;
+    this.http.get<UserDto>(`${this.apiUrl}/auth/current-user`, { withCredentials: true, context: withRetryWhenUnreachable() })
       .pipe(
-        // Add timeout to prevent hanging
-        timeout(5000)
+        // Add timeout to prevent hanging (room for the one retry)
+        timeout(8000)
       )
       .subscribe({
         next: (user) => {
+          const firstAnswer = !this.isInitializedSubject.value || !!this.sessionRecheck;
+          this.stopSessionRecheck();
           // Set user data and mark as initialized
           this.sessionConfirmedAt = Date.now();
           this.currentUserSubject.next(user);
           this.isInitializedSubject.next(true);
           // If user landed on app after Google OAuth redirect (e.g. from booking), send them back
-          this.navigateToStoredReturnUrlIfOnLanding();
+          if (firstAnswer) this.navigateToStoredReturnUrlIfOnLanding();
         },
         error: (error: any) => {
-          // Set as initialized even if no user (user is not logged in)
-          this.currentUserSubject.next(null);
-          this.isInitializedSubject.next(true);
-
-          // Clear cache if it's an authentication error
-          if (error.status === 401 || error.status === 403) {
+          if (isAuthRejection(error)) {
+            this.stopSessionRecheck();
+            // Not signed in: initialized, nobody, and the session hints go.
+            this.currentUserSubject.next(null);
+            this.isInitializedSubject.next(true);
             if (this.isBrowser) {
               localStorage.removeItem('sessionExists');
             }
             this.clearHeaderCache();
+            return;
           }
+          // No answer. A cached user stays signed in; without one the session stays unknown.
+          if (this.currentUserSubject.value) this.isInitializedSubject.next(true);
+          this.scheduleSessionRecheck();
         }
       });
+  }
+
+  /** Re-asking for the session while the backend could not be reached at start-up. */
+  private sessionRecheck: { attempt: number; inFlight: boolean; timer?: ReturnType<typeof setTimeout>; detach: () => void } | null = null;
+  static readonly SESSION_RECHECK_DELAYS_MS: readonly number[] = [2000, 4000, 8000, 15000];
+
+  private scheduleSessionRecheck(): void {
+    if (!this.isBrowser) return;
+    if (!this.sessionRecheck) {
+      const now = () => {
+        if (!this.sessionRecheck || this.sessionRecheck.inFlight) return;
+        clearTimeout(this.sessionRecheck.timer);
+        this.checkStartupSession();
+      };
+      const onVisible = () => { if (!document.hidden) now(); };
+      window.addEventListener('online', now);
+      document.addEventListener('visibilitychange', onVisible);
+      const nav = this.router.events.pipe(filter(e => e instanceof NavigationStart)).subscribe(() => now());
+      this.sessionRecheck = {
+        attempt: 0, inFlight: false,
+        detach: () => {
+          window.removeEventListener('online', now);
+          document.removeEventListener('visibilitychange', onVisible);
+          nav.unsubscribe();
+        }
+      };
+    }
+    const recheck = this.sessionRecheck;
+    recheck.inFlight = false;
+    const delays = AuthService.SESSION_RECHECK_DELAYS_MS;
+    const delay = delays[Math.min(recheck.attempt, delays.length - 1)];
+    recheck.attempt++;
+    clearTimeout(recheck.timer);
+    recheck.timer = setTimeout(() => this.checkStartupSession(), delay);
+  }
+
+  private stopSessionRecheck(): void {
+    if (!this.sessionRecheck) return;
+    clearTimeout(this.sessionRecheck.timer);
+    this.sessionRecheck.detach();
+    this.sessionRecheck = null;
   }
 
   /** When auth restores session (e.g. after Google OAuth redirect), redirect to returnUrl if we're on main/login. */
@@ -818,23 +884,28 @@ export class AuthService {
     return null;
   }
 
-  // Automatic recovery mechanism for refresh token failures
-  private async attemptTokenRecovery(): Promise<boolean> {
-    
+  // Automatic recovery mechanism for refresh token failures. 'unknown' when a step got no answer
+  // about the session (the backend unreachable, a 5xx): the caller must not sign anybody out on it.
+  private async attemptTokenRecovery(): Promise<boolean | 'unknown'> {
+    let unanswered = false;
+    const note = (error: unknown) => { if (!isAuthRejection(error)) unanswered = true; };
+    const sessionCheck = { context: withRetryWhenUnreachable() };
+
     if (this.useCookieAuth) {
       // For cookie auth, try to validate current session
       try {
-        const user = await this.http.get<UserDto>(`${this.apiUrl}/auth/current-user`, { withCredentials: true })
+        const user = await this.http.get<UserDto>(`${this.apiUrl}/auth/current-user`, { withCredentials: true, ...sessionCheck })
           .toPromise();
-        
+
         if (user) {
           this.currentUserSubject.next(user);
           return true;
         }
       } catch (error) {
+        note(error);
       }
-      
-      return false;
+
+      return unanswered ? 'unknown' : false;
     }
     
     try {
@@ -852,11 +923,12 @@ export class AuthService {
         return true;
       }
     } catch (error) {
+      note(error);
     }
-    
+
     // If that fails, try to validate current user session
     try {
-      const user = await this.http.get<UserDto>(`${this.apiUrl}/auth/current-user`, {}).toPromise();
+      const user = await this.http.get<UserDto>(`${this.apiUrl}/auth/current-user`, sessionCheck).toPromise();
       
       if (user) {
         // Try to get fresh tokens again
@@ -874,9 +946,10 @@ export class AuthService {
         }
       }
     } catch (error) {
+      note(error);
     }
-    
-    return false;
+
+    return unanswered ? 'unknown' : false;
   }
 
   // Enhanced refresh token method with automatic recovery
@@ -927,7 +1000,7 @@ export class AuthService {
           // Attempt automatic recovery using switchMap to handle async operation
           return from(this.attemptTokenRecovery()).pipe(
             switchMap(recoverySuccess => {
-              if (recoverySuccess) {
+              if (recoverySuccess === true) {
                 // Recovery successful, return a success response
                 const currentUser = this.currentUserValue;
                 if (currentUser) {
@@ -938,8 +1011,9 @@ export class AuthService {
                   };
                   return of(recoveredResponse);
                 }
-              } else {
-                // Recovery failed, clear auth data and logout
+              } else if (recoverySuccess === false) {
+                // Recovery refused (401 / 403 throughout): clear auth data and logout. An
+                // unanswered recovery ('unknown') keeps everything - the backend was away.
                 this.clearAllAuthData();
                 this.router.navigate(['/login']);
               }
@@ -1168,18 +1242,20 @@ export class AuthService {
   // Check if current user session is still valid
   checkCurrentUserSession(): Observable<UserDto | null> {
     const options = this.useCookieAuth ? { withCredentials: true } : {};
-    return this.http.get<UserDto>(`${this.apiUrl}/auth/current-user`, options).pipe(
+    return this.http.get<UserDto>(`${this.apiUrl}/auth/current-user`, { ...options, context: withRetryWhenUnreachable() }).pipe(
       map(user => {
         this.sessionConfirmedAt = Date.now();
         this.currentUserSubject.next(user);
         return user;
       }),
       catchError(error => {
-        // Don't log 401 errors as they're expected when user is not logged in
-        if (error.status !== 401) {
-          console.error('Current user session check failed:', error);
+        // No answer about the session (the backend unreachable or restarting, a 5xx): nothing
+        // changes - the signed-in user stays, and so do the stored tokens.
+        if (!isAuthRejection(error)) {
+          console.warn('Current user session check got no answer; keeping the session:', error?.status);
+          return of(this.currentUserValue);
         }
-        // If the session is invalid, clear the user data
+        // The session is invalid, clear the user data
         this.currentUserSubject.next(null);
         if (this.isBrowser && !this.useCookieAuth) {
           localStorage.removeItem('currentUser');
@@ -1212,8 +1288,8 @@ export class AuthService {
           }),
           catchError(error => {
             console.error('Force refresh failed (cookie auth):', error);
-            // For cookie auth, if refresh fails, user needs to log in again
-            this.logout();
+            // Refused: the user needs to log in again. No answer (backend away) is not a refusal.
+            if (isAuthRejection(error)) this.logout();
             throw error;
           })
         );
@@ -1245,8 +1321,8 @@ export class AuthService {
         }),
         catchError(error => {
           console.error('Force refresh failed (localStorage auth):', error);
-          // If force refresh fails, user needs to log in again
-          this.logout();
+          // Refused: the user needs to log in again. No answer (backend away) is not a refusal.
+          if (isAuthRejection(error)) this.logout();
           throw error;
         })
       );

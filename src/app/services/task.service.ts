@@ -2,6 +2,7 @@ import { inject, Service } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
+import { withRetryWhenUnreachable } from '../shared/http/backend-reachability';
 
 // ── Task interfaces ──
 
@@ -283,11 +284,11 @@ export class TaskService {
   }
 
   getPendingPersonalTaskCount(): Observable<number> {
-    return this.http.get<number>(`${this.personalTasksUrl}/pending-count`);
+    return this.http.get<number>(`${this.personalTasksUrl}/pending-count`, { context: withRetryWhenUnreachable() });
   }
 
   getUncheckedDoneCount(): Observable<number> {
-    return this.http.get<number>(`${this.personalTasksUrl}/unchecked-done-count`);
+    return this.http.get<number>(`${this.personalTasksUrl}/unchecked-done-count`, { context: withRetryWhenUnreachable() });
   }
 
   markTaskCheckedByCreator(id: number): Observable<PersonalAdminTask> {

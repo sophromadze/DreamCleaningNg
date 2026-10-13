@@ -103,6 +103,23 @@ describe('loadBookingSession (server render of a signed-in /booking)', () => {
     expect(await load(`access_token=${TOKEN}`)).toBeNull();
   });
 
+  it('renders as a guest when the backend is down (restart: refused connections, gateway answers)', async () => {
+    // Connection refused / closed: every call rejects.
+    const refused = ((url: string, init: RequestInit) => {
+      calls.push({ url, headers: init.headers as Record<string, string> });
+      return Promise.reject(new TypeError('fetch failed'));
+    }) as unknown as typeof fetch;
+    expect(await loadBookingSession('http://backend', `access_token=${TOKEN}`, { fetchImpl: refused })).toBeNull();
+
+    // Apache / Cloudflare standing in for the origin.
+    for (const status of [502, 503, 504, 521]) {
+      answers['/api/profile'] = json('origin down', status);
+      expect(await load(`access_token=${TOKEN}`)).toBeNull();
+    }
+    // Nothing here can write a cookie: the loader only reads the access_token it was handed, and
+    // asks the backend without following redirects (a Set-Cookie it got back is never forwarded).
+  });
+
   it('leaves a part that failed to the browser (null), keeping the rest', async () => {
     answers['/api/profile/special-offers'] = json('down', 503);
     answers['/api/order'] = () => Promise.reject(new Error('socket hang up'));

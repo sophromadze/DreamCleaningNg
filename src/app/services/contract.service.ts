@@ -2,6 +2,7 @@ import { inject, Service } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
+import { withRetryWhenUnreachable } from '../shared/http/backend-reachability';
 
 // ── Enums (mirror Models/Contracts/ContractEnums.cs; sent and received as numbers) ──
 
@@ -897,7 +898,7 @@ export class ContractService {
    * draw one link.
    */
   hasMyContracts(): Observable<{ hasContracts: boolean }> {
-    return this.http.get<{ hasContracts: boolean }>(`${this.myUrl}/has-contracts`);
+    return this.http.get<{ hasContracts: boolean }>(`${this.myUrl}/has-contracts`, { context: withRetryWhenUnreachable() });
   }
 
   getMyContracts(): Observable<MyContractListItem[]> {
