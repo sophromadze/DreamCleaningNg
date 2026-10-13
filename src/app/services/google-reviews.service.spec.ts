@@ -3,6 +3,8 @@ import { TestBed } from '@angular/core/testing';
 import { GooglePlacesService, aggregateRatingSchema, formatRating, formatReviewCount, googleAvatarUrl } from './google-reviews.service';
 
 import { testProviders } from '../../testing/test-providers';
+import { HttpTestingController } from '@angular/common/http/testing';
+import { environment } from '../../environments/environment';
 
 describe('GooglePlacesService', () => {
   let service: GooglePlacesService;
@@ -61,5 +63,38 @@ describe('googleAvatarUrl', () => {
   it('leaves non-Google and empty URLs alone', () => {
     expect(googleAvatarUrl('https://example.com/a=s120.png')).toBe('https://example.com/a=s120.png');
     expect(googleAvatarUrl('')).toBe('');
+  });
+});
+
+/** The testimonial slider's list is fetched once per tab, an empty answer included. */
+describe('GooglePlacesService slider list', () => {
+  let service: GooglePlacesService;
+  let http: HttpTestingController;
+  let production: boolean;
+
+  beforeEach(() => {
+    production = environment.production;
+    (environment as any).production = true;
+    TestBed.configureTestingModule({ providers: [...testProviders] });
+    service = TestBed.inject(GooglePlacesService);
+    http = TestBed.inject(HttpTestingController);
+  });
+  afterEach(() => { (environment as any).production = production; });
+
+  it('asks once; later sections (Back to the home page) reuse it, even when it is empty', () => {
+    service.getAllReviewsForSlider().subscribe();
+    service.getAllReviewsForSlider().subscribe();
+    http.expectOne(r => r.url.includes('/googlereviews/all')).flush({ result: { reviews: [] } });
+    service.getAllReviewsForSlider().subscribe();
+
+    http.expectNone(r => r.url.includes('/googlereviews/all'));
+  });
+
+  it('asks again after a failed request', () => {
+    service.getAllReviewsForSlider().subscribe();
+    http.expectOne(r => r.url.includes('/googlereviews/all')).flush('down', { status: 503, statusText: 'Down' });
+    service.getAllReviewsForSlider().subscribe();
+
+    http.expectOne(r => r.url.includes('/googlereviews/all'));
   });
 });

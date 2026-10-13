@@ -2,6 +2,7 @@ import { Component, OnInit, ChangeDetectionStrategy, inject, signal } from '@ang
 import { ActivatedRoute, ParamMap } from '@angular/router';
 import { skip } from 'rxjs/operators';
 import { AdminService, UserPermissions } from '../../services/admin.service';
+import { AuthService } from '../../services/auth.service';
 import { MaintenanceModeService, MaintenanceModeStatus, ToggleMaintenanceModeRequest } from '../../services/maintenance-mode.service';
 import { LiveChatService } from '../../services/live-chat.service';
 import { OrdersComponent } from './orders/orders.component';
@@ -39,6 +40,7 @@ import { AdminCustomerInvoicesComponent } from './customer-invoices/admin-custom
 })
 export class AdminComponent implements OnInit {
   private adminService = inject(AdminService);
+  private authService = inject(AuthService);
   private maintenanceModeService = inject(MaintenanceModeService);
   private liveChatService = inject(LiveChatService);
   private route = inject(ActivatedRoute);
@@ -270,6 +272,12 @@ export class AdminComponent implements OnInit {
   }
 
   refreshTokenAndLoadPermissions() {
+    // The app's start-up check confirmed this session moments ago (and went through the
+    // interceptor, which renews an expired token): a second current-user call adds nothing.
+    if (this.authService.sessionConfirmedWithin(60_000)) {
+      this.loadUserPermissions();
+      return;
+    }
     // Refresh token before loading permissions to ensure we have a valid token
     this.adminService.refreshTokenIfNeeded().subscribe({
       next: () => {

@@ -177,6 +177,9 @@ export interface PaymentTimelineRow {
   slice?: OrderPartialPayment;
 }
 
+/** How old a just-loaded order list may be for the Orders tab's FIRST load to reuse it. */
+const ORDERS_STARTUP_REUSE_MS = 10_000;
+
 @Component({
   selector: 'app-orders',
   imports: [CommonModule, FormsModule, RecurringSeriesPanelComponent],
@@ -1754,7 +1757,8 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
             error: () => {}
           });
         }
-        this.loadOrders();
+        // The first load of the page: shares the order-reminder feed's request for the same list.
+        this.loadOrders(ORDERS_STARTUP_REUSE_MS);
       },
       error: (error) => {
         console.error('Error loading permissions:', error);
@@ -1974,7 +1978,8 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private ordersLoadVersion = 0;
 
-  loadOrders() {
+  /** @param reuseMs start-up only (see AdminService.getAllOrders); every reload asks the server. */
+  loadOrders(reuseMs = 0) {
     const version = ++this.ordersLoadVersion;
     this.loadingStates().orders = true;
     this.loadingStates.set(this.loadingStates());
@@ -1987,7 +1992,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     this.clearMessages();
 
     if (this.userRole() && this.userRole() !== 'Customer') {
-      this.adminService.getAllOrders(this.showHiddenOrders()).subscribe({
+      this.adminService.getAllOrders(this.showHiddenOrders(), { reuseMs }).subscribe({
         next: (orders) => {
           if (version !== this.ordersLoadVersion) return;
           this.orders.set(orders as AdminOrderList[]);

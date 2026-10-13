@@ -147,12 +147,18 @@ export class TestimonialSectionComponent implements OnInit, OnDestroy {
     // Created again in this tab (Back, another page with this section): the list is already loaded
     // and is drawn in the first pass - see GooglePlacesService.cachedSliderReviews.
     const cached = this.isBrowser ? this.googlePlacesService.cachedSliderReviews() : null;
+    // The small first page exists for the server render and the hydration over it. An in-app
+    // visit has nothing to hydrate: it asks for the whole list once.
     const firstPage = this.googlePlacesService.getAllReviewsPageForHydration(1, FIRST_PAGE_SIZE);
+    const slider = this.googlePlacesService.getAllReviewsForSlider().pipe(map(reviews => ({ reviews })));
     const reviews$ = cached
       ? of({ reviews: cached })
-      : this.isBrowser
-        ? concat(firstPage, this.googlePlacesService.getAllReviewsForSlider().pipe(map(reviews => ({ reviews }))))
-        : firstPage;
+      : !this.isBrowser
+        ? firstPage
+        : this.googlePlacesService.hasServerPage(1, FIRST_PAGE_SIZE)
+          ? concat(firstPage, slider)
+          : slider;
+    // (The slider list is asked for once per tab - getAllReviewsForSlider remembers the answer.)
     this.subscription.add(
       reviews$.subscribe({
         next: ({ reviews }) => {

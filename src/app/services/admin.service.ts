@@ -1,6 +1,7 @@
-import { inject, Service as NgService } from '@angular/core';
+import { Injector, inject, Service as NgService } from '@angular/core';
 import { HttpClient, HttpHeaders, HttpParams, HttpResponse } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, catchError, shareReplay, tap, throwError } from 'rxjs';
+import { AuthService } from './auth.service';
 import { environment } from '../../environments/environment';
 import { ServiceType, Service, ExtraService, Subscription, ServiceThreshold, ServiceRateTier } from './booking.service';
 import { DisplayPriceUnit } from '../shared/pricing/display-price';
@@ -1322,9 +1323,31 @@ export class AdminService {
 
   private apiUrl = `${environment.apiUrl}/admin`;
 
+  /**
+   * The signed-in user's permissions, asked for ONCE per user per page load and shared: the admin
+   * shell and every tab (Orders, Users, Discounts, ...) used to ask on their own, so /admin
+   * fetched it twice on every load. A request on the wire is joined; a failed one is forgotten so
+   * the next caller asks again; a different user (sign-out, account switch) gets a fresh answer.
+   */
   getUserPermissions(): Observable<UserPermissions> {
-    return this.http.get<UserPermissions>(`${this.apiUrl}/permissions`);
+    const user = this.injector.get(AuthService).currentUserValue;
+    const key = user ? `${user.id}|${user.role}` : '';
+    if (this.permissions && this.permissions.key === key) return this.permissions.request;
+    const entry: { key: string; request: Observable<UserPermissions> } = {
+      key,
+      request: this.http.get<UserPermissions>(`${this.apiUrl}/permissions`).pipe(
+        catchError(error => {
+          if (this.permissions === entry) this.permissions = null;
+          return throwError(() => error);
+        }),
+        shareReplay({ bufferSize: 1, refCount: false })
+      )
+    };
+    this.permissions = entry;
+    return entry.request;
   }
+  private permissions: { key: string; request: Observable<UserPermissions> } | null = null;
+  private injector = inject(Injector);
 
   // Service Types
   getServiceTypes(): Observable<ServiceType[]> {
@@ -1765,11 +1788,31 @@ export class AdminService {
 
   // Orders Management
   /** @param includeHidden pass true for the "Show hidden orders" view (allowed for all admin roles). */
-  getAllOrders(includeHidden = false): Observable<AdminOrderList[]> {
+  /**
+   * @param options.reuseMs when set, a request for the same list already on the wire is joined and
+   * one answered less than this long ago is reused. For the callers that load the list on START-UP
+   * only (the Orders tab's first load, the order-reminder feed), which used to fetch it twice on
+   * every /admin load. Every reload after a change leaves it unset and always asks the server.
+   */
+  getAllOrders(includeHidden = false, options?: { reuseMs?: number }): Observable<AdminOrderList[]> {
+    const last = this.allOrders;
+    if (options?.reuseMs && last && last.includeHidden === includeHidden && (!last.done || Date.now() - last.at < options.reuseMs)) {
+      return last.request;
+    }
     // Note: Just use /orders, not /admin/orders because apiUrl already includes /admin
     const params = includeHidden ? new HttpParams().set('includeHidden', 'true') : undefined;
-    return this.http.get<AdminOrderList[]>(`${this.apiUrl}/orders`, { params });
+    const entry = { includeHidden, at: Date.now(), done: false, request: null as unknown as Observable<AdminOrderList[]> };
+    entry.request = this.http.get<AdminOrderList[]>(`${this.apiUrl}/orders`, { params }).pipe(
+      tap({
+        next: () => { entry.done = true; entry.at = Date.now(); },
+        error: () => { if (this.allOrders === entry) this.allOrders = null; }
+      }),
+      shareReplay({ bufferSize: 1, refCount: false })
+    );
+    this.allOrders = entry;
+    return entry.request;
   }
+  private allOrders: { includeHidden: boolean; at: number; done: boolean; request: Observable<AdminOrderList[]> } | null = null;
 
   /** SuperAdmin-only soft-hide. View filter only — changes no order data, status or revenue. */
   hideOrder(orderId: number): Observable<{ message: string; isHidden: boolean }> {

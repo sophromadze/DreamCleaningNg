@@ -126,7 +126,8 @@ export class OrderReminderService {
 
   /** Auto-fetch orders and start checking */
   private autoInitialize(): void {
-    this.adminService.getAllOrders().subscribe({
+    // Start-up: on /admin the Orders tab loads the same list at the same moment - one request.
+    this.adminService.getAllOrders(false, { reuseMs: 10_000 }).subscribe({
       next: (orders) => {
         this.initialize(orders as OrderData[]);
       },

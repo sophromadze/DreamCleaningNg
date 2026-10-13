@@ -1,7 +1,7 @@
 import { PLATFORM_ID, TransferState, inject, makeStateKey, Service } from '@angular/core';
 import { isPlatformServer, isPlatformBrowser } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { Observable, map, catchError, of, shareReplay, tap } from 'rxjs';
+import { Observable, map, catchError, of, shareReplay, tap, finalize } from 'rxjs';
 import { environment } from '../../environments/environment';
 
 export interface Review {
@@ -134,6 +134,11 @@ export class GooglePlacesService {
    * scrolls into view) - its request would go back to the network and the server-rendered
    * slides would be emptied until the answer came back.
    */
+  /** True when the server render shipped this page (so the component is hydrating over it). */
+  hasServerPage(page: number, pageSize: number): boolean {
+    return this.transferState.hasKey(makeStateKey(`google-reviews-page:${page}:${pageSize}`));
+  }
+
   getAllReviewsPageForHydration(page: number, pageSize: number): Observable<{ reviews: Review[], hasMore: boolean }> {
     const key = makeStateKey<{ reviews: Review[], hasMore: boolean }>(`google-reviews-page:${page}:${pageSize}`);
     const transferred = this.transferState.get(key, null);
@@ -172,11 +177,30 @@ export class GooglePlacesService {
    * testimonial slider. Reuses the paged endpoint (cached server-side).
    */
   getAllReviewsForSlider(): Observable<Review[]> {
-    return this.getAllReviewsPage(1, 500).pipe(
-      map(({ reviews }) => reviews),
-      tap(reviews => { if (reviews.length > 0 && isPlatformBrowser(this.platformId)) this.sliderReviews = reviews; })
+    // Once per session in this tab: the list already loaded is reused (and a request on the wire
+    // joined), so returning to the home page or opening another page with the slider asks nothing.
+    // An empty answer is an answer too (no displayable reviews); only a failed request is asked again.
+    if (this.sliderAnswer) return of(this.sliderAnswer);
+    if (!environment.production) return of([]);
+    this.sliderRequest$ ??= this.http.get<any>(`${this.apiUrl}/googlereviews/all?page=1&pageSize=500`).pipe(
+      map(response => this.mapReviews(response)),
+      tap(reviews => {
+        if (!isPlatformBrowser(this.platformId)) return;
+        this.sliderAnswer = reviews;
+        if (reviews.length > 0) this.sliderReviews = reviews;
+      }),
+      catchError(error => {
+        console.error('Error loading reviews page from backend:', error);
+        return of([] as Review[]);
+      }),
+      finalize(() => { this.sliderRequest$ = null; }),
+      shareReplay({ bufferSize: 1, refCount: false })
     );
+    return this.sliderRequest$;
   }
+  private sliderRequest$: Observable<Review[]> | null = null;
+  /** The slider list this tab received (possibly empty); null until a request succeeded. */
+  private sliderAnswer: Review[] | null = null;
 
   /**
    * The slider list already loaded in this tab, or null. A testimonial section created again

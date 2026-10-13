@@ -222,6 +222,17 @@ export class AuthService {
     }
   }
 
+  /**
+   * When GET auth/current-user last confirmed this session (0: not in this page load). A page that
+   * wants "is my session still good?" right after start-up reads this instead of asking again -
+   * the start-up check already went through the interceptor, which renews an expired token.
+   */
+  private sessionConfirmedAt = 0;
+
+  sessionConfirmedWithin(ms: number): boolean {
+    return !!this.currentUserSubject.value && Date.now() - this.sessionConfirmedAt < ms;
+  }
+
   private initializeWithCookies(): void {
     // Skip the API call if we have no hint of an active session,
     // to avoid a 401 console error for unauthenticated users.
@@ -240,6 +251,7 @@ export class AuthService {
       .subscribe({
         next: (user) => {
           // Set user data and mark as initialized
+          this.sessionConfirmedAt = Date.now();
           this.currentUserSubject.next(user);
           this.isInitializedSubject.next(true);
           // If user landed on app after Google OAuth redirect (e.g. from booking), send them back
@@ -1158,6 +1170,7 @@ export class AuthService {
     const options = this.useCookieAuth ? { withCredentials: true } : {};
     return this.http.get<UserDto>(`${this.apiUrl}/auth/current-user`, options).pipe(
       map(user => {
+        this.sessionConfirmedAt = Date.now();
         this.currentUserSubject.next(user);
         return user;
       }),
