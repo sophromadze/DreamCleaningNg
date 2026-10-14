@@ -1042,10 +1042,30 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
     this.newRateTier.set({ fromQuantity: 0, cost: 0, timeDuration: 0, displayOrder: 0 });
   }
 
-  /** Services that may act as an allowance source — same service type, and not the service itself. */
+  /**
+   * Services that may act as an allowance source — every service of the same type, INCLUDING the
+   * service itself. A self-reference is a supported configuration (Levels: "when Levels is 1,
+   * 1 is included"); both price calculators read the source's selected quantity without
+   * recursing, so it resolves in one step.
+   */
   getThresholdSourceCandidates(service: Service): Service[] {
     if (!this.selectedServiceType()) return [];
-    return this.selectedServiceType()!.services.filter(s => s.id !== service.id);
+    return this.selectedServiceType()!.services;
+  }
+
+  /** Option / cell label for an allowance source; the service itself is marked as such. */
+  getThresholdSourceLabel(service: Service, sourceId: number, fallbackName?: string | null): string {
+    const source = this.getThresholdSourceCandidates(service).find(s => s.id === sourceId);
+    const name = source?.name || fallbackName || '';
+    return sourceId === service.id ? `${name} (this service)` : name;
+  }
+
+  /**
+   * True when the saved source is not among the options — the edit select then renders it as an
+   * extra option so it shows the stored value instead of a blank box.
+   */
+  isThresholdSourceMissing(service: Service, row: ServiceThreshold): boolean {
+    return !this.getThresholdSourceCandidates(service).some(s => s.id === row.sourceServiceId);
   }
 
   /** Reloads one service's rows in place so the row doesn't collapse on every change. */
@@ -1070,9 +1090,11 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
   startAddingThreshold(service: Service) {
     this.isAddingThreshold.set(true);
     this.editingThresholdId.set(null);
+    // Default to another service, as before; the service itself only when it is the sole option.
     const candidates = this.getThresholdSourceCandidates(service);
+    const preferred = candidates.find(s => s.id !== service.id) ?? candidates[0];
     this.newThreshold.set({
-      sourceServiceId: candidates.length ? candidates[0].id : 0,
+      sourceServiceId: preferred ? preferred.id : 0,
       sourceQuantity: 0,
       includedQuantity: 0
     });

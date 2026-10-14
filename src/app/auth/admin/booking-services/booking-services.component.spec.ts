@@ -4,7 +4,7 @@ import { of, throwError } from 'rxjs';
 
 import { BookingServicesComponent } from './booking-services.component';
 import { AdminService } from '../../../services/admin.service';
-import { ExtraService, ServiceType } from '../../../services/booking.service';
+import { ExtraService, Service, ServiceThreshold, ServiceType } from '../../../services/booking.service';
 
 import { testProviders } from '../../../../testing/test-providers';
 
@@ -82,6 +82,60 @@ describe('BookingServicesComponent', () => {
         extra({ id: 36, name: 'Pets', extraServiceKey: 'pets' })
       ]);
       expect(component.getAvailableExtraServicesForCopy().map(e => e.id)).toEqual([36]);
+    });
+  });
+
+  describe('included amounts based on the service itself', () => {
+    const svc = (o: Partial<Service>): Service => ({
+      id: 0, name: '', serviceKey: '', cost: 0, timeDuration: 0, serviceTypeId: 1, inputType: 'dropdown',
+      isRangeInput: false, isActive: true, thresholds: [], rateTiers: [], ...o
+    });
+    const levelsRule: ServiceThreshold = {
+      id: 7, serviceId: 15, sourceServiceId: 15, sourceServiceKey: 'levels', sourceServiceName: 'Levels',
+      sourceQuantity: 1, includedQuantity: 1
+    };
+    let levels: Service;
+
+    beforeEach(() => {
+      levels = svc({ id: 15, name: 'Levels', serviceKey: 'levels', chargeAboveThreshold: true, thresholds: [levelsRule] });
+      component.selectedServiceType.set({
+        id: 1, name: 'Residential', extraServices: [],
+        services: [svc({ id: 1, name: 'Bedrooms', serviceKey: 'bedrooms' }), svc({ id: 2, name: 'Bathrooms', serviceKey: 'bathrooms' }), levels]
+      } as unknown as ServiceType);
+    });
+
+    it('offers the service itself as a source, labelled as such', () => {
+      expect(component.getThresholdSourceCandidates(levels).map(s => s.id)).toEqual([1, 2, 15]);
+      expect(component.getThresholdSourceLabel(levels, 15)).toBe('Levels (this service)');
+      expect(component.getThresholdSourceLabel(levels, 1)).toBe('Bedrooms');
+    });
+
+    it('still defaults a new rule to another service', () => {
+      component.startAddingThreshold(levels);
+      expect(component.newThreshold().sourceServiceId).toBe(1);
+    });
+
+    it('shows the saved self-reference selected when the rule is edited', async () => {
+      component.expandedPricingServiceId.set(15);
+      component.startEditingThreshold(levelsRule);
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      const select: HTMLSelectElement = fixture.nativeElement.querySelector('select[aria-label="Based on"]');
+      expect(select).toBeTruthy();
+      expect(select.selectedOptions[0]?.textContent?.trim()).toBe('Levels (this service)');
+    });
+
+    it('keeps a saved source that is no longer offered visible instead of blank', async () => {
+      const foreign: ServiceThreshold = { ...levelsRule, sourceServiceId: 99, sourceServiceName: 'Old Rooms' };
+      levels.thresholds = [foreign];
+      component.expandedPricingServiceId.set(15);
+      component.startEditingThreshold(foreign);
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      const select: HTMLSelectElement = fixture.nativeElement.querySelector('select[aria-label="Based on"]');
+      expect(select.selectedOptions[0]?.textContent?.trim()).toBe('Old Rooms');
     });
   });
 });

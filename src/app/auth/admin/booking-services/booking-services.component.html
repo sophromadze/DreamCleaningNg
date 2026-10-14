@@ -1022,7 +1022,7 @@
                       </div>
                       <p class="pricing-hint">
                         How much of <strong>{{ service.name }}</strong> is included at no charge, based on
-                        another service's quantity. This is also the lowest value a customer can pick.
+                        another service's quantity (or its own). This is also the lowest value a customer can pick.
                       </p>
 
                       <table class="nested-table">
@@ -1046,7 +1046,7 @@
                           <tr>
                             @if (editingThresholdId() !== row.id) {
 
-                              <td>{{ row.sourceServiceName || row.sourceServiceKey }}</td>
+                              <td>{{ getThresholdSourceLabel(service, row.sourceServiceId, row.sourceServiceName || row.sourceServiceKey) }}</td>
                               <td>{{ row.sourceQuantity }}</td>
                               <td>{{ row.includedQuantity }}</td>
                               @if (userRole() !== 'Moderator') {
@@ -1063,9 +1063,14 @@
                             @if (editingThresholdId() === row.id) {
                               <td>
                                 <select aria-label="Based on" [(ngModel)]="row.sourceServiceId">
+                                  @if (isThresholdSourceMissing(service, row)) {
+                                  <option [ngValue]="row.sourceServiceId">
+                                    {{ row.sourceServiceName || row.sourceServiceKey }}
+                                  </option>
+                                  }
                                   @for (candidate of getThresholdSourceCandidates(service); track candidate.id) {
                                   <option [ngValue]="candidate.id">
-                                    {{ candidate.name }}
+                                    {{ getThresholdSourceLabel(service, candidate.id) }}
                                   </option>
                                   }
                                 </select>
@@ -1087,7 +1092,7 @@
                                 <option [ngValue]="0" disabled>Choose a service…</option>
                                 @for (candidate of getThresholdSourceCandidates(service); track candidate.id) {
                                 <option [ngValue]="candidate.id">
-                                  {{ candidate.name }}
+                                  {{ getThresholdSourceLabel(service, candidate.id) }}
                                 </option>
                                 }
                               </select>
