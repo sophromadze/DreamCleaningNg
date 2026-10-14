@@ -548,6 +548,10 @@ describe('OutgoingPaymentsComponent', () => {
       expect(component.statusLabel(order({ paymentMethod: 'Cash' }))).toBe('DoneM');
     });
 
+    it('shows plain Done for a commercial Invoice order', () => {
+      expect(component.statusLabel(order({ paymentMethod: 'Invoice' }))).toBe('Done');
+    });
+
     it('shows plain Done for a card order, with no payment tag', () => {
       expect(component.statusLabel(order())).toBe('Done');
       expect(component.customerPaymentNote(order())).toBe('');

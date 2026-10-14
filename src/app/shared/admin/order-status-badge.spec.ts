@@ -26,6 +26,10 @@ describe('order status badge', () => {
     expect(orderStatusBadgeLabel({ status: 'Refunded' })).toBe('Refund');
     expect(orderStatusBadgeLabel({ status: 'Done', paymentMethod: 'Cash' })).toBe('DoneM');
     expect(orderStatusBadgeLabel({ status: 'Done', paymentMethod: 'Normal' })).toBe('Done');
+    // A commercial Invoice order is settled by its invoice, not paid manually (#446, #478).
+    expect(orderStatusBadgeLabel({ status: 'Done', paymentMethod: 'Invoice' })).toBe('Done');
+    expect(orderStatusBadgeLabel({ status: 'Done', paymentMethod: 'Zelle' })).toBe('DoneM');
+    expect(orderStatusBadgeLabel({ status: 'Done', paymentMethod: 'BankTransfer' })).toBe('DoneM');
     expect(orderStatusBadgeLabel({ status: 'Weird' })).toBe('Weird');
   });
 

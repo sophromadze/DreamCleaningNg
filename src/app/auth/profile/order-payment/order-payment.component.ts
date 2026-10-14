@@ -269,8 +269,12 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
         const pendingUpdateAmount = order.pendingUpdateAmount ?? 0;
         // Manual-paid orders (Cash/Zelle/Check/Other) were settled outside Stripe and keep
         // isPaid=false by backend design — there is nothing to pay on the website.
+        // An Invoice order is not "paid outside the website" - it is billed to the company and
+        // paid through its invoice, so it says that instead.
         if (order.paymentMethod && order.paymentMethod !== 'Normal') {
-          this.errorMessage.set('This order was paid outside the website and has no payment due.');
+          this.errorMessage.set(order.paymentMethod === 'Invoice'
+            ? 'This order is billed by invoice and has no payment due here.'
+            : 'This order was paid outside the website and has no payment due.');
           this.nothingDue.set(true);
           this.isLoading.set(false);
           return;

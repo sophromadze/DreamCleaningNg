@@ -5219,8 +5219,11 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     // Other) is never waiting on one — it is settled on site — so it goes back to Active even
     // with IsPaid=false. Mirrors how such orders are CREATED in BookingController
     // (initialStatus = paymentMethod == Normal ? "Pending" : "Active").
-    const manualPayment = !!order.paymentMethod && order.paymentMethod !== 'Normal';
-    const newStatus = (order.isPaid || manualPayment) ? 'Active' : 'Pending';
+    // An Invoice order is outside Stripe but NOT paid by being chosen: it is Active only once
+    // its commercial invoice was paid (invoicePaidAt), the rule OrderPaymentFilter states.
+    const method = order.paymentMethod || 'Normal';
+    const settledOutside = method !== 'Normal' && (method !== 'Invoice' || !!order.invoicePaidAt);
+    const newStatus = (order.isPaid || settledOutside) ? 'Active' : 'Pending';
     if (confirm(`Are you sure you want to reactivate order #${order.id} from ${previousStatus} status?`)) {
       this.updateOrderStatus(order, newStatus);
     }

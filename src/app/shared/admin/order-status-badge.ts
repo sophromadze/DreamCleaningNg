@@ -10,6 +10,9 @@
  * thirty comparison sites plus OrderStatuses, OrderBookedFilter and the statistics grouping key
  * off the stored spelling. Two labels are derived rather than stored:
  *  - `DoneM`   - Done, paid by a non-Stripe method, so manual payments are scannable.
+ *    Cash / Zelle / Check / Other / BankTransfer only: an Invoice order is billed to a
+ *    commercial client and settled by its invoice (Stripe ACH or a recorded transfer), so a
+ *    completed one reads plain "Done" like any other (it used to read "DoneM", #446/#478).
  *  - `RefundH` - partially refunded. Deriving it is what lets a cancelled-then-part-refunded
  *    order keep "Cancelled" in the database, leaving every reporting predicate that reads Status
  *    exactly as it was. RefundH outranks the underlying status in the pill, so that status is
@@ -74,7 +77,7 @@ export function orderStatusBadgeLabel(order: OrderStatusBadgeSource): string {
   if (isPartiallyRefundedOrder(order)) return 'RefundH';
 
   const key = (order.status || '').toLowerCase();
-  if (key === 'done' && order.paymentMethod && order.paymentMethod !== 'Normal') {
+  if (key === 'done' && isManuallyPaidMethod(order.paymentMethod)) {
     return 'DoneM';
   }
   return STATUS_LABELS[key] ?? order.status ?? '';
@@ -91,6 +94,14 @@ export function orderStatusBadgeTitle(order: OrderStatusBadgeSource): string {
     return `Partially refunded — $${refunded} returned to the customer. Order status: ${order.status}.`;
   }
   return '';
+}
+
+/**
+ * True for the payment methods the DoneM label marks: money an admin recorded as handed over
+ * outside Stripe. Card (`Normal`) and commercial `Invoice` are not "manual" payments.
+ */
+export function isManuallyPaidMethod(paymentMethod: string | null | undefined): boolean {
+  return !!paymentMethod && paymentMethod !== 'Normal' && paymentMethod !== 'Invoice';
 }
 
 /** True for the two statuses that mean the order brought in no money. */

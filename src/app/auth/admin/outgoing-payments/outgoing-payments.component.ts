@@ -27,6 +27,7 @@ import { resolveServiceTypeShortLabel } from '../../../shared/admin/service-type
 import { UnpaidCleanersComponent } from './unpaid-cleaners.component';
 import { CleanerPayoutHistoryComponent } from './cleaner-payout-history.component';
 import { AdminPerformanceComponent } from './admin-performance.component';
+import { isManuallyPaidMethod } from '../../../shared/admin/order-status-badge';
 
 /**
  * The page's tabs, as the URL names them: the two payee tabs, and Admins (2026-10) — what each
@@ -760,10 +761,11 @@ export class OutgoingPaymentsComponent implements OnInit, OnDestroy {
     });
   }
 
-  /** "DoneM" for a Done order settled outside Stripe — the same label the orders panel shows. */
+  /** "DoneM" for a Done order paid manually (Cash / Zelle / Check...) - the same rule the orders
+   *  panel's pill uses, so a commercial Invoice order reads plain "Done". */
   statusLabel(order: OutgoingPaymentOrder): string {
     if (order.status === 'Refunded') return 'Refunded';
-    return (order.paymentMethod && order.paymentMethod !== 'Normal') ? 'DoneM' : 'Done';
+    return isManuallyPaidMethod(order.paymentMethod) ? 'DoneM' : 'Done';
   }
 
   /**
