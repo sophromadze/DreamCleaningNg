@@ -1,0 +1,120 @@
+<section class="payout-view" aria-labelledby="adminPerformanceHeading">
+  <h3 id="adminPerformanceHeading" class="sr-only">Admins</h3>
+
+  <div class="history-filters admin-filters">
+    <div class="period-chips" role="group" aria-label="Period">
+      @for (p of periods; track p.key) {
+      <button type="button" class="period-chip" [class.active]="period() === p.key"
+              [attr.aria-pressed]="period() === p.key" (click)="setPeriod(p.key)">
+        {{ p.label }}
+      </button>
+      }
+    </div>
+
+    @if (period() === 'custom') {
+    <div class="custom-range">
+      <div class="filter-field">
+        <label for="adminPerfFrom">From</label>
+        <input id="adminPerfFrom" type="date" [ngModel]="customFrom()"
+               (ngModelChange)="customFrom.set($event); onCustomDatesChange()">
+      </div>
+      <div class="filter-field">
+        <label for="adminPerfTo">To</label>
+        <input id="adminPerfTo" type="date" [ngModel]="customTo()"
+               (ngModelChange)="customTo.set($event); onCustomDatesChange()">
+      </div>
+    </div>
+    }
+
+    <!-- Name, last name or email; "Ana Beridze" with the space finds Ana Beridze. -->
+    <div class="filter-field admin-search">
+      <label for="adminPerfSearch">Find an admin</label>
+      <input id="adminPerfSearch" type="search" placeholder="Name, last name or email"
+             [ngModel]="search()" (ngModelChange)="search.set($event)">
+    </div>
+  </div>
+
+  @if (error()) {
+  <div class="view-message error" role="alert">{{ error() }}</div>
+  }
+
+  @if (loading() && !data()) {
+  <div class="view-empty">Loading…</div>
+  }
+
+  @if (data() && !rows().length) {
+  <div class="view-empty">
+    {{ search().trim() ? 'No admin matches that search.' : 'No admins yet.' }}
+  </div>
+  }
+
+  @if (rows().length) {
+  <div class="line-table-wrap admin-table-wrap" [class.is-loading]="loading()">
+    <table class="line-table admin-table">
+      <!-- Each figure is split by whether the customer was booking for the first time: Total, then
+           New and Returning, which always re-add to it. -->
+      <thead>
+        <tr class="group-row">
+          <th scope="col" rowspan="2" class="admin-col">Admin</th>
+          <th scope="colgroup" colspan="3" class="group">Completed orders</th>
+          <th scope="colgroup" colspan="3" class="group">Orders total</th>
+          <th scope="colgroup" colspan="3" class="group"
+              title="Orders total minus sales tax, cleaners' wages and staff bonuses">Net income</th>
+        </tr>
+        <tr class="sub-row">
+          @for (g of [1, 2, 3]; track g) {
+          <th scope="col" class="num group-start">Total</th>
+          <th scope="col" class="num">New</th>
+          <th scope="col" class="num">Returning</th>
+          }
+        </tr>
+      </thead>
+      <tbody>
+        @for (r of rows(); track r.adminId) {
+        <tr>
+          <td>
+            <span class="admin-name">{{ r.firstName }} {{ r.lastName }}</span>
+            @if (r.position === 'Manager') { <span class="tag manager-tag">Manager</span> }
+            @if (!r.isActive) { <span class="tag muted-tag">Blocked</span> }
+            <span class="line-sub">{{ r.email }}</span>
+          </td>
+          <td class="num strong group-start">{{ r.completedOrders }}</td>
+          <td class="num">{{ r.newCustomerOrders }}</td>
+          <td class="num">{{ r.returningCustomerOrders }}</td>
+          <td class="num strong group-start">{{ r.ordersTotal | currency:'USD' }}</td>
+          <td class="num">{{ r.ordersTotalNew | currency:'USD' }}</td>
+          <td class="num">{{ r.ordersTotalReturning | currency:'USD' }}</td>
+          <td class="num strong group-start" [class.negative]="r.netIncome < 0" [title]="netBreakdown(r)">
+            {{ r.netIncome | currency:'USD' }}
+          </td>
+          <td class="num" [class.negative]="r.netIncomeNew < 0">{{ r.netIncomeNew | currency:'USD' }}</td>
+          <td class="num" [class.negative]="r.netIncomeReturning < 0">{{ r.netIncomeReturning | currency:'USD' }}</td>
+        </tr>
+        }
+      </tbody>
+      @if (rows().length > 1) {
+      <tfoot>
+        <tr>
+          <th scope="row">{{ search().trim() ? 'These admins' : 'All admins' }}</th>
+          <td class="num strong group-start">{{ totals().orders }}</td>
+          <td class="num strong">{{ totals().ordersNew }}</td>
+          <td class="num strong">{{ totals().ordersReturning }}</td>
+          <td class="num strong group-start">{{ totals().total | currency:'USD' }}</td>
+          <td class="num strong">{{ totals().totalNew | currency:'USD' }}</td>
+          <td class="num strong">{{ totals().totalReturning | currency:'USD' }}</td>
+          <td class="num strong group-start">{{ totals().net | currency:'USD' }}</td>
+          <td class="num strong">{{ totals().netNew | currency:'USD' }}</td>
+          <td class="num strong">{{ totals().netReturning | currency:'USD' }}</td>
+        </tr>
+      </tfoot>
+      }
+    </table>
+  </div>
+  <p class="view-footnote">
+    Completed = done and paid orders the admin booked, by service date. New = the customer's first
+    booking; Returning = everyone else. Net income is the orders
+    total after sales tax, the cleaners' wages and the staff bonuses on those orders — hover a
+    figure to see it worked out.
+  </p>
+  }
+</section>

@@ -1,9 +1,12 @@
 import { Component, OnInit, HostListener, ChangeDetectionStrategy, inject, signal } from '@angular/core';
+import { DatePipe, DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { forkJoin } from 'rxjs';
 import { ShiftService, AdminShift, ShiftAdmin } from '../../services/shift.service';
 import { AuthService } from '../../services/auth.service';
-import { AdminBonusService, AdminBonusSummary, AdminBonusRates } from '../../services/admin-bonus.service';
+import {
+  AdminBonusService, AdminBonusSummary, AdminBonusRates, AdminPercentBonusBasis, AdminPercentBonusRule
+} from '../../services/admin-bonus.service';
 import { readableLabelColor } from '../../shared/admin/readable-label-color';
 
 const FALLBACK_COLORS = [
@@ -14,7 +17,7 @@ const FALLBACK_COLORS = [
 
 @Component({
   selector: 'app-shifts',
-  imports: [FormsModule],
+  imports: [FormsModule, DecimalPipe, DatePipe],
   templateUrl: './shifts.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./shifts.component.scss']
@@ -102,6 +105,17 @@ export class ShiftsComponent implements OnInit {
     teamBookingNewCustomerRate: null,
     teamBookingExistingCustomerRate: null
   }, { equal: () => false });
+
+  // Percentage bonus editor (SuperAdmin only, one row at a time). A rule applies from its start
+  // date, on top of the fixed per-order bonus, and never restates earlier orders — so the date is
+  // part of every save, defaulting to today.
+  readonly editingPercentAdminId = signal<number | null>(null);
+  readonly isSavingPercent = signal(false);
+  readonly percentEdit = signal<{
+    basis: AdminPercentBonusBasis; newPercent: number | null; existingPercent: number | null; startDate: string;
+  }>({ basis: 'FullOrder', newPercent: null, existingPercent: null, startDate: '' }, { equal: () => false });
+  /** Whose rule history is expanded. */
+  readonly percentHistoryAdminId = signal<number | null>(null);
 
   ngOnInit(): void {
     const user = this.authService.currentUserValue;
@@ -401,6 +415,7 @@ export class ShiftsComponent implements OnInit {
   // ── Per-person rates (SuperAdmin only) ──
 
   startEditingOverride(b: AdminBonusSummary): void {
+    this.cancelEditingPercent();
     if (!this.isSuperAdmin()) return;
     this.editingOverrideAdminId.set(b.adminId);
     // Seed ONLY the fields this person actually overrides. Pre-filling a defaulted field with the
@@ -482,6 +497,147 @@ export class ShiftsComponent implements OnInit {
         this.showError(err.error?.message || 'Failed to update rates');
       }
     });
+  }
+
+  // ── Percentage bonus (SuperAdmin only; the backend enforces the role) ──
+
+  /** The rule in force today, or null when none applies (never set, or stopped). */
+  currentPercentRule(b: AdminBonusSummary): AdminPercentBonusRule | null {
+    const r = (b.percentRules ?? []).find(x => x.isCurrent);
+    return r && this.paysAnything(r) ? r : null;
+  }
+
+  paysAnything(r: AdminPercentBonusRule): boolean {
+    return r.newCustomerPercent > 0 || r.existingCustomerPercent > 0;
+  }
+
+  /**
+   * Whether the card shows the percentage block at all. Nobody with no percentage bonus — none in
+   * force, none coming, nothing earned this month — sees an empty "None" block; a SuperAdmin adds
+   * one from the per-order block's "Add percentage bonus" instead. An open editor or history keeps
+   * it on screen.
+   */
+  showsPercentBlock(b: AdminBonusSummary): boolean {
+    return !!this.currentPercentRule(b)
+      || !!this.upcomingPercentRule(b)
+      || b.percentBonusAmount > 0
+      || this.editingPercentAdminId() === b.adminId
+      || this.percentHistoryAdminId() === b.adminId;
+  }
+
+  /** The next rule waiting to start, if any. */
+  upcomingPercentRule(b: AdminBonusSummary): AdminPercentBonusRule | null {
+    const upcoming = (b.percentRules ?? []).filter(x => x.isUpcoming);
+    return upcoming.length ? upcoming[upcoming.length - 1] : null;
+  }
+
+  basisLabel(basis: AdminPercentBonusBasis): string {
+    return basis === 'NetIncome' ? 'of net' : 'of full order';
+  }
+
+  /** "5% of full order" / "Stopped" — one rule in words. */
+  /** "5% of net" when both kinds of customer pay the same, else "10% new · 5% returning of net". */
+  describePercentRule(r: AdminPercentBonusRule): string {
+    if (!this.paysAnything(r)) return 'Stopped';
+    if (r.newCustomerPercent === r.existingCustomerPercent) return `${r.newCustomerPercent}% ${this.basisLabel(r.basis)}`;
+    return `${r.newCustomerPercent}% new · ${r.existingCustomerPercent}% returning ${this.basisLabel(r.basis)}`;
+  }
+
+  startEditingPercent(b: AdminBonusSummary): void {
+    if (!this.isSuperAdmin()) return;
+    this.cancelEditingOverride();
+    const current = this.currentPercentRule(b);
+    this.percentEdit.set({
+      basis: current?.basis ?? 'FullOrder',
+      newPercent: current?.newCustomerPercent ?? null,
+      existingPercent: current?.existingCustomerPercent ?? null,
+      startDate: this.todayYmd()
+    });
+    this.editingPercentAdminId.set(b.adminId);
+  }
+
+  cancelEditingPercent(): void {
+    this.editingPercentAdminId.set(null);
+  }
+
+  togglePercentHistory(b: AdminBonusSummary): void {
+    this.percentHistoryAdminId.set(this.percentHistoryAdminId() === b.adminId ? null : b.adminId);
+  }
+
+  savePercent(b: AdminBonusSummary, stop = false): void {
+    if (!this.isSuperAdmin() || this.isSavingPercent()) return;
+    const edit = this.percentEdit();
+    // A blank box on one side means "nothing on those orders"; both blank is not an answer.
+    const read = (v: unknown) => (v === null || v === '' || v === undefined ? null : Number(v));
+    const rawNew = read(edit.newPercent);
+    const rawExisting = read(edit.existingPercent);
+    if (!stop && rawNew === null && rawExisting === null) {
+      this.showError('Enter a percentage for new or returning customers');
+      return;
+    }
+    const newCustomerPercent = stop ? 0 : (rawNew ?? 0);
+    const existingCustomerPercent = stop ? 0 : (rawExisting ?? 0);
+    if ([newCustomerPercent, existingCustomerPercent].some(p => !isFinite(p) || p < 0 || p > 100)) {
+      this.showError('Each percentage must be between 0 and 100');
+      return;
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(edit.startDate)) {
+      this.showError('Pick the date the percentage starts from');
+      return;
+    }
+    const { from, to } = this.visibleMonthRange();
+    this.isSavingPercent.set(true);
+    this.adminBonusService.addPercentRule(
+      b.adminId, { basis: edit.basis, newCustomerPercent, existingCustomerPercent, startDate: edit.startDate }, from, to
+    ).subscribe({
+      next: (updated) => {
+        this.replaceBonusRow(updated);
+        this.isSavingPercent.set(false);
+        this.cancelEditingPercent();
+        this.showSuccess(newCustomerPercent > 0 || existingCustomerPercent > 0 ? 'Percentage bonus saved' : 'Percentage bonus stopped');
+      },
+      error: (err) => {
+        this.isSavingPercent.set(false);
+        this.showError(err.error?.message || 'Failed to save the percentage bonus');
+      }
+    });
+  }
+
+  deletePercentRule(b: AdminBonusSummary, rule: AdminPercentBonusRule): void {
+    if (!this.isSuperAdmin() || this.isSavingPercent()) return;
+    if (!confirm(`Remove "${this.describePercentRule(rule)}" from ${rule.startDate.slice(0, 10)}? Orders from that date fall back to the rule before it.`)) return;
+    const { from, to } = this.visibleMonthRange();
+    this.isSavingPercent.set(true);
+    this.adminBonusService.deletePercentRule(b.adminId, rule.id, from, to).subscribe({
+      next: (updated) => {
+        this.replaceBonusRow(updated);
+        this.isSavingPercent.set(false);
+        this.showSuccess('Percentage bonus removed');
+      },
+      error: (err) => {
+        this.isSavingPercent.set(false);
+        this.showError(err.error?.message || 'Failed to remove it');
+      }
+    });
+  }
+
+  private replaceBonusRow(updated: AdminBonusSummary): void {
+    const i = this.bonuses().findIndex(x => x.adminId === updated.adminId);
+    if (i >= 0) { this.bonuses()[i] = updated; this.bonuses.set(this.bonuses()); }
+  }
+
+  private visibleMonthRange(): { from: string; to: string } {
+    const year = this.currentMonth().getFullYear();
+    const month = this.currentMonth().getMonth();
+    return {
+      from: this.formatYmd(new Date(Date.UTC(year, month, 1))),
+      to: this.formatYmd(new Date(Date.UTC(year, month + 1, 0)))
+    };
+  }
+
+  private todayYmd(): string {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   }
 
   clearOverride(b: AdminBonusSummary): void {

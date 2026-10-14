@@ -29,8 +29,11 @@
                [class.open]="isServicesMenuOpen()"
                (mouseenter)="showServicesMenu()"
                (mouseleave)="hideServicesMenu()">
+            <!-- No routerLink: RouterLink navigates on its own click listener whatever the
+                 handler does with preventDefault, so on mobile the tap that should only open
+                 the section went to /service-page. onServicesClick navigates on desktop;
+                 the href stays for crawlers and middle-click. -->
             <a href="/service-page"
-               routerLink="/service-page"
                [class.active]="isServiceRoute()"
                (click)="onServicesClick($event)">
               Cleaning Services
@@ -42,6 +45,11 @@
             </a>
             <div class="mega-dropdown" [class.open]="isServicesMenuOpen()">
               <div class="mega-dropdown-content">
+                <!-- Mobile accordion only: the "Cleaning Services" row there opens this
+                     section instead of navigating, so the overview page needs its own link. -->
+                <div class="dropdown-column mobile-all-services">
+                  <a routerLink="/service-page" (click)="closeAllMenus()">All Services</a>
+                </div>
                 <!-- Residential -->
                 <div class="dropdown-column">
                   <a routerLink="/services/residential-cleaning" (click)="closeAllMenus()">Residential Cleaning</a>
@@ -85,8 +93,9 @@
                [class.open]="isAboutMenuOpen()"
                (mouseenter)="showAboutMenu()"
                (mouseleave)="hideAboutMenu()">
+            <!-- No routerLink, same reason as Cleaning Services above. About Us is already
+                 the first link inside this section. -->
             <a href="/about"
-               routerLink="/about"
                [class.active]="isAboutRoute()"
                (click)="onAboutClick($event)"
                aria-label="About and service area pages">

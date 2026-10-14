@@ -149,6 +149,23 @@
   @media (max-width: 640px) {
     .tab-btn { padding: 10px 12px; font-size: 0.86rem; }
   }
+
+  // Blog tab: AI drafts waiting for review
+  .tab-count-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    margin-left: 6px;
+    border-radius: var(--radius-pill);
+    background: var(--warning-orange-bg);
+    color: var(--warning-orange-text);
+    font-size: 0.7rem;
+    font-weight: var(--fw-bold);
+    vertical-align: middle;
+  }
 }
 
 .error-message {

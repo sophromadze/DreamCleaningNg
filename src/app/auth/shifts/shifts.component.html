@@ -151,6 +151,12 @@
   <!-- ═══════════════════════════════════════ -->
   <!--  Staff bonuses (current visible month)  -->
   <!-- ═══════════════════════════════════════ -->
+  <!--
+    One CARD per person (2026-10 redesign): the total and what it is made of on the right of the
+    header, then three labelled blocks — the orders that pay, the fixed per-order rate, and the
+    percentage bonus. The old four-column table squeezed counts, two rate pairs, pills and editors
+    into narrow cells, which is what made it unreadable.
+  -->
   @if (!multiSelectMode()) {
   <div class="bonus-panel">
     <div class="bonus-header">
@@ -161,88 +167,89 @@
         </h2>
         <span class="bonus-month-label">{{ getBonusMonthLabel() }}</span>
       </div>
+    </div>
 
-      <!-- Company defaults — the whole pay table, so SuperAdmin only. A manager or administrator
-           sees their OWN rates on their own row below, and nobody else's; the endpoint enforces
-           the same thing, because a hidden block is not access control. -->
-      @if (isSuperAdmin() && bonusRates()) {
-      <div class="bonus-rate-row">
+    <!-- Company defaults — the whole pay table, so SuperAdmin only. A manager or administrator
+         sees their OWN rates on their own card below, and nobody else's; the endpoint enforces
+         the same thing, because a hidden block is not access control. -->
+    @if (isSuperAdmin() && bonusRates()) {
+    <div class="bonus-defaults">
+      <div class="bonus-defaults-head">
+        <span class="bonus-defaults-title">Default per-order rates</span>
+        <span class="bonus-defaults-sub">{{ bonusRates()!.currency }} per order · new customer / returning</span>
         @if (!isEditingRates()) {
-          <span class="bonus-rate-label">Default rates:</span>
-          <span class="bonus-rate-group">
-            <span class="bonus-rate-pos">Administrator books</span>
-            <span class="bonus-rate-value">
-              {{ bonusRates()!.administratorNewCustomerRate }} new / {{ bonusRates()!.administratorExistingCustomerRate }} returning
-            </span>
+        <button type="button" class="bonus-link-btn" (click)="startEditingRates()">
+          <i class="fas fa-pen"></i> Edit defaults
+        </button>
+        }
+      </div>
+
+      @if (!isEditingRates()) {
+      <div class="bonus-defaults-grid">
+        <div class="bonus-default-card">
+          <span class="bonus-default-label">Administrator books</span>
+          <span class="bonus-default-value">
+            {{ bonusRates()!.administratorNewCustomerRate }} <span class="sep">/</span> {{ bonusRates()!.administratorExistingCustomerRate }}
           </span>
-          <span class="bonus-rate-group">
-            <span class="bonus-rate-pos">Manager books</span>
-            <span class="bonus-rate-value">
-              {{ bonusRates()!.managerOwnBookingNewCustomerRate }} new / {{ bonusRates()!.managerOwnBookingExistingCustomerRate }} returning
-            </span>
+        </div>
+        <div class="bonus-default-card">
+          <span class="bonus-default-label">Manager books</span>
+          <span class="bonus-default-value">
+            {{ bonusRates()!.managerOwnBookingNewCustomerRate }} <span class="sep">/</span> {{ bonusRates()!.managerOwnBookingExistingCustomerRate }}
           </span>
-          <span class="bonus-rate-group">
-            <span class="bonus-rate-pos">Manager's team share</span>
-            <span class="bonus-rate-value">
-              {{ bonusRates()!.managerTeamNewCustomerRate }} new / {{ bonusRates()!.managerTeamExistingCustomerRate }} returning
-            </span>
+        </div>
+        <div class="bonus-default-card">
+          <span class="bonus-default-label">Manager's team share</span>
+          <span class="bonus-default-value">
+            {{ bonusRates()!.managerTeamNewCustomerRate }} <span class="sep">/</span> {{ bonusRates()!.managerTeamExistingCustomerRate }}
           </span>
-          <span class="bonus-rate-currency">{{ bonusRates()!.currency }}</span>
-          @if (isSuperAdmin()) {
-          <button
-                  type="button"
-                  class="bonus-rate-edit-btn"
-                  (click)="startEditingRates()"
-                  title="Edit default rates">
-            <i class="fas fa-pen"></i>
+        </div>
+      </div>
+      }
+
+      @if (isEditingRates()) {
+      <div class="bonus-rate-editor">
+        <div class="bonus-rate-editor-grid">
+          <span class="bonus-rate-editor-head"></span>
+          <span class="bonus-rate-editor-head">New customer</span>
+          <span class="bonus-rate-editor-head">Returning</span>
+
+          <span class="bonus-rate-editor-label">An administrator books the order</span>
+          <input type="number" class="bonus-rate-input" min="0" step="0.5" aria-label="Administrator books, new customer"
+                 [(ngModel)]="rateEdit().administratorNewCustomerRate" [disabled]="isSavingRates()">
+          <input type="number" class="bonus-rate-input" min="0" step="0.5" aria-label="Administrator books, returning customer"
+                 [(ngModel)]="rateEdit().administratorExistingCustomerRate" [disabled]="isSavingRates()">
+
+          <span class="bonus-rate-editor-label">A manager books it themselves</span>
+          <input type="number" class="bonus-rate-input" min="0" step="0.5" aria-label="Manager books, new customer"
+                 [(ngModel)]="rateEdit().managerOwnBookingNewCustomerRate" [disabled]="isSavingRates()">
+          <input type="number" class="bonus-rate-input" min="0" step="0.5" aria-label="Manager books, returning customer"
+                 [(ngModel)]="rateEdit().managerOwnBookingExistingCustomerRate" [disabled]="isSavingRates()">
+
+          <span class="bonus-rate-editor-label">A manager's share of their team's booking</span>
+          <input type="number" class="bonus-rate-input" min="0" step="0.5" aria-label="Team share, new customer"
+                 [(ngModel)]="rateEdit().managerTeamNewCustomerRate" [disabled]="isSavingRates()">
+          <input type="number" class="bonus-rate-input" min="0" step="0.5" aria-label="Team share, returning customer"
+                 [(ngModel)]="rateEdit().managerTeamExistingCustomerRate" [disabled]="isSavingRates()">
+        </div>
+        <p class="bonus-rate-hint">
+          In {{ bonusRates()!.currency }}, per order. The three rows are independent — a manager
+          booking an order themselves is its own figure, not the other two added together.
+          Changing a default restates every month, including ones already gone by; anyone on
+          their own rate is left alone.
+        </p>
+        <div class="bonus-rate-editor-actions">
+          <button type="button" class="btn btn-primary btn-sm" (click)="saveRates()" [disabled]="isSavingRates()">
+            <i class="fas fa-check"></i> Save
           </button>
-          }
-        }
-        @if (isEditingRates()) {
-
-          <div class="bonus-rate-editor">
-            <div class="bonus-rate-editor-grid">
-              <span class="bonus-rate-editor-head"></span>
-              <span class="bonus-rate-editor-head">New customer</span>
-              <span class="bonus-rate-editor-head">Returning</span>
-
-              <span class="bonus-rate-editor-label">An administrator books the order</span>
-              <input type="number" class="bonus-rate-input" min="0" step="0.5"
-                     [(ngModel)]="rateEdit().administratorNewCustomerRate" [disabled]="isSavingRates()">
-              <input type="number" class="bonus-rate-input" min="0" step="0.5"
-                     [(ngModel)]="rateEdit().administratorExistingCustomerRate" [disabled]="isSavingRates()">
-
-              <span class="bonus-rate-editor-label">A manager books it themselves</span>
-              <input type="number" class="bonus-rate-input" min="0" step="0.5"
-                     [(ngModel)]="rateEdit().managerOwnBookingNewCustomerRate" [disabled]="isSavingRates()">
-              <input type="number" class="bonus-rate-input" min="0" step="0.5"
-                     [(ngModel)]="rateEdit().managerOwnBookingExistingCustomerRate" [disabled]="isSavingRates()">
-
-              <span class="bonus-rate-editor-label">A manager's share of their team's booking</span>
-              <input type="number" class="bonus-rate-input" min="0" step="0.5"
-                     [(ngModel)]="rateEdit().managerTeamNewCustomerRate" [disabled]="isSavingRates()">
-              <input type="number" class="bonus-rate-input" min="0" step="0.5"
-                     [(ngModel)]="rateEdit().managerTeamExistingCustomerRate" [disabled]="isSavingRates()">
-            </div>
-            <p class="bonus-rate-hint">
-              In {{ bonusRates()!.currency }}, per order. The three rows are independent — a manager
-              booking an order themselves is its own figure, not the other two added together.
-              Changing a default restates every month, including ones already gone by; anyone on
-              their own rate is left alone.
-            </p>
-            <div class="bonus-rate-editor-actions">
-              <button type="button" class="btn btn-primary btn-sm" (click)="saveRates()" [disabled]="isSavingRates()">
-                <i class="fas fa-check"></i> Save
-              </button>
-              <button type="button" class="btn btn-secondary btn-cancel btn-sm" (click)="cancelEditingRates()" [disabled]="isSavingRates()">
-                <i class="fas fa-times"></i> Cancel
-              </button>
-            </div>
-          </div>
-        }
+          <button type="button" class="btn btn-secondary btn-cancel btn-sm" (click)="cancelEditingRates()" [disabled]="isSavingRates()">
+            <i class="fas fa-times"></i> Cancel
+          </button>
+        </div>
       </div>
       }
     </div>
+    }
 
     @if (!isLoadingBonuses() && bonuses().length === 0) {
     <div class="bonus-empty">
@@ -257,162 +264,305 @@
     }
 
     @if (!isLoadingBonuses() && bonuses().length > 0) {
-    <div class="bonus-table">
-      <div class="bonus-row bonus-row-header">
-        <div class="bonus-cell bonus-cell-admin">Staff</div>
-        <div class="bonus-cell bonus-cell-count" title="Done & paid orders this person earns on in the selected month">
-          Paying orders
-        </div>
-        <div class="bonus-cell bonus-cell-rate"
-             title="New customer / returning customer. A manager has two rows: what they earn for booking an order themselves, and their share of a booking their team took.">
-          Rate (new / returning)
-        </div>
-        <div class="bonus-cell bonus-cell-total">Bonus</div>
-      </div>
+    <div class="bonus-cards">
+      @for (b of bonuses(); track b.adminId) {
+      <div class="bonus-card" [class.is-me]="b.adminId === currentUserId" [class.is-manager]="isManager(b)">
 
-      @for (b of bonuses(); track $index) {
-        <div class="bonus-row" [class.is-me]="b.adminId === currentUserId" [class.is-manager]="isManager(b)">
-          <div class="bonus-cell bonus-cell-admin">
-            <span class="bonus-admin-dot" [style.background-color]="b.shiftColor || '#94a3b8'"></span>
-            <span class="bonus-admin-name">{{ b.firstName }} {{ b.lastName }}</span>
-            @if (b.adminId === currentUserId) {
-            <span class="bonus-me-tag">You</span>
-            }
-            <span class="bonus-position-chip" [class.manager]="isManager(b)">
-              {{ isManager(b) ? 'Manager' : 'Administrator' }}
+        <!-- Who, and what they are owed this month -->
+        <div class="bonus-card-head">
+          <span class="bonus-admin-dot" [style.background-color]="b.shiftColor || '#94a3b8'"></span>
+          <div class="bonus-card-who">
+            <span class="bonus-admin-name">
+              {{ b.firstName }} {{ b.lastName }}
+              @if (b.adminId === currentUserId) {
+              <span class="bonus-me-tag">You</span>
+              }
             </span>
-            <!-- Who they earn alongside: a manager's team size, an administrator's manager. -->
-            @if (isManager(b) && b.teamSize > 0) {
-            <span class="bonus-admin-sub">
-              {{ b.teamSize }} administrator{{ b.teamSize === 1 ? '' : 's' }}
+            <span class="bonus-card-meta">
+              <span class="bonus-position-chip" [class.manager]="isManager(b)">
+                {{ isManager(b) ? 'Manager' : 'Administrator' }}
+              </span>
+              <!-- Who they earn alongside: a manager's team size, an administrator's manager. -->
+              @if (isManager(b) && b.teamSize > 0) {
+              <span class="bonus-admin-sub">{{ b.teamSize }} administrator{{ b.teamSize === 1 ? '' : 's' }}</span>
+              }
+              @if (!isManager(b) && b.managerName) {
+              <span class="bonus-admin-sub">reports to {{ b.managerName }}</span>
+              }
+              @if (!isManager(b) && !b.managerName) {
+              <span class="bonus-admin-sub muted">no manager</span>
+              }
             </span>
-            }
-            @if (!isManager(b) && b.managerName) {
-            <span class="bonus-admin-sub">
-              reports to {{ b.managerName }}
-            </span>
-            }
-            @if (!isManager(b) && !b.managerName) {
-            <span class="bonus-admin-sub muted">
-              no manager
+          </div>
+
+          <div class="bonus-card-total">
+            <span class="bonus-total-label">Bonus this month</span>
+            <span class="bonus-total-value">{{ b.bonusAmount | number:'1.2-2' }} <small>{{ b.currency }}</small></span>
+            @if (b.percentBonusAmount > 0) {
+            <span class="bonus-total-split">
+              {{ b.fixedBonusAmount | number:'1.2-2' }} per-order + {{ b.percentBonusAmount | number:'1.2-2' }} percentage
             </span>
             }
           </div>
+        </div>
 
-          <div class="bonus-cell bonus-cell-count">
-            {{ b.eligibleCount }}
-            @if (b.eligibleCount > 0) {
-            <span class="bonus-count-split">
-              {{ newCount(b) }} new · {{ existingCount(b) }} returning
-            </span>
-            }
-            <!-- Only shown when the person genuinely earned on both sides; on a plain
-                 administrator or a manager who took no bookings it would be noise. -->
-            @if (hasBothSides(b)) {
-            <span class="bonus-count-split">
-              {{ ownCount(b) }} own · {{ teamCount(b) }} team
-            </span>
-            }
-            @if (b.assignedCount !== b.eligibleCount) {
-            <span class="bonus-assigned-hint"
-                  title="Orders they hold in this month vs. the ones that pay out">
-              ({{ b.assignedCount }} assigned)
-            </span>
-            }
-          </div>
+        <!-- Every block is a header (what it is + its figure) over bordered rows, with its actions
+             in a bordered footer, so no two facts share a line. Without a percentage bonus the
+             card has two blocks, not an empty third. -->
+        <div class="bonus-card-body" [class.two-blocks]="!showsPercentBlock(b)">
+          <!-- 1. Orders that pay -->
+          <section class="bonus-block">
+            <header class="bonus-block-head">
+              <span class="bonus-block-label" title="Done & paid orders this person earns on in the selected month">Paying orders</span>
+              <span class="bonus-block-figure">{{ b.eligibleCount }}</span>
+            </header>
+            <dl class="bonus-rows">
+              <div class="bonus-row-item"><dt>New customers</dt><dd>{{ newCount(b) }}</dd></div>
+              <div class="bonus-row-item"><dt>Returning customers</dt><dd>{{ existingCount(b) }}</dd></div>
+              <!-- Only when the person genuinely earned on both sides; otherwise it is noise. -->
+              @if (hasBothSides(b)) {
+              <div class="bonus-row-item"><dt>Own · team bookings</dt><dd>{{ ownCount(b) }} · {{ teamCount(b) }}</dd></div>
+              }
+              @if (b.assignedCount !== b.eligibleCount) {
+              <div class="bonus-row-item muted" title="Orders they hold in this month vs. the ones that pay out">
+                <dt>Assigned in total</dt><dd>{{ b.assignedCount }}</dd>
+              </div>
+              }
+            </dl>
+          </section>
 
-          <div class="bonus-cell bonus-cell-rate">
-            @if (editingOverrideAdminId() !== b.adminId) {
-              <!-- Two slots pay different rates, so a manager's row shows both. An administrator
-                   only ever books, so a team line would be a rate they can never earn. -->
-              <span class="bonus-rate-line">
-                <!-- The slot label only earns its place when a second line follows it. -->
-                @if (showsTeamRate(b)) {
-                <span class="bonus-rate-slot">books</span>
+          <!-- 2. Fixed per-order rate -->
+          <section class="bonus-block">
+            <header class="bonus-block-head">
+              <span class="bonus-block-label"
+                    title="New customer / returning customer. A manager has two lines: their own bookings, and their share of a booking their team took.">
+                Per-order rate
+                @if (hasCustomRate(b)) {
+                <span class="own-rate-pill" title="Set for this person, not the company default">own rate</span>
                 }
-                <span class="bonus-rate-pair">
+              </span>
+              <span class="bonus-block-figure">{{ b.fixedBonusAmount | number:'1.2-2' }} <small>{{ b.currency }}</small></span>
+            </header>
+
+            @if (editingOverrideAdminId() !== b.adminId) {
+            <!-- Two slots pay different rates, so a manager's card shows both. An administrator
+                 only ever books, so a team line would be a rate they can never earn. -->
+            <dl class="bonus-rows">
+              <div class="bonus-row-item head"><dt></dt><dd>New / Returning</dd></div>
+              <div class="bonus-row-item">
+                <dt>{{ showsTeamRate(b) ? 'Own bookings' : 'Each booking' }}</dt>
+                <dd>
                   <span [class.own-rate]="b.ownNewCustomerRateIsCustom">{{ b.ownNewCustomerRate }}</span>
                   <span class="bonus-rate-sep">/</span>
                   <span [class.own-rate]="b.ownExistingCustomerRateIsCustom">{{ b.ownExistingCustomerRate }}</span>
                   <span class="bonus-rate-currency">{{ b.currency }}</span>
-                </span>
-              </span>
+                </dd>
+              </div>
               @if (showsTeamRate(b)) {
-              <span class="bonus-rate-line">
-                <span class="bonus-rate-slot">team</span>
-                <span class="bonus-rate-pair">
+              <div class="bonus-row-item">
+                <dt>Team share</dt>
+                <dd>
                   <span [class.own-rate]="b.teamNewCustomerRateIsCustom">{{ b.teamNewCustomerRate }}</span>
                   <span class="bonus-rate-sep">/</span>
                   <span [class.own-rate]="b.teamExistingCustomerRateIsCustom">{{ b.teamExistingCustomerRate }}</span>
                   <span class="bonus-rate-currency">{{ b.currency }}</span>
-                </span>
-              </span>
+                </dd>
+              </div>
               }
-              @if (hasCustomRate(b)) {
-              <span class="own-rate-pill"
-                    title="Set for this person, not the company default">own rate</span>
-              }
-              @if (isSuperAdmin()) {
-              <button
-                      type="button"
-                      class="bonus-rate-edit-btn"
-                      (click)="startEditingOverride(b)"
-                      title="Set this person's rates">
-                <i class="fas fa-pen"></i>
+            </dl>
+            @if (isSuperAdmin()) {
+            <footer class="bonus-block-foot">
+              <button type="button" class="bonus-link-btn" (click)="startEditingOverride(b)">
+                <i class="fas fa-pen"></i> Change rate
+              </button>
+              @if (!showsPercentBlock(b)) {
+              <button type="button" class="bonus-link-btn" (click)="startEditingPercent(b)">
+                <i class="fas fa-percent"></i> Add percentage bonus
               </button>
               }
+              @if (!showsPercentBlock(b) && (b.percentRules?.length ?? 0) > 0) {
+              <button type="button" class="bonus-link-btn subtle" (click)="togglePercentHistory(b)">
+                Percentage history ({{ b.percentRules.length }})
+              </button>
+              }
+            </footer>
             }
+            }
+
             @if (editingOverrideAdminId() === b.adminId) {
+            <div class="bonus-override-editor">
+              <div class="bonus-override-grid">
+                <span></span>
+                <span class="bonus-rate-editor-head">New</span>
+                <span class="bonus-rate-editor-head">Returning</span>
 
-              <div class="bonus-override-editor">
-                <span class="bonus-override-line">
-                  <span class="bonus-rate-slot">{{ showsTeamRate(b) ? 'books' : 'rate' }}</span>
-                  <input type="number" class="bonus-rate-input" min="0" step="0.5"
-                         [(ngModel)]="overrideEdit().ownBookingNewCustomerRate"
-                         [disabled]="isSavingOverride()"
-                         placeholder="default"
-                         title="Orders they book themselves, new customer. Blank follows the company default.">
-                  <span class="bonus-rate-sep">/</span>
-                  <input type="number" class="bonus-rate-input" min="0" step="0.5"
-                         [(ngModel)]="overrideEdit().ownBookingExistingCustomerRate"
-                         [disabled]="isSavingOverride()"
-                         placeholder="default"
-                         title="Orders they book themselves, returning customer. Blank follows the company default.">
-                </span>
+                <span class="bonus-rate-slot">{{ showsTeamRate(b) ? 'Own bookings' : 'Each booking' }}</span>
+                <input type="number" class="bonus-rate-input" min="0" step="0.5"
+                       [(ngModel)]="overrideEdit().ownBookingNewCustomerRate"
+                       [disabled]="isSavingOverride()"
+                       placeholder="default"
+                       aria-label="Own bookings, new customer"
+                       title="Orders they book themselves, new customer. Blank follows the company default.">
+                <input type="number" class="bonus-rate-input" min="0" step="0.5"
+                       [(ngModel)]="overrideEdit().ownBookingExistingCustomerRate"
+                       [disabled]="isSavingOverride()"
+                       placeholder="default"
+                       aria-label="Own bookings, returning customer"
+                       title="Orders they book themselves, returning customer. Blank follows the company default.">
+
                 @if (showsTeamRate(b)) {
-                <span class="bonus-override-line">
-                  <span class="bonus-rate-slot">team</span>
-                  <input type="number" class="bonus-rate-input" min="0" step="0.5"
-                         [(ngModel)]="overrideEdit().teamBookingNewCustomerRate"
-                         [disabled]="isSavingOverride()"
-                         placeholder="default"
-                         title="Share of a team booking, new customer. Blank follows the company default.">
-                  <span class="bonus-rate-sep">/</span>
-                  <input type="number" class="bonus-rate-input" min="0" step="0.5"
-                         [(ngModel)]="overrideEdit().teamBookingExistingCustomerRate"
-                         [disabled]="isSavingOverride()"
-                         placeholder="default"
-                         title="Share of a team booking, returning customer. Blank follows the company default.">
-                </span>
+                <span class="bonus-rate-slot">Team share</span>
+                <input type="number" class="bonus-rate-input" min="0" step="0.5"
+                       [(ngModel)]="overrideEdit().teamBookingNewCustomerRate"
+                       [disabled]="isSavingOverride()"
+                       placeholder="default"
+                       aria-label="Team share, new customer"
+                       title="Share of a team booking, new customer. Blank follows the company default.">
+                <input type="number" class="bonus-rate-input" min="0" step="0.5"
+                       [(ngModel)]="overrideEdit().teamBookingExistingCustomerRate"
+                       [disabled]="isSavingOverride()"
+                       placeholder="default"
+                       aria-label="Team share, returning customer"
+                       title="Share of a team booking, returning customer. Blank follows the company default.">
                 }
-                <span class="bonus-override-actions">
-                  <button type="button" class="btn btn-primary btn-sm" (click)="saveOverride(b)" [disabled]="isSavingOverride()">
-                    <i class="fas fa-check"></i>
-                  </button>
-                  <button type="button" class="btn btn-secondary btn-cancel btn-sm" (click)="cancelEditingOverride()" [disabled]="isSavingOverride()">
-                    <i class="fas fa-times"></i>
-                  </button>
-                  <button type="button" class="bonus-clear-btn" (click)="clearOverride(b)" [disabled]="isSavingOverride()"
-                          title="Follow the company default again">
-                    Use default
-                  </button>
-                </span>
               </div>
+              <span class="bonus-editor-hint">Blank = company default. 0 = earns nothing.</span>
+              <div class="bonus-editor-actions">
+                <button type="button" class="btn btn-primary btn-sm" (click)="saveOverride(b)" [disabled]="isSavingOverride()">
+                  <i class="fas fa-check"></i> Save
+                </button>
+                <button type="button" class="btn btn-secondary btn-cancel btn-sm" (click)="cancelEditingOverride()" [disabled]="isSavingOverride()">
+                  Cancel
+                </button>
+                <button type="button" class="bonus-link-btn" (click)="clearOverride(b)" [disabled]="isSavingOverride()"
+                        title="Follow the company default again">
+                  Use default
+                </button>
+              </div>
+            </div>
             }
-          </div>
+          </section>
 
-          <div class="bonus-cell bonus-cell-total">{{ b.bonusAmount }} {{ b.currency }}</div>
+          <!-- 3. Percentage bonus (on top of the per-order rate) — only for someone who has one -->
+          @if (showsPercentBlock(b)) {
+          <section class="bonus-block">
+            <header class="bonus-block-head">
+              <span class="bonus-block-label"
+                    title="Earned on the orders this person books, on top of the per-order rate. Full order = the price without tips. Net = the price without tips, minus sales tax, the cleaners' wages and the per-order bonuses.">
+                Percentage bonus
+              </span>
+              <span class="bonus-block-figure">{{ b.percentBonusAmount | number:'1.2-2' }} <small>{{ b.currency }}</small></span>
+            </header>
+
+            @if (editingPercentAdminId() !== b.adminId) {
+            <dl class="bonus-rows">
+              @if (currentPercentRule(b); as rule) {
+              <div class="bonus-row-item"><dt>New customers</dt><dd class="pct">{{ rule.newCustomerPercent }}%</dd></div>
+              <div class="bonus-row-item"><dt>Returning customers</dt><dd class="pct">{{ rule.existingCustomerPercent }}%</dd></div>
+              <div class="bonus-row-item"><dt>Taken from</dt><dd>{{ rule.basis === 'NetIncome' ? 'Net' : 'Full order (no tips)' }}</dd></div>
+              <div class="bonus-row-item"><dt>Since</dt><dd>{{ rule.startDate | date:'MMM d, y' }}</dd></div>
+              } @else {
+              <div class="bonus-row-item"><dt>Now</dt><dd class="muted">None</dd></div>
+              }
+              @if (upcomingPercentRule(b); as next) {
+              <div class="bonus-row-item upcoming"><dt>From {{ next.startDate | date:'MMM d' }}</dt><dd>{{ describePercentRule(next) }}</dd></div>
+              }
+              @if (b.percentBonusAmount > 0) {
+              <div class="bonus-row-item">
+                <dt>Earned this month</dt>
+                <dd>≈ $ {{ b.percentBonusUsd | number:'1.2-2' }} · {{ b.percentBonusOrderCount }} order{{ b.percentBonusOrderCount === 1 ? '' : 's' }}</dd>
+              </div>
+              }
+            </dl>
+            <footer class="bonus-block-foot">
+              @if (isSuperAdmin()) {
+              <button type="button" class="bonus-link-btn" (click)="startEditingPercent(b)">
+                <i class="fas fa-percent"></i> {{ currentPercentRule(b) ? 'Change' : 'Set percentage' }}
+              </button>
+              }
+              @if ((b.percentRules?.length ?? 0) > 0) {
+              <button type="button" class="bonus-link-btn subtle" (click)="togglePercentHistory(b)"
+                      [attr.aria-expanded]="percentHistoryAdminId() === b.adminId">
+                History ({{ b.percentRules.length }})
+              </button>
+              }
+            </footer>
+            }
+
+            @if (editingPercentAdminId() === b.adminId) {
+            <div class="bonus-percent-editor">
+              <label class="bonus-field">
+                <span>Percentage of</span>
+                <select [(ngModel)]="percentEdit().basis" [disabled]="isSavingPercent()">
+                  <option value="FullOrder">Full order (no tips)</option>
+                  <option value="NetIncome">Net (after tax, wages, bonuses)</option>
+                </select>
+              </label>
+              <div class="bonus-field-row">
+                <label class="bonus-field">
+                  <span>New customers</span>
+                  <span class="bonus-input-suffix">
+                    <input type="number" min="0" max="100" step="0.5"
+                           [(ngModel)]="percentEdit().newPercent" [disabled]="isSavingPercent()">
+                    <span>%</span>
+                  </span>
+                </label>
+                <label class="bonus-field">
+                  <span>Returning customers</span>
+                  <span class="bonus-input-suffix">
+                    <input type="number" min="0" max="100" step="0.5"
+                           [(ngModel)]="percentEdit().existingPercent" [disabled]="isSavingPercent()">
+                    <span>%</span>
+                  </span>
+                </label>
+                <label class="bonus-field">
+                  <span>Starts from</span>
+                  <input type="date" [(ngModel)]="percentEdit().startDate" [disabled]="isSavingPercent()">
+                </label>
+              </div>
+              <span class="bonus-editor-hint">
+                Counts on orders they book with a service date on or after this day, on top of the
+                per-order rate. Earlier orders keep what applied to them. Leave a box empty for 0%.
+              </span>
+              <div class="bonus-editor-actions">
+                <button type="button" class="btn btn-primary btn-sm" (click)="savePercent(b)" [disabled]="isSavingPercent()">
+                  <i class="fas fa-check"></i> Save
+                </button>
+                <button type="button" class="btn btn-secondary btn-cancel btn-sm" (click)="cancelEditingPercent()" [disabled]="isSavingPercent()">
+                  Cancel
+                </button>
+                @if (currentPercentRule(b)) {
+                <button type="button" class="bonus-link-btn danger" (click)="savePercent(b, true)" [disabled]="isSavingPercent()"
+                        title="No percentage bonus from the start date above">
+                  Stop from this date
+                </button>
+                }
+              </div>
+            </div>
+            }
+
+            @if (percentHistoryAdminId() === b.adminId && (b.percentRules?.length ?? 0) > 0) {
+            <ul class="bonus-percent-history">
+              @for (r of b.percentRules; track r.id) {
+              <li [class.current]="r.isCurrent" [class.upcoming]="r.isUpcoming">
+                <span class="hist-date">{{ r.startDate | date:'MMM d, y' }}</span>
+                <span class="hist-rule">{{ describePercentRule(r) }}</span>
+                @if (r.isCurrent && paysAnything(r)) { <span class="hist-tag">now</span> }
+                @if (r.isUpcoming) { <span class="hist-tag upcoming">upcoming</span> }
+                @if (isSuperAdmin()) {
+                <button type="button" class="hist-remove" (click)="deletePercentRule(b, r)" [disabled]="isSavingPercent()"
+                        [attr.aria-label]="'Remove the rule from ' + (r.startDate | date:'MMM d, y')" title="Remove">
+                  <i class="fas fa-times"></i>
+                </button>
+                }
+              </li>
+              }
+            </ul>
+            }
+          </section>
+          }
         </div>
+      </div>
       }
     </div>
     }

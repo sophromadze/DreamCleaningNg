@@ -325,6 +325,12 @@ header{
         }
       }
 
+      // "All Services" lives in the mobile accordion only — on desktop the
+      // "Cleaning Services" label itself goes to /service-page.
+      .mobile-all-services {
+        display: none;
+      }
+
       /* Chevron icon styling */
       .chevron-down {
         margin-left: 5px;
@@ -842,6 +848,17 @@ header{
 
           &.open > a .chevron-down {
             transform: rotate(180deg);
+          }
+
+          // A tap leaves a sticky :hover on touch screens, and the desktop
+          // ".has-dropdown:hover .chevron-down" rotation would keep a CLOSED section's
+          // chevron pointing up until something else was tapped. Here only .open turns it.
+          &:not(.open):hover .chevron-down {
+            transform: none;
+          }
+
+          .mobile-all-services {
+            display: block;
           }
 
           // Expanded children container — in-flow card

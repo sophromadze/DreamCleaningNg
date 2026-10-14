@@ -629,6 +629,65 @@
   }
 }
 
+// Commercial bonus (2026-10): the button on a staff member's salary line and its form.
+.name-bonus-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-left: auto;
+  padding: 0.2rem 0.6rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--primary-text-elevated);
+  font-size: 0.78rem;
+  font-weight: var(--fw-semibold);
+  cursor: pointer;
+  white-space: nowrap;
+
+  &:hover { background: var(--soft-blue); border-color: transparent; }
+
+}
+
+// Beats .name-head .name-total { margin-left: auto } so the button, not the total, takes the slack.
+.name-head .name-bonus-btn + .name-total { margin-left: 0.75rem; }
+
+.bonus-form {
+  margin: 0.25rem 0 0.75rem 1.75rem;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--surface-subtle);
+
+  @media (max-width: 640px) { margin-left: 0; }
+
+  select {
+    padding: 0.4rem 0.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--text-primary);
+  }
+}
+
+.bonus-form-title {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-bottom: 0.6rem;
+  color: var(--text-primary);
+  font-weight: var(--fw-semibold);
+
+  i { color: var(--primary-text-elevated); }
+}
+
+.bonus-entry-label {
+  display: block;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-weight: var(--fw-medium);
+}
+
 .adjust-hint {
   display: flex;
   align-items: flex-start;

@@ -978,6 +978,9 @@ describe('OutgoingPaymentsComponent', () => {
       bonusTotal: 0,
       bonusTotalGel: 0,
       bonusTotalUsd: 0,
+      staffBonusTotal: 0,
+      commercialBonusTotal: 0,
+      commercialBonuses: [],
       monthTotal: 1800,
       currency: 'GEL',
       monthTotalUsd: 666,
@@ -1152,7 +1155,7 @@ describe('OutgoingPaymentsComponent', () => {
       // second payment 1,250. Bonuses are earned across the whole month, so the figure is only
       // known once it is over — which is when the second payment goes out.
       const withBonus = payee({
-        salaryTotal: 2100, bonusTotal: 200, bonusTotalGel: 200, bonusTotalUsd: 76.64,
+        salaryTotal: 2100, bonusTotal: 200, staffBonusTotal: 200, bonusTotalGel: 200, bonusTotalUsd: 76.64,
         monthTotal: 2300, monthTotalUsd: 881.34,
         instalments: [
           { half: 1, label: 'First payment', amount: 1050, currency: 'GEL', amountUsd: 402.35,
@@ -1174,14 +1177,47 @@ describe('OutgoingPaymentsComponent', () => {
 
     it('shows the bonus in the month total, tagged so it is not mistaken for salary', () => {
       const withBonus = payee({
-        salaryTotal: 2100, bonusTotal: 200, bonusTotalGel: 200, bonusTotalUsd: 76.64,
+        salaryTotal: 2100, bonusTotal: 200, staffBonusTotal: 200, bonusTotalGel: 200, bonusTotalUsd: 76.64,
         monthTotal: 2300, monthTotalUsd: 881.34
       });
       renderEmployees(salaryMonth([withBonus]));
 
       const head = fixture.nativeElement.querySelector('.salary-payee-head');
       expect(head.textContent).toContain('₾ 2,300.00');
-      expect(head.querySelector('.salary-bonus-tag').textContent).toContain('+₾200.00 bonus');
+      expect(head.querySelector('.salary-bonus-tag').textContent).toContain('+₾200.00 order bonus');
+    });
+
+    it('lists each one-time bonus by name and pays it with the second payment', () => {
+      const withCommercial = payee({
+        salaryTotal: 2000, bonusTotal: 600, staffBonusTotal: 0, commercialBonusTotal: 600,
+        commercialBonuses: [
+          { expenseId: 11, label: 'Onyx commercial bonus', date: '2026-10-12T00:00:00', amount: 500,
+            currency: 'GEL', amountUsd: 185, amountInPayeeCurrency: 500 },
+          { expenseId: 12, label: 'Referral bonus', date: '2026-10-20T00:00:00', amount: 37,
+            currency: 'USD', amountUsd: 37, amountInPayeeCurrency: 100 }
+        ],
+        monthTotal: 2600, monthTotalUsd: 962,
+        instalments: [
+          { half: 1, label: 'First payment', amount: 1000, currency: 'GEL', amountUsd: 370,
+            salaryAmount: 1000, bonusAmount: 0, isPaid: false },
+          { half: 2, label: 'Second payment', amount: 1600, currency: 'GEL', amountUsd: 592,
+            salaryAmount: 1000, bonusAmount: 600, isPaid: false }
+        ]
+      });
+      renderEmployees(salaryMonth([withCommercial]));
+
+      const el = fixture.nativeElement as HTMLElement;
+      const items = el.querySelectorAll('.salary-commercial-list li');
+      expect(items.length).toBe(2);
+      expect(items[0].textContent).toContain('Onyx commercial bonus');
+      expect(items[0].textContent).toContain('+₾500.00');
+      // A bonus typed in another currency also shows what it adds in the payee's own.
+      expect(items[1].textContent).toContain('+$37.00');
+      expect(items[1].textContent).toContain('= ₾100.00');
+      expect(el.querySelector('.salary-bonus-tag.commercial')!.textContent).toContain('+₾600.00 bonus');
+      // No per-order bonus this month, so no order-bonus chip.
+      expect(el.querySelectorAll('.salary-bonus-tag').length).toBe(1);
+      expect(el.querySelectorAll('.salary-instalment')[1].textContent).toContain('₾600.00 bonuses');
     });
 
     it('shows no bonus chip for a month with none', () => {
@@ -1319,6 +1355,9 @@ describe('OutgoingPaymentsComponent', () => {
       bonusTotal: 0,
       bonusTotalGel: 0,
       bonusTotalUsd: 0,
+      staffBonusTotal: 0,
+      commercialBonusTotal: 0,
+      commercialBonuses: [],
       monthTotal: 1800,
       currency: 'GEL',
       monthTotalUsd: 666,

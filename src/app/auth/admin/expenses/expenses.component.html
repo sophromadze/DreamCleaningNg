@@ -357,6 +357,15 @@
               }
               <!-- A foreign-currency line leads with what was actually paid; the USD figure that
                    reaches the books follows it, because that is the one the totals add up. -->
+              <!-- A one-time extra on top of this person's salary (2026-10). Staff lines only: the
+                   bonus is paid to an account, like the rest of their pay. -->
+              @if (canAddCommercialBonus(cat.categoryId, n)) {
+              <button type="button" class="name-bonus-btn"
+                      (click)="$event.stopPropagation(); openCommercialBonus(n)"
+                      title="Add a one-time bonus to this salary">
+                <i class="fas fa-gift"></i> Bonus
+              </button>
+              }
               <span class="name-total">
                 @if (n.monthTotalInCurrency != null) {
                 <span class="native-amount">
@@ -368,6 +377,50 @@
                 </span>
               </span>
             </div>
+
+            @if (isBonusOpenFor(n.staffUserId)) {
+            <div class="bonus-form">
+              <div class="bonus-form-title">
+                <i class="fas fa-gift"></i>
+                {{ bonusEditingId() == null ? 'Bonus for' : 'Edit bonus for' }} {{ n.name }}
+              </div>
+              <div class="adjust-bar">
+                <label class="form-field span-2">
+                  <span>Bonus name</span>
+                  <input type="text" maxlength="200" [ngModel]="bonusLabel()" (ngModelChange)="bonusLabel.set($event)"
+                         placeholder="e.g. Onyx bonus">
+                </label>
+                <label class="form-field">
+                  <span>Amount</span>
+                  <input type="number" step="0.01" min="0" [ngModel]="bonusAmount()" (ngModelChange)="bonusAmount.set($event)"
+                         placeholder="e.g. 500">
+                </label>
+                <label class="form-field">
+                  <span>Currency</span>
+                  <select [ngModel]="bonusCurrency()" (ngModelChange)="bonusCurrency.set($event)">
+                    <option value="GEL">₾ Georgian lari</option>
+                    <option value="USD">$ US dollar</option>
+                  </select>
+                </label>
+                <label class="form-field">
+                  <span>Date</span>
+                  <input type="date" [ngModel]="bonusDate()" (ngModelChange)="bonusDate.set($event)">
+                </label>
+              </div>
+              <p class="adjust-hint">
+                <i class="fas fa-info-circle"></i>
+                Paid once, in full, with that month's second salary payment on Outgoing Payments, and
+                counted as a salary cost in Statistics and Finances.
+              </p>
+              <div class="confirm-actions">
+                <button class="btn btn-secondary btn-cancel btn-sm" type="button" (click)="cancelCommercialBonus()" [disabled]="bonusSaving()">Cancel</button>
+                <button class="btn btn-primary btn-sm" type="button" (click)="saveCommercialBonus()" [disabled]="bonusSaving()">
+                  <i class="fas" [class.fa-spinner]="bonusSaving()" [class.fa-spin]="bonusSaving()" [class.fa-check]="!bonusSaving()"></i>
+                  {{ bonusSaving() ? 'Saving…' : 'Save bonus' }}
+                </button>
+              </div>
+            </div>
+            }
 
             <!-- Individual entries for this name -->
             @if (isNameOpen(cat.categoryId, n.name)) {
@@ -403,7 +456,12 @@
                       <!-- The entry shows exactly what was typed; conversion is a reporting
                            concern and belongs on the totals, not on the record of the amount. -->
                       <td class="amount">{{ symbolFor(row.currency) }} {{ row.amount | number:'1.2-2' }}</td>
-                      <td>{{ recurrenceLabel(row) }}</td>
+                      <td>
+                        {{ recurrenceLabel(row) }}
+                        @if (row.bonusLabel) {
+                        <span class="bonus-entry-label">{{ row.bonusLabel }}</span>
+                        }
+                      </td>
                       <td>{{ formatDate(row.startDate) }}</td>
                       <td>
                         @if (row.isRecurring) {

@@ -235,6 +235,70 @@ describe('ExpensesComponent — salaries are paid to a named person', () => {
 
     httpMock.match(() => true).forEach(r => r.flush([]));
   });
+
+  // ── Commercial bonus (2026-10) ──
+
+  it('offers a commercial bonus on a staff member\'s salary line only', () => {
+    component.canEdit = true;
+    expect(component.canAddCommercialBonus(SALARIES_CATEGORY_ID, { staffUserId: 7 })).toBe(true);
+    expect(component.canAddCommercialBonus(SALARIES_CATEGORY_ID, { staffUserId: null })).toBe(false);
+    expect(component.canAddCommercialBonus(1, { staffUserId: 7 })).toBe(false);
+    component.canEdit = false;
+    expect(component.canAddCommercialBonus(SALARIES_CATEGORY_ID, { staffUserId: 7 })).toBe(false);
+  });
+
+  it('adds a one-time named bonus in lari by default, on the day picked', () => {
+    component.openCommercialBonus({ staffUserId: 7, name: 'Nino Beridze' });
+    expect(component.bonusCurrency()).toBe('GEL');
+
+    component.bonusLabel.set('Onyx commercial bonus');
+    component.bonusAmount.set(500);
+    component.bonusDate.set('2026-10-12');
+    component.saveCommercialBonus();
+
+    const req = httpMock.expectOne(r => r.method === 'POST' && r.url.endsWith('/expenses'));
+    expect(req.request.body).toEqual(expect.objectContaining({
+      categoryId: SALARIES_CATEGORY_ID, staffUserId: 7, bonusLabel: 'Onyx commercial bonus',
+      amount: 500, currency: 'GEL', startDate: '2026-10-12', isRecurring: false
+    }));
+    req.flush(salaryRow({ id: 101, bonusLabel: 'Onyx commercial bonus', isRecurring: false }));
+    httpMock.match(() => true).forEach(r => r.flush([]));
+    expect(component.bonusLine()).toBeNull();
+  });
+
+  it('needs a name and an amount above zero before sending anything', () => {
+    component.openCommercialBonus({ staffUserId: 7, name: 'Nino Beridze' });
+    component.bonusAmount.set(500);
+    component.saveCommercialBonus();
+    component.bonusLabel.set('Onyx');
+    component.bonusAmount.set(0);
+    component.saveCommercialBonus();
+
+    httpMock.expectNone(r => r.method === 'POST');
+  });
+
+  it('edits a saved bonus in its own form, keeping its name and currency', () => {
+    component.openEditForm(salaryRow({
+      id: 101, bonusLabel: 'Onyx commercial bonus', amount: 40, currency: 'USD',
+      isRecurring: false, frequencyMonths: null, startDate: '2026-10-12T00:00:00'
+    }));
+
+    expect(component.showForm()).toBe(false);
+    expect(component.bonusEditingId()).toBe(101);
+    expect(component.bonusLabel()).toBe('Onyx commercial bonus');
+    expect(component.bonusCurrency()).toBe('USD');
+    expect(component.bonusDate()).toBe('2026-10-12');
+
+    component.saveCommercialBonus();
+    const req = httpMock.expectOne(r => r.method === 'PUT' && r.url.endsWith('/expenses/101'));
+    expect(req.request.body.bonusLabel).toBe('Onyx commercial bonus');
+    req.flush(salaryRow({ id: 101 }));
+    httpMock.match(() => true).forEach(r => r.flush([]));
+  });
+
+  it('labels a bonus entry as a bonus, not a plain one-time charge', () => {
+    expect(component.recurrenceLabel(salaryRow({ bonusLabel: 'Onyx', isRecurring: false }))).toBe('Bonus');
+  });
 });
 
 // ─── the selected month decides everything on the page ───────────────────────────────────────

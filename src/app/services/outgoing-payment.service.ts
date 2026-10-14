@@ -41,6 +41,50 @@ export interface AdminSalaryInstalment {
   paymentNote?: string | null;
 }
 
+/** One commercial bonus owed this month, paid with the second instalment. */
+export interface CommercialBonusLine {
+  expenseId: number;
+  label: string;
+  date: string;
+  /** As entered, in `currency`. */
+  amount: number;
+  currency: string;
+  amountUsd: number;
+  /** The same bonus in the payee's month currency — what is added to their pay. */
+  amountInPayeeCurrency: number;
+}
+
+/** Outgoing Payments → Admins: one admin's completed orders over a period (USD). */
+export interface AdminPerformanceRow {
+  adminId: number;
+  firstName: string;
+  lastName: string;
+  email: string;
+  position: string;
+  isActive: boolean;
+  completedOrders: number;
+  /** Split by whether the customer was booking for the first time; the halves re-add to the total. */
+  newCustomerOrders: number;
+  returningCustomerOrders: number;
+  /** Price without tips, tax included, net of refunds. */
+  ordersTotal: number;
+  ordersTotalNew: number;
+  ordersTotalReturning: number;
+  /** Orders total − sales tax − cleaners' wages − staff bonuses. */
+  netIncome: number;
+  netIncomeNew: number;
+  netIncomeReturning: number;
+  salesTax: number;
+  cleanerWages: number;
+  staffBonuses: number;
+}
+
+export interface AdminPerformanceList {
+  from?: string | null;
+  to?: string | null;
+  admins: AdminPerformanceRow[];
+}
+
 export interface AdminSalaryPayout {
   /** Stable identity for the person; what the pay/unpay calls address them by. */
   payeeKey: string;
@@ -64,6 +108,11 @@ export interface AdminSalaryPayout {
   bonusTotal: number;
   bonusTotalGel: number;
   bonusTotalUsd: number;
+  /** The per-order staff bonuses alone, in `currency`. bonusTotal = this + commercialBonusTotal. */
+  staffBonusTotal: number;
+  /** One-time commercial bonuses this month (Expenses → Salaries), in `currency`. */
+  commercialBonusTotal: number;
+  commercialBonuses: CommercialBonusLine[];
   /** Salary + bonuses — what the month owes this person in total. */
   monthTotal: number;
   currency: string;
@@ -481,6 +530,14 @@ export class OutgoingPaymentService {
   // A salary is per PERSON per MONTH, paid in two instalments — a different shape from the
   // per-order cleaner wages above, so it gets its own calls rather than being forced into
   // theirs. Every write answers with the whole month, so the page redraws from one response.
+
+  /** Inclusive service dates (yyyy-MM-dd); leave both out for all time. */
+  getAdminPerformance(from: string | null, to: string | null): Observable<AdminPerformanceList> {
+    let params = new HttpParams();
+    if (from) params = params.set('from', from);
+    if (to) params = params.set('to', to);
+    return this.http.get<AdminPerformanceList>(`${this.apiUrl}/admins`, { params });
+  }
 
   getSalaries(year: number, month: number): Observable<AdminSalaryPayoutList> {
     const params = new HttpParams().set("year", year).set("month", month);

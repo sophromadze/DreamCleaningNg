@@ -348,6 +348,10 @@
 // ════════════════════════════════════════
 //  Admin bonuses panel (current visible month)
 // ════════════════════════════════════════
+//
+// Redesigned 2026-10: one card per person instead of a four-column table. The table squeezed two
+// rate pairs, pills, counts and two inline editors into narrow cells; a card gives the total its
+// own corner and each figure a labelled block, and wraps to one column on a phone.
 
 .bonus-panel {
   background: var(--surface);
@@ -356,6 +360,8 @@
   box-shadow: 0 1px 3px var(--shadow-color);
   padding: 1.25rem 1.5rem;
   margin-top: 1.25rem;
+
+  @media (max-width: 640px) { padding: 1rem; }
 
   .bonus-header {
     display: flex;
@@ -390,39 +396,6 @@
     font-size: 0.9rem;
   }
 
-  .bonus-rate-row {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: 0.9rem;
-    color: var(--text-secondary);
-
-    .bonus-rate-label  { color: var(--text-muted); }
-    .bonus-rate-value  { color: var(--text-primary); font-weight: var(--fw-semibold); }
-
-    .bonus-rate-edit-btn {
-      border: none;
-      background: transparent;
-      color: var(--text-muted);
-      cursor: pointer;
-      padding: 0.2rem 0.4rem;
-      border-radius: var(--radius-sm);
-
-      &:hover { color: var(--primary-text-elevated); background: var(--surface-subtle); }
-    }
-
-    .bonus-rate-input {
-      width: 5rem;
-      padding: 0.3rem 0.5rem;
-      border: 1px solid var(--border-color);
-      border-radius: var(--radius-sm);
-      background: var(--surface);
-      color: var(--text-primary);
-    }
-
-    .bonus-rate-currency { color: var(--text-muted); font-size: 0.85rem; }
-  }
-
   .bonus-empty,
   .bonus-loading {
     color: var(--text-muted);
@@ -430,129 +403,78 @@
     padding: 0.75rem 0;
   }
 
-  .bonus-table {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-  }
+  // ── Company default rates ──
 
-  .bonus-row {
-    display: grid;
-    // The rate column holds two numbers, an "own rate" pill and an inline editor, so it needs
-    // more room than the single figure it replaced.
-    grid-template-columns: minmax(200px, 2.2fr) 1.1fr 1.5fr 0.9fr;
-    gap: 0.75rem;
-    align-items: center;
-    padding: 0.55rem 0.75rem;
+  .bonus-defaults {
+    margin-bottom: 1.25rem;
+    padding: 0.9rem 1rem;
+    border: 1px solid var(--border-color);
     border-radius: var(--radius-md);
-
-    &:not(.bonus-row-header):hover { background: var(--surface-subtle); }
-
-    &.is-me {
-      background: var(--mint-fresh);
-    }
-  }
-
-  .bonus-row-header {
-    font-size: 0.78rem;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--text-muted);
-    font-weight: var(--fw-semibold);
-    border-bottom: 1px solid var(--border-color);
-    border-radius: 0;
-    padding-bottom: 0.55rem;
-  }
-
-  .bonus-cell-admin {
-    display: inline-flex;
-    align-items: center;
-    // The name now carries a position chip and a manager/team line beside it, so the cell has to
-    // be allowed to wrap rather than pushing the rest of the row out of the grid.
-    flex-wrap: wrap;
-    gap: 0.4rem 0.55rem;
-    color: var(--text-primary);
-    font-weight: var(--fw-medium);
-  }
-
-  .bonus-admin-dot {
-    width: 0.6rem;
-    height: 0.6rem;
-    border-radius: var(--radius-pill);
-    flex-shrink: 0;
-  }
-
-  .bonus-me-tag {
-    margin-left: 0.4rem;
-    padding: 0.05rem 0.45rem;
-    font-size: 0.7rem;
-    border-radius: var(--radius-pill);
-    background: var(--fresh-green);
-    color: var(--surface);
-    font-weight: var(--fw-semibold);
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-  }
-
-  .bonus-cell-count {
-    color: var(--text-primary);
-    font-weight: var(--fw-semibold);
-
-    .bonus-assigned-hint {
-      margin-left: 0.4rem;
-      color: var(--text-muted);
-      font-weight: var(--fw-medium);
-      font-size: 0.8rem;
-    }
-  }
-
-  .bonus-cell-rate {
-    color: var(--text-secondary);
-    display: flex;
-    align-items: center;
-    gap: 0.25rem 0.4rem;
-    // A manager stacks two rate lines here, so the cell wraps rather than squeezing them onto one.
-    flex-wrap: wrap;
-  }
-
-  .bonus-cell-total {
-    color: var(--primary-text);
-    font-weight: var(--fw-bold);
-  }
-
-  // ── Company default rates (header) ──
-
-  .bonus-rate-group {
-    display: inline-flex;
-    align-items: baseline;
-    gap: 0.35rem;
-    padding: 0.15rem 0.5rem;
-    border-radius: var(--radius-sm);
     background: var(--surface-subtle);
   }
 
-  .bonus-rate-pos {
-    color: var(--text-muted-on-tint);
-    font-size: 0.78rem;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
+  .bonus-defaults-head {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 0.35rem 0.75rem;
+    margin-bottom: 0.7rem;
+  }
+
+  .bonus-defaults-title {
+    color: var(--text-primary);
     font-weight: var(--fw-semibold);
+  }
+
+  .bonus-defaults-sub {
+    color: var(--text-muted-on-tint);
+    font-size: 0.82rem;
+  }
+
+  .bonus-defaults-head .bonus-link-btn { margin-left: auto; }
+
+  .bonus-defaults-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.6rem;
+
+    @media (max-width: 640px) { grid-template-columns: 1fr; }
+  }
+
+  .bonus-default-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    padding: 0.6rem 0.8rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+  }
+
+  .bonus-default-label {
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    font-weight: var(--fw-medium);
+  }
+
+  .bonus-default-value {
+    color: var(--text-primary);
+    font-size: 1.1rem;
+    font-weight: var(--fw-bold);
+
+    .sep { color: var(--text-muted); font-weight: var(--fw-medium); }
   }
 
   .bonus-rate-editor {
     display: flex;
     flex-direction: column;
     gap: 0.6rem;
-    padding: 0.75rem 0.9rem;
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-md);
-    background: var(--surface-subtle);
   }
 
   .bonus-rate-editor-grid {
     display: grid;
-    grid-template-columns: auto 6rem 6rem;
-    gap: 0.4rem 0.6rem;
+    grid-template-columns: minmax(0, auto) 6rem 6rem;
+    gap: 0.45rem 0.6rem;
     align-items: center;
   }
 
@@ -560,7 +482,7 @@
     font-size: 0.75rem;
     text-transform: uppercase;
     letter-spacing: 0.04em;
-    color: var(--text-muted);
+    color: var(--text-muted-on-tint);
     font-weight: var(--fw-semibold);
   }
 
@@ -572,150 +494,437 @@
 
   .bonus-rate-hint {
     margin: 0;
-    color: var(--text-muted);
+    color: var(--text-muted-on-tint);
     font-size: 0.8rem;
-    max-width: 32rem;
+    max-width: 36rem;
   }
 
-  .bonus-rate-editor-actions {
+  .bonus-rate-editor-actions,
+  .bonus-editor-actions {
     display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
     gap: 0.5rem;
   }
 
-  // ── Row identity ──
+  // ── One card per person ──
 
-  .bonus-row.is-manager .bonus-admin-name { font-weight: var(--fw-semibold); }
+  .bonus-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+  }
+
+  .bonus-card {
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    background: var(--surface);
+    overflow: hidden;
+
+    &.is-me { border-color: var(--fresh-green); }
+    &.is-manager .bonus-admin-name { font-weight: var(--fw-bold); }
+  }
+
+  .bonus-card-head {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.85rem 1rem;
+    background: var(--surface-subtle);
+    border-bottom: 1px solid var(--border-color);
+    flex-wrap: wrap;
+  }
+
+  .bonus-admin-dot {
+    width: 0.75rem;
+    height: 0.75rem;
+    border-radius: var(--radius-pill);
+    flex-shrink: 0;
+  }
+
+  .bonus-card-who {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    min-width: 0;
+    flex: 1 1 14rem;
+  }
+
+  .bonus-admin-name {
+    color: var(--text-primary);
+    font-size: 1rem;
+    font-weight: var(--fw-semibold);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+  }
+
+  .bonus-card-meta {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.35rem 0.55rem;
+  }
+
+  .bonus-me-tag {
+    padding: 0.05rem 0.45rem;
+    font-size: 0.68rem;
+    border-radius: var(--radius-pill);
+    background: var(--mint-fresh);
+    color: var(--fresh-green);
+    font-weight: var(--fw-bold);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
 
   .bonus-position-chip {
-    padding: 0.05rem 0.45rem;
+    padding: 0.05rem 0.5rem;
     font-size: 0.7rem;
     border-radius: var(--radius-pill);
-    background: var(--surface-subtle);
+    background: var(--surface);
+    border: 1px solid var(--border-color);
     color: var(--text-muted-on-tint);
     font-weight: var(--fw-semibold);
     text-transform: uppercase;
     letter-spacing: 0.04em;
 
-    // A manager's row is the one whose rates differ, so it is the one worth spotting.
+    // A manager's card is the one whose rates differ, so it is the one worth spotting.
     &.manager {
       background: var(--soft-blue);
+      border-color: transparent;
       color: var(--primary-text-elevated);
     }
   }
 
   .bonus-admin-sub {
     color: var(--text-secondary);
-    font-size: 0.8rem;
-    font-weight: var(--fw-medium);
+    font-size: 0.82rem;
 
-    &.muted { color: var(--text-muted); }
+    &.muted { color: var(--text-muted-on-tint); }
   }
 
-  .bonus-count-split {
-    display: block;
-    color: var(--text-muted);
-    font-weight: var(--fw-medium);
+  .bonus-card-total {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.1rem;
+    margin-left: auto;
+    text-align: right;
+
+    @media (max-width: 640px) {
+      align-items: flex-start;
+      text-align: left;
+      margin-left: 0;
+      width: 100%;
+    }
+  }
+
+  .bonus-total-label {
+    color: var(--text-muted-on-tint);
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: var(--fw-semibold);
+  }
+
+  .bonus-total-value {
+    color: var(--primary-text-elevated);
+    font-size: 1.45rem;
+    font-weight: var(--fw-bold);
+    line-height: 1.15;
+
+    small { font-size: 0.8rem; color: var(--text-secondary); font-weight: var(--fw-semibold); }
+  }
+
+  .bonus-total-split {
+    color: var(--text-secondary);
     font-size: 0.78rem;
   }
 
-  // ── Per-person rates ──
+  .bonus-card-body {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
 
-  // One line per slot a person can earn on. An administrator has one; a manager has two, and the
-  // slot label is what stops the second pair reading as a correction of the first.
-  .bonus-rate-line {
+    &.two-blocks { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+    @media (max-width: 900px) {
+      grid-template-columns: 1fr 1fr;
+      &.two-blocks { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 640px) {
+      grid-template-columns: 1fr;
+      &.two-blocks { grid-template-columns: 1fr; }
+    }
+  }
+
+  // A block = header (name + its figure) / bordered rows / bordered footer. Blocks are divided by
+  // a vertical rule, and on narrower screens by a horizontal one.
+  .bonus-block {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+
+    & + .bonus-block { border-left: 1px solid var(--border-color); }
+
+    @media (max-width: 900px) {
+      &:nth-child(3) { grid-column: 1 / -1; border-left: none; border-top: 1px solid var(--border-color); }
+    }
+    @media (max-width: 640px) {
+      & + .bonus-block { border-left: none; border-top: 1px solid var(--border-color); }
+    }
+  }
+
+  .bonus-block-head {
     display: flex;
     align-items: baseline;
-    gap: 0.35rem;
-    width: 100%;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.7rem 1rem;
+    border-bottom: 1px solid var(--border-color);
   }
 
-  .bonus-rate-slot {
-    min-width: 3.1rem;
-    color: var(--text-muted);
-    font-size: 0.72rem;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    font-weight: var(--fw-semibold);
-  }
-
-  .bonus-rate-pair {
+  .bonus-block-label {
     display: inline-flex;
-    align-items: baseline;
-    gap: 0.3rem;
-    color: var(--text-primary);
+    align-items: center;
+    gap: 0.4rem;
+    color: var(--text-secondary);
+    font-size: 0.74rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
     font-weight: var(--fw-semibold);
   }
 
-  .bonus-rate-sep { color: var(--text-muted); }
+  .bonus-block-figure {
+    color: var(--text-primary);
+    font-size: 1.2rem;
+    font-weight: var(--fw-bold);
+    white-space: nowrap;
+
+    small { font-size: 0.75rem; color: var(--text-secondary); font-weight: var(--fw-semibold); }
+  }
+
+  // One fact per row, label left and value right, a rule under each.
+  .bonus-rows {
+    margin: 0;
+    flex: 1;
+  }
+
+  .bonus-row-item {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.5rem 1rem;
+    border-bottom: 1px solid var(--border-color);
+
+    &:last-child { border-bottom: none; }
+
+    dt {
+      color: var(--text-secondary);
+      font-size: 0.86rem;
+    }
+
+    dd {
+      margin: 0;
+      color: var(--text-primary);
+      font-size: 0.92rem;
+      font-weight: var(--fw-semibold);
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+
+      &.pct { font-size: 1rem; font-weight: var(--fw-bold); color: var(--primary-text-elevated); }
+      &.muted { color: var(--text-muted); }
+    }
+
+    // The column heading over the rate pairs.
+    &.head {
+      padding-top: 0.35rem;
+      padding-bottom: 0.35rem;
+      background: var(--surface-subtle);
+
+      dd { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted-on-tint); }
+    }
+
+    &.muted dt,
+    &.muted dd { color: var(--text-muted); }
+    &.upcoming dt,
+    &.upcoming dd { color: var(--primary-text-elevated); }
+  }
+
+  .bonus-block-foot {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem 1rem;
+    padding: 0.5rem 1rem;
+    border-top: 1px solid var(--border-color);
+    background: var(--surface-subtle);
+  }
+
+  .bonus-rate-sep { color: var(--text-muted); font-weight: var(--fw-medium); margin: 0 0.15rem; }
+  .bonus-rate-currency { color: var(--text-secondary); font-size: 0.75rem; font-weight: var(--fw-semibold); margin-left: 0.2rem; }
+  .bonus-rate-slot { color: var(--text-secondary); font-size: 0.85rem; }
 
   // A figure this person was moved onto, as opposed to the company default they used to follow.
   .own-rate { color: var(--warning-orange-text); }
 
   .own-rate-pill {
     padding: 0.05rem 0.45rem;
-    font-size: 0.68rem;
+    font-size: 0.66rem;
     border-radius: var(--radius-pill);
     background: var(--warning-orange-bg);
     color: var(--warning-orange-text);
     font-weight: var(--fw-semibold);
-    text-transform: uppercase;
     letter-spacing: 0.04em;
   }
 
-  .bonus-override-editor {
+  // ── Editors and history inside a block ──
+
+  .bonus-override-editor,
+  .bonus-percent-editor,
+  .bonus-percent-history {
+    margin: 0;
+    padding: 0.75rem 1rem;
+  }
+
+  .bonus-percent-history {
+    border-top: 1px solid var(--border-color);
+  }
+
+  .bonus-percent-history {
+    list-style: none;
     display: flex;
     flex-direction: column;
-    align-items: flex-start;
-    gap: 0.35rem;
+    gap: 0.25rem;
 
-    .bonus-rate-input { width: 4.5rem; }
+    li {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.3rem 0.5rem;
+      border-radius: var(--radius-sm);
+      background: var(--surface-subtle);
+      font-size: 0.84rem;
+      color: var(--text-primary);
+
+      &.current { box-shadow: inset 3px 0 0 var(--primary-color); }
+    }
+
+    .hist-date { color: var(--text-secondary); min-width: 6.5rem; }
+    .hist-rule { font-weight: var(--fw-semibold); }
+
+    .hist-tag {
+      padding: 0 0.4rem;
+      font-size: 0.66rem;
+      border-radius: var(--radius-pill);
+      background: var(--soft-blue);
+      color: var(--primary-text-elevated);
+      font-weight: var(--fw-semibold);
+      text-transform: uppercase;
+
+      &.upcoming { background: var(--warning-orange-bg); color: var(--warning-orange-text); }
+    }
+
+    .hist-remove {
+      margin-left: auto;
+      border: none;
+      background: transparent;
+      color: var(--text-secondary);
+      cursor: pointer;
+      padding: 0.15rem 0.35rem;
+      border-radius: var(--radius-sm);
+
+      &:hover:not(:disabled) { color: var(--bright-red); background: var(--soft-red); }
+    }
   }
 
-  .bonus-override-line,
-  .bonus-override-actions {
+  // ── Editors inside a card ──
+
+  .bonus-override-editor,
+  .bonus-percent-editor {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.55rem;
+    width: 100%;
+  }
+
+  .bonus-override-grid {
+    display: grid;
+    grid-template-columns: minmax(0, auto) 4.75rem 4.75rem;
+    gap: 0.35rem 0.5rem;
+    align-items: center;
+  }
+
+  .bonus-field-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+  }
+
+  .bonus-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    font-weight: var(--fw-semibold);
+
+    select,
+    input {
+      padding: 0.4rem 0.55rem;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+      color: var(--text-primary);
+      font-size: 0.9rem;
+      font-weight: var(--fw-medium);
+      max-width: 100%;
+    }
+
+    input[type="number"] { width: 5.5rem; }
+  }
+
+  .bonus-input-suffix {
     display: inline-flex;
     align-items: center;
-    gap: 0.35rem;
-    flex-wrap: wrap;
-  }
-
-  .bonus-clear-btn {
-    border: 1px solid var(--border-color);
-    background: transparent;
+    gap: 0.3rem;
     color: var(--text-secondary);
-    cursor: pointer;
-    padding: 0.25rem 0.55rem;
-    border-radius: var(--radius-sm);
-    font-size: 0.78rem;
-
-    &:hover { color: var(--primary-text-elevated); background: var(--surface-subtle); }
+    font-size: 0.9rem;
   }
 
-  // Repeated outside .bonus-rate-row because the per-person editor and the defaults editor both
-  // use these two, and only the latter sits inside that container.
+  .bonus-editor-hint {
+    color: var(--text-secondary);
+    font-size: 0.78rem;
+  }
+
   .bonus-rate-input {
-    width: 5rem;
-    padding: 0.3rem 0.5rem;
+    width: 100%;
+    padding: 0.35rem 0.5rem;
     border: 1px solid var(--border-color);
     border-radius: var(--radius-sm);
     background: var(--surface);
     color: var(--text-primary);
   }
 
-  .bonus-rate-edit-btn {
+  // Quiet text button for secondary actions (edit, history, use default).
+  .bonus-link-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
     border: none;
     background: transparent;
-    color: var(--text-muted);
+    color: var(--primary-text-elevated);
     cursor: pointer;
-    padding: 0.2rem 0.4rem;
-    border-radius: var(--radius-sm);
+    padding: 0.2rem 0.1rem;
+    font-size: 0.84rem;
+    font-weight: var(--fw-semibold);
 
-    &:hover { color: var(--primary-text-elevated); background: var(--surface-subtle); }
+    &:hover:not(:disabled) { text-decoration: underline; }
+    &:disabled { opacity: 0.6; cursor: default; }
+    &.subtle { color: var(--text-secondary); }
+    &.danger { color: var(--bright-red); }
   }
-
-  .bonus-rate-currency { color: var(--text-muted); font-size: 0.85rem; }
 }
-
 
 // ════════════════════════════════════════
 //  Modal Overlay & Panel

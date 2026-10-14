@@ -557,11 +557,8 @@ export const routes: Routes = [
     loadComponent: () => import('./auth/admin/outgoing-payments/outgoing-payments.component')
       .then(m => m.OutgoingPaymentsComponent)
   },
-  {
-    path: 'admin/blog',
-    canActivate: [clientOnlyGuard, authGuard, realEmailGuard, passwordSetupGuard, pinSetupGuard, adminGuard, fontAwesomeGuard],
-    loadComponent: () => import('./auth/admin/blog/admin-blog.component').then(m => m.AdminBlogComponent)
-  },
+  // Blog MOVED (2026-10) into the admin panel as its Blog tab; the old page path lands on it.
+  { path: 'admin/blog', pathMatch: 'full', redirectTo: () => inject(Router).parseUrl('/admin?tab=blog') },
 
   // ── Commercial contracts: the client-facing half ──────────────────────────────────────────
   // Deliberately UNGUARDED. A commercial counterparty has no account here, so the opaque token

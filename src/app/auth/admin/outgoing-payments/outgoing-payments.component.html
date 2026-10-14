@@ -28,6 +28,12 @@
         and halved into the two payments a month they are paid in.
       </p>
       }
+      @if (activeTab() === 'admins') {
+      <p class="page-subtitle">
+        How many orders each admin completed, what those orders came to, and what the company kept
+        after sales tax, cleaners' wages and staff bonuses.
+      </p>
+      }
     </div>
 
     <div class="header-actions">
@@ -71,7 +77,21 @@
       </span>
       }
     </button>
+
+    <!-- Not a payee tab: nothing is paid from here, so it carries no "owing" badge. -->
+    <button type="button" role="tab" class="payee-tab"
+            [class.active]="activeTab() === 'admins'"
+            [attr.aria-selected]="activeTab() === 'admins'"
+            (click)="setTab('admins')">
+      Admins
+    </button>
   </div>
+
+  <!-- ══ Admins tab ═════════════════════════════════════════════════════════ -->
+  <!-- Mounted only while open: it fetches its own period, and nothing else on the page needs it. -->
+  @if (activeTab() === 'admins') {
+  <app-admin-performance></app-admin-performance>
+  }
 
   <!-- Month selector + what still has to go out this month. SHARED: both tabs are a view of the
        same month, so moving it on one and finding the other on a different month would be worse
@@ -165,10 +185,16 @@
 
           <!-- Bonuses are part of what this person is owed, so they are part of the month total.
                The chip beside it says how much of it is bonus. -->
-          @if (payee.bonusTotal) {
+          @if (payee.staffBonusTotal) {
           <span class="salary-bonus-tag"
-                title="Staff bonuses earned this month, paid with the second payment.">
-            +{{ salarySymbol(payee.currency) }}{{ payee.bonusTotal | number:'1.2-2' }} bonus
+                title="Staff bonuses earned on orders this month (per-order and percentage), paid with the second payment.">
+            +{{ salarySymbol(payee.currency) }}{{ payee.staffBonusTotal | number:'1.2-2' }} order bonus
+          </span>
+          }
+          @if (payee.commercialBonusTotal) {
+          <span class="salary-bonus-tag commercial"
+                title="One-time bonuses added on the Expenses page, paid with the second payment.">
+            +{{ salarySymbol(payee.currency) }}{{ payee.commercialBonusTotal | number:'1.2-2' }} bonus
           </span>
           }
 
@@ -230,6 +256,28 @@
         <div class="salary-warning">⚠ {{ w }}</div>
         }
 
+        <!-- One-time bonuses (Expenses → Salaries) by name, so the month's sum can still be followed by hand. Each
+             rides whole on the second payment, beside the per-order bonuses. -->
+        @if (payee.commercialBonuses?.length) {
+        <ul class="salary-commercial-list">
+          @for (c of payee.commercialBonuses; track c.expenseId) {
+          <li>
+            <span class="commercial-label">{{ c.label }}</span>
+            <span class="commercial-date">{{ c.date | date:'MMM d' }}</span>
+            <span class="commercial-amount">
+              +{{ salarySymbol(c.currency) }}{{ c.amount | number:'1.2-2' }}
+              @if (c.currency !== payee.currency) {
+              <span class="salary-usd">
+                = {{ salarySymbol(payee.currency) }}{{ c.amountInPayeeCurrency | number:'1.2-2' }}
+              </span>
+              }
+            </span>
+            <span class="commercial-when">with the second payment</span>
+          </li>
+          }
+        </ul>
+        }
+
         <div class="salary-instalments">
           @for (inst of payee.instalments; track $index) {
           <div class="salary-instalment" [class.paid]="inst.isPaid">
@@ -251,7 +299,7 @@
             @if (inst.bonusAmount) {
             <span class="inst-breakdown">
               {{ salarySymbol(inst.currency) }}{{ inst.salaryAmount | number:'1.2-2' }} salary
-              + {{ salarySymbol(inst.currency) }}{{ inst.bonusAmount | number:'1.2-2' }} bonus
+              + {{ salarySymbol(inst.currency) }}{{ inst.bonusAmount | number:'1.2-2' }} {{ payee.commercialBonusTotal ? 'bonuses' : 'bonus' }}
             </span>
             }
 

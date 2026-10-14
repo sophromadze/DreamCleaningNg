@@ -203,6 +203,11 @@ describe('AdminComponent', () => {
       expect((await openWithTab('rewards')).activeTab()).toBe('rewards');
     });
 
+    // Blog MOVED here from the header dropdown (2026-10); /admin/blog redirects as ?tab=blog.
+    it('opens the Blog tab for the old /admin/blog address', async () => {
+      expect((await openWithTab('blog')).activeTab()).toBe('blog');
+    });
+
     it('ignores a ?tab= naming something that is not a tab', async () => {
       expect((await openWithTab('not-a-tab')).activeTab()).toBe('orders');
     });

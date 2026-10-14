@@ -38,6 +38,8 @@ export interface Expense {
   staffUserId?: number | null;
   // The linked staff member is no longer in Users — the row still names them from its snapshot.
   staffUserRemoved: boolean;
+  /** Set only on a one-time commercial bonus ("Onyx commercial bonus"). */
+  bonusLabel?: string | null;
   startDate: string;      // ISO date string
   isRecurring: boolean;
   frequencyMonths?: number | null;
@@ -60,6 +62,11 @@ export interface CreateExpense {
   categoryId: number;
   // Salaries category only. Null = a salary paid to somebody with no account, named by hand.
   staffUserId?: number | null;
+  /**
+   * A one-time commercial bonus on a staff member's salary (2026-10). Needs the Salaries
+   * category, a staffUserId and isRecurring false — the server refuses anything else.
+   */
+  bonusLabel?: string | null;
   startDate: string;
   isRecurring: boolean;
   frequencyMonths?: number | null;

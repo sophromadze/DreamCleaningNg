@@ -59,6 +59,11 @@ describe('ShiftsComponent', () => {
       teamExistingCustomerRate: 15,
       teamNewCustomerRateIsCustom: false,
       teamExistingCustomerRateIsCustom: false,
+      fixedBonusAmount: 0,
+      percentBonusAmount: 0,
+      percentBonusUsd: 0,
+      percentBonusOrderCount: 0,
+      percentRules: [],
       bonusAmount: 0,
       currency: 'GEL',
       ...overrides
@@ -78,7 +83,7 @@ describe('ShiftsComponent', () => {
   }
 
   beforeEach(async () => {
-    bonusService = { getBonuses: vi.fn().mockName('AdminBonusService.getBonuses'), getRates: vi.fn().mockName('AdminBonusService.getRates'), setRates: vi.fn().mockName('AdminBonusService.setRates'), setOverride: vi.fn().mockName('AdminBonusService.setOverride'), getForAdmin: vi.fn().mockName('AdminBonusService.getForAdmin') } as unknown as MockedObject<AdminBonusService>;
+    bonusService = { getBonuses: vi.fn().mockName('AdminBonusService.getBonuses'), getRates: vi.fn().mockName('AdminBonusService.getRates'), setRates: vi.fn().mockName('AdminBonusService.setRates'), setOverride: vi.fn().mockName('AdminBonusService.setOverride'), getForAdmin: vi.fn().mockName('AdminBonusService.getForAdmin'), addPercentRule: vi.fn().mockName('AdminBonusService.addPercentRule'), deletePercentRule: vi.fn().mockName('AdminBonusService.deletePercentRule') } as unknown as MockedObject<AdminBonusService>;
     bonusService.getBonuses.mockReturnValue(of([]));
     bonusService.getRates.mockReturnValue(of(defaults));
 
@@ -377,22 +382,116 @@ describe('ShiftsComponent', () => {
       expect(component.showsTeamRate(lostTheirTeamMidMonth)).toBe(true);
     });
 
-    it('does not wipe a stored team rate when the inputs are hidden', () => {
-      // The seeded value rides through untouched — nulling it would delete a rate that applies
-      // again the moment somebody is attached to them.
-      const teamless = manager({
-        teamSize: 0,
-        teamNewCustomerRate: 7, teamNewCustomerRateIsCustom: true,
-        teamExistingCustomerRate: 18, teamExistingCustomerRateIsCustom: true
-      });
-      bonusService.setOverride.mockReturnValue(of(teamless));
+    it('renders one card per person with the total and its breakdown', () => {
+      component.bonuses.set([row({
+        bonusAmount: 75.5, fixedBonusAmount: 20, percentBonusAmount: 55.5,
+        percentBonusUsd: 20.54, percentBonusOrderCount: 1, eligibleCount: 2,
+        percentRules: [{ id: 3, basis: 'NetIncome', newCustomerPercent: 10, existingCustomerPercent: 4,
+          startDate: '2026-10-01T00:00:00', isCurrent: true, isUpcoming: false, createdAt: '2026-10-01T00:00:00' }]
+      })]);
+      fixture.detectChanges();
 
-      component.startEditingOverride(teamless);
-      component.saveOverride(teamless);
+      const card = (fixture.nativeElement as HTMLElement).querySelector('.bonus-card')!;
+      expect(card.querySelector('.bonus-total-value')!.textContent).toContain('75.50');
+      expect(card.querySelector('.bonus-total-split')!.textContent).toContain('20.00 per-order + 55.50 percentage');
+      const pcts = Array.from(card.querySelectorAll('dd.pct')).map(e => e.textContent!.trim());
+      expect(pcts).toEqual(['10%', '4%']);
+      expect(card.querySelectorAll('.bonus-block').length).toBe(3);
+    });
 
-      const [, override] = vi.mocked(bonusService.setOverride).mock.lastCall!;
-      expect(override.teamBookingNewCustomerRate).toBe(7);
-      expect(override.teamBookingExistingCustomerRate).toBe(18);
+    it('shows no percentage block to someone with no percentage bonus', () => {
+      component.bonuses.set([row()]);
+      fixture.detectChanges();
+
+      const card = (fixture.nativeElement as HTMLElement).querySelector('.bonus-card')!;
+      expect(card.querySelectorAll('.bonus-block').length).toBe(2);
+      expect(card.textContent).not.toContain('Percentage bonus');
+      // A SuperAdmin adds one from the per-order block instead.
+      expect(card.textContent).toContain('Add percentage bonus');
+
+      component.isSuperAdmin.set(false);
+      fixture.detectChanges();
+      expect(card.textContent).not.toContain('Add percentage bonus');
+    });
+
+  });
+
+  describe('percentage bonus', () => {
+    const rule = (o: Partial<import('../../services/admin-bonus.service').AdminPercentBonusRule> = {}) => ({
+      id: 1, basis: 'FullOrder' as const, newCustomerPercent: 5, existingCustomerPercent: 5, startDate: '2026-10-01T00:00:00',
+      isCurrent: true, isUpcoming: false, createdAt: '2026-10-01T00:00:00', ...o
+    });
+
+    it('sends the basis, a percent for new and for returning customers, and the start date', () => {
+      const b = row();
+      bonusService.addPercentRule.mockReturnValue(of(b));
+      component.bonuses.set([b]);
+      component.startEditingPercent(b);
+      component.percentEdit.set({ basis: 'NetIncome', newPercent: 10, existingPercent: 7.5, startDate: '2026-10-10' });
+
+      component.savePercent(b);
+
+      const [adminId, sent] = vi.mocked(bonusService.addPercentRule).mock.lastCall!;
+      expect(adminId).toBe(1);
+      expect(sent).toEqual({ basis: 'NetIncome', newCustomerPercent: 10, existingCustomerPercent: 7.5, startDate: '2026-10-10' });
+      expect(component.editingPercentAdminId()).toBeNull();
+    });
+
+    it('stops it from the chosen date by sending 0', () => {
+      const b = row({ percentRules: [rule()] });
+      bonusService.addPercentRule.mockReturnValue(of(b));
+      component.startEditingPercent(b);
+      component.percentEdit.set({ basis: 'FullOrder', newPercent: 5, existingPercent: 5, startDate: '2026-11-01' });
+
+      component.savePercent(b, true);
+
+      const sent = vi.mocked(bonusService.addPercentRule).mock.lastCall![1];
+      expect(sent.newCustomerPercent).toBe(0);
+      expect(sent.existingCustomerPercent).toBe(0);
+    });
+
+    it('treats one empty box as 0% for that kind of customer', () => {
+      const b = row();
+      bonusService.addPercentRule.mockReturnValue(of(b));
+      component.startEditingPercent(b);
+      component.percentEdit.set({ basis: 'FullOrder', newPercent: 8, existingPercent: null, startDate: '2026-10-10' });
+
+      component.savePercent(b);
+
+      const sent = vi.mocked(bonusService.addPercentRule).mock.lastCall![1];
+      expect(sent.newCustomerPercent).toBe(8);
+      expect(sent.existingCustomerPercent).toBe(0);
+    });
+
+    it('refuses a percentage above 100 or a missing one before it reaches the server', () => {
+      const b = row();
+      component.startEditingPercent(b);
+      component.percentEdit.set({ basis: 'FullOrder', newPercent: 5, existingPercent: 120, startDate: '2026-10-10' });
+      component.savePercent(b);
+      component.percentEdit.set({ basis: 'FullOrder', newPercent: null, existingPercent: null, startDate: '2026-10-10' });
+      component.savePercent(b);
+
+      expect(bonusService.addPercentRule).not.toHaveBeenCalled();
+    });
+
+    it('opens the editor seeded with the rule in force and today as the start', () => {
+      const b = row({ percentRules: [rule({ basis: 'NetIncome', newCustomerPercent: 6, existingCustomerPercent: 4 })] });
+      component.startEditingPercent(b);
+
+      expect(component.percentEdit().basis).toBe('NetIncome');
+      expect(component.percentEdit().newPercent).toBe(6);
+      expect(component.percentEdit().existingPercent).toBe(4);
+      expect(component.percentEdit().startDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    });
+
+    it('treats a stopped rule as no percentage bonus', () => {
+      const stopped = rule({ newCustomerPercent: 0, existingCustomerPercent: 0 });
+      expect(component.currentPercentRule(row({ percentRules: [stopped] }))).toBeNull();
+      expect(component.currentPercentRule(row({ percentRules: [rule()] }))?.newCustomerPercent).toBe(5);
+      expect(component.describePercentRule(stopped)).toBe('Stopped');
+      expect(component.describePercentRule(rule({ basis: 'NetIncome', newCustomerPercent: 3, existingCustomerPercent: 3 }))).toBe('3% of net');
+      expect(component.describePercentRule(rule({ newCustomerPercent: 10, existingCustomerPercent: 5 })))
+        .toBe('10% new · 5% returning of full order');
     });
   });
 });

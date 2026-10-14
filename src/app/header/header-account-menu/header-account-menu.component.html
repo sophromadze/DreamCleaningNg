@@ -149,8 +149,16 @@
        (click)="header.closeAllMenus(); $event.stopPropagation()"
        class="admin-panel-menu-item">
       Admin Panel
-      @if (header.hasUnviewedNewOrders()) {
-      <span class="new-order-menu-indicator"></span>
+      <!-- The AI-draft count rode on the Blog entry until Blog became an admin-panel tab. -->
+      @if (header.hasUnviewedNewOrders() || header.pendingBlogDrafts() > 0) {
+      <span class="menu-indicators">
+        @if (header.pendingBlogDrafts() > 0) {
+        <span class="pending-drafts-badge" [attr.aria-label]="header.pendingBlogDrafts() + ' blog drafts waiting for review'">{{ header.pendingBlogDrafts() }}</span>
+        }
+        @if (header.hasUnviewedNewOrders()) {
+        <span class="new-order-menu-indicator"></span>
+        }
+      </span>
       }
     </a>
     }
@@ -159,17 +167,6 @@
        (click)="header.closeAllMenus(); $event.stopPropagation()"
       >
       CRM
-    </a>
-    }
-    <!-- Contracts became its own top-level section (2026-09), then joined Invoices
-         and Clients under Commercial. Role-gated the same way as CRM here; the
-         Contracts permission matrix and the invoicing role checks are both enforced
-         server-side on every action inside it. -->
-    @if (header.currentUser()?.role === 'SuperAdmin' || header.currentUser()?.role === 'Admin') {
-    <a routerLink="/admin/commercial"
-       (click)="header.closeAllMenus(); $event.stopPropagation()"
-      >
-      Commercial
     </a>
     }
     <!-- Company shell (Statistics/Expenses/Finances/Ads) — single entry, shown only when
@@ -191,16 +188,26 @@
       Outgoing Payments
     </a>
     }
-    @if (header.currentUser()?.role === 'SuperAdmin' || header.currentUser()?.role === 'Admin' || header.currentUser()?.role === 'Moderator') {
-    <a routerLink="/admin/blog"
+    <!-- Contracts became its own top-level section (2026-09), then joined Invoices
+         and Clients under Commercial. Role-gated the same way as CRM here; the
+         Contracts permission matrix and the invoicing role checks are both enforced
+         server-side on every action inside it. -->
+    @if (header.currentUser()?.role === 'SuperAdmin' || header.currentUser()?.role === 'Admin') {
+    <a routerLink="/admin/commercial"
        (click)="header.closeAllMenus(); $event.stopPropagation()"
-       class="blog-menu-item">
-      Blog
-      @if (header.pendingBlogDrafts() > 0) {
-      <span class="pending-drafts-badge">{{ header.pendingBlogDrafts() }}</span>
-      }
+      >
+      Commercial
     </a>
     }
+    @if (header.currentUser()?.role === 'SuperAdmin' || header.currentUser()?.role === 'Admin') {
+    <a routerLink="/admin/shifts"
+       (click)="header.closeAllMenus(); $event.stopPropagation()"
+      >
+      Shifts
+    </a>
+    }
+    <!-- Blog MOVED (2026-10) into the admin panel as its Blog tab (with its own
+         sub-tabs); /admin/blog redirects there. Cleaners stays last. -->
     @if (header.currentUser()?.role === 'SuperAdmin' || header.currentUser()?.role === 'Admin' || header.currentUser()?.role === 'Moderator') {
     <a routerLink="/cleaners-dashboard"
        (click)="header.closeAllMenus(); $event.stopPropagation()"
@@ -230,13 +237,6 @@
         <span class="done-task-menu-indicator" *ngIf="header.hasUncheckedDoneTasks && !header.hasPendingPersonalTasks"></span>
       </a>
     -->
-    @if (header.currentUser()?.role === 'SuperAdmin' || header.currentUser()?.role === 'Admin') {
-    <a routerLink="/admin/shifts"
-       (click)="header.closeAllMenus(); $event.stopPropagation()"
-      >
-      Shifts
-    </a>
-    }
     <!-- Statistics / Expenses / Finances collapsed into the single "Company" entry above.
          Bubble Rewards MOVED (2026-09) into the admin panel as its SuperAdmin-only
          Rewards tab, so it has no entry of its own here either; /admin/rewards

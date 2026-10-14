@@ -1136,6 +1136,12 @@
     font-size: 0.7rem;
     font-weight: 600;
     cursor: help;
+
+    // A one-time commercial bonus, told apart from the per-order ones (2026-10).
+    &.commercial {
+      background: var(--soft-blue);
+      color: var(--primary-text-elevated);
+    }
   }
 
   .salary-month-figure {
@@ -1212,6 +1218,34 @@
   }
 
   .dest-hint { color: var(--text-muted); font-size: 0.74rem; }
+}
+
+// Commercial bonuses by name under the payee (2026-10).
+.salary-commercial-list {
+  list-style: none;
+  margin: 0.25rem 0 0.5rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+
+  li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.3rem 0.75rem;
+    padding: 0.35rem 0.6rem;
+    border-radius: var(--radius-sm);
+    background: var(--surface-subtle);
+    font-size: 0.85rem;
+    color: var(--text-primary);
+  }
+
+  .commercial-label { font-weight: 600; }
+  .commercial-date,
+  .commercial-when { color: var(--text-muted-on-tint); font-size: 0.8rem; }
+  .commercial-amount { font-weight: 600; font-variant-numeric: tabular-nums; }
+  .commercial-when { margin-left: auto; }
 }
 
 .salary-warning {

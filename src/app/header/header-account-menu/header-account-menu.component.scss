@@ -381,11 +381,13 @@
       animation: pulse-done-task 2s infinite;
     }
 
-    // Blog menu item with pending-drafts count badge
-    .blog-menu-item {
-      display: flex;
+    // Admin Panel's indicators: the pending blog-drafts count and the new-order dot
+    .menu-indicators {
+      display: inline-flex;
       align-items: center;
-      justify-content: space-between;
+      gap: 6px;
+
+      .new-order-menu-indicator { margin-left: 0; }
     }
 
     .pending-drafts-badge {

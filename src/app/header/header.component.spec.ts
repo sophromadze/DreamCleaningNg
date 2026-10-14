@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { Router } from '@angular/router';
 
 import { HeaderComponent } from './header.component';
 
@@ -103,5 +104,78 @@ describe('HeaderComponent — stable layout from the first paint', () => {
     header.onPointsBadgeAvailability(false);
     fixture.detectChanges();
     expect(el.querySelector('app-bubble-badge')).toBeNull();
+  });
+});
+
+/**
+ * MOBILE MENU: the section labels open their section, they do not navigate (2026-10).
+ *
+ * "Cleaning Services" and "About" used to carry routerLink, and RouterLink navigates on its own
+ * click listener whatever the handler does with preventDefault — so a tap meant to open the
+ * accordion went to the page instead. The overview page is the "All Services" link inside.
+ */
+describe('HeaderComponent — mobile menu section toggles', () => {
+  let fixture: ComponentFixture<HeaderComponent>;
+  let header: HeaderComponent;
+  let router: Router;
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({ providers: [...testProviders], imports: [HeaderComponent] }).compileComponents();
+    fixture = TestBed.createComponent(HeaderComponent);
+    header = fixture.componentInstance;
+    router = TestBed.inject(Router);
+    fixture.detectChanges();
+  });
+
+  const click = (init: MouseEventInit = {}) => new MouseEvent('click', { cancelable: true, ...init });
+
+  it('carries no routerLink on the section labels, only a crawlable href', () => {
+    const el = fixture.nativeElement as HTMLElement;
+    const services = el.querySelector('.services-dropdown > a')!;
+    const about = el.querySelector('.about-dropdown > a')!;
+    expect(services.getAttribute('href')).toBe('/service-page');
+    expect(about.getAttribute('href')).toBe('/about');
+    expect(services.hasAttribute('ng-reflect-router-link')).toBe(false);
+    expect(el.querySelector('.mobile-all-services a')!.textContent!.trim()).toBe('All Services');
+  });
+
+  it('opens and closes Cleaning Services on mobile without navigating', () => {
+    header.isMobile.set(true);
+    const navigate = vi.spyOn(router, 'navigate');
+
+    const first = click();
+    header.onServicesClick(first);
+    expect(first.defaultPrevented).toBe(true);
+    expect(header.isServicesMenuOpen()).toBe(true);
+
+    header.onServicesClick(click());
+    expect(header.isServicesMenuOpen()).toBe(false);
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it('opens About on mobile without navigating', () => {
+    header.isMobile.set(true);
+    const navigate = vi.spyOn(router, 'navigate');
+    const e = click();
+    header.onAboutClick(e);
+    expect(e.defaultPrevented).toBe(true);
+    expect(header.isAboutMenuOpen()).toBe(true);
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it('still goes to the page on desktop, and leaves a ctrl-click to the browser', () => {
+    header.isMobile.set(false);
+    const navigate = vi.spyOn(router, 'navigate').mockResolvedValue(true);
+
+    const plain = click();
+    header.onServicesClick(plain);
+    expect(plain.defaultPrevented).toBe(true);
+    expect(navigate).toHaveBeenCalledWith(['/service-page']);
+
+    navigate.mockClear();
+    const newTab = click({ ctrlKey: true });
+    header.onServicesClick(newTab);
+    expect(newTab.defaultPrevented).toBe(false);
+    expect(navigate).not.toHaveBeenCalled();
   });
 });

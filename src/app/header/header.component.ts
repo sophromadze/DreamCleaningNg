@@ -593,7 +593,11 @@ export class HeaderComponent implements OnInit, OnDestroy {
       event.preventDefault();
       this.toggleServicesMenu(event);
     } else {
-      // On desktop, navigate to service page and close menu
+      // On desktop, navigate to service page and close menu. The anchor carries a plain
+      // href (no routerLink), so the default has to be cancelled or the browser reloads.
+      // A modified click (new tab/window) is left to the browser, as RouterLink did.
+      if (isModifiedClick(event)) return;
+      event.preventDefault();
       this.closeServicesMenu();
       this.router.navigate(['/service-page']);
     }
@@ -719,7 +723,9 @@ export class HeaderComponent implements OnInit, OnDestroy {
       event.preventDefault();
       this.toggleAboutMenu(event);
     } else {
-      // On desktop, navigate to the About page and close menu
+      // On desktop, navigate to the About page and close menu (plain href, see above)
+      if (isModifiedClick(event)) return;
+      event.preventDefault();
       this.closeAboutMenu();
       this.router.navigate(['/about']);
     }
@@ -858,4 +864,10 @@ export class HeaderComponent implements OnInit, OnDestroy {
     }
     this.authModalService.open('register');
   }
+}
+
+/** Ctrl/Cmd/Shift-click or a non-primary button: the browser opens the href itself. */
+function isModifiedClick(event: Event): boolean {
+  const e = event as MouseEvent;
+  return !!(e.ctrlKey || e.metaKey || e.shiftKey || e.altKey || (typeof e.button === 'number' && e.button !== 0));
 }

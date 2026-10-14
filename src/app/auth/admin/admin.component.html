@@ -127,6 +127,18 @@
       Rewards
     </button>
     }
+    <!-- Blog MOVED here from the header dropdown (2026-10), its own sub-tabs (Posts / Topic
+         Queue / Settings / How It Works) inside. Same audience the dropdown link had: everyone
+         who can open the panel; the blog API enforces its own roles per action. -->
+    <button class="tab-btn"
+            [class.active]="activeTab() === 'blog'"
+            (click)="setActiveTab('blog')"
+           >
+      Blog
+      @if (pendingBlogDrafts() > 0) {
+      <span class="tab-count-badge" [attr.aria-label]="pendingBlogDrafts() + ' drafts waiting for review'">{{ pendingBlogDrafts() }}</span>
+      }
+    </button>
     <!-- Regular customer invoices (2026-09). ALWAYS THE LAST TAB — owner's call; add new tabs
          above it. Role-gated to match [Authorize(Roles = "Admin,SuperAdmin")] on
          AdminCustomerInvoicesController, like Chats. -->
@@ -199,6 +211,9 @@
         @if (userRole() === 'SuperAdmin') {
         <app-admin-rewards></app-admin-rewards>
         }
+      }
+      @case ('blog') {
+      <app-admin-blog></app-admin-blog>
       }
       @case ('invoices') {
         @if (userRole() === 'Admin' || userRole() === 'SuperAdmin') {

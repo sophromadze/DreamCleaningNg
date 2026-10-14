@@ -1,14 +1,13 @@
+// Embedded as the admin panel's Blog tab (2026-10): the panel's .tab-content supplies the page
+// width and padding, so this block carries none of its own; the heading is an h2 under the panel's h1.
 .admin-blog-page {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 24px 20px 80px;
   color: var(--text-primary);
 
   .page-header {
     margin-bottom: 20px;
 
-    h1 {
-      font-size: 1.8rem;
+    h2 {
+      font-size: 1.375rem;
       font-weight: var(--fw-extrabold);
       margin: 0 0 4px;
     }

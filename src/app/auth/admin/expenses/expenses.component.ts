@@ -15,7 +15,9 @@ import {
   GroupedExpenses
 } from '../../../services/expense.service';
 import { AuthService } from '../../../services/auth.service';
-import { allowsCurrencyChoice, currencySymbol, isSalaryCategory } from '../../../shared/admin/salary-expense.rules';
+import {
+  allowsCurrencyChoice, currencySymbol, isSalaryCategory, SALARIES_CATEGORY_ID
+} from '../../../shared/admin/salary-expense.rules';
 
 /** The `?month=` query param: `yyyy-MM`. The year range matches what the server accepts. */
 export function parseMonthParam(value: string | null): { year: number; month: number } | null {
@@ -103,6 +105,18 @@ export class ExpensesComponent implements OnInit {
   readonly adjustEffectiveDate = signal('');
   readonly adjustNotes = signal<string | null>(null);
   readonly adjusting = signal(false);
+
+  // Commercial bonus (2026-10): a one-time amount added to a staff member's pay on a chosen date,
+  // with a name of its own. Opened from their salary line; one at a time. It is an ordinary
+  // one-time Salaries entry carrying a bonusLabel, which is what puts it in Statistics and
+  // Finances, and Outgoing Payments pays it whole with the month's second payment.
+  readonly bonusLine = signal<{ key: string; staffUserId: number; name: string } | null>(null);
+  readonly bonusEditingId = signal<number | null>(null);
+  readonly bonusLabel = signal('');
+  readonly bonusAmount = signal<number | null>(null);
+  readonly bonusCurrency = signal<ExpenseCurrencyCode>('GEL');
+  readonly bonusDate = signal('');
+  readonly bonusSaving = signal(false);
 
   // Category manager state.
   readonly showCategoryManager = signal(false);
@@ -240,6 +254,12 @@ export class ExpensesComponent implements OnInit {
   }
 
   openEditForm(row: Expense): void {
+    // A commercial bonus edits in its own small form — the general one has no bonus-name field
+    // and would offer a recurrence a bonus cannot have.
+    if (row.bonusLabel && row.staffUserId) {
+      this.openCommercialBonus({ staffUserId: row.staffUserId, name: row.name }, row);
+      return;
+    }
     this.editingId.set(row.id);
     this.form.set({
       name: row.name,
@@ -426,6 +446,82 @@ export class ExpensesComponent implements OnInit {
   askDelete(id: number): void { this.pendingDeleteId.set(id); this.adjustingId.set(null); }
   cancelDelete(): void { this.pendingDeleteId.set(null); }
 
+  // ─── commercial bonus ───────────────────────────────────────────────────────
+
+  /** A staff member's salary line can take a commercial bonus; a hand-typed name cannot. */
+  canAddCommercialBonus(categoryId: number, n: { staffUserId?: number | null; staffUserRemoved?: boolean }): boolean {
+    return this.canEdit && isSalaryCategory(categoryId) && !!n.staffUserId;
+  }
+
+  bonusKey(staffUserId: number): string {
+    return `staff#${staffUserId}`;
+  }
+
+  isBonusOpenFor(staffUserId: number | null | undefined): boolean {
+    return staffUserId != null && this.bonusLine()?.key === this.bonusKey(staffUserId);
+  }
+
+  openCommercialBonus(n: { staffUserId?: number | null; name: string }, existing?: Expense): void {
+    if (!n.staffUserId) return;
+    this.pendingDeleteId.set(null);
+    this.adjustingId.set(null);
+    this.bonusLine.set({ key: this.bonusKey(n.staffUserId), staffUserId: n.staffUserId, name: n.name });
+    this.bonusEditingId.set(existing?.id ?? null);
+    this.bonusLabel.set(existing?.bonusLabel ?? '');
+    this.bonusAmount.set(existing?.amount ?? null);
+    // Lari unless the bonus was entered in dollars — the admins are paid in GEL.
+    this.bonusCurrency.set(existing?.currency ?? 'GEL');
+    this.bonusDate.set(existing ? this.toYmd(existing.startDate) : this.toYmd(new Date()));
+  }
+
+  cancelCommercialBonus(): void {
+    this.bonusLine.set(null);
+    this.bonusEditingId.set(null);
+  }
+
+  saveCommercialBonus(): void {
+    const line = this.bonusLine();
+    if (!line || this.bonusSaving()) return;
+    const label = this.bonusLabel().trim();
+    const amount = Number(this.bonusAmount());
+    if (!label) { this.flashError('Give the bonus a name, e.g. "Onyx bonus"'); return; }
+    if (this.bonusAmount() == null || !isFinite(amount) || amount <= 0) { this.flashError('Enter an amount above zero'); return; }
+    if (!this.bonusDate()) { this.flashError('Pick the date of the bonus'); return; }
+
+    const dto: CreateExpense = {
+      name: line.name,
+      amount,
+      currency: this.bonusCurrency(),
+      categoryId: SALARIES_CATEGORY_ID,
+      staffUserId: line.staffUserId,
+      bonusLabel: label,
+      startDate: this.bonusDate(),
+      isRecurring: false,
+      frequencyMonths: null,
+      endDate: null,
+      prorateByDay: false,
+      notes: null
+    };
+
+    const editingId = this.bonusEditingId();
+    this.bonusSaving.set(true);
+    const obs = editingId == null
+      ? this.expenseService.create(dto)
+      : this.expenseService.update(editingId, dto);
+    obs.subscribe({
+      next: () => {
+        this.bonusSaving.set(false);
+        this.flashSuccess(editingId == null ? 'Bonus added' : 'Bonus updated');
+        this.cancelCommercialBonus();
+        this.load();
+      },
+      error: (err) => {
+        this.bonusSaving.set(false);
+        this.flashError(err.error?.message || 'Failed to save the bonus');
+      }
+    });
+  }
+
   // ─── adjust amount from a date (raise/reduce a recurring entry) ────────────
 
   /** Only a currently-open recurring entry can be adjusted — a row already ended is history. */
@@ -591,6 +687,7 @@ export class ExpensesComponent implements OnInit {
   // ─── derived display helpers ─────────────────────────────────────────────────
 
   recurrenceLabel(row: Expense): string {
+    if (row.bonusLabel) return 'Bonus';
     if (!row.isRecurring || !row.frequencyMonths) return 'One-time';
     const m = row.frequencyMonths;
     let base: string;

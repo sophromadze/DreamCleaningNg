@@ -17,6 +17,8 @@ import { ChatAgentSettingsComponent } from './chat-agent-settings/chat-agent-set
 import { ChatSessionsComponent } from './chat-sessions/chat-sessions.component';
 import { AdminRewardsComponent } from './rewards/admin-rewards.component';
 import { AdminCustomerInvoicesComponent } from './customer-invoices/admin-customer-invoices.component';
+import { AdminBlogComponent } from './blog/admin-blog.component';
+import { AccountStatusService } from '../../services/account-status.service';
 
 @Component({
   selector: 'app-admin',
@@ -32,7 +34,8 @@ import { AdminCustomerInvoicesComponent } from './customer-invoices/admin-custom
     ChatAgentSettingsComponent,
     ChatSessionsComponent,
     AdminRewardsComponent,
-    AdminCustomerInvoicesComponent
+    AdminCustomerInvoicesComponent,
+    AdminBlogComponent
 ],
   templateUrl: './admin.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -44,6 +47,8 @@ export class AdminComponent implements OnInit {
   private maintenanceModeService = inject(MaintenanceModeService);
   private liveChatService = inject(LiveChatService);
   private route = inject(ActivatedRoute);
+  /** AI blog drafts waiting for review — the Blog tab's badge (the header loads it). */
+  readonly pendingBlogDrafts = inject(AccountStatusService).pendingBlogDrafts;
 
   // Permissions
   readonly userRole = signal<string>('');
@@ -69,7 +74,7 @@ export class AdminComponent implements OnInit {
   /** Every tab the panel can show, in strip order. Only used to validate an incoming ?tab=. */
   private static readonly KNOWN_TABS = [
     'orders', 'users', 'booking-services', 'discounts',
-    'scheduling', 'audit-history', 'mails-sms', 'before-after', 'chats', 'rewards', 'invoices'
+    'scheduling', 'audit-history', 'mails-sms', 'before-after', 'chats', 'rewards', 'blog', 'invoices'
   ];
 
   /**

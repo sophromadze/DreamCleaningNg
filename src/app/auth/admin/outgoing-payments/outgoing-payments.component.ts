@@ -26,14 +26,18 @@ import { extractApiErrorMessage } from '../../../utils/http-error.utils';
 import { resolveServiceTypeShortLabel } from '../../../shared/admin/service-type-short-label';
 import { UnpaidCleanersComponent } from './unpaid-cleaners.component';
 import { CleanerPayoutHistoryComponent } from './cleaner-payout-history.component';
+import { AdminPerformanceComponent } from './admin-performance.component';
 
-/** The page's two payee tabs, as the URL names them. */
-export type PayeeTab = 'cleaners' | 'employees';
+/**
+ * The page's tabs, as the URL names them: the two payee tabs, and Admins (2026-10) — what each
+ * admin's completed orders came to over a period of its own choosing.
+ */
+export type PayeeTab = 'cleaners' | 'employees' | 'admins';
 
 /** The three views of cleaner wages (2026-10), as the URL names them. */
 export type CleanerView = 'orders' | 'unpaid' | 'paid';
 
-const PAYEE_TABS: readonly PayeeTab[] = ['cleaners', 'employees'];
+const PAYEE_TABS: readonly PayeeTab[] = ['cleaners', 'employees', 'admins'];
 const CLEANER_VIEWS: readonly CleanerView[] = ['orders', 'unpaid', 'paid'];
 
 /**
@@ -63,7 +67,8 @@ const CLEANER_VIEWS: readonly CleanerView[] = ['orders', 'unpaid', 'paid'];
  */
 @Component({
   selector: 'app-outgoing-payments',
-  imports: [CommonModule, FormsModule, RouterModule, UnpaidCleanersComponent, CleanerPayoutHistoryComponent],
+  imports: [CommonModule, FormsModule, RouterModule, UnpaidCleanersComponent, CleanerPayoutHistoryComponent,
+    AdminPerformanceComponent],
   templateUrl: './outgoing-payments.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['../orders/orders.component.scss', './outgoing-payments.component.scss']
@@ -339,6 +344,8 @@ export class OutgoingPaymentsComponent implements OnInit, OnDestroy {
    * cleaners has its own paid-from / paid-to dates, so a second date control there would compete.
    */
   get showMonthBar(): boolean {
+    // Admins has its own period chips (this month / last month / this year / all time / days).
+    if (this.activeTab() === 'admins') return false;
     return this.activeTab() === 'employees' || this.cleanerView() !== 'paid';
   }
 

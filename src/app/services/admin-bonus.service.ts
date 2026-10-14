@@ -46,8 +46,41 @@ export interface AdminBonusSummary {
   teamNewCustomerRateIsCustom: boolean;
   teamExistingCustomerRateIsCustom: boolean;
 
+  /** The fixed per-order bonuses alone (both slots), GEL. */
+  fixedBonusAmount: number;
+  /** The percentage bonus over the window, GEL at each order month's rate. */
+  percentBonusAmount: number;
+  /** The same percentage bonus in USD — what it was computed on. */
+  percentBonusUsd: number;
+  /** Orders in the window that earned a percentage bonus. */
+  percentBonusOrderCount: number;
+  /** This person's percentage rules, newest first. */
+  percentRules: AdminPercentBonusRule[];
+
+  /** Everything owed in bonuses: fixed + percentage. */
   bonusAmount: number;
   currency: string;
+}
+
+/** What a percentage bonus is a percentage OF. */
+export type AdminPercentBonusBasis = 'FullOrder' | 'NetIncome';
+
+/**
+ * One dated percentage-bonus rule (2026-10). Rules are a history: each applies from its start
+ * date until the next one starts, so setting a new percentage never restates earlier orders.
+ * Percent 0 = the bonus was stopped from that date.
+ */
+export interface AdminPercentBonusRule {
+  id: number;
+  basis: AdminPercentBonusBasis;
+  /** Percent on new-customer / returning-customer orders, like the per-order rates. Both 0 = stopped. */
+  newCustomerPercent: number;
+  existingCustomerPercent: number;
+  startDate: string;
+  isCurrent: boolean;
+  isUpcoming: boolean;
+  createdAt: string;
+  createdByName?: string | null;
 }
 
 /**
@@ -134,5 +167,28 @@ export class AdminBonusService {
     if (to) params = params.set('to', to);
     return this.http.put<AdminBonusSummary>(
       `${this.apiUrl}/admin/${adminId}/rates`, override, { params });
+  }
+
+  /**
+   * SuperAdmin only — a percentage bonus from `startDate` on (both percents 0 stop it). Answers with
+   * the person's row over the same window.
+   */
+  addPercentRule(adminId: number,
+                 rule: { basis: AdminPercentBonusBasis; newCustomerPercent: number; existingCustomerPercent: number; startDate: string },
+                 from?: string, to?: string): Observable<AdminBonusSummary> {
+    let params = new HttpParams();
+    if (from) params = params.set('from', from);
+    if (to) params = params.set('to', to);
+    return this.http.post<AdminBonusSummary>(
+      `${this.apiUrl}/admin/${adminId}/percent-rules`, rule, { params });
+  }
+
+  /** SuperAdmin only — removes a rule entered by mistake. */
+  deletePercentRule(adminId: number, ruleId: number, from?: string, to?: string): Observable<AdminBonusSummary> {
+    let params = new HttpParams();
+    if (from) params = params.set('from', from);
+    if (to) params = params.set('to', to);
+    return this.http.delete<AdminBonusSummary>(
+      `${this.apiUrl}/admin/${adminId}/percent-rules/${ruleId}`, { params });
   }
 }
