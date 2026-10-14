@@ -137,5 +137,33 @@ describe('BookingServicesComponent', () => {
       const select: HTMLSelectElement = fixture.nativeElement.querySelector('select[aria-label="Based on"]');
       expect(select.selectedOptions[0]?.textContent?.trim()).toBe('Old Rooms');
     });
+
+    const hints = (): string[] =>
+      Array.from(fixture.nativeElement.querySelectorAll('.pricing-hint') as NodeListOf<HTMLElement>)
+        .map(p => p.textContent!.replace(/\s+/g, ' ').trim());
+
+    it('says the included amount only sets what is free, with no minimum line, for a non-sqft service', async () => {
+      component.expandedPricingServiceId.set(15);
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(hints()[0]).toBe(
+        'How much of Levels is included at no charge, based on a service\'s quantity (or its own). ' +
+        'Customers can still pick less; this only sets what is free.');
+      expect(fixture.nativeElement.querySelector('.sqft-minimum-hint')).toBeNull();
+    });
+
+    it('adds the minimum line for the sqft service, found by key rather than by name', async () => {
+      const sqft = svc({ id: 3, name: 'Home size', serviceKey: 'sqft', inputType: 'slider', isRangeInput: true, chargeAboveThreshold: true });
+      component.selectedServiceType()!.services.push(sqft);
+      component.selectedServiceType.set(component.selectedServiceType());
+      component.expandedPricingServiceId.set(3);
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(hints()[0]).toContain('How much of Home size is included at no charge');
+      expect(fixture.nativeElement.querySelector('.sqft-minimum-hint')?.textContent?.trim())
+        .toBe('For Sq.ft based on Bedrooms, this is also the lowest value a customer can pick.');
+    });
   });
 });

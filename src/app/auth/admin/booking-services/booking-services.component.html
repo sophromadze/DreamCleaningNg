@@ -1022,8 +1022,15 @@
                       </div>
                       <p class="pricing-hint">
                         How much of <strong>{{ service.name }}</strong> is included at no charge, based on
-                        another service's quantity (or its own). This is also the lowest value a customer can pick.
+                        a service's quantity (or its own). Customers can still pick less; this only sets what is free.
                       </p>
+                      <!-- Only Sq.ft takes its booking minimum from these rows (the bedrooms-driven slider
+                           floor, and ClampSquareFeetToBedrooms on the server); both find it by key. -->
+                      @if (service.serviceKey === 'sqft') {
+                      <p class="pricing-hint sqft-minimum-hint">
+                        For Sq.ft based on Bedrooms, this is also the lowest value a customer can pick.
+                      </p>
+                      }
 
                       <table class="nested-table">
                         <thead>
