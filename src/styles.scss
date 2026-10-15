@@ -291,6 +291,7 @@
      ============================================================== */
   --btn-primary: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
   --btn-primary-hover: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  --text-on-primary: #fff;  /* text on --btn-primary (theme-stable, like the gradient) */
   --btn-brand: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);              /* green-500 → green-600 */
   --btn-brand-hover: linear-gradient(135deg, #4ade80 0%, #22c55e 100%);        /* green-400 → green-500 */
   --btn-danger: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);

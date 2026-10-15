@@ -139,6 +139,17 @@
       <span class="tab-count-badge" [attr.aria-label]="pendingBlogDrafts() + ' drafts waiting for review'">{{ pendingBlogDrafts() }}</span>
       }
     </button>
+    <!-- Analytics Agent (2026-10): a chat that answers business questions from real data.
+         SuperAdmin-only, role-gated like Services and Rewards; the real boundary is the
+         AdminAgentSuperAdmin policy on AdminAgentController. -->
+    @if (userRole() === 'SuperAdmin') {
+    <button class="tab-btn"
+            [class.active]="activeTab() === 'analytics-agent'"
+            (click)="setActiveTab('analytics-agent')"
+           >
+      Analytics Agent
+    </button>
+    }
     <!-- Regular customer invoices (2026-09). ALWAYS THE LAST TAB — owner's call; add new tabs
          above it. Role-gated to match [Authorize(Roles = "Admin,SuperAdmin")] on
          AdminCustomerInvoicesController, like Chats. -->
@@ -214,6 +225,13 @@
       }
       @case ('blog') {
       <app-admin-blog></app-admin-blog>
+      }
+      <!-- Guarded as well as hidden, same reason as Services: a stale 'analytics-agent' in
+           sessionStorage must not mount it (and fire 403 calls) before the role has loaded. -->
+      @case ('analytics-agent') {
+        @if (userRole() === 'SuperAdmin') {
+        <app-analytics-agent></app-analytics-agent>
+        }
       }
       @case ('invoices') {
         @if (userRole() === 'Admin' || userRole() === 'SuperAdmin') {

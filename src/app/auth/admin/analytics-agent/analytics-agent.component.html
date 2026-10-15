@@ -1,0 +1,185 @@
+<section class="agent-page" aria-labelledby="agent-heading">
+  <h2 id="agent-heading" class="sr-only">Analytics Agent</h2>
+
+  <!-- Chats -->
+  <aside class="agent-sessions" aria-label="Your chats">
+    <button type="button" class="agent-new-chat" (click)="newChat()"><i class="fas fa-plus" aria-hidden="true"></i> New chat</button>
+    @if (sessions().length === 0) {
+      <p class="agent-sessions-empty">No chats yet.</p>
+    }
+    <ul class="agent-session-list">
+      @for (s of sessions(); track s.id) {
+        <li class="agent-session" [class.is-active]="s.id === activeSessionId()">
+          @if (renamingId() === s.id) {
+            <form class="agent-rename" (ngSubmit)="saveRename(s)">
+              <label class="sr-only" [for]="'rename-' + s.id">Chat title</label>
+              <input [id]="'rename-' + s.id" name="title" type="text" maxlength="200"
+                     [ngModel]="renameDraft()" (ngModelChange)="renameDraft.set($event)"
+                     (keydown.escape)="cancelRename()" autocomplete="off">
+              <button type="submit" class="agent-icon-btn" aria-label="Save title"><i class="fas fa-check" aria-hidden="true"></i></button>
+              <button type="button" class="agent-icon-btn" (click)="cancelRename()" aria-label="Cancel rename"><i class="fas fa-xmark" aria-hidden="true"></i></button>
+            </form>
+          } @else {
+            <button type="button" class="agent-session-open" (click)="openSession(s.id)"
+                    [attr.aria-current]="s.id === activeSessionId() ? 'true' : null">
+              <span class="agent-session-title">{{ s.title }}</span>
+              <span class="agent-session-date">{{ sessionDate(s.updatedAt) }}</span>
+            </button>
+            <span class="agent-session-actions">
+              <button type="button" class="agent-icon-btn" (click)="startRename(s)" [attr.aria-label]="'Rename ' + s.title"><i class="fas fa-pen" aria-hidden="true"></i></button>
+              <button type="button" class="agent-icon-btn danger" (click)="deleteSession(s)" [attr.aria-label]="'Delete ' + s.title"><i class="fas fa-trash" aria-hidden="true"></i></button>
+            </span>
+          }
+        </li>
+      }
+    </ul>
+  </aside>
+
+  <!-- Conversation -->
+  <div class="agent-chat">
+    <header class="agent-chat-header">
+      <div class="agent-chat-title">{{ activeSession()?.title || 'New chat' }}</div>
+      <div class="agent-chat-meta">
+        @if (status()) { <span>{{ status()!.model }}</span> }
+        @if (activeSession()) {
+          <span title="Tokens used in this chat (input, output and cache)">{{ sessionTokens(activeSession()) }} tokens</span>
+          <span title="Estimated cost of this chat">
+            {{ status()?.costEstimateAvailable || activeSession()?.estimatedCostUsd != null ? '~' + sessionCost(activeSession()) : 'cost: —' }}
+          </span>
+        }
+      </div>
+    </header>
+
+    @if (status() && !status()!.isConfigured) {
+      <div class="agent-banner warn" role="status">
+        The analytics agent is not configured: no AI API key is set (AdminAgent:ApiKey or Anthropic:ApiKey).
+      </div>
+    } @else if (status() && !status()!.sqlConfigured) {
+      <div class="agent-banner info" role="status">
+        Ad-hoc SQL is unavailable (ConnectionStrings:AgentReadOnly is not set). Answers use the built-in reports only.
+      </div>
+    }
+    @if (errorMessage()) {
+      <div class="agent-banner error" role="alert">{{ errorMessage() }}</div>
+    }
+
+    <div class="agent-messages" #messageList aria-live="polite">
+      @if (loadingSession()) {
+        <p class="agent-muted">Loading…</p>
+      } @else if (messages().length === 0) {
+        <div class="agent-empty">
+          <p class="agent-empty-lead">Ask about orders, revenue, tax, cleaner pay or admins' bookings — in English or Georgian.</p>
+          <div class="agent-chips">
+            @for (p of examplePrompts; track p) {
+              <button type="button" class="agent-chip" (click)="useExample(p)" [disabled]="!status()?.isConfigured">{{ p }}</button>
+            }
+          </div>
+        </div>
+      }
+
+      @for (m of messages(); track m.id) {
+        @if (m.role === 'user') {
+          <div class="agent-msg user">
+            <div class="agent-bubble">{{ m.content }}</div>
+          </div>
+        } @else {
+          <div class="agent-msg assistant">
+            @if (m.status === 'running') {
+              <div class="agent-bubble agent-progress" role="status">
+                <span class="agent-spinner" aria-hidden="true"></span>
+                {{ m.progressLabel || 'Thinking…' }}
+              </div>
+            } @else if (m.status === 'error') {
+              <div class="agent-bubble agent-error">
+                <p>{{ m.errorMessage || 'Something went wrong.' }}</p>
+                <button type="button" class="agent-link-btn" (click)="retry(m)" [disabled]="!!runningMessage() || sending()">Try again</button>
+              </div>
+            } @else {
+              <div class="agent-bubble agent-answer">
+                <div class="agent-markdown" [innerHTML]="html(m)"></div>
+
+                @for (part of m.parts ?? []; track $index) {
+                  @if (asChart(part); as chart) {
+                    <app-agent-chart [part]="chart"></app-agent-chart>
+                  }
+                  @if (asTable(part); as table) {
+                    <div class="agent-table-block">
+                      @if (table.title) { <div class="agent-chart-title">{{ table.title }}</div> }
+                      <div class="agent-table-wrap">
+                        <table class="agent-table">
+                          <thead>
+                            <tr>
+                              @for (c of table.columns; track c.key) {
+                                <th scope="col" [class.num]="isNumeric(c.format)">{{ c.label }}</th>
+                              }
+                            </tr>
+                          </thead>
+                          <tbody>
+                            @for (row of table.rows; track $index) {
+                              <tr>
+                                @for (c of table.columns; track c.key) {
+                                  <td [class.num]="isNumeric(c.format)">{{ cell(row, c.key, c.format) }}</td>
+                                }
+                              </tr>
+                            }
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  }
+                }
+              </div>
+            }
+
+            @if (m.status !== 'running' && (m.calculation?.length || m.inputTokens)) {
+              <details class="agent-calc">
+                <summary>How this was calculated</summary>
+                @if (!m.calculation?.length) {
+                  <p class="agent-muted">No data tools were used for this answer.</p>
+                }
+                <ol class="agent-calc-steps">
+                  @for (step of m.calculation ?? []; track $index) {
+                    <li>
+                      <div class="agent-calc-head">
+                        <strong>{{ step.label }}</strong>
+                        <code class="agent-calc-tool">{{ step.tool }}</code>
+                        @if (step.duration_ms != null) { <span class="agent-muted">{{ step.duration_ms }} ms</span> }
+                      </div>
+                      @if (step.definition) { <div><span class="agent-muted">Definition:</span> {{ step.definition }}</div> }
+                      @if (step.date_range) { <div><span class="agent-muted">Date range:</span> {{ step.date_range }}</div> }
+                      @for (f of step.filters ?? []; track $index) { <div><span class="agent-muted">Filter:</span> {{ f }}</div> }
+                      @if (step.sql) {
+                        <pre class="agent-sql"><code>{{ step.sql }}</code></pre>
+                        @if (step.row_count != null) {
+                          <div class="agent-muted">{{ step.row_count }} rows{{ step.truncated ? ' (truncated)' : '' }}</div>
+                        }
+                      } @else if (step.input) {
+                        <div class="agent-muted agent-calc-input">Input: <code>{{ inputJson(step.input) }}</code></div>
+                      }
+                      @if (step.error) { <div class="agent-calc-error">Error: {{ step.error }}</div> }
+                    </li>
+                  }
+                </ol>
+                <div class="agent-muted agent-calc-usage">
+                  {{ m.model }} · {{ messageTokens(m) }} tokens{{ m.costUsd != null ? ' · ~' + messageCost(m) : '' }}
+                </div>
+              </details>
+            }
+          </div>
+        }
+      }
+    </div>
+
+    <form class="agent-composer" (ngSubmit)="send()">
+      <label class="sr-only" for="agent-question">Your question</label>
+      <textarea id="agent-question" name="question" rows="2" maxlength="4000"
+                placeholder="Ask a question… (Enter to send, Shift+Enter for a new line)"
+                [ngModel]="draft()" (ngModelChange)="draft.set($event)"
+                (keydown)="onComposerKeydown($event)"
+                [disabled]="!status()?.isConfigured"></textarea>
+      <button type="submit" class="agent-send" [disabled]="!canSend()">
+        {{ sending() ? 'Sending…' : runningMessage() ? 'Working…' : 'Send' }}
+      </button>
+    </form>
+  </div>
+</section>

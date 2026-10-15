@@ -1,10 +1,22 @@
 import { PLATFORM_ID, inject, Service } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { HubConnection, HubConnectionBuilder, LogLevel, HttpTransportType } from '@microsoft/signalr';
-import { BehaviorSubject, Observable } from 'rxjs';
+import { BehaviorSubject, Observable, Subject } from 'rxjs';
 import { AuthService } from './auth.service';
 import { environment } from '../../environments/environment';
 import { filter, skip, debounceTime, distinctUntilChanged } from 'rxjs/operators';
+
+/**
+ * Progress of a SuperAdmin analytics-agent answer, pushed to the asking SuperAdmin's own group
+ * only. 'progress' carries the step label; 'completed' says the answer can be re-read.
+ */
+export interface AdminAgentEvent {
+  kind: 'progress' | 'completed';
+  sessionId: number;
+  messageId: number;
+  label?: string;
+  status?: string;
+}
 
 export interface UserNotification {
   message: string;
@@ -27,6 +39,7 @@ export class SignalRService {
   private static globalNewOrderCreated = new BehaviorSubject<{orderId: number} | null>(null);
   private static globalNewOrderViewed = new BehaviorSubject<{orderId: number} | null>(null);
   private static globalTasksUpdated = new BehaviorSubject<{type: string} | null>(null);
+  private static globalAdminAgentEvents = new Subject<AdminAgentEvent>();
 
   private apiUrl = environment.apiUrl;
   private useCookieAuth = environment.useCookieAuth || false;
@@ -40,6 +53,8 @@ export class SignalRService {
   public newOrderCreated$ = SignalRService.globalNewOrderCreated.asObservable();
   public newOrderViewed$ = SignalRService.globalNewOrderViewed.asObservable();
   public tasksUpdated$ = SignalRService.globalTasksUpdated.asObservable();
+  /** Analytics agent answer progress (a Subject: a late subscriber must not replay old steps). */
+  public adminAgentEvents$ = SignalRService.globalAdminAgentEvents.asObservable();
 
   constructor() {
     this.isBrowser = isPlatformBrowser(this.platformId);
@@ -305,6 +320,19 @@ export class SignalRService {
     // Handle task/interaction/handover updates from other admins
     SignalRService.hubConnection.on('TasksUpdated', (data: any) => {
       SignalRService.globalTasksUpdated.next({ type: data.type });
+    });
+
+    // SuperAdmin analytics agent (2026-10): step labels while an answer is being worked out, then
+    // "completed" so the page re-reads the stored answer.
+    SignalRService.hubConnection.on('AdminAgentProgress', (data: any) => {
+      SignalRService.globalAdminAgentEvents.next({
+        kind: 'progress', sessionId: data.sessionId, messageId: data.messageId, label: data.label
+      });
+    });
+    SignalRService.hubConnection.on('AdminAgentTurnCompleted', (data: any) => {
+      SignalRService.globalAdminAgentEvents.next({
+        kind: 'completed', sessionId: data.sessionId, messageId: data.messageId, status: data.status
+      });
     });
 
     // Connection event handlers

@@ -214,6 +214,58 @@ describe('AdminComponent', () => {
   });
 
   /**
+   * THE ANALYTICS AGENT IS A SUPERADMIN TAB (2026-10). It reads the whole business's figures; the
+   * server refuses everyone else (AdminAgentController's policy). The panel must not even offer it
+   * to an Admin, nor mount it from a stale saved tab before the role is known.
+   */
+  describe('the Analytics Agent tab is SuperAdmin-only', () => {
+    const tabLabels = () =>
+      Array.from(fixture.nativeElement.querySelectorAll('.admin-tabs .tab-btn'))
+        .map((b) => (b as HTMLElement).textContent?.trim());
+
+    afterEach(() => {
+      sessionStorage.removeItem('adminActiveTab');
+    });
+
+    it('does not render the button for an Admin or a Moderator', () => {
+      for (const role of ['Admin', 'Moderator']) {
+        component.userRole.set(role);
+        fixture.detectChanges();
+        expect(tabLabels()).not.toContain('Analytics Agent');
+      }
+    });
+
+    it('renders it for a SuperAdmin, above Invoices, which stays last', () => {
+      component.userRole.set('SuperAdmin');
+      fixture.detectChanges();
+      const labels = tabLabels();
+      expect(labels).toContain('Analytics Agent');
+      expect(labels[labels.length - 1]).toBe('Invoices');
+      expect(labels.indexOf('Analytics Agent')).toBe(labels.length - 2);
+    });
+
+    it('falls back to Orders when a non-SuperAdmin asks for it', () => {
+      component.userRole.set('Admin');
+      component.setActiveTab('analytics-agent');
+      expect(component.activeTab()).toBe('orders');
+      expect(component.canOpenTab('analytics-agent')).toBe(false);
+    });
+
+    it('does not mount the agent while the role is not SuperAdmin, even on the tab', () => {
+      component.userRole.set('Admin');
+      component.activeTab.set('analytics-agent');
+      fixture.detectChanges();
+      expect(fixture.nativeElement.querySelector('app-analytics-agent')).toBeNull();
+    });
+
+    it('lets a SuperAdmin open it', () => {
+      component.userRole.set('SuperAdmin');
+      component.setActiveTab('analytics-agent');
+      expect(component.activeTab()).toBe('analytics-agent');
+    });
+  });
+
+  /**
    * DEEP LINKS INTO USERS (2026-09).
    *
    * The Orders panel's "View User" used to send every order to Users → Customers, so opening an

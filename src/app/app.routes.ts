@@ -413,6 +413,9 @@ export const routes: Routes = [
   // economy, so it sits with the other SuperAdmin-only tabs now. The old path redirects onto that
   // tab so existing bookmarks land where the page went rather than 404ing.
   { path: 'admin/rewards', pathMatch: 'full', redirectTo: () => inject(Router).parseUrl('/admin?tab=rewards') },
+  // The SuperAdmin Analytics Agent is a tab too (2026-10); this only makes it linkable. The tab
+  // itself is SuperAdmin-gated, and the API behind it is SuperAdmin-only on the server.
+  { path: 'admin/analytics-agent', pathMatch: 'full', redirectTo: () => inject(Router).parseUrl('/admin?tab=analytics-agent') },
   { path: 'admin/expenses', redirectTo: 'admin/company/expenses', pathMatch: 'full' },
   { path: 'admin/finances', redirectTo: 'admin/company/finances', pathMatch: 'full' },
   // ── Commercial: Invoices / Contracts / Clients / Billing Settings ────────────────────────
