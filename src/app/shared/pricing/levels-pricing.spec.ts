@@ -132,17 +132,24 @@ describe('levels pricing', () => {
 
   // ── The deep-cleaning multiplier ───────────────────────────────────────────────────
 
-  it('scales the levels COST by the cleaning-type multiplier but never the DURATION', () => {
-    // Stair deep cleaning genuinely takes longer, so the multiplier applies to cost - it falls
-    // out of treating levels as an ordinary service line.
-    //
-    // Duration is NOT multiplied. No duration anywhere is multiplier-scaled (see the note on
-    // getServiceDisplayDuration about bug B1): Deep Cleaning contributes its own minutes through
-    // its ExtraService row, and scaling service durations on top double-counted it.
+  it('scales the levels COST by the price multiplier, and the DURATION only by the time multiplier', () => {
+    // Levels is an ordinary home line, so both cleaning-type multipliers apply to it (2026-10).
+    // The PRICE multiplier never touches minutes (bug B1 on getServiceDisplayDuration); minutes
+    // move only with the Deep extra's own TIME multiplier, which defaults to 1.0 - so at the
+    // default the levels minutes are exactly what they always were.
     const line = levelsResultOf(withLevels(3, 2, 1600, 3, true));
 
     expect(line.cost).toBe(105);    // 35 x 2 x 1.5
-    expect(line.duration).toBe(50); // 25 x 2, unscaled - not 75
+    expect(line.duration).toBe(50); // 25 x 2, unscaled at the default time multiplier - not 75
+  });
+
+  it('scales the levels DURATION by a configured time multiplier', () => {
+    const input = withLevels(3, 2, 1600, 3, true);
+    input.extraServices.find(e => e.isDeepCleaning)!.timeMultiplier = 1.5;
+
+    const line = levelsResultOf(input);
+    expect(line.cost).toBe(105);    // the price multiplier is unchanged
+    expect(line.duration).toBe(75); // 25 x 2 x 1.5
   });
 
   it('reproduces the signed-off worked example end to end', () => {
@@ -252,11 +259,12 @@ describe('levels pricing', () => {
       expect(getServiceDisplayPrice(levelsService, 3, 1.5, selected)).toBe(105);
     });
 
-    it('shows the same per-level duration the quote adds, unscaled by the multiplier', () => {
+    it('shows the same per-level duration the quote adds, under the TIME multiplier it is given', () => {
       const selected = [{ service: levelsService, quantity: 3 }];
 
       expect(getServiceDisplayDuration(levelsService, 3, 1, selected)).toBe(50);
-      expect(getServiceDisplayDuration(levelsService, 3, 1.5, selected)).toBe(50);
+      // The third argument is the time multiplier (resolveTimeMultiplier), never the price one.
+      expect(getServiceDisplayDuration(levelsService, 3, 1.5, selected)).toBe(75);
     });
 
     it('is still correct when a caller forgets to pass the selection array', () => {

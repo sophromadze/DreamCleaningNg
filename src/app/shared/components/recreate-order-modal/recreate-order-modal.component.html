@@ -333,7 +333,7 @@
           <div class="rom-service-item">
             <label>{{ selected.service.name }}</label>
 
-            @if (selected.service.inputType === 'dropdown') {
+            @if (!isSliderService(selected.service)) {
             <div class="rom-service-input">
               <span class="rom-stepper">
                 <button type="button" aria-label="Decrease"
@@ -350,7 +350,7 @@
             </div>
             }
 
-            @if (selected.service.isRangeInput) {
+            @if (isSliderService(selected.service)) {
             <div class="rom-service-input rom-slider">
               <span class="rom-slider__value">{{ selected.quantity }}</span>
               <input type="range" min="0" step="1"

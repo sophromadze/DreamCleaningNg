@@ -1,4 +1,5 @@
 import { Component, OnInit, OnDestroy, ChangeDetectorRef, PLATFORM_ID, afterNextRender, Injector, runInInjectionContext, ElementRef, inject, ChangeDetectionStrategy, viewChild, signal, computed, TransferState } from '@angular/core';
+import { isSliderService } from '../shared/booking/service-control.utils';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, FormControl, Validators, AbstractControl, ValidationErrors } from '@angular/forms';
 import { Router, RouterModule, ActivatedRoute } from '@angular/router';
@@ -52,6 +53,7 @@ import {
   resolveLoyaltyStacking,
   resolveGiftCardAmountToUse,
   resolvePriceMultiplier,
+  resolveTimeMultiplier,
   getServiceDisplayPrice,
   getExtraServiceDisplayPrice,
   getServiceDisplayDuration,
@@ -203,6 +205,8 @@ export function adminMethodIsSettled(method: AdminBookingPaymentMethod): boolean
   styleUrl: './booking.component.scss'
 })
 export class BookingComponent implements OnInit, OnDestroy {
+  /** Slider vs stepper for a service (shared rule, see service-control.utils). */
+  readonly isSliderService = isSliderService;
   /** Re-renders when a form changes outside a template event (see form-view-refresher). */
   private readonly watchForm = formViewRefresher();
   private fb = inject(FormBuilder);
@@ -3370,7 +3374,7 @@ export class BookingComponent implements OnInit, OnDestroy {
     // Defaults for not-yet-selected cards: 0.5h / qty 1. Math lives in the shared calculator.
     const hours = selected ? selected.hours : 0.5;
     const quantity = selected ? selected.quantity : 1;
-    return getExtraServiceDisplayPrice(extraService, quantity, hours, this.getSelectedPriceMultiplier());
+    return getExtraServiceDisplayPrice(extraService, quantity, hours);
   }
 
   getExtraServiceDuration(extraService: ExtraService): number {
@@ -3594,6 +3598,11 @@ private updateDateRestrictions() {
   /** Current cleaning-type multiplier (super deep > deep > 1) from the shared calculator. */
   getSelectedPriceMultiplier(): number {
     return resolvePriceMultiplier(mapSelectedExtraInputs(this.selectedExtraServices())).multiplier;
+  }
+
+  /** Current cleaning-type TIME multiplier (home minutes only) from the shared calculator. */
+  getSelectedTimeMultiplier(): number {
+    return resolveTimeMultiplier(mapSelectedExtraInputs(this.selectedExtraServices()));
   }
 
   calculateTotal() {
@@ -3946,10 +3955,9 @@ private updateDateRestrictions() {
   }
 
   getServiceDuration(service: Service): number {
-    // Per-service display duration is NOT multiplier-scaled (bug B1) — it now matches the
-    // summary exactly. The multiplier is still passed for signature symmetry.
+    // Same minutes the quote gives this line: the TIME multiplier, never the price one (bug B1).
     const quantity = this.getServiceQuantity(service);
-    return getServiceDisplayDuration(service, quantity, this.getSelectedPriceMultiplier(), this.selectedServices());
+    return getServiceDisplayDuration(service, quantity, this.getSelectedTimeMultiplier(), this.selectedServices());
   }
 
   getServiceQuantity(service: Service): number {

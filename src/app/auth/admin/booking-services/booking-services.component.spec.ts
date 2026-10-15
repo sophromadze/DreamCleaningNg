@@ -166,4 +166,109 @@ describe('BookingServicesComponent', () => {
         .toBe('For Sq.ft based on Bedrooms, this is also the lowest value a customer can pick.');
     });
   });
+
+  describe('add / edit side panel (2026-10)', () => {
+    let admin: AdminService;
+    const extra = (o: Partial<ExtraService>): ExtraService => ({
+      id: 5, name: 'Deep Cleaning', price: 90, duration: 120, hasQuantity: false, hasHours: false,
+      isDeepCleaning: true, isSuperDeepCleaning: false, isSameDayService: false, priceMultiplier: 1.5,
+      timeMultiplier: 1.25, isAvailableForAll: true, isActive: true, displayOrder: 1, extraServiceKey: 'deep-cleaning', ...o
+    });
+    const svc = (o: Partial<Service>): Service => ({
+      id: 3, name: 'Square Feet', serviceKey: 'sqft', cost: 0.05, timeDuration: 0.1, serviceTypeId: 1,
+      inputType: 'slider', isRangeInput: true, isActive: true, minValue: 400, maxValue: 5000, stepValue: 100,
+      ...o
+    } as Service);
+
+    beforeEach(() => {
+      admin = TestBed.inject(AdminService);
+      component.userPermissions().permissions.canUpdate = true;
+      component.userPermissions().permissions.canCreate = true;
+      component.userPermissions.set(component.userPermissions());
+      component.selectedServiceType.set({ id: 1, name: 'Residential', services: [], extraServices: [] } as unknown as ServiceType);
+      vi.spyOn(component, 'loadServiceTypes').mockImplementation(() => {});
+      vi.spyOn(component, 'loadAllExtraServices').mockImplementation(() => {});
+    });
+
+    it('edits a COPY, so Cancel leaves the table row untouched', () => {
+      const row = extra({});
+      component.editExtraService(row);
+      expect(component.panel()).toEqual({ kind: 'extra', mode: 'edit' });
+
+      component.extraServiceDraft()!.price = 999;
+      component.cancelEditExtraService();
+
+      expect(row.price).toBe(90);
+      expect(component.panel()).toBeNull();
+      expect(component.extraServiceDraft()).toBeNull();
+    });
+
+    it('sends the time multiplier with the price multiplier', () => {
+      const update = vi.spyOn(admin, 'updateExtraService').mockReturnValue(of(extra({})));
+      component.editExtraService(extra({}));
+      component.extraServiceDraft()!.timeMultiplier = 1.4;
+      component.saveExtraService(component.extraServiceDraft()!);
+
+      const sent = vi.mocked(update).mock.lastCall![1];
+      expect(sent.priceMultiplier).toBe(1.5);
+      expect(sent.timeMultiplier).toBe(1.4);
+      expect(component.panel()).toBeNull();
+    });
+
+    it('an extra has exactly one special role and one pricing mode', () => {
+      component.editExtraService(extra({}));
+      component.setExtraRole('sameDay');
+      const draft = component.extraServiceDraft()!;
+      expect([draft.isDeepCleaning, draft.isSuperDeepCleaning, draft.isSameDayService]).toEqual([false, false, true]);
+      expect(component.isCleaningTypeExtra(draft)).toBe(false);
+
+      component.setExtraPricingMode('quantity');
+      component.setExtraPricingMode('hours');
+      expect([draft.hasQuantity, draft.hasHours]).toEqual([false, true]);
+    });
+
+    it('stores one customer control, and only the sqft service may use the slider', () => {
+      component.editService(svc({ inputType: 'dropdown', isRangeInput: true }));
+      expect(component.getServiceControl(component.serviceDraft()!)).toBe('slider');
+
+      component.setServiceControl('stepper');
+      expect(component.serviceDraft()!.inputType).toBe('dropdown');
+      expect(component.serviceDraft()!.isRangeInput).toBe(false);
+
+      expect(component.canUseSlider({ serviceKey: 'sqft' })).toBe(true);
+      expect(component.canUseSlider({ serviceKey: 'bedrooms' })).toBe(false);
+      // Legacy rows that booking could not draw now read as a stepper.
+      expect(component.getServiceControl({ inputType: 'number', isRangeInput: false })).toBe('stepper');
+    });
+
+    it('a regular service edits with the "Regular" role selected, not a blank one', () => {
+      // The API sends null for a regular service; the model types it as optional.
+      component.editService(svc({ serviceRelationType: undefined }));
+      expect(component.serviceDraft()!.serviceRelationType).toBe('');
+    });
+
+    it('clears the previous message before the next action, and shows a failure in the panel', () => {
+      component.serviceMessage.set({ error: 'old failure', success: '' });
+      vi.spyOn(admin, 'updateService').mockReturnValue(throwError(() => new HttpErrorResponse({
+        status: 400, error: { message: 'Minimum (5) cannot be greater than maximum (2).' }
+      })));
+      component.editService(svc({}));
+      component.saveService(component.serviceDraft()!);
+
+      expect(component.serviceMessage().error).toBe('Minimum (5) cannot be greater than maximum (2).');
+      expect(component.panelError()).toBe('Minimum (5) cannot be greater than maximum (2).');
+      expect(component.panel()).toEqual({ kind: 'service', mode: 'edit' });
+    });
+
+    it('selecting another service type closes an open edit', () => {
+      const type = { id: 2, name: 'Office', services: [], extraServices: [], hasPoll: false } as unknown as ServiceType;
+      component.editServiceType(type);
+      expect(component.panel()).toEqual({ kind: 'serviceType', mode: 'edit' });
+      component.serviceTypeDraft()!.name = 'Changed';
+
+      component.selectServiceType({ id: 1, name: 'Residential', services: [], extraServices: [], hasPoll: false } as unknown as ServiceType);
+      expect(component.panel()).toBeNull();
+      expect(type.name).toBe('Office');
+    });
+  });
 });

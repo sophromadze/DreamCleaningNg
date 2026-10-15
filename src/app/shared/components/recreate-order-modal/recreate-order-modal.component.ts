@@ -1,4 +1,5 @@
 import { Component, OnChanges, SimpleChanges, ChangeDetectionStrategy, inject, output, input, signal, computed } from '@angular/core';
+import { isSliderService } from '../../booking/service-control.utils';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { forkJoin } from 'rxjs';
@@ -99,6 +100,8 @@ type CleaningType = 'normal' | 'deep' | 'superdeep';
   styleUrls: ['./recreate-order-modal.component.scss']
 })
 export class RecreateOrderModalComponent implements OnChanges {
+  /** Slider vs stepper for a service (shared rule, see service-control.utils). */
+  readonly isSliderService = isSliderService;
   private adminService = inject(AdminService);
   private bookingService = inject(BookingService);
 

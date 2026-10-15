@@ -106,6 +106,8 @@ export interface ExtraService {
   isSuperDeepCleaning: boolean;
   isSameDayService: boolean;
   priceMultiplier: number;
+  /** Deep / Super Deep only: scales the home's minutes. Absent on an old payload = 1. */
+  timeMultiplier?: number;
   isAvailableForAll: boolean;
   isActive: boolean;
   displayOrder?: number;

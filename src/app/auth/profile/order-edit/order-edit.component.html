@@ -152,7 +152,7 @@
                 <label>{{ selected.service.name }}</label>
 
                 <!-- Quantity Control Input -->
-                @if (selected.service.inputType === 'dropdown') {
+                @if (!isSliderService(selected.service)) {
                 <div class="service-input">
                   <app-quantity-control class="quantity-control" [label]="selected.service.name"
                     [value]="selected.service.serviceKey === 'bedrooms' && getServiceControl(i).value === 0 ? 'Studio' : getServiceControl(i).value"
@@ -165,7 +165,7 @@
                 }
 
                 <!-- Slider Input for Square Feet -->
-                @if (selected.service.isRangeInput) {
+                @if (isSliderService(selected.service)) {
                 <div class="service-input slider-input">
                   <div class="slider-container">
                     <span class="slider-quantity">{{ getServiceControl(i).value }}</span>

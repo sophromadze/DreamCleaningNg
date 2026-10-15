@@ -21,6 +21,35 @@ export interface PollQuestion {
   serviceTypeId: number;
 }
 
+/** The add/edit side panel (Orders/Users pattern): which form it shows, for a new row or an existing one. */
+export interface CatalogPanel {
+  kind: 'serviceType' | 'service' | 'extra';
+  mode: 'add' | 'edit';
+}
+
+/** The fields the service-type panel edits; satisfied by both a new type and a ServiceType copy. */
+export interface ServiceTypeFormModel {
+  name: string;
+  basePrice: number;
+  description?: string;
+  displayOrder?: number;
+  timeDuration: number;
+  hasPoll: boolean;
+  isCustom?: boolean;
+  collectsPropertyType?: boolean;
+  minimumPrice?: number | null;
+  serviceKey?: string | null;
+  displayPrice?: number | null;
+  displayPriceUnit?: DisplayPriceUnit | null;
+}
+
+/** How the customer sets a service's quantity on the booking page. */
+export type ServiceControl = 'stepper' | 'slider';
+/** What an extra's price is multiplied by: nothing (fixed), a quantity, or hours. */
+export type ExtraPricingMode = 'fixed' | 'quantity' | 'hours';
+/** The special meaning an extra may carry; at most one (the server refuses combinations). */
+export type ExtraRole = 'none' | 'deep' | 'superDeep' | 'sameDay';
+
 export interface CreatePollQuestion {
   question: string;
   questionType: string;
@@ -70,6 +99,14 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
   readonly isEditingServiceType = signal(false);
   readonly isAddingServiceType = signal(false);
   readonly displayPriceUnits = DISPLAY_PRICE_UNITS;
+
+  /** The add/edit side panel; null = closed. */
+  readonly panel = signal<CatalogPanel | null>(null);
+  // Edit COPIES: the panel edits these, never the table row, so Cancel discards for real and the
+  // table keeps showing what is saved until the server accepts the change.
+  readonly serviceTypeDraft = signal<ServiceType | null>(null, { equal: () => false });
+  readonly serviceDraft = signal<Service | null>(null, { equal: () => false });
+  readonly extraServiceDraft = signal<ExtraService | null>(null, { equal: () => false });
   readonly newServiceType = signal({
     name: '',
     basePrice: 0,
@@ -147,6 +184,7 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
     isSuperDeepCleaning: false,
     isSameDayService: false,
     priceMultiplier: 1.0,
+    timeMultiplier: 1.0,
     serviceTypeId: undefined,
     isAvailableForAll: true,
     displayOrder: 1,
@@ -583,6 +621,8 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   selectServiceType(type: ServiceType) {
+    // Picking another row closes whatever the panel was editing: an edit belongs to one row.
+    this.closePanel();
     this.selectedServiceType.set(type);
     this.isAddingServiceType.set(false);
     this.isAddingService.set(false);
@@ -596,6 +636,8 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   startAddingServiceType() {
+    this.closePanel();
+    this.clearMessages();
     this.isAddingServiceType.set(true);
     this.isEditingServiceType.set(false);
     this.selectedServiceType.set(null);
@@ -616,6 +658,7 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   cancelAddServiceType() {
+    this.panel.set(null);
     this.isAddingServiceType.set(false);
     this.newServiceType.set({
       name: '',
@@ -634,11 +677,13 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   addServiceType() {
+    this.clearMessages();
     this.adminService.createServiceType(this.newServiceType()).subscribe({
       next: (response) => {
         this.serviceTypes().push(response);
         this.serviceTypes.set(this.serviceTypes());
         this.isAddingServiceType.set(false);
+        this.panel.set(null);
         this.newServiceType.set({
           name: '',
           basePrice: 0,
@@ -669,12 +714,76 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
     return DISPLAY_PRICE_UNITS.find(u => u.value === unit)?.label ?? '';
   }
 
-  editServiceType() {
+  editServiceType(type: ServiceType) {
+    this.selectServiceType(type);
+    this.clearMessages();
+    this.serviceTypeDraft.set(structuredClone(type));
     this.isEditingServiceType.set(true);
+    this.panel.set({ kind: 'serviceType', mode: 'edit' });
   }
 
   cancelEditServiceType() {
+    this.closePanel();
+  }
+
+  /** Closes the panel and drops every unsaved add/edit copy. */
+  closePanel() {
+    this.panel.set(null);
     this.isEditingServiceType.set(false);
+    this.serviceTypeDraft.set(null);
+    this.isAddingServiceType.set(false);
+    this.isAddingService.set(false);
+    this.editingServiceId.set(null);
+    this.serviceDraft.set(null);
+    this.isAddingExtraService.set(false);
+    this.editingExtraServiceId.set(null);
+    this.extraServiceDraft.set(null);
+  }
+
+  panelEyebrow(): string {
+    const p = this.panel();
+    if (!p) return '';
+    if (p.kind === 'serviceType') return p.mode === 'add' ? 'New service type' : 'Edit service type';
+    const typeName = this.selectedServiceType()?.name ?? '';
+    const what = p.kind === 'service' ? 'service' : 'extra service';
+    return `${p.mode === 'add' ? 'New' : 'Edit'} ${what}${typeName ? ' · ' + typeName : ''}`;
+  }
+
+  panelTitle(): string {
+    const p = this.panel();
+    if (!p) return '';
+    if (p.mode === 'add') {
+      if (p.kind === 'serviceType') return 'Add service type';
+      return p.kind === 'service' ? 'Add service' : 'Add extra service';
+    }
+    const name = p.kind === 'serviceType' ? this.serviceTypeDraft()?.name
+      : p.kind === 'service' ? this.serviceDraft()?.name
+      : this.extraServiceDraft()?.name;
+    return name?.trim() || 'Untitled';
+  }
+
+  /** A failed save is reported inside the panel, beside the form that caused it. */
+  panelError(): string {
+    switch (this.panel()?.kind) {
+      case 'serviceType': return this.serviceTypeMessage().error;
+      case 'service': return this.serviceMessage().error;
+      case 'extra': return this.extraServiceMessage().error;
+      default: return '';
+    }
+  }
+
+  /** The object the service-type panel edits: the new type, or the copy of the one being edited. */
+  serviceTypeForm(): ServiceTypeFormModel {
+    return this.panel()?.mode === 'edit' && this.serviceTypeDraft() ? this.serviceTypeDraft()! : this.newServiceType();
+  }
+
+  private touchServiceTypeForm() {
+    if (this.panel()?.mode === 'edit') this.serviceTypeDraft.set(this.serviceTypeDraft());
+    else this.newServiceType.set({ ...this.newServiceType() });
+  }
+
+  serviceTypeMode(form: ServiceTypeFormModel): 'regular' | 'poll' | 'custom' {
+    return form.isCustom ? 'custom' : form.hasPoll ? 'poll' : 'regular';
   }
 
   /**
@@ -685,59 +794,42 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
    * Heavy Conditional) need different answers here.
    */
   setCollectsPropertyType(collects: boolean) {
-    if (!this.selectedServiceType()) return;
-    this.selectedServiceType()!.collectsPropertyType = collects;
-    this.selectedServiceType.set(this.selectedServiceType());
+    this.serviceTypeForm().collectsPropertyType = collects;
+    this.touchServiceTypeForm();
   }
 
   setServiceTypeMode(mode: 'regular' | 'poll' | 'custom') {
-    if (!this.selectedServiceType()) return;
-    
-    switch(mode) {
-      case 'regular':
-        this.selectedServiceType()!.hasPoll = false;
-        this.selectedServiceType.set(this.selectedServiceType());
-        this.selectedServiceType()!.isCustom = false;
-        this.selectedServiceType.set(this.selectedServiceType());
-        break;
-      case 'poll':
-        this.selectedServiceType()!.hasPoll = true;
-        this.selectedServiceType.set(this.selectedServiceType());
-        this.selectedServiceType()!.isCustom = false;
-        this.selectedServiceType.set(this.selectedServiceType());
-        break;
-      case 'custom':
-        this.selectedServiceType()!.hasPoll = false;
-        this.selectedServiceType.set(this.selectedServiceType());
-        this.selectedServiceType()!.isCustom = true;
-        this.selectedServiceType.set(this.selectedServiceType());
-        break;
-    }
+    const form = this.serviceTypeForm();
+    form.hasPoll = mode === 'poll';
+    form.isCustom = mode === 'custom';
+    this.touchServiceTypeForm();
   }
 
   saveServiceType() {
-    if (this.selectedServiceType()) {
+    const draft = this.serviceTypeDraft();
+    if (draft) {
+      this.clearMessages();
       const updateData = {
-        name: this.selectedServiceType()!.name,
-        basePrice: this.selectedServiceType()!.basePrice,
-        description: this.selectedServiceType()!.description,
-        displayOrder: this.selectedServiceType()!.displayOrder || 1,
-        timeDuration: this.selectedServiceType()!.timeDuration,
-        hasPoll: this.selectedServiceType()!.hasPoll,
-        isCustom: this.selectedServiceType()!.isCustom,
+        name: draft.name,
+        basePrice: draft.basePrice,
+        description: draft.description,
+        displayOrder: draft.displayOrder || 1,
+        timeDuration: draft.timeDuration,
+        hasPoll: draft.hasPoll,
+        isCustom: draft.isCustom,
         // Must be sent: the update DTO defaults it to true, so leaving it out re-ticked
         // "Ask apartment / house" on every save. Absent on the row still means true.
-        collectsPropertyType: this.selectedServiceType()!.collectsPropertyType !== false,
-        minimumPrice: this.selectedServiceType()!.minimumPrice ?? 0,
+        collectsPropertyType: draft.collectsPropertyType !== false,
+        minimumPrice: draft.minimumPrice ?? 0,
         // Always sent: the endpoint treats the value as the full intended key, so leaving it
         // out of an ordinary name/price edit would clear it.
-        serviceKey: this.selectedServiceType()!.serviceKey ?? null,
+        serviceKey: draft.serviceKey ?? null,
         // Same "full intended value" contract as the key. An emptied number input binds as null
         // (or '' on some browsers), both meaning "no display price".
-        displayPrice: typeof this.selectedServiceType()!.displayPrice === 'number' ? this.selectedServiceType()!.displayPrice : null,
-        displayPriceUnit: this.selectedServiceType()!.displayPriceUnit ?? null
+        displayPrice: typeof draft.displayPrice === 'number' ? draft.displayPrice : null,
+        displayPriceUnit: draft.displayPriceUnit ?? null
       };
-      this.adminService.updateServiceType(this.selectedServiceType()!.id, updateData).subscribe({
+      this.adminService.updateServiceType(draft.id, updateData).subscribe({
         next: (response) => {
           const index = this.serviceTypes().findIndex(t => t.id === response.id);
           if (index !== -1) {
@@ -745,7 +837,7 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
             this.serviceTypes.set(this.serviceTypes());
           }
           this.loadServiceTypes();
-          this.isEditingServiceType.set(false);
+          this.closePanel();
           this.serviceTypeMessage().success = 'Service type updated successfully.';
           this.serviceTypeMessage.set(this.serviceTypeMessage());
         },
@@ -759,6 +851,7 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   deleteServiceType(type: ServiceType) {
+    this.clearMessages();
     if (confirm('Are you sure you want to delete this service type?')) {
       this.adminService.deleteServiceType(type.id).subscribe({
         next: () => {
@@ -771,7 +864,7 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
         },
         error: (error) => {
           console.error('Error deleting service type:', error);
-          this.serviceTypeMessage().error = 'Failed to delete service type. Please try again.';
+          this.serviceTypeMessage().error = extractApiErrorMessage(error, 'Failed to delete service type. Please try again.');
           this.serviceTypeMessage.set(this.serviceTypeMessage());
         }
       });
@@ -791,7 +884,7 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
       },
       error: (error) => {
         console.error('Error deactivating service type:', error);
-        this.serviceTypeMessage().error = 'Failed to deactivate service type. Please try again.';
+        this.serviceTypeMessage().error = extractApiErrorMessage(error, 'Failed to deactivate service type. Please try again.');
         this.serviceTypeMessage.set(this.serviceTypeMessage());
       }
     });
@@ -810,7 +903,7 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
       },
       error: (error) => {
         console.error('Error activating service type:', error);
-        this.serviceTypeMessage().error = 'Failed to activate service type. Please try again.';
+        this.serviceTypeMessage().error = extractApiErrorMessage(error, 'Failed to activate service type. Please try again.');
         this.serviceTypeMessage.set(this.serviceTypeMessage());
       }
     });
@@ -824,7 +917,10 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
       return;
     }
     if (!this.selectedServiceType()) return;
-    
+
+    this.closePanel();
+    this.clearMessages();
+    this.panel.set({ kind: 'service', mode: 'add' });
     this.isAddingService.set(true);
     this.showExistingServices.set(false);
     this.selectedExistingServiceId.set(null);
@@ -840,6 +936,10 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
       stepValue: 1,
       isRangeInput: false,
       unit: '',
+      serviceRelationType: '',
+      chargeAboveThreshold: false,
+      zeroQuantityCost: null,
+      zeroQuantityDuration: null,
       displayOrder: this.selectedServiceType()!.services.length + 1
     });
   }
@@ -864,7 +964,8 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
       return;
     }
     if (!this.selectedExistingServiceId() || !this.selectedServiceType()) return;
-    
+
+    this.clearMessages();
     this.adminService.copyService({
       sourceServiceId: this.selectedExistingServiceId()!,
       targetServiceTypeId: this.selectedServiceType()!.id
@@ -876,18 +977,19 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
         }
         this.serviceMessage().success = 'Service copied successfully';
         this.serviceMessage.set(this.serviceMessage());
-        this.isAddingService.set(false);
+        this.closePanel();
         this.loadServiceTypes();
         this.loadAllServices();
       },
-      error: () => {
-        this.serviceMessage().error = 'Failed to copy service';
+      error: (error) => {
+        this.serviceMessage().error = extractApiErrorMessage(error, 'Failed to copy service');
         this.serviceMessage.set(this.serviceMessage());
       }
     });
   }
 
   cancelAddService() {
+    this.panel.set(null);
     this.isAddingService.set(false);
     this.showExistingServices.set(false);
     this.selectedExistingServiceId.set(null);
@@ -899,6 +1001,7 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
       this.serviceMessage.set(this.serviceMessage());
       return;
     }
+    this.clearMessages();
     // Blank zero-quantity inputs must travel as null, not 0 — "leave blank" and "costs 0"
     // are different settings.
     this.newService().zeroQuantityCost = this.emptyToNull(this.newService().zeroQuantityCost);
@@ -914,12 +1017,12 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
         }
         this.serviceMessage().success = 'Service created successfully';
         this.serviceMessage.set(this.serviceMessage());
-        this.isAddingService.set(false);
+        this.closePanel();
         this.loadServiceTypes();
         this.loadAllServices();
       },
-      error: () => {
-        this.serviceMessage().error = 'Failed to create service';
+      error: (error) => {
+        this.serviceMessage().error = extractApiErrorMessage(error, 'Failed to create service');
         this.serviceMessage.set(this.serviceMessage());
       }
     });
@@ -931,15 +1034,56 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
       this.serviceMessage.set(this.serviceMessage());
       return;
     }
+    this.closePanel();
+    this.clearMessages();
     this.editingServiceId.set(service.id);
+    const draft = structuredClone(service);
+    // A regular service is stored as null; the Role select's "Regular" option is ''.
+    draft.serviceRelationType ??= '';
+    this.serviceDraft.set(draft);
+    this.panel.set({ kind: 'service', mode: 'edit' });
   }
 
   cancelEditService() {
-    this.editingServiceId.set(null);
-    this.loadServiceTypes();
+    this.closePanel();
+  }
+
+  /** The object the service panel edits: the new service, or the copy of the one being edited. */
+  serviceForm(): CreateService | Service {
+    return this.panel()?.mode === 'edit' && this.serviceDraft() ? this.serviceDraft()! : this.newService();
+  }
+
+  private touchServiceForm() {
+    if (this.panel()?.mode === 'edit') this.serviceDraft.set(this.serviceDraft());
+    else this.newService.set(this.newService());
+  }
+
+  /**
+   * The booking page draws a slider when EITHER field says so (CatalogInputPolicy on the server
+   * stores them consistently); anything else is the +/- stepper.
+   */
+  getServiceControl(s: { inputType?: string | null; isRangeInput?: boolean | null }): ServiceControl {
+    return s.isRangeInput || s.inputType === 'slider' ? 'slider' : 'stepper';
+  }
+
+  setServiceControl(control: ServiceControl) {
+    const form = this.serviceForm();
+    form.inputType = control === 'slider' ? 'slider' : 'dropdown';
+    form.isRangeInput = control === 'slider';
+    this.touchServiceForm();
+  }
+
+  serviceControlLabel(s: { inputType?: string | null; isRangeInput?: boolean | null }): string {
+    return this.getServiceControl(s) === 'slider' ? 'Sq.ft slider' : 'Stepper';
+  }
+
+  /** The slider is the square-feet slider (bedroom-driven minimum, "sq ft" label), so only that service may use it. */
+  canUseSlider(s: { serviceKey?: string | null }): boolean {
+    return (s.serviceKey ?? '').trim().toLowerCase() === 'sqft';
   }
 
   saveService(service: Service) {
+    this.clearMessages();
     this.adminService.updateService(service.id, {
       name: service.name,
       serviceKey: service.serviceKey,
@@ -968,12 +1112,12 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
         }
         this.serviceMessage().success = 'Service updated successfully';
         this.serviceMessage.set(this.serviceMessage());
-        this.editingServiceId.set(null);
+        this.closePanel();
         this.loadServiceTypes();
         this.loadAllServices();
       },
-      error: () => {
-        this.serviceMessage().error = 'Failed to update service';
+      error: (error) => {
+        this.serviceMessage().error = extractApiErrorMessage(error, 'Failed to update service');
         this.serviceMessage.set(this.serviceMessage());
       }
     });
@@ -998,6 +1142,7 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
       this.serviceMessage.set(this.serviceMessage());
       return;
     }
+    this.clearMessages();
     if (confirm(`Are you sure you want to permanently delete "${service.name}"? This cannot be undone.`)) {
       this.adminService.deleteService(service.id).subscribe({
         next: () => {
@@ -1011,13 +1156,8 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
           this.loadAllServices();
         },
         error: (error) => {
-          if (error.error?.message) {
-            this.serviceMessage().error = error.error.message;
-            this.serviceMessage.set(this.serviceMessage());
-          } else {
-            this.serviceMessage().error = 'Failed to delete service';
-            this.serviceMessage.set(this.serviceMessage());
-          }
+          this.serviceMessage().error = extractApiErrorMessage(error, 'Failed to delete service');
+          this.serviceMessage.set(this.serviceMessage());
         }
       });
     }
@@ -1490,7 +1630,10 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
       return;
     }
     if (!this.selectedServiceType()) return;
-    
+
+    this.closePanel();
+    this.clearMessages();
+    this.panel.set({ kind: 'extra', mode: 'add' });
     this.isAddingExtraService.set(true);
     this.showExistingExtraServices.set(false);
     this.selectedExistingExtraServiceId.set(null);
@@ -1506,6 +1649,7 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
       isSuperDeepCleaning: false,
       isSameDayService: false,
       priceMultiplier: 1.0,
+      timeMultiplier: 1.0,
       serviceTypeId: this.selectedServiceType()!.id,
       isAvailableForAll: true,
       displayOrder: this.selectedServiceType()!.extraServices.length + 1,
@@ -1549,7 +1693,8 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
     if (!this.selectedExistingExtraServiceId() || !this.selectedServiceType()) {
       return;
     }
-    
+
+    this.clearMessages();
     // Use the API to copy the extra service (like the regular service copy)
     this.adminService.copyExtraService({
       sourceExtraServiceId: this.selectedExistingExtraServiceId()!,
@@ -1563,7 +1708,7 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
         }
         
         // Reset the form
-        this.isAddingExtraService.set(false);
+        this.closePanel();
         this.showExistingExtraServices.set(false);
         this.selectedExistingExtraServiceId.set(null);
         
@@ -1577,13 +1722,14 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
       },
       error: (error) => {
         console.error('Error copying extra service:', error);
-        this.extraServiceMessage().error = 'Failed to copy extra service. Please try again.';
+        this.extraServiceMessage().error = extractApiErrorMessage(error, 'Failed to copy extra service. Please try again.');
         this.extraServiceMessage.set(this.extraServiceMessage());
       }
     });
   }
 
   cancelAddExtraService() {
+    this.panel.set(null);
     this.isAddingExtraService.set(false);
     this.showExistingExtraServices.set(false);
     this.selectedExistingExtraServiceId.set(null);
@@ -1597,6 +1743,7 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
     }
     if (!this.selectedServiceType()) return;
 
+    this.clearMessages();
     const extraServiceData = {
       ...this.newExtraService(),
       serviceTypeId: this.newExtraService().isAvailableForAll ? undefined : this.selectedServiceType()!.id
@@ -1607,7 +1754,8 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
           this.selectedServiceType()!.extraServices.push(response);
           this.selectedServiceType.set(this.selectedServiceType());
         }
-        this.isAddingExtraService.set(false);
+        this.closePanel();
+        this.loadAllExtraServices();
         this.newExtraService.set({
           name: '',
           description: '',
@@ -1620,6 +1768,7 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
           isSuperDeepCleaning: false,
           isSameDayService: false,
           priceMultiplier: 1.0,
+          timeMultiplier: 1.0,
           serviceTypeId: undefined,
           isAvailableForAll: true,
           displayOrder: 1,
@@ -1642,12 +1791,59 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
       this.extraServiceMessage.set(this.extraServiceMessage());
       return;
     }
+    this.closePanel();
+    this.clearMessages();
     this.editingExtraServiceId.set(extraService.id);
+    const draft = structuredClone(extraService);
+    draft.timeMultiplier ??= 1;
+    this.extraServiceDraft.set(draft);
+    this.panel.set({ kind: 'extra', mode: 'edit' });
   }
 
   cancelEditExtraService() {
-    this.editingExtraServiceId.set(null);
-    this.loadServiceTypes();
+    this.closePanel();
+  }
+
+  /** The object the extra panel edits: the new extra, or the copy of the one being edited. */
+  extraForm(): CreateExtraService | ExtraService {
+    return this.panel()?.mode === 'edit' && this.extraServiceDraft() ? this.extraServiceDraft()! : this.newExtraService();
+  }
+
+  private touchExtraForm() {
+    if (this.panel()?.mode === 'edit') this.extraServiceDraft.set(this.extraServiceDraft());
+    else this.newExtraService.set(this.newExtraService());
+  }
+
+  getExtraPricingMode(e: { hasQuantity: boolean; hasHours: boolean }): ExtraPricingMode {
+    return e.hasHours ? 'hours' : e.hasQuantity ? 'quantity' : 'fixed';
+  }
+
+  /** One choice instead of two checkboxes that could both be ticked (the calculator then silently used hours). */
+  setExtraPricingMode(mode: ExtraPricingMode) {
+    const form = this.extraForm();
+    form.hasQuantity = mode === 'quantity';
+    form.hasHours = mode === 'hours';
+    this.touchExtraForm();
+  }
+
+  getExtraRole(e: { isDeepCleaning: boolean; isSuperDeepCleaning: boolean; isSameDayService: boolean }): ExtraRole {
+    if (e.isSuperDeepCleaning) return 'superDeep';
+    if (e.isDeepCleaning) return 'deep';
+    if (e.isSameDayService) return 'sameDay';
+    return 'none';
+  }
+
+  setExtraRole(role: ExtraRole) {
+    const form = this.extraForm();
+    form.isDeepCleaning = role === 'deep';
+    form.isSuperDeepCleaning = role === 'superDeep';
+    form.isSameDayService = role === 'sameDay';
+    this.touchExtraForm();
+  }
+
+  /** Deep / Super Deep: the only extras whose multipliers the calculator reads. */
+  isCleaningTypeExtra(e: { isDeepCleaning: boolean; isSuperDeepCleaning: boolean }): boolean {
+    return e.isDeepCleaning || e.isSuperDeepCleaning;
   }
 
   saveExtraService(extraService: ExtraService) {
@@ -1657,6 +1853,7 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
       return;
     }
 
+    this.clearMessages();
     const updateData = {
       name: extraService.name,
       description: extraService.description,
@@ -1669,6 +1866,7 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
       isSuperDeepCleaning: extraService.isSuperDeepCleaning,
       isSameDayService: extraService.isSameDayService,
       priceMultiplier: extraService.priceMultiplier,
+      timeMultiplier: extraService.timeMultiplier ?? 1,
       serviceTypeId: extraService.isAvailableForAll ? undefined : this.selectedServiceType()?.id,
       isAvailableForAll: extraService.isAvailableForAll,
       displayOrder: extraService.displayOrder || 1,
@@ -1685,7 +1883,8 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
           }
         }
         this.loadServiceTypes();
-        this.editingExtraServiceId.set(null);
+        this.loadAllExtraServices();
+        this.closePanel();
         this.extraServiceMessage().success = 'Extra service updated successfully.';
         this.extraServiceMessage.set(this.extraServiceMessage());
       },
@@ -1703,6 +1902,7 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
       this.extraServiceMessage.set(this.extraServiceMessage());
       return;
     }
+    this.clearMessages();
     if (confirm(`Are you sure you want to permanently delete "${extraService.name}"? This cannot be undone.`)) {
       this.adminService.deleteExtraService(extraService.id).subscribe({
         next: () => {
@@ -1715,7 +1915,7 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
         },
         error: (error) => {
           console.error('Error deleting extra service:', error);
-          this.extraServiceMessage().error = 'Failed to delete extra service. Please try again.';
+          this.extraServiceMessage().error = extractApiErrorMessage(error, 'Failed to delete extra service. Please try again.');
           this.extraServiceMessage.set(this.extraServiceMessage());
         }
       });
@@ -1756,7 +1956,7 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
       },
       error: (error) => {
         console.error('Error deactivating extra service:', error);
-        this.extraServiceMessage().error = 'Failed to deactivate extra service. Please try again.';
+        this.extraServiceMessage().error = extractApiErrorMessage(error, 'Failed to deactivate extra service. Please try again.');
         this.extraServiceMessage.set(this.extraServiceMessage());
       }
     });
@@ -1796,7 +1996,7 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
       },
       error: (error) => {
         console.error('Error activating extra service:', error);
-        this.extraServiceMessage().error = 'Failed to activate extra service. Please try again.';
+        this.extraServiceMessage().error = extractApiErrorMessage(error, 'Failed to activate extra service. Please try again.');
         this.extraServiceMessage.set(this.extraServiceMessage());
       }
     });

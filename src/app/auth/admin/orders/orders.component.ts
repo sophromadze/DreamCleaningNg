@@ -50,7 +50,9 @@ import {
   getSquareFeetForBedrooms,
   resolveSquareFeetForBedroomChange,
   isExtraCleaners,
+  mapSelectedExtraInputs,
   resolveGiftCardAmountToUse,
+  resolveTimeMultiplier,
   round2,
   QuoteResult,
   REGULAR_CLEANER_HOURLY_RATE,
@@ -5962,7 +5964,19 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
       })
       .filter((entry): entry is { service: Service; quantity: number } => entry !== null);
 
-    return getServiceDisplayDuration(def, Number(s.quantity) || 0, 1, allSelected);
+    return getServiceDisplayDuration(def, Number(s.quantity) || 0, this.getEditTimeMultiplier(), allSelected);
+  }
+
+  /**
+   * The cleaning type's time multiplier for the order being edited (Deep / Super Deep row in its
+   * extras, else 1) — the same value the shared quote applies to the home lines' minutes.
+   */
+  private getEditTimeMultiplier(): number {
+    const extras = (this.editOrderForm().extraServices ?? [])
+      .map((row, i) => this.getEditExtraDefinition(row, i))
+      .filter((def): def is NonNullable<typeof def> => !!def)
+      .map(def => ({ extraService: def, quantity: 1, hours: 0 }));
+    return resolveTimeMultiplier(mapSelectedExtraInputs(extras));
   }
 
   /** Display duration for a service row. When catalog timeDuration is 0 (e.g. Cleaners), show order total. */
@@ -7453,10 +7467,8 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
     if (def?.hasQuantity) {
-      // Same rule as the shared calculator: deep-cleaning multiplier applies, Same Day is exempt.
-      const priceMultiplier = Number((this.selectedOrder()?.services?.[0] as any)?.priceMultiplier ?? 1) || 1;
-      const m = def.isSameDayService ? 1 : priceMultiplier;
-      e.cost = round2(def.price * q * m);
+      // Same rule as the shared calculator: extras are never multiplied by the cleaning type.
+      e.cost = round2(def.price * q);
     } else {
       const prevQ = this.editOrderFormPrevExtraQuantities[index] ?? 1;
       const prevCost = Number(e.cost) || 0;
@@ -7484,10 +7496,8 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
     if (def?.hasHours) {
-      // Same rule as the shared calculator: deep-cleaning multiplier applies, Same Day is exempt.
-      const priceMultiplier = Number((this.selectedOrder()?.services?.[0] as any)?.priceMultiplier ?? 1) || 1;
-      const m = def.isSameDayService ? 1 : priceMultiplier;
-      e.cost = round2(def.price * h * m);
+      // Same rule as the shared calculator: extras are never multiplied by the cleaning type.
+      e.cost = round2(def.price * h);
     } else {
       const prevH = this.editOrderFormPrevExtraHours[index] ?? 0.5;
       const prevCost = Number(e.cost) || 0;

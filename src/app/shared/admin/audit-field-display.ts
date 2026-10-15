@@ -160,6 +160,7 @@ export const AUDIT_FIELD_LABELS: { [field: string]: string } = {
   MinimumPrice: 'Minimum Price',
   TimeDuration: 'Duration',
   PriceMultiplier: 'Price Multiplier',
+  TimeMultiplier: 'Time Multiplier',
   IsAvailableForAll: 'Available For All Types',
   IsDeepCleaning: 'Deep Cleaning',
   IsSuperDeepCleaning: 'Super Deep Cleaning',

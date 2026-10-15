@@ -162,6 +162,8 @@ export interface ExtraServiceLineInput {
   price: number;
   duration: number;
   priceMultiplier: number;
+  /** Deep / Super Deep only: scales the home's minutes (base + home lines), never extras. Default 1. */
+  timeMultiplier?: number | null;
   isDeepCleaning: boolean;
   isSuperDeepCleaning: boolean;
   isSameDayService: boolean;
@@ -228,6 +230,7 @@ export interface QuoteResult {
   /** Rounded subtotal including the deep-cleaning fee. Pre-discount, pre-tax. */
   subTotal: number;
   priceMultiplier: number;
+  timeMultiplier: number;
   deepCleaningFee: number;
   /**
    * TOTAL cleaner-minutes — what Order.TotalDuration stores on the backend. For
@@ -284,16 +287,42 @@ function informationalExtraLines(extraServices: ExtraServiceLineInput[]): ExtraS
  * Cleaning-type multiplier: Super Deep wins over Deep wins over regular,
  * regardless of selection order. The fee is the matching extra's flat price,
  * added to the subtotal at the END (after service costs).
+ *
+ * The multiplier scales the HOME only — the service type's base price and every home line
+ * (bedrooms, bathrooms, sq.ft, studio, levels, the cleaner rate). Extras are never multiplied
+ * (2026-10): they keep their own catalogue price.
  */
 export function resolvePriceMultiplier(
   extraServices: ExtraServiceLineInput[]
 ): { multiplier: number; deepCleaningFee: number } {
-  const superDeep = extraServices.find(e => e.isSuperDeepCleaning);
-  const deep = extraServices.find(e => e.isDeepCleaning);
+  const cleaningType = resolveCleaningTypeExtra(extraServices);
+  return cleaningType
+    ? { multiplier: cleaningType.priceMultiplier, deepCleaningFee: cleaningType.price }
+    : { multiplier: 1, deepCleaningFee: 0 };
+}
 
-  if (superDeep) return { multiplier: superDeep.priceMultiplier, deepCleaningFee: superDeep.price };
-  if (deep) return { multiplier: deep.priceMultiplier, deepCleaningFee: deep.price };
-  return { multiplier: 1, deepCleaningFee: 0 };
+/**
+ * Time multiplier of the selected cleaning type (same precedence as the price multiplier),
+ * 1 for a regular cleaning. Scales the home's minutes only: the service type's base duration and
+ * the home lines. Extras, the deep extra's own minutes and explicitly chosen cleaner hours are
+ * never scaled. Mirrors OrderPricingCalculator.ResolveTimeMultiplier.
+ */
+export function resolveTimeMultiplier(extraServices: ExtraServiceLineInput[]): number {
+  return resolveCleaningTypeExtra(extraServices)?.timeMultiplier ?? 1;
+}
+
+function resolveCleaningTypeExtra(extraServices: ExtraServiceLineInput[]): ExtraServiceLineInput | undefined {
+  return extraServices.find(e => e.isSuperDeepCleaning) ?? extraServices.find(e => e.isDeepCleaning);
+}
+
+/**
+ * Home minutes under the time multiplier, rounded to whole minutes (half up) so the two
+ * calculators agree exactly. A multiplier of 1 returns the minutes untouched, which keeps every
+ * regular quote — and every deep quote at the default 1.0 — identical to before.
+ * Mirrors OrderPricingCalculator.ScaleHomeMinutes.
+ */
+export function scaleHomeMinutes(minutes: number, timeMultiplier: number): number {
+  return timeMultiplier === 1 ? minutes : Math.round(minutes * timeMultiplier);
 }
 
 // ===== Threshold + tier resolution (mirror: OrderPricingCalculator.cs) =====
@@ -361,13 +390,14 @@ export function resolveIncludedQuantity(
  * No tiers configured → flat `cost`/`timeDuration` across the whole billable quantity,
  * which is exactly the pre-refactor behaviour every other service still relies on.
  *
- * Cost takes the cleaning-type multiplier; duration does not.
+ * Cost takes the cleaning-type price multiplier, minutes its time multiplier (scaleHomeMinutes).
  */
 export function calculateTieredLine(
   service: ServiceLineInput,
   allServices: ServiceLineInput[],
   priceMultiplier: number,
-  warnings: string[]
+  warnings: string[],
+  timeMultiplier: number = 1
 ): { cost: number; duration: number } {
   const included = resolveIncludedQuantity(service, allServices, warnings);
   const billable = Math.max(0, service.quantity - included);
@@ -397,7 +427,7 @@ export function calculateTieredLine(
     }
   }
 
-  return { cost: cost * priceMultiplier, duration };
+  return { cost: cost * priceMultiplier, duration: scaleHomeMinutes(duration, timeMultiplier) };
 }
 
 // ===== Step 2: subtotal + duration + maids =====
@@ -417,6 +447,7 @@ export function calculateQuote(input: QuoteInput): QuoteResult {
       subTotal: split.subTotal,
       taxOverride: split.tax,
       priceMultiplier: 1,
+      timeMultiplier: 1,
       deepCleaningFee: 0,
       displayDuration: perCleaner,
       // Stored TotalDuration uses the TOTAL convention: per-cleaner × cleaners, min 1h.
@@ -431,6 +462,7 @@ export function calculateQuote(input: QuoteInput): QuoteResult {
   }
 
   const { multiplier: priceMultiplier, deepCleaningFee } = resolvePriceMultiplier(input.extraServices);
+  const timeMultiplier = resolveTimeMultiplier(input.extraServices);
 
   let subTotal = 0;
   let totalDuration = 0;
@@ -451,8 +483,9 @@ export function calculateQuote(input: QuoteInput): QuoteResult {
     actualTotalDuration = hoursService!.quantity * 60;
     totalDuration = actualTotalDuration;
   } else {
-    totalDuration += input.baseDuration;
-    actualTotalDuration += input.baseDuration;
+    const baseDuration = scaleHomeMinutes(input.baseDuration, timeMultiplier);
+    totalDuration += baseDuration;
+    actualTotalDuration += baseDuration;
   }
 
   // Services
@@ -480,12 +513,10 @@ export function calculateQuote(input: QuoteInput): QuoteResult {
       service.quantity === 0 &&
       (service.zeroQuantityCost != null || service.zeroQuantityDuration != null)
     ) {
-      // Generic zero-quantity rule (Studio is just bedrooms = 0). Cost takes the
-      // cleaning-type multiplier; duration does NOT — no duration anywhere in the quote is
-      // multiplier-scaled, and Deep Cleaning contributes its own minutes through its
-      // ExtraService row.
+      // Generic zero-quantity rule (Studio is just bedrooms = 0). A home line: cost takes the
+      // price multiplier, minutes the time multiplier.
       line.cost = (service.zeroQuantityCost ?? 0) * priceMultiplier;
-      line.duration = service.zeroQuantityDuration ?? 0;
+      line.duration = scaleHomeMinutes(service.zeroQuantityDuration ?? 0, timeMultiplier);
       subTotal += line.cost;
       if (!useExplicitHours) {
         totalDuration += line.duration;
@@ -495,14 +526,14 @@ export function calculateQuote(input: QuoteInput): QuoteResult {
       // Legacy studio fallback — only reachable when BOTH zero-quantity fields are null,
       // so a missing seed can't silently price a studio at $0.
       line.cost = STUDIO_PRICE * priceMultiplier;
-      line.duration = STUDIO_DURATION;
+      line.duration = scaleHomeMinutes(STUDIO_DURATION, timeMultiplier);
       subTotal += line.cost;
       if (!useExplicitHours) {
         totalDuration += line.duration;
         actualTotalDuration += line.duration;
       }
     } else {
-      const tiered = calculateTieredLine(service, input.services, priceMultiplier, warnings);
+      const tiered = calculateTieredLine(service, input.services, priceMultiplier, warnings, timeMultiplier);
       line.cost = tiered.cost;
       line.duration = tiered.duration;
       subTotal += line.cost;
@@ -543,17 +574,16 @@ export function calculateQuote(input: QuoteInput): QuoteResult {
         actualTotalDuration += line.duration;
       }
     } else {
-      // Same Day Service is exempt from the cleaning-type multiplier.
-      const currentMultiplier = extra.isSameDayService ? 1 : priceMultiplier;
-
+      // Extras keep their own price and minutes: neither cleaning-type multiplier applies to
+      // them (2026-10 — before that the price multiplier did, Same Day excepted).
       if (extra.hasHours) {
-        line.cost = extra.price * extra.hours * currentMultiplier;
+        line.cost = extra.price * extra.hours;
         line.duration = extra.duration * extra.hours;
       } else if (extra.hasQuantity) {
-        line.cost = extra.price * extra.quantity * currentMultiplier;
+        line.cost = extra.price * extra.quantity;
         line.duration = extra.duration * extra.quantity;
       } else {
-        line.cost = extra.price * currentMultiplier;
+        line.cost = extra.price;
         line.duration = extra.duration;
       }
 
@@ -624,6 +654,7 @@ export function calculateQuote(input: QuoteInput): QuoteResult {
     subTotal: round2(subTotal),
     taxOverride: null,
     priceMultiplier,
+    timeMultiplier,
     deepCleaningFee,
     totalDuration: actualTotalDuration,
     displayDuration,
@@ -1061,6 +1092,7 @@ export interface SelectedExtraServiceLike {
     price: number;
     duration: number;
     priceMultiplier: number;
+    timeMultiplier?: number | null;
     isDeepCleaning: boolean;
     isSuperDeepCleaning: boolean;
     isSameDayService: boolean;
@@ -1080,6 +1112,7 @@ export function mapSelectedExtraInputs(selected: SelectedExtraServiceLike[]): Ex
     price: s.extraService.price,
     duration: s.extraService.duration,
     priceMultiplier: s.extraService.priceMultiplier,
+    timeMultiplier: s.extraService.timeMultiplier ?? 1,
     isDeepCleaning: s.extraService.isDeepCleaning,
     isSuperDeepCleaning: s.extraService.isSuperDeepCleaning,
     isSameDayService: s.extraService.isSameDayService,
@@ -1275,29 +1308,31 @@ function calculateServiceLineDisplay(
   service: SelectedServiceLike['service'],
   quantity: number,
   priceMultiplier: number,
-  allSelected: SelectedServiceLike[]
+  allSelected: SelectedServiceLike[],
+  timeMultiplier: number = 1
 ): { cost: number; duration: number } {
   const line: SelectedServiceLike = { service, quantity };
   const input = mapSelectedServiceInput(line);
 
   if (input.serviceRelationType === 'cleaner' || input.serviceRelationType === 'hours') {
-    // Cleaner-hours pairs are priced together in the quote; the chip shows the raw unit.
+    // Cleaner-hours pairs are priced together in the quote; the chip shows the raw unit. The
+    // hours are the customer's own choice, so they are never time-multiplied.
     return { cost: input.cost * priceMultiplier, duration: input.timeDuration };
   }
 
   if (quantity === 0 && (input.zeroQuantityCost != null || input.zeroQuantityDuration != null)) {
     return {
       cost: (input.zeroQuantityCost ?? 0) * priceMultiplier,
-      duration: input.zeroQuantityDuration ?? 0
+      duration: scaleHomeMinutes(input.zeroQuantityDuration ?? 0, timeMultiplier)
     };
   }
 
   if (input.serviceKey === 'bedrooms' && quantity === 0) {
-    return { cost: STUDIO_PRICE * priceMultiplier, duration: STUDIO_DURATION };
+    return { cost: STUDIO_PRICE * priceMultiplier, duration: scaleHomeMinutes(STUDIO_DURATION, timeMultiplier) };
   }
 
   // Warnings are irrelevant for a display chip — the quote already collected them.
-  return calculateTieredLine(input, allSelected.map(mapSelectedServiceInput), priceMultiplier, []);
+  return calculateTieredLine(input, allSelected.map(mapSelectedServiceInput), priceMultiplier, [], timeMultiplier);
 }
 
 /** Display price for one service at a given quantity (zero-quantity + tier rules included). */
@@ -1310,43 +1345,42 @@ export function getServiceDisplayPrice(
   return calculateServiceLineDisplay(service, quantity, priceMultiplier, allSelected).cost;
 }
 
-/** Display price for one extra service (same-day exemption included). */
+/**
+ * Display price for one extra service. Extras are never multiplied by the cleaning type
+ * (2026-10), so this is the catalogue price times the chosen quantity or hours.
+ */
 export function getExtraServiceDisplayPrice(
   extra: {
     price: number;
-    isSameDayService: boolean;
     hasHours: boolean;
     hasQuantity: boolean;
   },
   quantity: number,
-  hours: number,
-  priceMultiplier: number
+  hours: number
 ): number {
-  const currentMultiplier = extra.isSameDayService ? 1 : priceMultiplier;
   if (extra.hasHours) {
-    return extra.price * hours * currentMultiplier;
+    return extra.price * hours;
   }
   if (extra.hasQuantity) {
-    return extra.price * quantity * currentMultiplier;
+    return extra.price * quantity;
   }
-  return extra.price * currentMultiplier;
+  return extra.price;
 }
 
 /**
- * Display duration for one service.
+ * Display duration for one service, under the cleaning type's TIME multiplier — exactly the
+ * minutes calculateQuote gives the same line, so the chips always add up to the summary.
  *
- * NOTE (bug B1, fixed 2026-07): this used to multiply by the cleaning-type multiplier while
- * the quote did not, so a Deep Cleaning booking showed chips that summed to more than the
- * summary's duration (2BR read 90m per the chip vs 60m in the quote). No duration anywhere
- * is multiplier-scaled now — Deep Cleaning contributes its own minutes through its
- * ExtraService row. The multiplier parameter is retained for signature symmetry with
- * getServiceDisplayPrice and is deliberately unused for duration.
+ * History (bug B1, fixed 2026-07): this once scaled by the PRICE multiplier while the quote did
+ * not, so a Deep Cleaning booking showed chips that summed to more than the summary. Since
+ * 2026-10 the quote has its own time multiplier (ExtraService.timeMultiplier, default 1) and this
+ * chip applies the same one; pass resolveTimeMultiplier's value, never the price multiplier.
  */
 export function getServiceDisplayDuration(
   service: SelectedServiceLike['service'],
   quantity: number,
-  _durationMultiplier: number,
+  timeMultiplier: number,
   allSelected: SelectedServiceLike[] = []
 ): number {
-  return calculateServiceLineDisplay(service, quantity, 1, allSelected).duration;
+  return calculateServiceLineDisplay(service, quantity, 1, allSelected, timeMultiplier).duration;
 }

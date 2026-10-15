@@ -13,7 +13,7 @@
     </div>
 
     <!-- Service Types Messages -->
-    @if (serviceTypeMessage().error) {
+    @if (serviceTypeMessage().error && panel()?.kind !== 'serviceType') {
     <div class="alert alert-danger">
       {{serviceTypeMessage().error}}
     </div>
@@ -21,138 +21,6 @@
     @if (serviceTypeMessage().success) {
     <div class="alert alert-success">
       {{serviceTypeMessage().success}}
-    </div>
-    }
-
-    <!-- Add Service Type Form -->
-    @if (isAddingServiceType()) {
-    <div class="form-section">
-      <h3>Add New Service Type</h3>
-      <form (ngSubmit)="addServiceType()">
-        <div class="form-group">
-          <label for="newServiceTypeName">Name:</label>
-          <input type="text" 
-                 id="newServiceTypeName" 
-                 [(ngModel)]="newServiceType().name" 
-                 name="name" 
-                 required>
-        </div>
-        <div class="form-group">
-          <label for="newServiceTypeBasePrice">Price:</label>
-          <input type="number" 
-                 id="newServiceTypeBasePrice" 
-                 [(ngModel)]="newServiceType().basePrice" 
-                 name="basePrice" 
-                 required>
-        </div>
-        <div class="form-group">
-          <label for="newServiceTypeTimeDuration">Time Duration (minutes) *</label>
-          <input type="number"
-                 id="newServiceTypeTimeDuration"
-                 [(ngModel)]="newServiceType().timeDuration"
-                 name="timeDuration"
-                 required>
-        </div>
-        <div class="form-group">
-          <label for="newServiceTypeMinimumPrice">Min Price</label>
-          <input type="number"
-                 id="newServiceTypeMinimumPrice"
-                 step="0.01"
-                 min="0"
-                 [(ngModel)]="newServiceType().minimumPrice"
-                 name="minimumPrice">
-          <small class="form-note">
-            Lowest price for the cleaning itself. Extras are added on top. 0 means no minimum.
-          </small>
-        </div>
-        <div class="form-group">
-          <label for="newServiceTypeDisplayPrice">Display Price</label>
-          <input type="number"
-                 id="newServiceTypeDisplayPrice"
-                 step="0.01"
-                 min="0"
-                 [(ngModel)]="newServiceType().displayPrice"
-                 name="displayPrice"
-                 placeholder="none">
-          <select aria-label="Display price unit" [(ngModel)]="newServiceType().displayPriceUnit" name="displayPriceUnit">
-            <option [ngValue]="null">no unit</option>
-            @for (unit of displayPriceUnits; track unit.value) {
-            <option [ngValue]="unit.value">{{ unit.label }}</option>
-            }
-          </select>
-          <small class="form-note">
-            Optional, website text only - never used for booking prices. Only for types the booking
-            calculator can't price (for example a poll type). Leave empty to show
-            "priced after assessment" instead.
-          </small>
-        </div>
-        <div class="form-group">
-          <label for="newServiceTypeServiceKey">Service Key</label>
-          <input type="text"
-                 id="newServiceTypeServiceKey"
-                 [(ngModel)]="newServiceType().serviceKey"
-                 name="serviceKey"
-                 placeholder="e.g. residential"
-                 maxlength="50"
-                 autocomplete="off">
-          <small class="form-note">
-            Optional. A fixed name the website uses to find this service type, because names and IDs
-            can change. Lowercase letters, numbers and hyphens only (for example move-in-out).
-            Each key can belong to one service type. Leave blank if not needed.
-          </small>
-        </div>
-        <div class="form-group">
-          <label for="newServiceTypeDisplayOrder">Display Order:</label>
-          <input type="number" 
-                 id="newServiceTypeDisplayOrder" 
-                 [(ngModel)]="newServiceType().displayOrder" 
-                 name="displayOrder" 
-                 min="1"
-                 required>
-        </div>
-        <div class="form-group">
-          <label for="newServiceTypeDescription">Description:</label>
-          <textarea id="newServiceTypeDescription" 
-                    [(ngModel)]="newServiceType().description" 
-                    name="description" 
-                    required></textarea>
-        </div>
-        <div class="form-group">
-          <label>Service Type Mode:</label>
-          <div class="radio-group">
-            <label>
-              <input type="radio" 
-                     name="newServiceTypeMode" 
-                     [checked]="!newServiceType().hasPoll && !newServiceType().isCustom"
-                     (change)="newServiceType().hasPoll = false; newServiceType().isCustom = false">
-              Regular (Services & Extra Services)
-            </label>
-            <label>
-              <input type="radio" 
-                     name="newServiceTypeMode" 
-                     [checked]="newServiceType().hasPoll"
-                     (change)="newServiceType().hasPoll = true; newServiceType().isCustom = false">
-              Poll (Custom Quote)
-            </label>
-            <label>
-              <input type="radio" 
-                     name="newServiceTypeMode" 
-                     [checked]="newServiceType().isCustom"
-                     (change)="newServiceType().hasPoll = false; newServiceType().isCustom = true">
-              Custom Pricing
-            </label>
-          </div>
-          <small class="form-note">
-            Regular: Shows services and extra services<br>
-            Poll: Shows questionnaire for custom quotes<br>
-            Custom: Allows users to enter custom amount, cleaners, and duration
-          </small>
-        </div>
-        <div class="form-actions">
-          <button type="submit" class="action-btn save">Add</button>
-          <button type="button" class="action-btn cancel" (click)="cancelAddServiceType()">Cancel</button>
-        </div>
-      </form>
     </div>
     }
 
@@ -181,177 +49,49 @@
         </thead>
         <tbody>
           @for (type of serviceTypes(); track type.id) {
-          <tr 
+          <tr
               [class.selected]="selectedServiceType()?.id === type.id"
               [class.editing]="isEditingServiceType() && selectedServiceType()?.id === type.id"
               (click)="selectServiceType(type)">
             <td>{{type.id}}</td>
+            <td>{{type.name}}</td>
             <td>
-              @if (!isEditingServiceType() || selectedServiceType()?.id !== type.id) {
-                {{type.name}}
-              }
-              @if (isEditingServiceType() && selectedServiceType()?.id === type.id) {
-              <input aria-label="Name" 
-                     type="text" 
-                     [(ngModel)]="type.name"
-                     class="edit-input">
+              @if (type.serviceKey) {
+              <code>{{type.serviceKey}}</code>
+              } @else {
+              <span class="muted-cell">none</span>
               }
             </td>
+            <td>{{type.basePrice | currency}}</td>
             <td>
-              @if (!isEditingServiceType() || selectedServiceType()?.id !== type.id) {
-                @if (type.serviceKey) {
-                <code>{{type.serviceKey}}</code>
-                }
-                @if (!type.serviceKey) {
-                <span class="muted-cell">none</span>
-                }
-              }
-              <!-- Blank saves as "no key". Format and uniqueness are checked by the server,
-                   which answers with the exact problem (shown in the message bar above). -->
-              @if (isEditingServiceType() && selectedServiceType()?.id === type.id) {
-              <input aria-label="Key"
-                     type="text"
-                     [(ngModel)]="type.serviceKey"
-                     placeholder="e.g. residential"
-                     maxlength="50"
-                     autocomplete="off"
-                     class="edit-input">
-              }
-            </td>
-            <td>
-              @if (!isEditingServiceType() || selectedServiceType()?.id !== type.id) {
-                {{type.basePrice | currency}}
-              }
-              @if (isEditingServiceType() && selectedServiceType()?.id === type.id) {
-              <input aria-label="Price" 
-                     type="number" 
-                     [(ngModel)]="type.basePrice"
-                     class="edit-input">
-              }
-            </td>
-            <td>
-              @if (!isEditingServiceType() || selectedServiceType()?.id !== type.id) {
-                @if (type.minimumPrice) {
-                <span>{{type.minimumPrice | currency}}</span>
-                }
-                @if (!type.minimumPrice) {
-                <span class="muted-cell">none</span>
-                }
-              }
-              @if (isEditingServiceType() && selectedServiceType()?.id === type.id) {
-              <input aria-label="Min price"
-                     type="number"
-                     step="0.01"
-                     min="0"
-                     [(ngModel)]="type.minimumPrice"
-                     class="edit-input">
+              @if (type.minimumPrice) {
+              <span>{{type.minimumPrice | currency}}</span>
+              } @else {
+              <span class="muted-cell">none</span>
               }
             </td>
             <td>
               <!-- Marketing text only (never a quote): the website shows it for types it can't price. -->
-              @if (!isEditingServiceType() || selectedServiceType()?.id !== type.id) {
-                @if (type.displayPrice) {
-                <span>{{type.displayPrice | currency}} {{ displayPriceUnitLabel(type.displayPriceUnit) }}</span>
-                }
-                @if (!type.displayPrice) {
-                <span class="muted-cell">none</span>
-                }
-              }
-              @if (isEditingServiceType() && selectedServiceType()?.id === type.id) {
-                <input type="number"
-                       step="0.01"
-                       min="0"
-                       [(ngModel)]="type.displayPrice"
-                       placeholder="none"
-                       class="edit-input">
-                <select aria-label="Display price unit" [(ngModel)]="type.displayPriceUnit" class="edit-input">
-                  <option [ngValue]="null">no unit</option>
-                  @for (unit of displayPriceUnits; track unit.value) {
-                  <option [ngValue]="unit.value">{{ unit.label }}</option>
-                  }
-                </select>
+              @if (type.displayPrice) {
+              <span>{{type.displayPrice | currency}} {{ displayPriceUnitLabel(type.displayPriceUnit) }}</span>
+              } @else {
+              <span class="muted-cell">none</span>
               }
             </td>
+            <td>{{type.timeDuration}} min</td>
             <td>
-              @if (!isEditingServiceType() || selectedServiceType()?.id !== type.id) {
-                {{type.timeDuration}} min
+              @if (type.isCustom) {
+              <span class="badge badge-warning">Custom</span>
               }
-              @if (isEditingServiceType() && selectedServiceType()?.id === type.id) {
-              <input aria-label="Time (minutes)"
-                     type="number"
-                     [(ngModel)]="type.timeDuration"
-                     class="edit-input">
+              @if (type.hasPoll && !type.isCustom) {
+              <span class="badge badge-info">Poll</span>
               }
-            </td>
-            <td>
-              @if (!isEditingServiceType() || !selectedServiceType() || selectedServiceType()!.id !== type.id) {
-                @if (type.isCustom) {
-                <span class="badge badge-warning">Custom</span>
-                }
-                @if (type.hasPoll && !type.isCustom) {
-                <span class="badge badge-info">Poll</span>
-                }
-                @if (!type.hasPoll && !type.isCustom) {
-                <span class="badge badge-secondary">Regular</span>
-                }
-              }
-              @if (isEditingServiceType() && selectedServiceType() && selectedServiceType()!.id === type.id) {
-              <div class="service-type-options">
-                <label>
-                  <input type="radio" 
-                         name="serviceTypeMode"
-                         [checked]="!selectedServiceType()!.hasPoll && !selectedServiceType()!.isCustom"
-                         (change)="setServiceTypeMode('regular')">
-                  Regular
-                </label>
-                <label>
-                  <input type="radio" 
-                         name="serviceTypeMode"
-                         [checked]="selectedServiceType()!.hasPoll"
-                         (change)="setServiceTypeMode('poll')">
-                  Poll
-                </label>
-                <label>
-                  <input type="radio" 
-                         name="serviceTypeMode"
-                         [checked]="selectedServiceType()!.isCustom"
-                         (change)="setServiceTypeMode('custom')">
-                  Custom
-                </label>
-                <!-- Independent of the three-way mode above: any mode may or may not ask the
-                     customer whether the place is an apartment or a house. Unchecking this is how
-                     an hourly commercial type (Office) opts out without a deploy. -->
-                <label class="service-type-flag">
-                  <input type="checkbox"
-                         [checked]="selectedServiceType()!.collectsPropertyType !== false"
-                         (change)="setCollectsPropertyType($any($event.target).checked)">
-                  Ask apartment / house
-                </label>
-              </div>
+              @if (!type.hasPoll && !type.isCustom) {
+              <span class="badge badge-secondary">Regular</span>
               }
             </td>
-            <td>
-              @if (!isEditingServiceType() || selectedServiceType()?.id !== type.id) {
-                {{type.description}}
-              }
-              @if (isEditingServiceType() && selectedServiceType()?.id === type.id) {
-              <textarea aria-label="Description" 
-                        [(ngModel)]="type.description"
-                        class="edit-textarea"></textarea>
-              }
-            </td>
-            <td>
-              @if (!isEditingServiceType() || selectedServiceType()?.id !== type.id) {
-                {{type.displayOrder || 0}}
-              }
-              @if (isEditingServiceType() && selectedServiceType()?.id === type.id) {
-              <input aria-label="Order" 
-                     type="number" 
-                     [(ngModel)]="type.displayOrder"
-                     class="edit-input"
-                     min="1">
-              }
-            </td>
+            <td>{{type.description}}</td>
+            <td>{{type.displayOrder || 0}}</td>
             <td>
               <span class="status-badge" [class.active]="type.isActive" [class.inactive]="!type.isActive">
                 {{type.isActive ? 'Active' : 'Inactive'}}
@@ -359,39 +99,33 @@
             </td>
             @if (userRole() !== 'Moderator') {
             <td class="actions">
-              @if (!isEditingServiceType() || selectedServiceType()?.id !== type.id) {
-                @if (userPermissions().permissions.canUpdate) {
-                <button 
-                        class="action-btn edit" 
-                        (click)="editServiceType(); selectServiceType(type); $event.stopPropagation()">
-                  Edit
-                </button>
-                }
-                @if (userPermissions().permissions.canActivate && !type.isActive) {
-                <button 
-                        class="action-btn activate" 
-                        (click)="activateServiceType(type); $event.stopPropagation()">
-                  Enable
-                </button>
-                }
-                @if (userPermissions().permissions.canDeactivate && type.isActive) {
-                <button 
-                        class="action-btn deactivate" 
-                        (click)="deactivateServiceType(type); $event.stopPropagation()">
-                  Disable
-                </button>
-                }
-                @if (userPermissions().permissions.canDelete) {
-                <button 
-                        class="action-btn delete" 
-                        (click)="deleteServiceType(type); $event.stopPropagation()">
-                  Delete
-                </button>
-                }
+              @if (userPermissions().permissions.canUpdate) {
+              <button
+                      class="action-btn edit"
+                      (click)="editServiceType(type); $event.stopPropagation()">
+                Edit
+              </button>
               }
-              @if (isEditingServiceType() && selectedServiceType()?.id === type.id) {
-                <button class="action-btn save" (click)="saveServiceType(); $event.stopPropagation()">Save</button>
-                <button class="action-btn cancel" (click)="cancelEditServiceType(); $event.stopPropagation()">Cancel</button>
+              @if (userPermissions().permissions.canActivate && !type.isActive) {
+              <button
+                      class="action-btn activate"
+                      (click)="activateServiceType(type); $event.stopPropagation()">
+                Enable
+              </button>
+              }
+              @if (userPermissions().permissions.canDeactivate && type.isActive) {
+              <button
+                      class="action-btn deactivate"
+                      (click)="deactivateServiceType(type); $event.stopPropagation()">
+                Disable
+              </button>
+              }
+              @if (userPermissions().permissions.canDelete) {
+              <button
+                      class="action-btn delete"
+                      (click)="deleteServiceType(type); $event.stopPropagation()">
+                Delete
+              </button>
               }
             </td>
             }
@@ -683,7 +417,7 @@
         </div>
 
         <!-- Services Messages -->
-        @if (serviceMessage().error) {
+        @if (serviceMessage().error && panel()?.kind !== 'service') {
         <div class="alert alert-danger">
           {{serviceMessage().error}}
         </div>
@@ -691,122 +425,6 @@
         @if (serviceMessage().success) {
         <div class="alert alert-success">
           {{serviceMessage().success}}
-        </div>
-        }
-
-        <!-- Add Service Form -->
-        @if (isAddingService()) {
-        <div class="service-form">
-          <h4>Add New Service</h4>
-          
-          <!-- Option to copy existing service -->
-          <div class="copy-option">
-            <label>
-              <input type="checkbox" [(ngModel)]="showExistingServices">
-              Copy from existing service
-            </label>
-            
-            @if (showExistingServices()) {
-            <div class="existing-services-select">
-              <select aria-label="Copy from existing service" [(ngModel)]="selectedExistingServiceId" (change)="onServiceSelectionChange($event)">
-                <option value="">Select a service to copy</option>
-                @for (service of allServices(); track service.id) {
-                <option [value]="service.id">
-                  {{ service.name }} ({{ getServiceTypeNameById(service.serviceTypeId) }})
-                </option>
-                }
-              </select>
-              <button class="copy-btn" (click)="copyExistingService()" [disabled]="!selectedExistingServiceId()">
-                Copy Service
-              </button>
-            </div>
-            }
-          </div>
-          
-          @if (!showExistingServices()) {
-          <div class="form-grid">
-            <div class="form-group">
-              <label>Name</label>
-              <input type="text" [(ngModel)]="newService().name" placeholder="e.g., Bedrooms">
-            </div>
-            <div class="form-group">
-              <label>Service Key</label>
-              <input type="text" [(ngModel)]="newService().serviceKey" placeholder="e.g., bedrooms">
-            </div>
-            <div class="form-group">
-              <label>Cost</label>
-              <input aria-label="Cost" type="number" [(ngModel)]="newService().cost" step="0.01">
-            </div>
-            <div class="form-group">
-              <label>Duration (minutes)</label>
-              <input aria-label="Duration (minutes)" type="number" [(ngModel)]="newService().timeDuration">
-            </div>
-            <div class="form-group">
-              <label>Display Order</label>
-              <input aria-label="Display Order" type="number" [(ngModel)]="newService().displayOrder" min="1">
-            </div>
-            <div class="form-group">
-              <label>Input Type</label>
-              <select aria-label="Input Type" [(ngModel)]="newService().inputType">
-                <option value="dropdown">Dropdown</option>
-                <option value="slider">Slider</option>
-                <option value="number">Number</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label>Min Value</label>
-              <input aria-label="Min Value" type="number" [(ngModel)]="newService().minValue">
-            </div>
-            <div class="form-group">
-              <label>Max Value</label>
-              <input aria-label="Max Value" type="number" [(ngModel)]="newService().maxValue">
-            </div>
-            <div class="form-group">
-              <label>Step Value</label>
-              <input aria-label="Step Value" type="number" [(ngModel)]="newService().stepValue">
-            </div>
-            <div class="form-group">
-              <label>Unit</label>
-              <input type="text" [(ngModel)]="newService().unit" placeholder="e.g., per hour">
-            </div>
-            <div class="form-group">
-              <label>Service Type</label>
-              <select aria-label="Service Type" [(ngModel)]="newService().serviceRelationType">
-                <option value="">Regular Service</option>
-                <option value="cleaner">Cleaner Service</option>
-                <option value="hours">Hours for Cleaners</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label>
-                <input type="checkbox" [(ngModel)]="newService().isRangeInput">
-                Is Range Input
-              </label>
-            </div>
-            <div class="form-group">
-              <label>
-                <input type="checkbox" [(ngModel)]="newService().chargeAboveThreshold">
-                Charge only above included amount
-              </label>
-              <small class="form-note">Add the included amounts after creating the service.</small>
-            </div>
-            <div class="form-group">
-              <label>Cost when quantity is 0</label>
-              <input type="number" step="0.01" [(ngModel)]="newService().zeroQuantityCost" placeholder="leave blank">
-              <small class="form-note">Used for Studio (0 bedrooms). Leave blank if not applicable.</small>
-            </div>
-            <div class="form-group">
-              <label>Minutes when quantity is 0</label>
-              <input type="number" step="0.01" [(ngModel)]="newService().zeroQuantityDuration" placeholder="leave blank">
-            </div>
-          </div>
-          }
-          <div class="form-actions">
-            @if (!showExistingServices()) {
-            <button class="save-btn" (click)="addService()">Create</button>
-            }
-            <button class="cancel-btn" (click)="cancelAddService()">Cancel</button>
-          </div>
         </div>
         }
 
@@ -824,7 +442,7 @@
                 <th>Service Type</th>
                 <th>Cost</th>
                 <th>Duration</th>
-                <th>Type</th>
+                <th>Control</th>
                 <th>Order</th>
                 <th>Status</th>
                 @if (userRole() !== 'Moderator') {
@@ -834,41 +452,23 @@
             </thead>
             <tbody>
               @for (service of selectedServiceType.services; track service.id) {
-              <tr>
-                @if (editingServiceId() !== service.id) {
+              <tr [class.editing]="editingServiceId() === service.id">
                 <td>{{ service.id }}</td>
-                }
-                @if (editingServiceId() !== service.id) {
                 <td>{{ service.name }}</td>
-                }
-                @if (editingServiceId() !== service.id) {
                 <td>{{ service.serviceKey }}</td>
-                }
-                @if (editingServiceId() !== service.id) {
                 <td class="service-type-cell">
                   {{ getServiceTypeNameById(service.serviceTypeId) }}
                 </td>
-                }
-                @if (editingServiceId() !== service.id) {
                 <td>${{ service.cost }}</td>
-                }
-                @if (editingServiceId() !== service.id) {
                 <td>{{ service.timeDuration }}min</td>
-                }
-                @if (editingServiceId() !== service.id) {
-                <td>{{ service.inputType }}</td>
-                }
-                @if (editingServiceId() !== service.id) {
+                <td>{{ serviceControlLabel(service) }}</td>
                 <td>{{ service.displayOrder || 0 }}</td>
-                }
-                @if (editingServiceId() !== service.id) {
                 <td>
                   <span class="status-badge" [class.active]="service.isActive" [class.inactive]="!service.isActive">
                     {{ service.isActive ? 'Active' : 'Inactive' }}
                   </span>
                 </td>
-                }
-                @if (editingServiceId() !== service.id && userRole() !== 'Moderator') {
+                @if (userRole() !== 'Moderator') {
                 <td>
                   <button class="action-btn pricing"
                           [class.expanded]="expandedPricingServiceId() === service.id"
@@ -890,104 +490,6 @@
                   @if (userPermissions().permissions.canDelete) {
                   <button class="action-btn delete" (click)="deleteService(service); $event.stopPropagation()">Delete</button>
                   }
-                </td>
-                }
-
-                <!-- Edit mode -->
-                @if (editingServiceId() === service.id) {
-                <td class="edit-mode-td" colspan="10">
-                  <div class="inline-edit-form">
-                    <div class="form-row">
-                      <div class="form-group">
-                        <label>Name</label>
-                        <input aria-label="Name" type="text" [(ngModel)]="service.name">
-                      </div>
-                      <div class="form-group">
-                        <label>Service Key</label>
-                        <input aria-label="Service Key" type="text" [(ngModel)]="service.serviceKey">
-                      </div>
-                      <div class="form-group">
-                        <label>Cost</label>
-                        <input aria-label="Cost" type="number" [(ngModel)]="service.cost" step="0.01">
-                      </div>
-                      <div class="form-group">
-                        <label>Duration (minutes)</label>
-                        <input aria-label="Duration (minutes)" type="number" [(ngModel)]="service.timeDuration">
-                      </div>
-                      <div class="form-group">
-                        <label>Display Order</label>
-                        <input aria-label="Display Order" type="number" [(ngModel)]="service.displayOrder" min="1">
-                      </div>
-                    </div>
-                    <div class="form-row">
-                      <div class="form-group">
-                        <label>Input Type</label>
-                        <select aria-label="Input Type" [(ngModel)]="service.inputType">
-                          <option value="dropdown">Dropdown</option>
-                          <option value="slider">Slider</option>
-                          <option value="number">Number</option>
-                        </select>
-                      </div>
-                      <div class="form-group">
-                        <label>Min Value</label>
-                        <input aria-label="Min Value" type="number" [(ngModel)]="service.minValue">
-                      </div>
-                      <div class="form-group">
-                        <label>Max Value</label>
-                        <input aria-label="Max Value" type="number" [(ngModel)]="service.maxValue">
-                      </div>
-                      <div class="form-group">
-                        <label>Step Value</label>
-                        <input aria-label="Step Value" type="number" [(ngModel)]="service.stepValue">
-                      </div>
-                    </div>
-                    <div class="form-row">
-                      <div class="form-group">
-                        <label>Unit</label>
-                        <input type="text" [(ngModel)]="service.unit" placeholder="e.g., per hour">
-                      </div>
-                      <div class="form-group">
-                        <label>Service Type</label>
-                        <select aria-label="Service Type" [(ngModel)]="service.serviceRelationType">
-                          <option value="">Regular Service</option>
-                          <option value="cleaner">Cleaner Service</option>
-                          <option value="hours">Hours for Cleaners</option>
-                        </select>
-                      </div>
-                      <div class="form-group checkbox-group">
-                        <label>
-                          <input type="checkbox" [(ngModel)]="service.isRangeInput">
-                          Is Range Input
-                        </label>
-                      </div>
-                    </div>
-                    <div class="form-row threshold-fields">
-                      <div class="form-group checkbox-group">
-                        <label>
-                          <input type="checkbox" [(ngModel)]="service.chargeAboveThreshold">
-                          Charge only above included amount
-                        </label>
-                        <small class="form-note">
-                          When on, the included amounts below are subtracted before pricing, so only
-                          the excess is charged.
-                        </small>
-                      </div>
-                      <div class="form-group">
-                        <label>Cost when quantity is 0</label>
-                        <input type="number" step="0.01" [(ngModel)]="service.zeroQuantityCost" placeholder="leave blank">
-                        <small class="form-note">Used for Studio (0 bedrooms). Leave blank if not applicable.</small>
-                      </div>
-                      <div class="form-group">
-                        <label>Minutes when quantity is 0</label>
-                        <input type="number" step="0.01" [(ngModel)]="service.zeroQuantityDuration" placeholder="leave blank">
-                        <small class="form-note">Leave blank to keep the built-in Studio default.</small>
-                      </div>
-                    </div>
-                    <div class="form-actions">
-                      <button class="save-btn" (click)="saveService(service)">Save</button>
-                      <button class="cancel-btn" (click)="cancelEditService()">Cancel</button>
-                    </div>
-                  </div>
                 </td>
                 }
               </tr>
@@ -1411,7 +913,7 @@
         </div>
 
         <!-- Extra Services Messages -->
-        @if (extraServiceMessage().error) {
+        @if (extraServiceMessage().error && panel()?.kind !== 'extra') {
         <div class="alert alert-danger">
           {{extraServiceMessage().error}}
         </div>
@@ -1419,120 +921,6 @@
         @if (extraServiceMessage().success) {
         <div class="alert alert-success">
           {{extraServiceMessage().success}}
-        </div>
-        }
-
-        <!-- Add Extra Service Form -->
-        @if (isAddingExtraService()) {
-        <div class="service-form">
-          <h4>Add New Extra Service</h4>
-          
-          <!-- Option to copy existing extra service -->
-          <div class="copy-option">
-            <label>
-              <input type="checkbox" [(ngModel)]="showExistingExtraServices">
-              Copy from existing extra service
-            </label>
-            
-            @if (showExistingExtraServices()) {
-            <div class="existing-services-select">
-              <select aria-label="Copy from existing extra service" [(ngModel)]="selectedExistingExtraServiceId" (change)="onExtraServiceSelectionChange($event)">
-                <option value="">Select an extra service to copy</option>
-                @for (extra of getAvailableExtraServicesForCopy(); track extra.id) {
-                <option [value]="extra.id">
-                  {{ extra.name }} ({{ extra.isAvailableForAll ? 'Universal' : 'Service-specific' }})
-                </option>
-                }
-              </select>
-              <button class="copy-btn" (click)="copyExistingExtraService()" [disabled]="!selectedExistingExtraServiceId()">
-                Copy Extra Service
-              </button>
-            </div>
-            }
-          </div>
-          
-          @if (!showExistingExtraServices()) {
-          <div class="form-grid">
-            <div class="form-group">
-              <label>Name</label>
-              <input aria-label="Name" type="text" [(ngModel)]="newExtraService().name">
-            </div>
-            <div class="form-group">
-              <label>Key</label>
-              <input type="text" [(ngModel)]="newExtraService().extraServiceKey" placeholder="e.g. cleaning-supplies"
-                     maxlength="50" autocomplete="off">
-              <small class="form-note">
-                Optional. A fixed name the website uses to find this extra (prices, checklists), because
-                names can change. Lowercase letters, numbers and hyphens. Copies of one extra in
-                different service types share a key. Leave blank if not needed.
-              </small>
-            </div>
-            <div class="form-group">
-              <label>Description</label>
-              <input aria-label="Description" type="text" [(ngModel)]="newExtraService().description">
-            </div>
-            <div class="form-group">
-              <label>Price</label>
-              <input aria-label="Price" type="number" [(ngModel)]="newExtraService().price" step="0.01">
-            </div>
-            <div class="form-group">
-              <label>Duration (minutes)</label>
-              <input aria-label="Duration (minutes)" type="number" [(ngModel)]="newExtraService().duration">
-            </div>
-            <div class="form-group">
-              <label>Display Order</label>
-              <input aria-label="Display Order" type="number" [(ngModel)]="newExtraService().displayOrder" min="1">
-            </div>
-            <div class="form-group">
-              <label>Price Multiplier</label>
-              <input aria-label="Price Multiplier" type="number" [(ngModel)]="newExtraService().priceMultiplier" step="0.1">
-            </div>
-            <div class="form-group">
-              <label>Icon</label>
-              <input aria-label="Icon" type="text" [(ngModel)]="newExtraService().icon">
-            </div>
-          </div>
-          }
-          <div class="form-group full-width">
-            <label>Options</label>
-            <div class="checkbox-group">
-              <label>
-                <input type="checkbox" [(ngModel)]="newExtraService().hasQuantity">
-                Has Quantity
-              </label>
-              <label>
-                <input type="checkbox" [(ngModel)]="newExtraService().hasHours">
-                Has Hours
-              </label>
-              <label>
-                <input type="checkbox" [(ngModel)]="newExtraService().isDeepCleaning">
-                Is Deep Cleaning
-              </label>
-              <label>
-                <input type="checkbox" [(ngModel)]="newExtraService().isSuperDeepCleaning">
-                Is Super Deep Cleaning
-              </label>
-              <label>
-                <input type="checkbox" [(ngModel)]="newExtraService().isSameDayService">
-                Is Same Day Service
-              </label>
-              <label>
-                <input type="checkbox" [(ngModel)]="newExtraService().isAvailableForAll">
-                Available for All Service Types
-              </label>
-            </div>
-            @if (newExtraService().isAvailableForAll) {
-            <p class="form-note">
-              <strong>Note:</strong> When checked, this extra service will be available for all service types.
-            </p>
-            }
-          </div>
-          <div class="form-actions">
-            @if (!showExistingExtraServices()) {
-            <button class="save-btn" (click)="addExtraService()">Create</button>
-            }
-            <button class="cancel-btn" (click)="cancelAddExtraService()">Cancel</button>
-          </div>
         </div>
         }
 
@@ -1560,53 +948,33 @@
             </thead>
             <tbody>
               @for (extra of selectedServiceType.extraServices; track extra.id) {
-              <tr>
-                @if (editingExtraServiceId() !== extra.id) {
+              <tr [class.editing]="editingExtraServiceId() === extra.id">
                 <td>{{ extra.id }}</td>
-                }
-                @if (editingExtraServiceId() !== extra.id) {
                 <td>{{ extra.name }}</td>
-                }
-                @if (editingExtraServiceId() !== extra.id) {
                 <td>
                   @if (extra.extraServiceKey) {
                   <code>{{ extra.extraServiceKey }}</code>
-                  }
-                  @if (!extra.extraServiceKey) {
+                  } @else {
                   <span class="muted-cell">none</span>
                   }
                 </td>
-                }
-                @if (editingExtraServiceId() !== extra.id) {
                 <td>{{ extra.description || 'No description' }}</td>
-                }
-                @if (editingExtraServiceId() !== extra.id) {
                 <td>${{ extra.price }}</td>
-                }
-                @if (editingExtraServiceId() !== extra.id) {
                 <td>{{ extra.duration }}min</td>
-                }
-                @if (editingExtraServiceId() !== extra.id) {
                 <td>
                   @if (extra.isAvailableForAll) {
                   <span class="universal-badge">Universal</span>
-                  }
-                  @if (!extra.isAvailableForAll) {
+                  } @else {
                   <span class="service-specific-badge">Specific</span>
                   }
                 </td>
-                }
-                @if (editingExtraServiceId() !== extra.id) {
                 <td>{{ extra.displayOrder || 0 }}</td>
-                }
-                @if (editingExtraServiceId() !== extra.id) {
                 <td>
                   <span class="status-badge" [class.active]="extra.isActive" [class.inactive]="!extra.isActive">
                     {{ extra.isActive ? 'Active' : 'Inactive' }}
                   </span>
                 </td>
-                }
-                @if (editingExtraServiceId() !== extra.id && userRole() !== 'Moderator') {
+                @if (userRole() !== 'Moderator') {
                 <td>
                   @if (userPermissions().permissions.canUpdate) {
                   <button class="action-btn edit" (click)="editExtraService(extra); $event.stopPropagation()">Edit</button>
@@ -1620,91 +988,6 @@
                   @if (userPermissions().permissions.canDelete) {
                   <button class="action-btn delete" (click)="deleteExtraService(extra); $event.stopPropagation()">Delete</button>
                   }
-                </td>
-                }
-                
-                <!-- Edit mode -->
-                @if (editingExtraServiceId() === extra.id) {
-                <td class="edit-mode-td" colspan="10">
-                  <div class="inline-edit-form">
-                    <div class="form-row">
-                      <div class="form-group">
-                        <label>Name</label>
-                        <input aria-label="Name" type="text" [(ngModel)]="extra.name">
-                      </div>
-                      <!-- Blank saves as "no key". Format and uniqueness are checked by the server,
-                           which answers with the exact problem (shown in the message bar above). -->
-                      <div class="form-group">
-                        <label>Key</label>
-                        <input type="text" [(ngModel)]="extra.extraServiceKey" placeholder="e.g. cleaning-supplies"
-                               maxlength="50" autocomplete="off">
-                      </div>
-                      <div class="form-group">
-                        <label>Description</label>
-                        <input aria-label="Description" type="text" [(ngModel)]="extra.description">
-                      </div>
-                      <div class="form-group">
-                        <label>Price</label>
-                        <input aria-label="Price" type="number" [(ngModel)]="extra.price" step="0.01">
-                      </div>
-                      <div class="form-group">
-                        <label>Duration (minutes)</label>
-                        <input aria-label="Duration (minutes)" type="number" [(ngModel)]="extra.duration">
-                      </div>
-                      <div class="form-group">
-                        <label>Display Order</label>
-                        <input aria-label="Display Order" type="number" [(ngModel)]="extra.displayOrder" min="1">
-                      </div>
-                    </div>
-                    <div class="form-row">
-                      <div class="form-group">
-                        <label>Price Multiplier</label>
-                        <input aria-label="Price Multiplier" type="number" [(ngModel)]="extra.priceMultiplier" step="0.1">
-                      </div>
-                      <div class="form-group">
-                        <label>Icon</label>
-                        <input aria-label="Icon" type="text" [(ngModel)]="extra.icon">
-                      </div>
-                    </div>
-                    <div class="form-group full-width">
-                      <label>Options</label>
-                      <div class="checkbox-group">
-                        <label>
-                          <input type="checkbox" [(ngModel)]="extra.hasQuantity">
-                          Has Quantity
-                        </label>
-                        <label>
-                          <input type="checkbox" [(ngModel)]="extra.hasHours">
-                          Has Hours
-                        </label>
-                        <label>
-                          <input type="checkbox" [(ngModel)]="extra.isDeepCleaning">
-                          Is Deep Cleaning
-                        </label>
-                        <label>
-                          <input type="checkbox" [(ngModel)]="extra.isSuperDeepCleaning">
-                          Is Super Deep Cleaning
-                        </label>
-                        <label>
-                          <input type="checkbox" [(ngModel)]="extra.isSameDayService">
-                          Is Same Day Service
-                        </label>
-                        <label>
-                          <input type="checkbox" [(ngModel)]="extra.isAvailableForAll">
-                          Available for All Service Types
-                        </label>
-                      </div>
-                      @if (extra.isAvailableForAll) {
-                      <p class="form-note">
-                        <strong>Note:</strong> When checked, this extra service will be available for all service types.
-                      </p>
-                      }
-                    </div>
-                    <div class="form-actions">
-                      <button class="save-btn" (click)="saveExtraService(extra)">Save</button>
-                      <button class="cancel-btn" (click)="cancelEditExtraService()">Cancel</button>
-                    </div>
-                  </div>
                 </td>
                 }
               </tr>
@@ -1721,3 +1004,451 @@
   </div>
   }
 </div>
+
+<!-- Add / edit side panel (2026-10): the same overlay + slide-in pattern as the Orders and Users
+     tabs. The tables above are read-only; every add and edit happens here, on a COPY of the row,
+     so Cancel really discards and the table keeps showing what is saved. -->
+@if (panel()) {
+<div class="detail-overlay catalog-overlay" (click)="closePanel()"></div>
+}
+<aside class="detail-panel catalog-panel" [class.open]="panel() !== null"
+       [attr.aria-hidden]="panel() === null" [attr.aria-label]="panelTitle()">
+  @if (panel(); as p) {
+  <header class="catalog-panel__header">
+    <div class="catalog-panel__heading">
+      <p class="catalog-panel__eyebrow">{{ panelEyebrow() }}</p>
+      <h3>{{ panelTitle() }}</h3>
+    </div>
+    <button type="button" class="catalog-panel__close" (click)="closePanel()" aria-label="Close panel">✕</button>
+  </header>
+
+  <div class="catalog-panel__body">
+    @if (panelError()) {
+    <div class="alert alert-danger catalog-panel__error" role="alert">{{ panelError() }}</div>
+    }
+
+    <!-- ===================== SERVICE TYPE ===================== -->
+    @if (p.kind === 'serviceType') {
+    @if (serviceTypeForm(); as f) {
+    <section class="catalog-group" aria-labelledby="st-basic">
+      <h4 id="st-basic" class="catalog-group__title">Basic info</h4>
+      <div class="catalog-grid">
+        <label class="catalog-field catalog-field--wide">
+          <span class="catalog-field__label">Name <span class="catalog-req" aria-hidden="true">*</span></span>
+          <input type="text" [(ngModel)]="f.name" required autocomplete="off">
+        </label>
+        <label class="catalog-field catalog-field--wide">
+          <span class="catalog-field__label">Description <span class="catalog-req" aria-hidden="true">*</span></span>
+          <textarea rows="3" [(ngModel)]="f.description" required></textarea>
+        </label>
+        <label class="catalog-field">
+          <span class="catalog-field__label">Service key</span>
+          <input type="text" [(ngModel)]="f.serviceKey" placeholder="e.g. residential" maxlength="50" autocomplete="off">
+          <small class="catalog-field__hint">
+            Optional. A fixed name the website uses to find this type. Lowercase letters, numbers and
+            hyphens; one service type per key.
+          </small>
+        </label>
+        <label class="catalog-field">
+          <span class="catalog-field__label">Display order</span>
+          <input type="number" [(ngModel)]="f.displayOrder" min="1" step="1">
+          <small class="catalog-field__hint">1 shows first. Others move to make room.</small>
+        </label>
+      </div>
+    </section>
+
+    <section class="catalog-group" aria-labelledby="st-mode">
+      <h4 id="st-mode" class="catalog-group__title">Booking mode</h4>
+      <div class="catalog-choices" role="radiogroup" aria-labelledby="st-mode">
+        <label class="catalog-choice" [class.is-selected]="serviceTypeMode(f) === 'regular'">
+          <input type="radio" name="panelServiceTypeMode" [checked]="serviceTypeMode(f) === 'regular'" (change)="setServiceTypeMode('regular')">
+          <span class="catalog-choice__title">Regular</span>
+          <span class="catalog-choice__text">Priced from services and extras.</span>
+        </label>
+        <label class="catalog-choice" [class.is-selected]="serviceTypeMode(f) === 'poll'">
+          <input type="radio" name="panelServiceTypeMode" [checked]="serviceTypeMode(f) === 'poll'" (change)="setServiceTypeMode('poll')">
+          <span class="catalog-choice__title">Poll</span>
+          <span class="catalog-choice__text">Questionnaire for a custom quote.</span>
+        </label>
+        <label class="catalog-choice" [class.is-selected]="serviceTypeMode(f) === 'custom'">
+          <input type="radio" name="panelServiceTypeMode" [checked]="serviceTypeMode(f) === 'custom'" (change)="setServiceTypeMode('custom')">
+          <span class="catalog-choice__title">Custom pricing</span>
+          <span class="catalog-choice__text">Admin enters amount, cleaners and time.</span>
+        </label>
+      </div>
+      <!-- Independent of the mode: any mode may or may not ask apartment vs house. Unticking it is
+           how an hourly commercial type (Office) opts out without a deploy. -->
+      <label class="catalog-check">
+        <input type="checkbox" [checked]="f.collectsPropertyType !== false"
+               (change)="setCollectsPropertyType($any($event.target).checked)">
+        <span>Ask apartment / house</span>
+      </label>
+    </section>
+
+    <section class="catalog-group" aria-labelledby="st-price">
+      <h4 id="st-price" class="catalog-group__title">Price and time</h4>
+      <div class="catalog-grid">
+        <label class="catalog-field">
+          <span class="catalog-field__label">Base price ($) <span class="catalog-req" aria-hidden="true">*</span></span>
+          <input type="number" [(ngModel)]="f.basePrice" min="0" step="0.01" required>
+        </label>
+        <label class="catalog-field">
+          <span class="catalog-field__label">Base time (minutes) <span class="catalog-req" aria-hidden="true">*</span></span>
+          <input type="number" [(ngModel)]="f.timeDuration" min="0" step="1" required>
+        </label>
+        <label class="catalog-field">
+          <span class="catalog-field__label">Minimum price ($)</span>
+          <input type="number" [(ngModel)]="f.minimumPrice" min="0" step="0.01">
+          <small class="catalog-field__hint">Lowest price for the cleaning itself. Extras are added on top. 0 = none.</small>
+        </label>
+        <div class="catalog-field">
+          <span class="catalog-field__label" id="st-display-price">Display price ($)</span>
+          <div class="catalog-inline">
+            <input type="number" [(ngModel)]="f.displayPrice" min="0" step="0.01" placeholder="none" aria-labelledby="st-display-price">
+            <select [(ngModel)]="f.displayPriceUnit" aria-label="Display price unit">
+              <option [ngValue]="null">no unit</option>
+              @for (unit of displayPriceUnits; track unit.value) {
+              <option [ngValue]="unit.value">{{ unit.label }}</option>
+              }
+            </select>
+          </div>
+          <small class="catalog-field__hint">Website text only, never a booking price. For types the calculator can't price.</small>
+        </div>
+      </div>
+      <p class="catalog-note">
+        Deep cleaning multiplies the base price and base time by the Deep Cleaning extra's multipliers.
+      </p>
+    </section>
+    }
+    }
+
+    <!-- ===================== SERVICE ===================== -->
+    @if (p.kind === 'service') {
+    @if (p.mode === 'add') {
+    <div class="catalog-choices catalog-choices--compact" role="radiogroup" aria-label="How to add">
+      <label class="catalog-choice" [class.is-selected]="!showExistingServices()">
+        <input type="radio" name="panelServiceSource" [checked]="!showExistingServices()" (change)="showExistingServices.set(false)">
+        <span class="catalog-choice__title">Create new</span>
+      </label>
+      <label class="catalog-choice" [class.is-selected]="showExistingServices()">
+        <input type="radio" name="panelServiceSource" [checked]="showExistingServices()" (change)="showExistingServices.set(true)">
+        <span class="catalog-choice__title">Copy existing</span>
+      </label>
+    </div>
+    }
+
+    @if (p.mode === 'add' && showExistingServices()) {
+    <section class="catalog-group" aria-labelledby="svc-copy">
+      <h4 id="svc-copy" class="catalog-group__title">Copy from another service type</h4>
+      <label class="catalog-field catalog-field--wide">
+        <span class="catalog-field__label">Service to copy</span>
+        <select [ngModel]="selectedExistingServiceId() ?? ''" (change)="onServiceSelectionChange($event)">
+          <option value="">Select a service…</option>
+          @for (service of allServices(); track service.id) {
+          <option [value]="service.id">{{ service.name }} ({{ getServiceTypeNameById(service.serviceTypeId) }})</option>
+          }
+        </select>
+        <small class="catalog-field__hint">Copies its prices, included amounts and rate tiers into this service type.</small>
+      </label>
+    </section>
+    } @else {
+    @if (serviceForm(); as f) {
+    <section class="catalog-group" aria-labelledby="svc-basic">
+      <h4 id="svc-basic" class="catalog-group__title">Basic info</h4>
+      <div class="catalog-grid">
+        <label class="catalog-field">
+          <span class="catalog-field__label">Name <span class="catalog-req" aria-hidden="true">*</span></span>
+          <input type="text" [(ngModel)]="f.name" placeholder="e.g. Bedrooms" required autocomplete="off">
+        </label>
+        <label class="catalog-field">
+          <span class="catalog-field__label">Service key <span class="catalog-req" aria-hidden="true">*</span></span>
+          <input type="text" [(ngModel)]="f.serviceKey" placeholder="e.g. bedrooms" required autocomplete="off">
+          <small class="catalog-field__hint">The code finds bedrooms, bathrooms, sqft and levels by this key. Once per service type.</small>
+        </label>
+        <label class="catalog-field">
+          <span class="catalog-field__label">Role</span>
+          <select [(ngModel)]="f.serviceRelationType">
+            <option [ngValue]="''">Regular (home size)</option>
+            <option [ngValue]="'cleaner'">Cleaners (hourly types)</option>
+            <option [ngValue]="'hours'">Hours for cleaners</option>
+          </select>
+        </label>
+        <label class="catalog-field">
+          <span class="catalog-field__label">Unit</span>
+          <input type="text" [(ngModel)]="f.unit" placeholder="e.g. per hour">
+        </label>
+        <label class="catalog-field">
+          <span class="catalog-field__label">Display order</span>
+          <input type="number" [(ngModel)]="f.displayOrder" min="1" step="1">
+        </label>
+      </div>
+    </section>
+
+    <section class="catalog-group" aria-labelledby="svc-price">
+      <h4 id="svc-price" class="catalog-group__title">Price and time</h4>
+      <div class="catalog-grid">
+        <label class="catalog-field">
+          <span class="catalog-field__label">Cost per unit ($)</span>
+          <input type="number" [(ngModel)]="f.cost" min="0" step="0.01">
+        </label>
+        <label class="catalog-field">
+          <span class="catalog-field__label">Minutes per unit</span>
+          <input type="number" [(ngModel)]="f.timeDuration" min="0" step="1">
+        </label>
+        <label class="catalog-field">
+          <span class="catalog-field__label">Cost when quantity is 0 ($)</span>
+          <input type="number" step="0.01" min="0" [(ngModel)]="f.zeroQuantityCost" placeholder="leave blank">
+          <small class="catalog-field__hint">Used for Studio (0 bedrooms). Blank = not used.</small>
+        </label>
+        <label class="catalog-field">
+          <span class="catalog-field__label">Minutes when quantity is 0</span>
+          <input type="number" step="1" min="0" [(ngModel)]="f.zeroQuantityDuration" placeholder="leave blank">
+          <small class="catalog-field__hint">Blank keeps the built-in Studio default.</small>
+        </label>
+      </div>
+      <label class="catalog-check">
+        <input type="checkbox" [(ngModel)]="f.chargeAboveThreshold">
+        <span>Charge only above the included amount</span>
+      </label>
+      <small class="catalog-field__hint catalog-check__hint">
+        Set the included amounts and rate tiers with <strong>Pricing</strong> in the table after saving.
+      </small>
+      <p class="catalog-note">
+        Deep cleaning multiplies this cost and these minutes by the Deep Cleaning extra's price and time multipliers.
+      </p>
+    </section>
+
+    <section class="catalog-group" aria-labelledby="svc-control">
+      <h4 id="svc-control" class="catalog-group__title">Customer control</h4>
+      <div class="catalog-choices" role="radiogroup" aria-labelledby="svc-control">
+        <label class="catalog-choice" [class.is-selected]="getServiceControl(f) === 'stepper'">
+          <input type="radio" name="panelServiceControl" [checked]="getServiceControl(f) === 'stepper'" (change)="setServiceControl('stepper')">
+          <span class="catalog-choice__title">Stepper (+ / −)</span>
+          <span class="catalog-choice__text">Bedrooms, bathrooms, levels, cleaners, hours.</span>
+        </label>
+        <label class="catalog-choice" [class.is-selected]="getServiceControl(f) === 'slider'"
+               [class.is-disabled]="!canUseSlider(f) && getServiceControl(f) !== 'slider'">
+          <input type="radio" name="panelServiceControl" [checked]="getServiceControl(f) === 'slider'"
+                 [disabled]="!canUseSlider(f) && getServiceControl(f) !== 'slider'" (change)="setServiceControl('slider')">
+          <span class="catalog-choice__title">Sq.ft slider</span>
+          <span class="catalog-choice__text">Only for the service with key <code>sqft</code>.</span>
+        </label>
+      </div>
+      <div class="catalog-grid catalog-grid--three">
+        @if (getServiceControl(f) === 'stepper') {
+        <label class="catalog-field">
+          <span class="catalog-field__label">Minimum</span>
+          <input type="number" [(ngModel)]="f.minValue" min="0" step="1">
+        </label>
+        }
+        <label class="catalog-field">
+          <span class="catalog-field__label">Maximum</span>
+          <input type="number" [(ngModel)]="f.maxValue" min="0" step="1">
+        </label>
+        <label class="catalog-field">
+          <span class="catalog-field__label">Step</span>
+          <input type="number" [(ngModel)]="f.stepValue" min="1" step="1">
+        </label>
+      </div>
+      <small class="catalog-field__hint">
+        @if (getServiceControl(f) === 'slider') {
+          The slider starts at the included amount for the chosen bedrooms (Pricing → Included amounts)
+          and moves in steps of this size (default 100).
+        } @else {
+          The customer moves from Minimum to Maximum in steps of this size (default 1). Blank Maximum = 10.
+        }
+      </small>
+    </section>
+    }
+    }
+    }
+
+    <!-- ===================== EXTRA SERVICE ===================== -->
+    @if (p.kind === 'extra') {
+    @if (p.mode === 'add') {
+    <div class="catalog-choices catalog-choices--compact" role="radiogroup" aria-label="How to add">
+      <label class="catalog-choice" [class.is-selected]="!showExistingExtraServices()">
+        <input type="radio" name="panelExtraSource" [checked]="!showExistingExtraServices()" (change)="showExistingExtraServices.set(false)">
+        <span class="catalog-choice__title">Create new</span>
+      </label>
+      <label class="catalog-choice" [class.is-selected]="showExistingExtraServices()">
+        <input type="radio" name="panelExtraSource" [checked]="showExistingExtraServices()" (change)="showExistingExtraServices.set(true)">
+        <span class="catalog-choice__title">Copy existing</span>
+      </label>
+    </div>
+    }
+
+    @if (p.mode === 'add' && showExistingExtraServices()) {
+    <section class="catalog-group" aria-labelledby="ex-copy">
+      <h4 id="ex-copy" class="catalog-group__title">Copy an extra into this service type</h4>
+      <label class="catalog-field catalog-field--wide">
+        <span class="catalog-field__label">Extra to copy</span>
+        <select [ngModel]="selectedExistingExtraServiceId() ?? ''" (change)="onExtraServiceSelectionChange($event)">
+          <option value="">Select an extra service…</option>
+          @for (extra of getAvailableExtraServicesForCopy(); track extra.id) {
+          <option [value]="extra.id">{{ extra.name }} ({{ extra.isAvailableForAll ? 'Universal' : 'Service-specific' }})</option>
+          }
+        </select>
+        <small class="catalog-field__hint">The copy belongs to this service type only and keeps every setting of the original.</small>
+      </label>
+    </section>
+    } @else {
+    @if (extraForm(); as f) {
+    <section class="catalog-group" aria-labelledby="ex-basic">
+      <h4 id="ex-basic" class="catalog-group__title">Basic info</h4>
+      <div class="catalog-grid">
+        <label class="catalog-field">
+          <span class="catalog-field__label">Name <span class="catalog-req" aria-hidden="true">*</span></span>
+          <input type="text" [(ngModel)]="f.name" required autocomplete="off">
+        </label>
+        <label class="catalog-field">
+          <span class="catalog-field__label">Key</span>
+          <input type="text" [(ngModel)]="f.extraServiceKey" placeholder="e.g. cleaning-supplies" maxlength="50" autocomplete="off">
+          <small class="catalog-field__hint">Optional. Lowercase words with hyphens. Copies in other service types share it.</small>
+        </label>
+        <label class="catalog-field catalog-field--wide">
+          <span class="catalog-field__label">Description</span>
+          <input type="text" [(ngModel)]="f.description">
+        </label>
+        <label class="catalog-field">
+          <span class="catalog-field__label">Icon</span>
+          <input type="text" [(ngModel)]="f.icon" placeholder="file name">
+        </label>
+        <label class="catalog-field">
+          <span class="catalog-field__label">Display order</span>
+          <input type="number" [(ngModel)]="f.displayOrder" min="1" step="1">
+        </label>
+      </div>
+      <label class="catalog-check">
+        <input type="checkbox" [(ngModel)]="f.isAvailableForAll">
+        <span>Available for all service types</span>
+      </label>
+      <small class="catalog-field__hint catalog-check__hint">
+        @if (f.isAvailableForAll) {
+          Every service type offers this extra.
+        } @else {
+          Only {{ selectedServiceType()?.name || 'this service type' }} offers this extra.
+        }
+      </small>
+    </section>
+
+    <section class="catalog-group" aria-labelledby="ex-price">
+      <h4 id="ex-price" class="catalog-group__title">Price and time</h4>
+      <div class="catalog-choices catalog-choices--compact" role="radiogroup" aria-label="Customer picks">
+        <label class="catalog-choice" [class.is-selected]="getExtraPricingMode(f) === 'fixed'">
+          <input type="radio" name="panelExtraPricing" [checked]="getExtraPricingMode(f) === 'fixed'" (change)="setExtraPricingMode('fixed')">
+          <span class="catalog-choice__title">Fixed</span>
+        </label>
+        <label class="catalog-choice" [class.is-selected]="getExtraPricingMode(f) === 'quantity'">
+          <input type="radio" name="panelExtraPricing" [checked]="getExtraPricingMode(f) === 'quantity'" (change)="setExtraPricingMode('quantity')">
+          <span class="catalog-choice__title">Per item</span>
+        </label>
+        <label class="catalog-choice" [class.is-selected]="getExtraPricingMode(f) === 'hours'">
+          <input type="radio" name="panelExtraPricing" [checked]="getExtraPricingMode(f) === 'hours'" (change)="setExtraPricingMode('hours')">
+          <span class="catalog-choice__title">Per hour</span>
+        </label>
+      </div>
+      <div class="catalog-grid">
+        <label class="catalog-field">
+          <span class="catalog-field__label">
+            Price ($){{ getExtraPricingMode(f) === 'quantity' ? ' per item' : getExtraPricingMode(f) === 'hours' ? ' per hour' : '' }}
+          </span>
+          <input type="number" [(ngModel)]="f.price" min="0" step="0.01">
+        </label>
+        <label class="catalog-field">
+          <span class="catalog-field__label">
+            Minutes{{ getExtraPricingMode(f) === 'quantity' ? ' per item' : getExtraPricingMode(f) === 'hours' ? ' per hour' : '' }}
+          </span>
+          <input type="number" [(ngModel)]="f.duration" min="0" step="1">
+        </label>
+      </div>
+      @if (!isCleaningTypeExtra(f)) {
+      <p class="catalog-note">Extras keep this price and time on every booking, deep cleaning included.</p>
+      }
+    </section>
+
+    <section class="catalog-group" aria-labelledby="ex-role">
+      <h4 id="ex-role" class="catalog-group__title">Special role</h4>
+      <div class="catalog-choices" role="radiogroup" aria-labelledby="ex-role">
+        <label class="catalog-choice" [class.is-selected]="getExtraRole(f) === 'none'">
+          <input type="radio" name="panelExtraRole" [checked]="getExtraRole(f) === 'none'" (change)="setExtraRole('none')">
+          <span class="catalog-choice__title">None</span>
+          <span class="catalog-choice__text">An ordinary extra.</span>
+        </label>
+        <label class="catalog-choice" [class.is-selected]="getExtraRole(f) === 'deep'">
+          <input type="radio" name="panelExtraRole" [checked]="getExtraRole(f) === 'deep'" (change)="setExtraRole('deep')">
+          <span class="catalog-choice__title">Deep Cleaning</span>
+          <span class="catalog-choice__text">A cleaning type with multipliers.</span>
+        </label>
+        <label class="catalog-choice" [class.is-selected]="getExtraRole(f) === 'superDeep'">
+          <input type="radio" name="panelExtraRole" [checked]="getExtraRole(f) === 'superDeep'" (change)="setExtraRole('superDeep')">
+          <span class="catalog-choice__title">Super Deep Cleaning</span>
+          <span class="catalog-choice__text">Wins over Deep when both exist.</span>
+        </label>
+        <label class="catalog-choice" [class.is-selected]="getExtraRole(f) === 'sameDay'">
+          <input type="radio" name="panelExtraRole" [checked]="getExtraRole(f) === 'sameDay'" (change)="setExtraRole('sameDay')">
+          <span class="catalog-choice__title">Same Day Service</span>
+          <span class="catalog-choice__text">Forces the calendar to today.</span>
+        </label>
+      </div>
+
+      @if (isCleaningTypeExtra(f)) {
+      <div class="catalog-grid">
+        <label class="catalog-field">
+          <span class="catalog-field__label">Price multiplier</span>
+          <input type="number" [(ngModel)]="f.priceMultiplier" min="0.1" max="10" step="0.05">
+        </label>
+        <label class="catalog-field">
+          <span class="catalog-field__label">Time multiplier</span>
+          <input type="number" [(ngModel)]="f.timeMultiplier" min="0.1" max="10" step="0.05">
+        </label>
+      </div>
+      <p class="catalog-note">
+        Both multiply only the base service: the service type's base price / time and the home
+        (bedrooms, bathrooms, sq.ft, levels). Extras keep their own price and time. This extra's own
+        price and minutes are added once on top. 1.0 = no change.
+      </p>
+      }
+    </section>
+    }
+    }
+    }
+  </div>
+
+  <footer class="catalog-panel__footer">
+    @if (p.kind === 'serviceType') {
+      @if (p.mode === 'add') {
+      <button type="button" class="action-btn save" (click)="addServiceType()">Add</button>
+      <button type="button" class="action-btn cancel" (click)="cancelAddServiceType()">Cancel</button>
+      } @else {
+      <button type="button" class="action-btn save" (click)="saveServiceType()">Save</button>
+      <button type="button" class="action-btn cancel" (click)="cancelEditServiceType()">Cancel</button>
+      }
+    }
+    @if (p.kind === 'service') {
+      @if (p.mode === 'add' && showExistingServices()) {
+      <button type="button" class="copy-btn" (click)="copyExistingService()" [disabled]="!selectedExistingServiceId()">Copy Service</button>
+      <button type="button" class="cancel-btn" (click)="cancelAddService()">Cancel</button>
+      } @else if (p.mode === 'add') {
+      <button type="button" class="save-btn" (click)="addService()">Create</button>
+      <button type="button" class="cancel-btn" (click)="cancelAddService()">Cancel</button>
+      } @else {
+      <button type="button" class="save-btn" (click)="saveService(serviceDraft()!)">Save</button>
+      <button type="button" class="cancel-btn" (click)="cancelEditService()">Cancel</button>
+      }
+    }
+    @if (p.kind === 'extra') {
+      @if (p.mode === 'add' && showExistingExtraServices()) {
+      <button type="button" class="copy-btn" (click)="copyExistingExtraService()" [disabled]="!selectedExistingExtraServiceId()">Copy Extra Service</button>
+      <button type="button" class="cancel-btn" (click)="cancelAddExtraService()">Cancel</button>
+      } @else if (p.mode === 'add') {
+      <button type="button" class="save-btn" (click)="addExtraService()">Create</button>
+      <button type="button" class="cancel-btn" (click)="cancelAddExtraService()">Cancel</button>
+      } @else {
+      <button type="button" class="save-btn" (click)="saveExtraService(extraServiceDraft()!)">Save</button>
+      <button type="button" class="cancel-btn" (click)="cancelEditExtraService()">Cancel</button>
+      }
+    }
+  </footer>
+  }
+</aside>

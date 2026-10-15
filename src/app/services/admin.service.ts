@@ -1162,6 +1162,7 @@ export interface CreateExtraService {
   isSuperDeepCleaning: boolean;
   isSameDayService: boolean;
   priceMultiplier: number;
+  timeMultiplier: number;
   serviceTypeId?: number;
   isAvailableForAll: boolean;
   displayOrder: number;
@@ -1181,6 +1182,7 @@ export interface UpdateExtraService {
   isSuperDeepCleaning: boolean;
   isSameDayService: boolean;
   priceMultiplier: number;
+  timeMultiplier: number;
   serviceTypeId?: number;
   isAvailableForAll: boolean;
   displayOrder: number;
