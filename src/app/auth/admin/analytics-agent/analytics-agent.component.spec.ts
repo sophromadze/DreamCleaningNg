@@ -171,6 +171,56 @@ describe('AnalyticsAgentComponent', () => {
     expect(send).toHaveBeenCalledTimes(1);
   });
 
+  describe('expanded view', () => {
+    afterEach(() => { document.body.style.overflow = ''; });
+
+    it('covers the page from the Expand button and locks the page scroll behind it', async () => {
+      await setup(configured);
+      const btn = el().querySelector('.agent-expand-btn') as HTMLButtonElement;
+      expect(btn.textContent).toContain('Expand');
+      btn.click();
+      fixture.detectChanges();
+
+      expect(el().querySelector('.agent-page')!.classList).toContain('is-expanded');
+      expect(el().querySelector('.agent-page')!.getAttribute('role')).toBe('dialog');
+      expect(el().querySelector('.agent-backdrop')).not.toBeNull();
+      expect(btn.getAttribute('aria-pressed')).toBe('true');
+      expect(document.body.style.overflow).toBe('hidden');
+    });
+
+    it('closes on Escape and on the backdrop, and gives the page its scroll back', async () => {
+      await setup(configured);
+      component.toggleExpanded();
+      fixture.detectChanges();
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+      fixture.detectChanges();
+      expect(component.expanded()).toBe(false);
+      expect(document.body.style.overflow).toBe('');
+
+      component.toggleExpanded();
+      fixture.detectChanges();
+      (el().querySelector('.agent-backdrop') as HTMLElement).click();
+      fixture.detectChanges();
+      expect(component.expanded()).toBe(false);
+      expect(el().querySelector('.agent-backdrop')).toBeNull();
+    });
+
+    it('lets Escape in the rename box cancel the rename only', async () => {
+      await setup(configured, [session(3)]);
+      component.toggleExpanded();
+      component.startRename(session(3));
+      component.onEscape();
+      expect(component.expanded()).toBe(true);
+    });
+
+    it('does not leave the page scroll locked when the tab is left while expanded', async () => {
+      await setup(configured);
+      component.toggleExpanded();
+      fixture.destroy();
+      expect(document.body.style.overflow).toBe('');
+    });
+  });
+
   it('shows the running cost and token count of the open chat', async () => {
     await setup(configured, [session(4)]);
     api['session'].mockReturnValue(of({ session: session(4), messages: [] }));

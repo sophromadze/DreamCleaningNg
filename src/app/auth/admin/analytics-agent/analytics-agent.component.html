@@ -1,4 +1,8 @@
-<section class="agent-page" aria-labelledby="agent-heading">
+@if (expanded()) {
+  <div class="agent-backdrop" (click)="toggleExpanded()" aria-hidden="true"></div>
+}
+<section class="agent-page" [class.is-expanded]="expanded()" aria-labelledby="agent-heading"
+         [attr.role]="expanded() ? 'dialog' : null" [attr.aria-modal]="expanded() ? 'true' : null">
   <h2 id="agent-heading" class="sr-only">Analytics Agent</h2>
 
   <!-- Chats -->
@@ -47,6 +51,13 @@
             {{ status()?.costEstimateAvailable || activeSession()?.estimatedCostUsd != null ? '~' + sessionCost(activeSession()) : 'cost: —' }}
           </span>
         }
+        <button type="button" class="agent-expand-btn" (click)="toggleExpanded()"
+                [attr.aria-pressed]="expanded()"
+                [attr.aria-label]="expanded() ? 'Collapse the analytics agent (Esc)' : 'Expand the analytics agent to the whole page'"
+                [title]="expanded() ? 'Collapse (Esc)' : 'Expand to the whole page'">
+          <i class="fas" [class.fa-expand]="!expanded()" [class.fa-compress]="expanded()" aria-hidden="true"></i>
+          {{ expanded() ? 'Collapse' : 'Expand' }}
+        </button>
       </div>
     </header>
 

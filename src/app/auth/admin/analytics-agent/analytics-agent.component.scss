@@ -405,6 +405,52 @@
   &:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 2px; }
 }
 
+// ── Expanded view ──────────────────────────────────────────────────────────────────────────────
+// Covers the whole page (sticky header 1000, chat widget 1005 included) with a small margin;
+// stays below real modals (2000+). Not the browser's full-screen mode.
+
+.agent-expand-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--border-color);
+  background: var(--surface);
+  color: var(--text-secondary);
+  border-radius: var(--radius-sm);
+  padding: 4px 10px;
+  font-size: 0.8rem;
+  cursor: pointer;
+
+  &:hover { color: var(--text-primary); border-color: var(--primary-color); }
+  &:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 2px; }
+}
+
+.agent-backdrop {
+  position: fixed;
+  inset: 0;
+  background: var(--overlay-dark-soft);
+  z-index: 1499;
+}
+
+.agent-page.is-expanded {
+  position: fixed;
+  inset: 16px;
+  z-index: 1500;
+  min-height: 0;
+  grid-template-rows: minmax(0, 1fr);
+  padding: 16px;
+  background: var(--page-bg);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 20px 60px var(--shadow-color);
+
+  .agent-sessions { max-height: none; }
+  .agent-chat { height: auto; min-height: 0; }
+  .agent-messages { min-height: 0; }
+}
+
+// Charts get more room when expanded (the chart is its own component, hence host-context).
+:host-context(.is-expanded) .agent-chart-canvas { height: 380px; }
+
 // ── Phone ──────────────────────────────────────────────────────────────────────────────────────
 
 @media (max-width: 860px) {
@@ -412,4 +458,13 @@
   .agent-sessions { max-height: 220px; }
   .agent-chat { height: auto; min-height: 70vh; }
   .agent-messages { max-height: 65vh; }
+
+  .agent-page.is-expanded {
+    inset: 8px;
+    padding: 8px;
+    grid-template-rows: auto minmax(0, 1fr);
+
+    .agent-sessions { max-height: 140px; }
+    .agent-messages { max-height: none; }
+  }
 }

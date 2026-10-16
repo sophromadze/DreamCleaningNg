@@ -42,7 +42,8 @@ export const AGENT_EXAMPLE_PROMPTS: ReadonlyArray<string> = [
   imports: [FormsModule, AgentChartComponent],
   templateUrl: './analytics-agent.component.html',
   styleUrls: ['./analytics-agent.component.scss'],
-  changeDetection: ChangeDetectionStrategy.OnPush
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { '(document:keydown.escape)': 'onEscape()' }
 })
 export class AnalyticsAgentComponent implements OnInit {
   private readonly api = inject(AnalyticsAgentService);
@@ -63,6 +64,12 @@ export class AnalyticsAgentComponent implements OnInit {
   readonly errorMessage = signal('');
   readonly renamingId = signal<number | null>(null);
   readonly renameDraft = signal('');
+  /**
+   * Expanded view: the agent covers the whole page (header and tabs included) as a large panel
+   * with a small margin — not the browser's full-screen mode — so long answers, charts and
+   * tables have room. Escape or the backdrop closes it.
+   */
+  readonly expanded = signal(false);
 
   readonly activeSession = computed(() => this.sessions().find(s => s.id === this.activeSessionId()) ?? null);
   readonly runningMessage = computed(() => this.messages().find(m => m.status === 'running') ?? null);
@@ -74,7 +81,10 @@ export class AnalyticsAgentComponent implements OnInit {
   private readonly htmlCache = new Map<string, string>();
 
   ngOnInit(): void {
-    this.destroyRef.onDestroy(() => this.stopPolling());
+    this.destroyRef.onDestroy(() => {
+      this.stopPolling();
+      this.lockPageScroll(false);
+    });
     if (!this.isBrowser) return;
 
     this.api.status().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
@@ -94,6 +104,29 @@ export class AnalyticsAgentComponent implements OnInit {
         this.refreshMessage(evt.sessionId, evt.messageId);
       }
     });
+  }
+
+  // ── Expanded view ────────────────────────────────────────────────────────────────────────────
+
+  toggleExpanded(): void {
+    this.setExpanded(!this.expanded());
+  }
+
+  onEscape(): void {
+    // Escape inside the rename box only cancels the rename (its own handler).
+    if (this.expanded() && this.renamingId() === null) this.setExpanded(false);
+  }
+
+  private setExpanded(value: boolean): void {
+    this.expanded.set(value);
+    this.lockPageScroll(value);
+    this.scrollToEnd();
+  }
+
+  /** The page behind the expanded panel must not scroll under the wheel. */
+  private lockPageScroll(lock: boolean): void {
+    if (!this.isBrowser) return;
+    document.body.style.overflow = lock ? 'hidden' : '';
   }
 
   // ── Sessions ─────────────────────────────────────────────────────────────────────────────────
