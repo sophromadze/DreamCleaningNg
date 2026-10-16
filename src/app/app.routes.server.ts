@@ -28,6 +28,8 @@ export const serverRoutes: ServerRoute[] = [
   { path: 'invoice/**', renderMode: RenderMode.Client },
   // The regular customer invoice — same reasons: per-token, with a balance and bank details.
   { path: 'pay-invoice/**', renderMode: RenderMode.Client },
+  // The Claude connector's consent page: behind sign-in, per-request OAuth query, no SEO value.
+  { path: 'connect/**', renderMode: RenderMode.Client },
 
   // Blog is dynamic content — per-request SSR, never build-time prerender.
   // (Prerender would only know slugs that existed at build time; every post

@@ -1,4 +1,16 @@
 {
+    "/.well-known/oauth-protected-resource": {
+      "target": "http://localhost:5107",
+      "secure": false,
+      "changeOrigin": true,
+      "logLevel": "debug"
+    },
+    "/.well-known/oauth-authorization-server": {
+      "target": "http://localhost:5107",
+      "secure": false,
+      "changeOrigin": true,
+      "logLevel": "debug"
+    },
     "/api": {
       "target": "http://localhost:5107",
       "secure": false,

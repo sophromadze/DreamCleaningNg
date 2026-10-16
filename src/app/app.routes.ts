@@ -329,6 +329,14 @@ export const routes: Routes = [
     }
   },
   {
+    // Claude connector consent page (2026-10): reached from api/oauth/authorize with Claude's
+    // OAuth query. Behind the normal sign-in stack (incl. staff 2FA/PIN) but NOT adminGuard, so a
+    // non-SuperAdmin sees a clear refusal instead of being bounced. The server decides on Allow.
+    path: 'connect/authorize',
+    canActivate: [clientOnlyGuard, authGuard, realEmailGuard, passwordSetupGuard, pinSetupGuard, fontAwesomeGuard],
+    loadComponent: () => import('./connect/connect-authorize.component').then(m => m.ConnectAuthorizeComponent)
+  },
+  {
     path: 'login',
     canActivate: [noAuthGuard],
     loadComponent: () => import('./auth/login/login.component').then(m => m.LoginComponent)

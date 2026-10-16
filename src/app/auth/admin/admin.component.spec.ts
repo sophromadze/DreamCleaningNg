@@ -235,13 +235,14 @@ describe('AdminComponent', () => {
       }
     });
 
-    it('renders it for a SuperAdmin, above Invoices, which stays last', () => {
+    it('renders it for a SuperAdmin, then Claude Connector, above Invoices, which stays last', () => {
       component.userRole.set('SuperAdmin');
       fixture.detectChanges();
       const labels = tabLabels();
       expect(labels).toContain('Analytics Agent');
       expect(labels[labels.length - 1]).toBe('Invoices');
-      expect(labels.indexOf('Analytics Agent')).toBe(labels.length - 2);
+      expect(labels.indexOf('Analytics Agent')).toBe(labels.length - 3);
+      expect(labels.indexOf('Claude Connector')).toBe(labels.length - 2);
     });
 
     it('falls back to Orders when a non-SuperAdmin asks for it', () => {
@@ -262,6 +263,44 @@ describe('AdminComponent', () => {
       component.userRole.set('SuperAdmin');
       component.setActiveTab('analytics-agent');
       expect(component.activeTab()).toBe('analytics-agent');
+    });
+  });
+
+  /**
+   * CLAUDE CONNECTOR IS A SUPERADMIN TAB (2026-10): it lists and revokes the sessions that reach
+   * the Analytics Agent's tools from Claude. Same rules as that tab; AdminMcpSessionsController's
+   * policy is the boundary.
+   */
+  describe('the Claude Connector tab is SuperAdmin-only', () => {
+    const tabLabels = () =>
+      Array.from(fixture.nativeElement.querySelectorAll('.admin-tabs .tab-btn'))
+        .map((b) => (b as HTMLElement).textContent?.trim());
+
+    afterEach(() => {
+      sessionStorage.removeItem('adminActiveTab');
+    });
+
+    it('does not render the button for an Admin or a Moderator', () => {
+      for (const role of ['Admin', 'Moderator']) {
+        component.userRole.set(role);
+        fixture.detectChanges();
+        expect(tabLabels()).not.toContain('Claude Connector');
+      }
+    });
+
+    it('falls back to Orders for a non-SuperAdmin and never mounts the component', () => {
+      component.userRole.set('Admin');
+      component.setActiveTab('claude-connector');
+      expect(component.activeTab()).toBe('orders');
+      component.activeTab.set('claude-connector');
+      fixture.detectChanges();
+      expect(fixture.nativeElement.querySelector('app-claude-connector')).toBeNull();
+    });
+
+    it('opens for a SuperAdmin, also from ?tab=', () => {
+      component.userRole.set('SuperAdmin');
+      component.setActiveTab('claude-connector');
+      expect(component.activeTab()).toBe('claude-connector');
     });
   });
 

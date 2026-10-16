@@ -461,6 +461,9 @@
                         @if (row.bonusLabel) {
                         <span class="bonus-entry-label">{{ row.bonusLabel }}</span>
                         }
+                        @if (row.createdVia === 'Claude') {
+                        <span class="via-badge" title="Added through the Claude connector">Claude</span>
+                        }
                       </td>
                       <td>{{ formatDate(row.startDate) }}</td>
                       <td>

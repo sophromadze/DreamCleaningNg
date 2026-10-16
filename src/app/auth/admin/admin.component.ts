@@ -19,6 +19,7 @@ import { AdminRewardsComponent } from './rewards/admin-rewards.component';
 import { AdminCustomerInvoicesComponent } from './customer-invoices/admin-customer-invoices.component';
 import { AdminBlogComponent } from './blog/admin-blog.component';
 import { AnalyticsAgentComponent } from './analytics-agent/analytics-agent.component';
+import { ClaudeConnectorComponent } from './claude-connector/claude-connector.component';
 import { AccountStatusService } from '../../services/account-status.service';
 
 @Component({
@@ -37,7 +38,8 @@ import { AccountStatusService } from '../../services/account-status.service';
     AdminRewardsComponent,
     AdminCustomerInvoicesComponent,
     AdminBlogComponent,
-    AnalyticsAgentComponent
+    AnalyticsAgentComponent,
+    ClaudeConnectorComponent
 ],
   templateUrl: './admin.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -71,13 +73,14 @@ export class AdminComponent implements OnInit {
    *  from (mirrors [Authorize(Roles = "SuperAdmin")] on AdminCatalogController's catalogue
    *  endpoints); Rewards sets the points economy every customer earns and spends against, and
    *  mirrors the same attribute on AdminRewardsController's settings and stats reads. The Analytics
-   *  Agent (2026-10) reads the whole business's figures; its server policy is SuperAdmin-only. */
-  private static readonly SUPER_ADMIN_ONLY_TABS = ['booking-services', 'rewards', 'analytics-agent'];
+   *  Agent (2026-10) reads the whole business's figures; its server policy is SuperAdmin-only, and
+   *  Claude Connector lists and revokes the sessions that reach the same tools from Claude. */
+  private static readonly SUPER_ADMIN_ONLY_TABS = ['booking-services', 'rewards', 'analytics-agent', 'claude-connector'];
 
   /** Every tab the panel can show, in strip order. Only used to validate an incoming ?tab=. */
   private static readonly KNOWN_TABS = [
     'orders', 'users', 'booking-services', 'discounts',
-    'scheduling', 'audit-history', 'mails-sms', 'before-after', 'chats', 'rewards', 'blog', 'analytics-agent', 'invoices'
+    'scheduling', 'audit-history', 'mails-sms', 'before-after', 'chats', 'rewards', 'blog', 'analytics-agent', 'claude-connector', 'invoices'
   ];
 
   /**

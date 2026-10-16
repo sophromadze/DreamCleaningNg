@@ -1,0 +1,146 @@
+// Admin → Claude Connector. Tokens only (see styles.scss); cards and buttons follow the admin
+// panel's other tabs (analytics-agent, chat-sessions).
+
+.connector-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 980px;
+}
+
+.connector-card {
+  background: var(--surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.connector-title,
+.connector-subtitle {
+  margin: 0;
+  color: var(--text-primary);
+  font-weight: var(--fw-semibold);
+}
+
+.connector-title { font-size: 1.25rem; }
+.connector-subtitle { font-size: 1.05rem; }
+
+.connector-text,
+.connector-empty {
+  margin: 0;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.connector-url { display: flex; flex-direction: column; gap: 6px; }
+.connector-url-label { font-size: 0.85rem; color: var(--text-muted); font-weight: var(--fw-semibold); }
+
+.connector-url-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.connector-url-value {
+  flex: 1;
+  min-width: 0;
+  background: var(--surface-subtle);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.connector-steps {
+  margin: 0;
+  padding-left: 1.2rem;
+  color: var(--text-secondary);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  line-height: 1.45;
+}
+
+.connector-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.connector-btn {
+  border: 1px solid var(--border-color);
+  background: var(--surface);
+  color: var(--text-primary);
+  border-radius: var(--radius-sm);
+  padding: 6px 12px;
+  font-weight: var(--fw-semibold);
+  cursor: pointer;
+  white-space: nowrap;
+
+  &:hover:not(:disabled) { background: var(--surface-subtle); }
+  &:disabled { opacity: 0.6; cursor: default; }
+  &:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 2px; }
+
+  &.danger {
+    color: var(--bright-red);
+    border-color: var(--bright-red);
+    &:hover:not(:disabled) { background: var(--soft-red); }
+  }
+}
+
+.connector-confirm { display: inline-flex; gap: 6px; }
+
+.connector-error {
+  margin: 0;
+  background: var(--soft-red);
+  color: var(--bright-red);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+}
+
+.connector-table-wrap { overflow-x: auto; }
+
+.connector-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+
+  th, td {
+    text-align: left;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-primary);
+    vertical-align: middle;
+  }
+
+  th { color: var(--text-muted); font-weight: var(--fw-semibold); font-size: 0.82rem; }
+  .num { text-align: right; }
+  .actions-col { text-align: right; }
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+// Phone: each session becomes a small labelled card instead of a table row.
+@media (max-width: 640px) {
+  .connector-table {
+    thead { display: none; }
+    tr { display: block; border-bottom: 1px solid var(--border-color); padding: 8px 0; }
+    td { display: flex; justify-content: space-between; gap: 12px; border: none; padding: 4px 0; }
+    td[data-label]::before { content: attr(data-label); color: var(--text-muted); font-weight: var(--fw-semibold); }
+    .num, .actions-col { text-align: left; }
+    .actions-col { justify-content: flex-end; }
+  }
+}

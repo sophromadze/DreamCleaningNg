@@ -517,6 +517,30 @@ describe('ExpensesComponent — the month is the period', () => {
     expect(text()).not.toContain('Charged through');
   });
 
+  it('marks an entry added through the Claude connector with a small badge, and only that one', async () => {
+    const component = await open('/admin/company/expenses?month=2026-10');
+    const viaClaude: GroupedName = {
+      ...adsLine, name: 'Mops',
+      entries: [
+        { ...adsLine.entries[0], id: 51, name: 'Mops', createdVia: 'Claude' },
+        { ...adsLine.entries[1], id: 52, name: 'Mops', createdVia: null }
+      ]
+    };
+    flushLoad((y, m) => groupedFor(y, m, {
+      monthTotal: 20,
+      categories: [{ categoryId: 10, categoryName: 'Supplies', displayOrder: 0, monthTotal: 20, names: [viaClaude] }]
+    }));
+    await settle();
+    component.toggleCategory(10);
+    component.toggleName(10, 'Mops');
+    await settle();
+
+    const rows = page().querySelectorAll('.entry-table tbody tr');
+    expect(rows.length).toBe(2);
+    expect(rows[0].querySelector('.via-badge')!.textContent!.trim()).toBe('Claude');
+    expect(rows[1].querySelector('.via-badge')).toBeNull();
+  });
+
   it('says the month is empty rather than showing nothing', async () => {
     await open('/admin/company/expenses?month=2026-01');
     flushLoad((y, m) => groupedFor(y, m, {

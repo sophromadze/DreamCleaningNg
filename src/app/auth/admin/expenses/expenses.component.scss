@@ -688,6 +688,20 @@
   font-weight: var(--fw-medium);
 }
 
+// "Added through the Claude connector" (Expense.CreatedVia, 2026-10).
+.via-badge {
+  display: inline-block;
+  margin-left: 0.35rem;
+  padding: 0 0.4rem;
+  border-radius: var(--radius-sm);
+  background: var(--soft-blue);
+  color: var(--primary-color);
+  font-size: 0.72rem;
+  font-weight: var(--fw-semibold);
+  line-height: 1.5;
+  vertical-align: middle;
+}
+
 .adjust-hint {
   display: flex;
   align-items: flex-start;

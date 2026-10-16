@@ -1,0 +1,56 @@
+<main class="connect-page">
+  <section class="connect-card" aria-live="polite">
+    <div class="connect-mark" aria-hidden="true"><i class="fas fa-plug"></i></div>
+
+    @switch (state()) {
+      @case ('loading') {
+        <h1 class="connect-title">Connect Claude</h1>
+        <p class="connect-text"><span class="shimmer-loading connect-shimmer">Checking the request…</span></p>
+      }
+
+      @case ('consent') {
+        <h1 class="connect-title">Allow {{ details()?.clientName }} to use Dream Cleaning data?</h1>
+        <p class="connect-text">
+          Signed in as <strong>{{ details()?.userName || 'a SuperAdmin' }}</strong>. If you allow this, {{ details()?.clientName }} can:
+        </p>
+        <ul class="connect-list">
+          <li><i class="fas fa-chart-column" aria-hidden="true"></i> Read business figures: orders, revenue, tax, payroll, admin performance, order sources and customer statistics.</li>
+          <li><i class="fas fa-receipt" aria-hidden="true"></i> Add expenses (never salaries or Google Ads), and delete only the ones it added in the last 24 hours.</li>
+        </ul>
+        <p class="connect-redirect">
+          You will be sent back to <strong>{{ details()?.redirectHost }}</strong>.
+          Only continue if you started this from Claude.
+        </p>
+        <p class="connect-note">You can end this connection any time in Admin → Claude Connector.</p>
+        <div class="connect-actions">
+          <button type="button" class="connect-btn secondary" (click)="deny()" [disabled]="busy()">Deny</button>
+          <button type="button" class="connect-btn primary" (click)="allow()" [disabled]="busy()">
+            {{ busy() ? 'Connecting…' : 'Allow' }}
+          </button>
+        </div>
+      }
+
+      @case ('refused') {
+        <h1 class="connect-title">This account can't connect Claude</h1>
+        <p class="connect-text">
+          Only SuperAdmin accounts can connect Claude to Dream Cleaning.
+          @if (details()?.userName) {
+          You are signed in as <strong>{{ details()?.userName }}</strong>.
+          }
+        </p>
+        <div class="connect-actions">
+          <button type="button" class="connect-btn secondary" (click)="deny()" [disabled]="busy()">Back to Claude</button>
+        </div>
+      }
+
+      @case ('invalid') {
+        <h1 class="connect-title">This connection request can't be completed</h1>
+        <p class="connect-text">Remove the connector in Claude and add it again.</p>
+      }
+    }
+
+    @if (errorMessage()) {
+    <p class="connect-error" role="alert"><i class="fas fa-circle-exclamation" aria-hidden="true"></i> {{ errorMessage() }}</p>
+    }
+  </section>
+</main>

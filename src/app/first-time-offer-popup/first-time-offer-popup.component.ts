@@ -180,6 +180,8 @@ export class FirstTimeOfferPopupComponent implements OnInit, OnDestroy {
       '/invoice',
       // The regular customer invoice — somebody paying a bill, not shopping.
       '/pay-invoice',
+      // The Claude connector's consent page — a SuperAdmin authorizing an app.
+      '/connect',
       // The commercial landing page sells to businesses, and this popup's offer is the
       // first-time RESIDENTIAL discount — it links into /booking, which cannot quote a
       // commercial job. A commercial offer of its own is coming; until then the page

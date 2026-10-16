@@ -150,6 +150,17 @@
       Analytics Agent
     </button>
     }
+    <!-- Claude Connector (2026-10): the Claude custom-connector URL and its live sessions with
+         Revoke. SuperAdmin-only like the Analytics Agent, whose tools it exposes; the server
+         policy on AdminMcpSessionsController is the boundary. -->
+    @if (userRole() === 'SuperAdmin') {
+    <button class="tab-btn"
+            [class.active]="activeTab() === 'claude-connector'"
+            (click)="setActiveTab('claude-connector')"
+           >
+      Claude Connector
+    </button>
+    }
     <!-- Regular customer invoices (2026-09). ALWAYS THE LAST TAB — owner's call; add new tabs
          above it. Role-gated to match [Authorize(Roles = "Admin,SuperAdmin")] on
          AdminCustomerInvoicesController, like Chats. -->
@@ -231,6 +242,11 @@
       @case ('analytics-agent') {
         @if (userRole() === 'SuperAdmin') {
         <app-analytics-agent></app-analytics-agent>
+        }
+      }
+      @case ('claude-connector') {
+        @if (userRole() === 'SuperAdmin') {
+        <app-claude-connector></app-claude-connector>
         }
       }
       @case ('invoices') {

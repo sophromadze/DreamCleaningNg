@@ -48,6 +48,8 @@ export interface Expense {
   notes?: string | null;
   createdByUserId: number;
   createdByUserName?: string | null;
+  /** 'Claude' when added through the Claude connector; null for this page. */
+  createdVia?: string | null;
   createdAt: string;
   updatedAt: string;
 }

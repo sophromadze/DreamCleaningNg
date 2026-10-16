@@ -1,0 +1,89 @@
+<div class="connector-page">
+  <section class="connector-card">
+    <h2 class="connector-title">Claude Connector</h2>
+    <p class="connector-text">
+      Ask Claude about the business — or add an expense — from claude.ai, the desktop app or the
+      Claude mobile app (voice too). Claude uses the same tools as the Analytics Agent; only
+      SuperAdmin accounts can connect, and every tool call is logged.
+    </p>
+
+    <div class="connector-url">
+      <span class="connector-url-label">Connector URL</span>
+      <div class="connector-url-row">
+        @if (loading()) {
+        <code class="shimmer-loading connector-url-value">https://…/api/mcp</code>
+        } @else {
+        <code class="connector-url-value">{{ serverUrl() }}</code>
+        }
+        <button type="button" class="connector-btn" (click)="copyUrl()" [disabled]="!serverUrl()">
+          <i class="fas" [class.fa-copy]="!copied()" [class.fa-check]="copied()" aria-hidden="true"></i>
+          {{ copied() ? 'Copied' : 'Copy' }}
+        </button>
+      </div>
+    </div>
+
+    <ol class="connector-steps">
+      <li>In Claude (web or desktop), open <strong>Customize → Connectors</strong> and choose <strong>Add custom connector</strong>.</li>
+      <li>Name it, paste the URL above, and click <strong>Add</strong>.</li>
+      <li>Click <strong>Connect</strong>, sign in here with your SuperAdmin account and press <strong>Allow</strong>.</li>
+      <li>The connector then works in every Claude app on your account, the mobile app included.</li>
+    </ol>
+  </section>
+
+  <section class="connector-card">
+    <div class="connector-head">
+      <h3 class="connector-subtitle">Active sessions</h3>
+      <button type="button" class="connector-btn" (click)="load()" [disabled]="loading()">
+        <i class="fas fa-rotate" aria-hidden="true"></i> Refresh
+      </button>
+    </div>
+
+    @if (errorMessage()) {
+    <p class="connector-error" role="alert">{{ errorMessage() }}</p>
+    }
+
+    @if (!loading() && sessions().length === 0) {
+    <p class="connector-empty">No Claude sessions are connected.</p>
+    }
+
+    @if (sessions().length > 0) {
+    <div class="connector-table-wrap">
+      <table class="connector-table">
+        <thead>
+          <tr>
+            <th>User</th>
+            <th>Client</th>
+            <th>Connected</th>
+            <th>Last used</th>
+            <th class="num">Tool calls</th>
+            <th class="actions-col"><span class="visually-hidden">Actions</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (s of sessions(); track s.id) {
+          <tr>
+            <td data-label="User">{{ s.userName }}</td>
+            <td data-label="Client">{{ s.clientName || 'Unnamed client' }}</td>
+            <td data-label="Connected">{{ formatWhen(s.createdAt) }}</td>
+            <td data-label="Last used">{{ formatWhen(s.lastUsedAt) }}</td>
+            <td data-label="Tool calls" class="num">{{ s.toolCalls }}</td>
+            <td class="actions-col">
+              @if (confirmingId() === s.id) {
+              <span class="connector-confirm">
+                <button type="button" class="connector-btn danger" (click)="revoke(s.id)" [disabled]="revokingId() === s.id">
+                  {{ revokingId() === s.id ? 'Revoking…' : 'Confirm' }}
+                </button>
+                <button type="button" class="connector-btn" (click)="cancelRevoke()" [disabled]="revokingId() === s.id">Cancel</button>
+              </span>
+              } @else {
+              <button type="button" class="connector-btn danger" (click)="askRevoke(s.id)">Revoke</button>
+              }
+            </td>
+          </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    }
+  </section>
+</div>
