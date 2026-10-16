@@ -59,7 +59,7 @@
           <th scope="colgroup" colspan="3" class="group">Completed orders</th>
           <th scope="colgroup" colspan="3" class="group">Orders total</th>
           <th scope="colgroup" colspan="3" class="group"
-              title="Orders total minus sales tax, cleaners' wages and staff bonuses">Net income</th>
+              title="Orders total minus sales tax, cleaners' wages and Stripe fees. Staff bonuses are shown under it, not taken off">Net income</th>
         </tr>
         <tr class="sub-row">
           @for (g of [1, 2, 3]; track g) {
@@ -84,11 +84,19 @@
           <td class="num strong group-start">{{ r.ordersTotal | currency:'USD' }}</td>
           <td class="num">{{ r.ordersTotalNew | currency:'USD' }}</td>
           <td class="num">{{ r.ordersTotalReturning | currency:'USD' }}</td>
-          <td class="num strong group-start" [class.negative]="r.netIncome < 0" [title]="netBreakdown(r)">
-            {{ r.netIncome | currency:'USD' }}
+          <!-- Staff bonuses sit UNDER each net figure — reported, never taken off it. -->
+          <td class="num strong group-start" [title]="netBreakdown(r)">
+            <span [class.negative]="r.netIncome < 0">{{ r.netIncome | currency:'USD' }}</span>
+            <span class="bonus-sub">Bonuses {{ r.staffBonuses | currency:'USD' }}</span>
           </td>
-          <td class="num" [class.negative]="r.netIncomeNew < 0">{{ r.netIncomeNew | currency:'USD' }}</td>
-          <td class="num" [class.negative]="r.netIncomeReturning < 0">{{ r.netIncomeReturning | currency:'USD' }}</td>
+          <td class="num">
+            <span [class.negative]="r.netIncomeNew < 0">{{ r.netIncomeNew | currency:'USD' }}</span>
+            <span class="bonus-sub">Bonuses {{ r.staffBonusesNew | currency:'USD' }}</span>
+          </td>
+          <td class="num">
+            <span [class.negative]="r.netIncomeReturning < 0">{{ r.netIncomeReturning | currency:'USD' }}</span>
+            <span class="bonus-sub">Bonuses {{ r.staffBonusesReturning | currency:'USD' }}</span>
+          </td>
         </tr>
         }
       </tbody>
@@ -102,9 +110,18 @@
           <td class="num strong group-start">{{ totals().total | currency:'USD' }}</td>
           <td class="num strong">{{ totals().totalNew | currency:'USD' }}</td>
           <td class="num strong">{{ totals().totalReturning | currency:'USD' }}</td>
-          <td class="num strong group-start">{{ totals().net | currency:'USD' }}</td>
-          <td class="num strong">{{ totals().netNew | currency:'USD' }}</td>
-          <td class="num strong">{{ totals().netReturning | currency:'USD' }}</td>
+          <td class="num strong group-start">
+            {{ totals().net | currency:'USD' }}
+            <span class="bonus-sub">Bonuses {{ totals().bonuses | currency:'USD' }}</span>
+          </td>
+          <td class="num strong">
+            {{ totals().netNew | currency:'USD' }}
+            <span class="bonus-sub">Bonuses {{ totals().bonusesNew | currency:'USD' }}</span>
+          </td>
+          <td class="num strong">
+            {{ totals().netReturning | currency:'USD' }}
+            <span class="bonus-sub">Bonuses {{ totals().bonusesReturning | currency:'USD' }}</span>
+          </td>
         </tr>
       </tfoot>
       }
@@ -113,8 +130,9 @@
   <p class="view-footnote">
     Completed = done and paid orders the admin booked, by service date. New = the customer's first
     booking; Returning = everyone else. Net income is the orders
-    total after sales tax, the cleaners' wages and the staff bonuses on those orders — hover a
-    figure to see it worked out.
+    total after sales tax, the cleaners' wages and the Stripe fees on card-paid orders — hover a
+    figure to see it worked out. The staff bonuses on those orders are shown under it and are not
+    taken off.
   </p>
   }
 </section>

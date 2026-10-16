@@ -14,9 +14,10 @@ describe('AdminPerformanceComponent', () => {
   const row = (o: Partial<AdminPerformanceRow> = {}): AdminPerformanceRow => ({
     adminId: 1, firstName: 'Ana', lastName: 'Beridze', email: 'ana@example.invalid',
     position: 'Administrator', isActive: true, completedOrders: 3,
-    ordersTotal: 653.25, netIncome: 288.9, salesTax: 53.25, cleanerWages: 300, staffBonuses: 11.1,
+    ordersTotal: 653.25, netIncome: 277.56, salesTax: 53.25, cleanerWages: 300, stripeFees: 22.44,
+    staffBonuses: 11.1, staffBonusesNew: 3.7, staffBonusesReturning: 7.4,
     newCustomerOrders: 1, returningCustomerOrders: 2, ordersTotalNew: 217.75, ordersTotalReturning: 435.5,
-    netIncomeNew: 96.3, netIncomeReturning: 192.6,
+    netIncomeNew: 92.52, netIncomeReturning: 185.04,
     ...o
   });
 
@@ -84,14 +85,28 @@ describe('AdminPerformanceComponent', () => {
       expect(rows.length).toBe(2);
       expect(rows[0].textContent).toContain('Ana Beridze');
       expect(rows[0].textContent).toContain('$653.25');
-      expect(rows[0].textContent).toContain('$288.90');
+      expect(rows[0].textContent).toContain('$277.56');
       // Split by new and returning customers.
       expect(rows[0].textContent).toContain('$217.75');
       expect(rows[0].textContent).toContain('$435.50');
-      expect(rows[0].textContent).toContain('$192.60');
+      expect(rows[0].textContent).toContain('$185.04');
       expect(el.querySelectorAll('thead .sub-row th').length).toBe(9);
       expect(el.querySelector('tfoot')!.textContent).toContain('4');
       expect(el.querySelector('tfoot')!.textContent).toContain('$753.25');
+    });
+
+    it('shows the staff bonuses under each net figure without taking them off', () => {
+      fixture.detectChanges();
+      answer({ admins: [row()] });
+
+      const el = fixture.nativeElement as HTMLElement;
+      const subs = Array.from(el.querySelectorAll('tbody .bonus-sub')).map(s => s.textContent!.trim());
+      expect(subs).toEqual(['Bonuses $11.10', 'Bonuses $3.70', 'Bonuses $7.40']);
+      // The net itself is the server's figure, untouched by the bonus.
+      expect(el.querySelector('tbody tr')!.textContent).toContain('$277.56');
+      const title = fixture.componentInstance.netBreakdown(row());
+      expect(title).toContain('Stripe fees $22.44');
+      expect(title).toContain('not taken off');
     });
 
     it('asks for everything when All time is chosen', () => {

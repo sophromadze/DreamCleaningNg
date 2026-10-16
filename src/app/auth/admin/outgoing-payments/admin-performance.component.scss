@@ -92,3 +92,12 @@
 }
 
 .line-sub { display: block; }
+
+// Staff bonuses under each net figure — reported beside the net, never taken off it.
+.bonus-sub {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.76rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+}

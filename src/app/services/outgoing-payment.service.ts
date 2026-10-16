@@ -70,13 +70,17 @@ export interface AdminPerformanceRow {
   ordersTotal: number;
   ordersTotalNew: number;
   ordersTotalReturning: number;
-  /** Orders total − sales tax − cleaners' wages − staff bonuses. */
+  /** Orders total − sales tax − cleaners' wages − Stripe fees. Staff bonuses are NOT taken off. */
   netIncome: number;
   netIncomeNew: number;
   netIncomeReturning: number;
   salesTax: number;
   cleanerWages: number;
+  stripeFees: number;
+  /** Staff bonuses on those orders, USD — shown under the net, never subtracted from it. */
   staffBonuses: number;
+  staffBonusesNew: number;
+  staffBonusesReturning: number;
 }
 
 export interface AdminPerformanceList {

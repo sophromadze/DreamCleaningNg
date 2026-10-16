@@ -1,10 +1,12 @@
 import type { MockedObject } from 'vitest';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { of, throwError } from 'rxjs';
+import { of, Subject, throwError } from 'rxjs';
 
 import { ShiftsComponent } from './shifts.component';
 import { testProviders } from '../../../testing/test-providers';
-import { AdminBonusService, AdminBonusSummary, AdminBonusRates } from '../../services/admin-bonus.service';
+import {
+  AdminBonusService, AdminBonusSummary, AdminBonusRates, AdminOrdersView
+} from '../../services/admin-bonus.service';
 
 /**
  * The shifts page's staff-bonus panel.
@@ -83,7 +85,7 @@ describe('ShiftsComponent', () => {
   }
 
   beforeEach(async () => {
-    bonusService = { getBonuses: vi.fn().mockName('AdminBonusService.getBonuses'), getRates: vi.fn().mockName('AdminBonusService.getRates'), setRates: vi.fn().mockName('AdminBonusService.setRates'), setOverride: vi.fn().mockName('AdminBonusService.setOverride'), getForAdmin: vi.fn().mockName('AdminBonusService.getForAdmin'), addPercentRule: vi.fn().mockName('AdminBonusService.addPercentRule'), deletePercentRule: vi.fn().mockName('AdminBonusService.deletePercentRule') } as unknown as MockedObject<AdminBonusService>;
+    bonusService = { getBonuses: vi.fn().mockName('AdminBonusService.getBonuses'), getRates: vi.fn().mockName('AdminBonusService.getRates'), setRates: vi.fn().mockName('AdminBonusService.setRates'), setOverride: vi.fn().mockName('AdminBonusService.setOverride'), getForAdmin: vi.fn().mockName('AdminBonusService.getForAdmin'), addPercentRule: vi.fn().mockName('AdminBonusService.addPercentRule'), deletePercentRule: vi.fn().mockName('AdminBonusService.deletePercentRule'), getAdminOrders: vi.fn().mockName('AdminBonusService.getAdminOrders') } as unknown as MockedObject<AdminBonusService>;
     bonusService.getBonuses.mockReturnValue(of([]));
     bonusService.getRates.mockReturnValue(of(defaults));
 
@@ -492,6 +494,128 @@ describe('ShiftsComponent', () => {
       expect(component.describePercentRule(rule({ basis: 'NetIncome', newCustomerPercent: 3, existingCustomerPercent: 3 }))).toBe('3% of net');
       expect(component.describePercentRule(rule({ newCustomerPercent: 10, existingCustomerPercent: 5 })))
         .toBe('10% new · 5% returning of full order');
+    });
+  });
+  describe("one admin's orders", () => {
+    const view = (o: Partial<AdminOrdersView> = {}): AdminOrdersView => ({
+      adminId: 1, firstName: 'Nino', lastName: 'B',
+      summary: {
+        orders: 2, newCustomerOrders: 1, returningCustomerOrders: 1,
+        subTotal: 300, discounts: 0, salesTax: 26.63, ordersTotal: 326.63,
+        ordersTotalNew: 108.88, ordersTotalReturning: 217.75,
+        cleanerWages: 150, stripeFees: 7.48, netIncome: 142.52, netIncomeNew: 50, netIncomeReturning: 92.52,
+        averagePrice: 163.32, averagePriceNew: 108.88, averagePriceReturning: 217.75,
+        averageNet: 71.26, averageNetNew: 50, averageNetReturning: 92.52
+      },
+      orders: [
+        { orderId: 412, serviceDate: '2026-10-07T00:00:00', serviceType: 'Residential Cleaning', isNewCustomerOrder: true,
+          paymentMethod: 'Zelle', services: [{ name: 'Bedrooms', quantity: 2, hours: 0, cost: 50 }],
+          extraServices: [{ name: 'Inside Oven', quantity: 1, hours: 2, cost: 40 }],
+          subTotal: 100, discounts: 0, salesTax: 8.88, refundedAmount: 0, orderTotal: 108.88,
+          cleanerWages: 50, stripeFee: 0, net: 50 },
+        { orderId: 398, serviceDate: '2026-10-05T00:00:00', serviceType: 'Deep Cleaning', isNewCustomerOrder: false,
+          paymentMethod: 'Card', services: [], extraServices: [],
+          subTotal: 200, discounts: 0, salesTax: 17.75, refundedAmount: 0, orderTotal: 217.75,
+          cleanerWages: 100, stripeFee: 7.48, net: 92.52 }
+      ],
+      ...o
+    });
+
+    function bootAs(isSuperAdmin: boolean, myId: number, cards: AdminBonusSummary[]): ComponentFixture<ShiftsComponent> {
+      bonusService.getBonuses.mockReturnValue(of(cards));
+      const f = TestBed.createComponent(ShiftsComponent);
+      f.componentInstance.isSuperAdmin.set(isSuperAdmin);
+      f.detectChanges();
+      f.componentInstance.isSuperAdmin.set(isSuperAdmin);
+      f.componentInstance.currentUserId = myId;
+      f.componentInstance.bonuses.set(cards);
+      f.detectChanges();
+      return f;
+    }
+
+    const buttons = (f: ComponentFixture<ShiftsComponent>) =>
+      (f.nativeElement as HTMLElement).querySelectorAll('.bonus-orders-btn');
+
+    it('gives a SuperAdmin an Orders button on every admin', () => {
+      const f = bootAs(true, 99, [row(), manager()]);
+      expect(buttons(f).length).toBe(2);
+    });
+
+    it("gives an admin the button on their own card only", () => {
+      const f = bootAs(false, 2, [row(), manager()]);
+      const found = buttons(f);
+      expect(found.length).toBe(1);
+      expect(found[0].closest('.bonus-card')!.textContent).toContain('Nika');
+    });
+
+    it('asks for the visible month and lists each order by its id, without any customer details', () => {
+      bonusService.getAdminOrders.mockReturnValue(of(view()));
+      component.currentMonth.set(new Date(2026, 9, 15));
+      component.bonuses.set([row()]);
+      fixture.detectChanges();
+
+      (buttons(fixture)[0] as HTMLButtonElement).click();
+      fixture.detectChanges();
+
+      expect(bonusService.getAdminOrders).toHaveBeenCalledWith(1, '2026-10-01', '2026-10-31');
+      const panel = (fixture.nativeElement as HTMLElement).querySelector('.orders-panel')!;
+      const rows = panel.querySelectorAll('tbody tr');
+      expect(rows.length).toBe(2);
+      expect(rows[0].textContent).toContain('#412');
+      expect(rows[0].textContent).toContain('New customer');
+      expect(rows[0].textContent).toContain('Bedrooms × 2');
+      expect(rows[0].textContent).toContain('Inside Oven · 2h');
+      expect(rows[1].textContent).toContain('#398');
+      expect(rows[1].textContent).toContain('Returning');
+      expect(rows[1].textContent).toContain('$7.48');
+      expect(rows[1].textContent).toContain('$92.52');
+
+      const summary = panel.querySelector('.orders-summary')!.textContent!;
+      expect(summary).toContain('$326.63');
+      expect(summary).toContain('New $108.88');
+      expect(summary).toContain('Returning $217.75');
+      expect(summary).toContain('$142.52');
+    });
+
+    it('shows a dash for an average with nothing to average', () => {
+      const v = view();
+      v.summary = { ...v.summary, newCustomerOrders: 0, averagePriceNew: null, averageNetNew: null };
+      bonusService.getAdminOrders.mockReturnValue(of(v));
+      component.openOrders(row());
+      fixture.detectChanges();
+
+      const summary = (fixture.nativeElement as HTMLElement).querySelector('.orders-summary')!.textContent!;
+      expect(summary).toContain('New —');
+    });
+
+    it('says so when the month has no completed orders', () => {
+      bonusService.getAdminOrders.mockReturnValue(of(view({ orders: [] })));
+      component.openOrders(row());
+      fixture.detectChanges();
+
+      const panel = (fixture.nativeElement as HTMLElement).querySelector('.orders-panel')!;
+      expect(panel.querySelector('table')).toBeNull();
+      expect(panel.textContent).toContain('No completed orders');
+    });
+
+    it("shows the server's refusal and closes on Escape", () => {
+      bonusService.getAdminOrders.mockReturnValue(throwError(() => ({ status: 403, error: { message: 'Not yours.' } })));
+      component.openOrders(row());
+      fixture.detectChanges();
+      expect((fixture.nativeElement as HTMLElement).querySelector('.orders-panel')!.textContent).toContain('Not yours.');
+
+      component.onEscKey();
+      fixture.detectChanges();
+      expect((fixture.nativeElement as HTMLElement).querySelector('.orders-panel')).toBeNull();
+    });
+
+    it('drops a late answer for a list that was already closed', () => {
+      const pending = new Subject<AdminOrdersView>();
+      bonusService.getAdminOrders.mockReturnValue(pending);
+      component.openOrders(row());
+      component.closeOrders();
+      pending.next(view());
+      expect(component.ordersView()).toBeNull();
     });
   });
 });

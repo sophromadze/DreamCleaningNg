@@ -1,12 +1,14 @@
 import { Component, OnInit, HostListener, ChangeDetectionStrategy, inject, signal } from '@angular/core';
-import { DatePipe, DecimalPipe } from '@angular/common';
+import { CurrencyPipe, DatePipe, DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { forkJoin } from 'rxjs';
 import { ShiftService, AdminShift, ShiftAdmin } from '../../services/shift.service';
 import { AuthService } from '../../services/auth.service';
 import {
-  AdminBonusService, AdminBonusSummary, AdminBonusRates, AdminPercentBonusBasis, AdminPercentBonusRule
+  AdminBonusService, AdminBonusSummary, AdminBonusRates, AdminPercentBonusBasis, AdminPercentBonusRule,
+  AdminOrderItem, AdminOrdersView
 } from '../../services/admin-bonus.service';
+import { extractApiErrorMessage } from '../../utils/http-error.utils';
 import { readableLabelColor } from '../../shared/admin/readable-label-color';
 
 const FALLBACK_COLORS = [
@@ -17,7 +19,7 @@ const FALLBACK_COLORS = [
 
 @Component({
   selector: 'app-shifts',
-  imports: [FormsModule, DecimalPipe, DatePipe],
+  imports: [FormsModule, DecimalPipe, DatePipe, CurrencyPipe],
   templateUrl: './shifts.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./shifts.component.scss']
@@ -116,6 +118,15 @@ export class ShiftsComponent implements OnInit {
   }>({ basis: 'FullOrder', newPercent: null, existingPercent: null, startDate: '' }, { equal: () => false });
   /** Whose rule history is expanded. */
   readonly percentHistoryAdminId = signal<number | null>(null);
+
+  // ── One admin's orders (2026-10) ──
+  // The completed orders a person booked in the visible month: prices, extras, wages, Stripe fees
+  // and net — never anything about the customer (the server sends none). A SuperAdmin opens
+  // anyone's; an admin opens their own (the endpoint enforces both).
+  readonly ordersFor = signal<AdminBonusSummary | null>(null);
+  readonly ordersView = signal<AdminOrdersView | null>(null);
+  readonly isLoadingOrders = signal(false);
+  readonly ordersError = signal('');
 
   ngOnInit(): void {
     const user = this.authService.currentUserValue;
@@ -277,6 +288,55 @@ export class ShiftsComponent implements OnInit {
         this.isLoadingBonuses.set(false);
       }
     });
+  }
+
+  /** A SuperAdmin opens anyone's orders; an admin only their own. */
+  canSeeOrders(b: AdminBonusSummary): boolean {
+    return this.isSuperAdmin() || b.adminId === this.currentUserId;
+  }
+
+  openOrders(b: AdminBonusSummary): void {
+    this.ordersFor.set(b);
+    this.ordersView.set(null);
+    this.ordersError.set('');
+    this.isLoadingOrders.set(true);
+    // The same window as the bonus panel: the visible month, both days inclusive.
+    const year = this.currentMonth().getFullYear();
+    const month = this.currentMonth().getMonth();
+    const from = this.formatYmd(new Date(Date.UTC(year, month, 1)));
+    const to = this.formatYmd(new Date(Date.UTC(year, month + 1, 0)));
+    this.adminBonusService.getAdminOrders(b.adminId, from, to).subscribe({
+      next: (view) => {
+        // A late answer for someone whose list was already closed or swapped is dropped.
+        if (this.ordersFor()?.adminId !== b.adminId) return;
+        this.ordersView.set(view);
+        this.isLoadingOrders.set(false);
+      },
+      error: (err) => {
+        if (this.ordersFor()?.adminId !== b.adminId) return;
+        this.isLoadingOrders.set(false);
+        this.ordersError.set(extractApiErrorMessage(err, 'Could not load the orders.'));
+      }
+    });
+  }
+
+  closeOrders(): void {
+    this.ordersFor.set(null);
+    this.ordersView.set(null);
+    this.isLoadingOrders.set(false);
+    this.ordersError.set('');
+  }
+
+  onOrdersOverlayClick(event: MouseEvent): void {
+    if ((event.target as HTMLElement).classList.contains('modal-overlay')) this.closeOrders();
+  }
+
+  /** "Bedrooms × 2", "Inside Oven · 2h" — the line as priced on the order. */
+  orderItemLabel(item: AdminOrderItem): string {
+    let label = item.name;
+    if (item.quantity > 1) label += ` × ${item.quantity}`;
+    if (item.hours > 0) label += ` · ${item.hours}h`;
+    return label;
   }
 
   loadBonusRates(): void {
@@ -1013,6 +1073,7 @@ export class ShiftsComponent implements OnInit {
 
   @HostListener('document:keydown.escape')
   onEscKey(): void {
+    if (this.ordersFor()) { this.closeOrders(); return; }
     if (this.multiModalOpen()) { this.closeMultiModal(); return; }
     if (this.selectedDate()) this.closeEditor();
   }

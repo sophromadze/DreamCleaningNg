@@ -304,6 +304,13 @@
             </span>
             }
           </div>
+
+          @if (canSeeOrders(b)) {
+          <button type="button" class="bonus-orders-btn" (click)="openOrders(b)"
+                  [attr.aria-label]="'Orders of ' + b.firstName + ' ' + b.lastName + ', ' + getBonusMonthLabel()">
+            <i class="fas fa-list-ul" aria-hidden="true"></i> Orders
+          </button>
+          }
         </div>
 
         <!-- Every block is a header (what it is + its figure) over bordered rows, with its actions
@@ -566,6 +573,143 @@
       }
     </div>
     }
+  </div>
+  }
+
+  <!-- ═══════════════════════════════════════ -->
+  <!--  One admin's orders                     -->
+  <!-- ═══════════════════════════════════════ -->
+  <!-- The job and its money only: the server sends nothing about the customer. -->
+  @if (ordersFor(); as who) {
+  <div class="modal-overlay" (click)="onOrdersOverlayClick($event)">
+    <div class="modal-panel orders-panel" role="dialog" aria-modal="true" aria-labelledby="adminOrdersTitle">
+      <div class="editor-header">
+        <div>
+          <h2 id="adminOrdersTitle">{{ who.firstName }} {{ who.lastName }} — orders</h2>
+          <span class="orders-sub">{{ getBonusMonthLabel() }} · completed (done &amp; paid) orders they booked</span>
+        </div>
+        <button class="close-btn" (click)="closeOrders()" title="Close" aria-label="Close">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+
+      @if (isLoadingOrders()) {
+      <div class="bonus-loading orders-message"><i class="fas fa-spinner fa-spin"></i> Loading orders…</div>
+      }
+      @if (ordersError()) {
+      <div class="message error-message" role="alert"><i class="fas fa-exclamation-circle"></i> {{ ordersError() }}</div>
+      }
+
+      @if (ordersView(); as v) {
+      @if (v.orders.length === 0) {
+      <div class="orders-message">No completed orders in {{ getBonusMonthLabel() }}.</div>
+      } @else {
+      <!-- Totals: every figure split new / returning customers, which re-add to the total. -->
+      <div class="orders-summary">
+        <div class="orders-stat">
+          <span class="orders-stat-label">Orders</span>
+          <span class="orders-stat-value">{{ v.summary.orders }}</span>
+          <span class="orders-stat-split">New {{ v.summary.newCustomerOrders }} · Returning {{ v.summary.returningCustomerOrders }}</span>
+        </div>
+        <div class="orders-stat">
+          <span class="orders-stat-label">Total price (no tips)</span>
+          <span class="orders-stat-value">{{ v.summary.ordersTotal | currency:'USD' }}</span>
+          <span class="orders-stat-split">New {{ v.summary.ordersTotalNew | currency:'USD' }} · Returning {{ v.summary.ordersTotalReturning | currency:'USD' }}</span>
+        </div>
+        <div class="orders-stat">
+          <span class="orders-stat-label">Net income</span>
+          <span class="orders-stat-value" [class.negative]="v.summary.netIncome < 0">{{ v.summary.netIncome | currency:'USD' }}</span>
+          <span class="orders-stat-split">New {{ v.summary.netIncomeNew | currency:'USD' }} · Returning {{ v.summary.netIncomeReturning | currency:'USD' }}</span>
+        </div>
+        <div class="orders-stat">
+          <span class="orders-stat-label">Average price</span>
+          <span class="orders-stat-value">{{ v.summary.averagePrice | currency:'USD' }}</span>
+          <span class="orders-stat-split">
+            New {{ v.summary.averagePriceNew !== null ? (v.summary.averagePriceNew | currency:'USD') : '—' }}
+            · Returning {{ v.summary.averagePriceReturning !== null ? (v.summary.averagePriceReturning | currency:'USD') : '—' }}
+          </span>
+        </div>
+        <div class="orders-stat">
+          <span class="orders-stat-label">Average net</span>
+          <span class="orders-stat-value">{{ v.summary.averageNet | currency:'USD' }}</span>
+          <span class="orders-stat-split">
+            New {{ v.summary.averageNetNew !== null ? (v.summary.averageNetNew | currency:'USD') : '—' }}
+            · Returning {{ v.summary.averageNetReturning !== null ? (v.summary.averageNetReturning | currency:'USD') : '—' }}
+          </span>
+        </div>
+        <div class="orders-stat">
+          <span class="orders-stat-label">Taken off for net</span>
+          <span class="orders-stat-split">Sales tax {{ v.summary.salesTax | currency:'USD' }}</span>
+          <span class="orders-stat-split">Cleaners {{ v.summary.cleanerWages | currency:'USD' }}</span>
+          <span class="orders-stat-split">Stripe fees {{ v.summary.stripeFees | currency:'USD' }}</span>
+        </div>
+      </div>
+
+      <div class="orders-table-wrap">
+        <table class="orders-table">
+          <thead>
+            <tr>
+              <th scope="col">Order</th>
+              <th scope="col">Service</th>
+              <th scope="col">Services</th>
+              <th scope="col">Extras</th>
+              <th scope="col" class="num">Subtotal</th>
+              <th scope="col" class="num">Discounts</th>
+              <th scope="col" class="num">Tax</th>
+              <th scope="col" class="num">Total (no tips)</th>
+              <th scope="col" class="num">Cleaners</th>
+              <th scope="col" class="num">Stripe fee</th>
+              <th scope="col" class="num">Net</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (o of v.orders; track o.orderId) {
+            <tr>
+              <td>
+                <span class="order-id">#{{ o.orderId }}</span>
+                <span class="order-sub">{{ o.serviceDate | date:'MMM d, y' }}</span>
+                <span class="order-sub">{{ o.paymentMethod }}</span>
+              </td>
+              <td>
+                {{ o.serviceType }}
+                <span class="customer-chip" [class.is-new]="o.isNewCustomerOrder">
+                  {{ o.isNewCustomerOrder ? 'New customer' : 'Returning' }}
+                </span>
+              </td>
+              <td>
+                @for (s of o.services; track $index) {
+                <span class="order-item">{{ orderItemLabel(s) }} <b>{{ s.cost | currency:'USD' }}</b></span>
+                } @empty { <span class="order-sub">—</span> }
+              </td>
+              <td>
+                @for (e of o.extraServices; track $index) {
+                <span class="order-item">{{ orderItemLabel(e) }} <b>{{ e.cost | currency:'USD' }}</b></span>
+                } @empty { <span class="order-sub">—</span> }
+              </td>
+              <td class="num">{{ o.subTotal | currency:'USD' }}</td>
+              <td class="num">{{ o.discounts > 0 ? '−' : '' }}{{ o.discounts | currency:'USD' }}</td>
+              <td class="num">{{ o.salesTax | currency:'USD' }}</td>
+              <td class="num strong">
+                {{ o.orderTotal | currency:'USD' }}
+                @if (o.refundedAmount > 0) {
+                <span class="order-sub">after {{ o.refundedAmount | currency:'USD' }} refund</span>
+                }
+              </td>
+              <td class="num">{{ o.cleanerWages | currency:'USD' }}</td>
+              <td class="num">{{ o.stripeFee | currency:'USD' }}</td>
+              <td class="num strong" [class.negative]="o.net < 0">{{ o.net | currency:'USD' }}</td>
+            </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      <p class="orders-footnote">
+        Net = total without tips − sales tax − cleaners' wages − Stripe fees (card payments only).
+        Admin bonuses are not taken off.
+      </p>
+      }
+      }
+    </div>
   </div>
   }
 

@@ -1700,3 +1700,150 @@
     padding: 16px;
   }
 }
+
+// ════════════════════════════════════════
+//  One admin's orders (2026-10)
+// ════════════════════════════════════════
+
+.bonus-orders-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.85rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--primary-text-elevated);
+  font-size: 0.84rem;
+  font-weight: var(--fw-semibold);
+  cursor: pointer;
+
+  &:hover { border-color: var(--primary-color); background: var(--soft-blue); }
+
+  @media (max-width: 640px) { width: 100%; justify-content: center; }
+}
+
+.modal-panel.orders-panel {
+  max-width: 1200px;
+}
+
+.orders-sub {
+  display: block;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
+
+.orders-message {
+  padding: 1.5rem 0;
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.orders-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+}
+
+.orders-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--surface-subtle);
+  min-width: 0;
+}
+
+.orders-stat-label {
+  font-size: 0.75rem;
+  font-weight: var(--fw-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-secondary);
+}
+
+.orders-stat-value {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.orders-stat-split {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+// The table scrolls sideways inside its own box on a phone; the page itself never does.
+.orders-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+}
+
+.orders-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+
+  th, td {
+    padding: 0.6rem 0.7rem;
+    border-bottom: 1px solid var(--border-color);
+    text-align: left;
+    vertical-align: top;
+    color: var(--text-primary);
+  }
+
+  thead th {
+    background: var(--surface-subtle);
+    font-size: 0.78rem;
+    font-weight: var(--fw-semibold);
+    color: var(--text-secondary);
+    white-space: nowrap;
+  }
+
+  tbody tr:last-child td { border-bottom: none; }
+
+  .num { text-align: right; white-space: nowrap; }
+  .strong { font-weight: 700; }
+  .negative { color: var(--soft-red-text); }
+}
+
+.order-id { display: block; font-weight: 700; white-space: nowrap; }
+
+.order-sub {
+  display: block;
+  font-size: 0.76rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.order-item {
+  display: block;
+  white-space: nowrap;
+
+  b { font-weight: var(--fw-semibold); color: var(--text-secondary); margin-left: 0.25rem; }
+}
+
+.customer-chip {
+  display: inline-block;
+  margin-top: 0.3rem;
+  padding: 0.1rem 0.5rem;
+  border-radius: var(--radius-pill);
+  background: var(--surface-subtle);
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  font-weight: var(--fw-semibold);
+  white-space: nowrap;
+
+  &.is-new { background: var(--mint-fresh); color: var(--mint-fresh-text); }
+}
+
+.orders-footnote {
+  margin: 0.75rem 0 0;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}

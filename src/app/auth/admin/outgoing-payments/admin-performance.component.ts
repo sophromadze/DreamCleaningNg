@@ -57,7 +57,8 @@ export function matchesAdminSearch(row: Pick<AdminPerformanceRow, 'firstName' | 
 /**
  * Outgoing Payments → Admins (2026-10, SuperAdmin). Per admin (SuperAdmins are not listed): the
  * completed orders they booked in a period, what those orders came to, and the net the company
- * kept after sales tax, the cleaners' wages and the staff bonuses on them.
+ * kept after sales tax, the cleaners' wages and the Stripe fees on them. The staff bonuses on those
+ * orders are shown under each net figure and are NOT taken off it (owner's rule, 2026-10-16).
  *
  * Every figure comes from the server; this component only filters rows and adds up the visible
  * ones for the totals line.
@@ -103,10 +104,13 @@ export class AdminPerformanceComponent {
       totalReturning: t.totalReturning + r.ordersTotalReturning,
       net: t.net + r.netIncome,
       netNew: t.netNew + r.netIncomeNew,
-      netReturning: t.netReturning + r.netIncomeReturning
+      netReturning: t.netReturning + r.netIncomeReturning,
+      bonuses: t.bonuses + r.staffBonuses,
+      bonusesNew: t.bonusesNew + r.staffBonusesNew,
+      bonusesReturning: t.bonusesReturning + r.staffBonusesReturning
     }),
     { orders: 0, ordersNew: 0, ordersReturning: 0, total: 0, totalNew: 0, totalReturning: 0,
-      net: 0, netNew: 0, netReturning: 0 }));
+      net: 0, netNew: 0, netReturning: 0, bonuses: 0, bonusesNew: 0, bonusesReturning: 0 }));
 
   constructor() {
     this.load();
@@ -151,9 +155,10 @@ export class AdminPerformanceComponent {
       });
   }
 
-  /** "After sales tax $X, cleaners' wages $Y and staff bonuses $Z" — the net, checkable by hand. */
+  /** The net worked out — checkable by hand. The bonuses are named but not part of the sum. */
   netBreakdown(r: AdminPerformanceRow): string {
     const usd = (n: number) => `$${n.toFixed(2)}`;
-    return `Orders total ${usd(r.ordersTotal)} − sales tax ${usd(r.salesTax)} − cleaners' wages ${usd(r.cleanerWages)} − staff bonuses ${usd(r.staffBonuses)}`;
+    return `Orders total ${usd(r.ordersTotal)} − sales tax ${usd(r.salesTax)} − cleaners' wages ${usd(r.cleanerWages)} − Stripe fees ${usd(r.stripeFees)}`
+      + ` (staff bonuses ${usd(r.staffBonuses)} not taken off)`;
   }
 }

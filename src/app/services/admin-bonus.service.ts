@@ -116,6 +116,75 @@ export interface AdminBonusOverride {
   teamBookingExistingCustomerRate: number | null;
 }
 
+/** One line of an order: a service or an extra, as priced on the order. */
+export interface AdminOrderItem {
+  name: string;
+  quantity: number;
+  /** Hours on an hourly extra; 0 otherwise. */
+  hours: number;
+  cost: number;
+}
+
+/**
+ * One completed order an admin booked (Shifts → Orders, 2026-10). Describes the JOB only — the
+ * server sends nothing about the customer (no name, email, phone, address or customer id).
+ */
+export interface AdminOrderLine {
+  orderId: number;
+  serviceDate: string;
+  serviceType: string;
+  isNewCustomerOrder: boolean;
+  /** 'Card' | 'Cash' | 'Zelle' | 'Check' | 'Invoice' | 'Bank transfer' | 'Other'. */
+  paymentMethod: string;
+  services: AdminOrderItem[];
+  extraServices: AdminOrderItem[];
+  subTotal: number;
+  /** Promo + subscription + loyalty discounts. */
+  discounts: number;
+  salesTax: number;
+  refundedAmount: number;
+  /** Price without tips, sales tax included, net of refunds. */
+  orderTotal: number;
+  cleanerWages: number;
+  stripeFee: number;
+  /** orderTotal − salesTax − cleanerWages − stripeFee. Admin bonuses are NOT taken off. */
+  net: number;
+}
+
+export interface AdminOrdersSummary {
+  orders: number;
+  newCustomerOrders: number;
+  returningCustomerOrders: number;
+  subTotal: number;
+  discounts: number;
+  salesTax: number;
+  ordersTotal: number;
+  ordersTotalNew: number;
+  ordersTotalReturning: number;
+  cleanerWages: number;
+  stripeFees: number;
+  netIncome: number;
+  netIncomeNew: number;
+  netIncomeReturning: number;
+  /** Per-order averages; null when there is no such order to average. */
+  averagePrice: number | null;
+  averagePriceNew: number | null;
+  averagePriceReturning: number | null;
+  averageNet: number | null;
+  averageNetNew: number | null;
+  averageNetReturning: number | null;
+}
+
+export interface AdminOrdersView {
+  adminId: number;
+  firstName: string;
+  lastName: string;
+  from?: string | null;
+  to?: string | null;
+  summary: AdminOrdersSummary;
+  orders: AdminOrderLine[];
+}
+
 @Service()
 export class AdminBonusService {
   private http = inject(HttpClient);
@@ -137,6 +206,15 @@ export class AdminBonusService {
     if (from) params = params.set('from', from);
     if (to) params = params.set('to', to);
     return this.http.get<AdminBonusSummary>(`${this.apiUrl}/admin/${adminId}`, { params });
+  }
+
+  /**
+   * Shifts → one admin's completed orders over an inclusive window. SuperAdmin for anyone; an admin
+   * for themselves only (the backend enforces it).
+   */
+  getAdminOrders(adminId: number, from: string, to: string): Observable<AdminOrdersView> {
+    const params = new HttpParams().set('from', from).set('to', to);
+    return this.http.get<AdminOrdersView>(`${this.apiUrl}/admin/${adminId}/orders`, { params });
   }
 
   getRates(): Observable<AdminBonusRates> {
