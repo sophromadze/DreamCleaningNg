@@ -119,6 +119,8 @@ export interface AdminBonusOverride {
 /** One line of an order: a service or an extra, as priced on the order. */
 export interface AdminOrderItem {
   name: string;
+  /** Service.serviceKey ("bedrooms", "bathrooms", "sqft", …) or the extra's key; null when unkeyed. */
+  key?: string | null;
   quantity: number;
   /** Hours on an hourly extra; 0 otherwise. */
   hours: number;
@@ -133,6 +135,12 @@ export interface AdminOrderLine {
   orderId: number;
   serviceDate: string;
   serviceType: string;
+  /** Ingredients of the short label — see shared/admin/service-type-short-label.ts. */
+  rawServiceTypeName: string;
+  serviceTypeKey?: string | null;
+  isCustomServiceType: boolean;
+  customServiceDisplayName?: string | null;
+  isDeepCleaning: boolean;
   isNewCustomerOrder: boolean;
   /** 'Card' | 'Cash' | 'Zelle' | 'Check' | 'Invoice' | 'Bank transfer' | 'Other'. */
   paymentMethod: string;

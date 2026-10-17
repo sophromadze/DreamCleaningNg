@@ -1704,133 +1704,215 @@
 // ════════════════════════════════════════
 //  One admin's orders (2026-10)
 // ════════════════════════════════════════
+// Expands under the person's bonus card. The table copies the admin Orders / Users table look
+// (compact uppercase header, bordered cells, sideways scroll inside its own box) in tokens.
 
-.bonus-orders-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.4rem 0.85rem;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-pill);
+// "Details" is an ordinary footer link (.bonus-link-btn) beside "Add percentage bonus".
+.bonus-details-btn i { font-size: 0.75rem; }
+
+.bonus-orders {
+  border-top: 1px solid var(--border-color);
+  padding: 1rem;
   background: var(--surface);
-  color: var(--primary-text-elevated);
-  font-size: 0.84rem;
-  font-weight: var(--fw-semibold);
-  cursor: pointer;
+  min-width: 0;
 
-  &:hover { border-color: var(--primary-color); background: var(--soft-blue); }
-
-  @media (max-width: 640px) { width: 100%; justify-content: center; }
+  @media (max-width: 640px) { padding: 0.75rem; }
 }
 
-.modal-panel.orders-panel {
-  max-width: 1200px;
+.bonus-orders-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.75rem;
+  margin-bottom: 0.75rem;
 }
 
-.orders-sub {
-  display: block;
-  font-size: 0.82rem;
+.bonus-orders-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.bonus-orders-sub {
+  font-size: 0.8rem;
   color: var(--text-secondary);
 }
 
-.orders-message {
-  padding: 1.5rem 0;
-  text-align: center;
+.bonus-orders-message {
+  padding: 1rem 0;
   color: var(--text-secondary);
+
+  &.error { color: var(--soft-red-text); }
 }
 
+// ── Total cards: label, one big figure, then a ruled list of what makes it up ──
 .orders-summary {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 0.6rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
   margin-bottom: 1rem;
+
+  @media (max-width: 900px) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  @media (max-width: 420px) { grid-template-columns: minmax(0, 1fr); }
 }
 
 .orders-stat {
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
-  padding: 0.7rem 0.85rem;
+  padding: 0.85rem 1rem;
   border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
+  border-radius: 10px;
   background: var(--surface-subtle);
   min-width: 0;
+
+  &.is-net { border-color: var(--primary-color); }
 }
 
 .orders-stat-label {
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   font-weight: var(--fw-semibold);
   text-transform: uppercase;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.05em;
   color: var(--text-secondary);
 }
 
 .orders-stat-value {
-  font-size: 1.15rem;
+  margin: 0.2rem 0 0.6rem;
+  font-size: 1.35rem;
   font-weight: 700;
+  line-height: 1.2;
   color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+
+  &.negative { color: var(--soft-red-text); }
 }
 
 .orders-stat-split {
-  font-size: 0.8rem;
-  color: var(--text-secondary);
+  margin: auto 0 0;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+
+  > div {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.75rem;
+    font-size: 0.8rem;
+  }
+
+  dt {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: var(--text-secondary);
+  }
+
+  dd {
+    margin: 0;
+    font-weight: var(--fw-semibold);
+    color: var(--text-primary);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  .dot {
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 50%;
+    background: var(--text-secondary);
+    flex-shrink: 0;
+
+    &.is-new { background: var(--fresh-green); }
+  }
 }
 
-// The table scrolls sideways inside its own box on a phone; the page itself never does.
+// The page never scrolls sideways; the table does, inside this box.
 .orders-table-wrap {
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  width: 100%;
   border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
+  border-radius: 8px;
 }
 
 .orders-table {
   width: 100%;
-  border-collapse: collapse;
+  min-width: 620px;
+  border-collapse: separate;
+  border-spacing: 0;
   font-size: 0.85rem;
-
-  th, td {
-    padding: 0.6rem 0.7rem;
-    border-bottom: 1px solid var(--border-color);
-    text-align: left;
-    vertical-align: top;
-    color: var(--text-primary);
-  }
+  color: var(--text-primary);
 
   thead th {
-    background: var(--surface-subtle);
-    font-size: 0.78rem;
-    font-weight: var(--fw-semibold);
+    text-align: center;
+    padding: 0.55rem 0.6rem;
+    font-size: 0.68rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    line-height: 1.25;
     color: var(--text-secondary);
-    white-space: nowrap;
+    background: var(--surface-subtle);
+    border-bottom: 1px solid var(--border-color);
+    border-right: 1px solid var(--border-color);
+
+    &:last-child { border-right: none; }
   }
 
-  tbody tr:last-child td { border-bottom: none; }
+  tbody tr {
+    transition: background 0.12s;
+
+    &:hover { background: var(--surface-subtle); }
+    &:last-child td { border-bottom: none; }
+  }
+
+  td {
+    padding: 0.5rem 0.6rem;
+    vertical-align: middle;
+    border-bottom: 1px solid var(--border-color);
+    border-right: 1px solid var(--border-color);
+
+    &:last-child { border-right: none; }
+  }
 
   .num { text-align: right; white-space: nowrap; }
-  .strong { font-weight: 700; }
-  .negative { color: var(--soft-red-text); }
+  .amount { font-weight: 700; font-variant-numeric: tabular-nums; }
+  .muted { color: var(--text-secondary); }
+  .order-id { font-weight: 700; white-space: nowrap; text-align: center; }
+  .order-date { white-space: nowrap; text-align: center; font-variant-numeric: tabular-nums; }
+  .order-type { white-space: nowrap; font-weight: var(--fw-semibold); }
+  .order-services { white-space: nowrap; }
 }
-
-.order-id { display: block; font-weight: 700; white-space: nowrap; }
 
 .order-sub {
   display: block;
-  font-size: 0.76rem;
+  font-size: 0.75rem;
   font-weight: 500;
   color: var(--text-secondary);
   white-space: nowrap;
 }
 
-.order-item {
-  display: block;
-  white-space: nowrap;
+.order-extras {
+  line-height: 1.6;
+}
 
-  b { font-weight: var(--fw-semibold); color: var(--text-secondary); margin-left: 0.25rem; }
+.extra-tag {
+  display: inline-block;
+  margin: 0.1rem 0.25rem 0.1rem 0;
+  padding: 0.05rem 0.5rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-pill);
+  background: var(--surface-subtle);
+  font-size: 0.76rem;
+  white-space: nowrap;
 }
 
 .customer-chip {
-  display: inline-block;
-  margin-top: 0.3rem;
+  display: table;
+  margin-top: 0.25rem;
   padding: 0.1rem 0.5rem;
   border-radius: var(--radius-pill);
   background: var(--surface-subtle);
@@ -1843,7 +1925,7 @@
 }
 
 .orders-footnote {
-  margin: 0.75rem 0 0;
+  margin: 0.6rem 0 0;
   font-size: 0.8rem;
   color: var(--text-secondary);
 }

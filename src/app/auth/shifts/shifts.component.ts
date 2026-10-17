@@ -1,4 +1,4 @@
-import { Component, OnInit, HostListener, ChangeDetectionStrategy, inject, signal } from '@angular/core';
+import { Component, OnInit, HostListener, ChangeDetectionStrategy, computed, inject, signal } from '@angular/core';
 import { CurrencyPipe, DatePipe, DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { forkJoin } from 'rxjs';
@@ -6,10 +6,50 @@ import { ShiftService, AdminShift, ShiftAdmin } from '../../services/shift.servi
 import { AuthService } from '../../services/auth.service';
 import {
   AdminBonusService, AdminBonusSummary, AdminBonusRates, AdminPercentBonusBasis, AdminPercentBonusRule,
-  AdminOrderItem, AdminOrdersView
+  AdminOrderItem, AdminOrderLine, AdminOrdersView
 } from '../../services/admin-bonus.service';
+import { resolveServiceTypeShortLabel } from '../../shared/admin/service-type-short-label';
+import { EXTRA_SERVICE_KEYS } from '../../shared/booking/extra-service-keys';
 import { extractApiErrorMessage } from '../../utils/http-error.utils';
 import { readableLabelColor } from '../../shared/admin/readable-label-color';
+
+/** The admin Orders tab's short name: "Regular", "Deep", "Move In/Out", a Pre-arranged order's own label. */
+function orderTypeLabel(o: AdminOrderLine): string {
+  return resolveServiceTypeShortLabel({
+    serviceTypeName: o.rawServiceTypeName,
+    serviceTypeKey: o.serviceTypeKey,
+    isCustomServiceType: o.isCustomServiceType,
+    customServiceDisplayName: o.customServiceDisplayName,
+    isDeepCleaning: o.isDeepCleaning
+  });
+}
+
+/** Short names for the keyed home-size lines; anything else keeps its own name. */
+const SERVICE_SHORT_NAMES: Record<string, string> = {
+  bedrooms: 'Bed', bathrooms: 'Bath', sqft: 'sf', levels: 'Levels', cleaners: 'Cleaners', hours: 'Hours'
+};
+
+/** "Bedx2", "Bathx1", "sfx1200" — what was ordered, no money. A studio is "Studio"; an empty line is dropped. */
+function servicePart(s: AdminOrderItem): string {
+  const key = (s.key ?? '').trim().toLowerCase();
+  if (key === 'bedrooms' && s.quantity === 0) return 'Studio';
+  if (s.quantity <= 0) return '';
+  return `${SERVICE_SHORT_NAMES[key] ?? s.name}x${s.quantity}`;
+}
+
+/** The deep-cleaning extra, by key; an unkeyed (legacy) row by its name. */
+function isDeepExtra(e: AdminOrderItem): boolean {
+  const key = (e.key ?? '').trim();
+  return key ? key === EXTRA_SERVICE_KEYS.deepCleaning : e.name.trim().toLowerCase() === 'deep cleaning';
+}
+
+/** "Inside Fridge", "Inside Oven x2", "Organizing 2h" — no money. */
+function extraPart(e: AdminOrderItem): string {
+  let label = e.name;
+  if (e.quantity > 1) label += ` x${e.quantity}`;
+  if (e.hours > 0) label += ` ${e.hours}h`;
+  return label;
+}
 
 const FALLBACK_COLORS = [
   '#ef4444', '#f97316', '#eab308', '#22c55e',
@@ -127,6 +167,14 @@ export class ShiftsComponent implements OnInit {
   readonly ordersView = signal<AdminOrdersView | null>(null);
   readonly isLoadingOrders = signal(false);
   readonly ordersError = signal('');
+  /** The table rows, labels resolved once per answer rather than per change detection. */
+  readonly orderRows = computed(() => (this.ordersView()?.orders ?? []).map(o => ({
+    order: o,
+    typeLabel: orderTypeLabel(o),
+    servicesLine: o.services.map(servicePart).filter(Boolean).join(' '),
+    // The deep-cleaning extra IS the "Deep" in the type column; listing it again says it twice.
+    extras: o.extraServices.filter(e => !(o.isDeepCleaning && isDeepExtra(e))).map(extraPart)
+  })));
 
   ngOnInit(): void {
     const user = this.authService.currentUserValue;
@@ -283,6 +331,12 @@ export class ShiftsComponent implements OnInit {
       next: (rows) => {
         this.bonuses.set(rows);
         this.isLoadingBonuses.set(false);
+        // An open orders list follows the month on screen (and closes if its person is gone).
+        const open = this.ordersFor();
+        if (open) {
+          const still = rows.find(r => r.adminId === open.adminId);
+          if (still) this.openOrders(still); else this.closeOrders();
+        }
       },
       error: () => {
         this.isLoadingBonuses.set(false);
@@ -293,6 +347,12 @@ export class ShiftsComponent implements OnInit {
   /** A SuperAdmin opens anyone's orders; an admin only their own. */
   canSeeOrders(b: AdminBonusSummary): boolean {
     return this.isSuperAdmin() || b.adminId === this.currentUserId;
+  }
+
+  /** The Orders button: opens this person's list under their card, or shuts it. One at a time. */
+  toggleOrders(b: AdminBonusSummary): void {
+    if (this.ordersFor()?.adminId === b.adminId) this.closeOrders();
+    else this.openOrders(b);
   }
 
   openOrders(b: AdminBonusSummary): void {
@@ -325,18 +385,6 @@ export class ShiftsComponent implements OnInit {
     this.ordersView.set(null);
     this.isLoadingOrders.set(false);
     this.ordersError.set('');
-  }
-
-  onOrdersOverlayClick(event: MouseEvent): void {
-    if ((event.target as HTMLElement).classList.contains('modal-overlay')) this.closeOrders();
-  }
-
-  /** "Bedrooms × 2", "Inside Oven · 2h" — the line as priced on the order. */
-  orderItemLabel(item: AdminOrderItem): string {
-    let label = item.name;
-    if (item.quantity > 1) label += ` × ${item.quantity}`;
-    if (item.hours > 0) label += ` · ${item.hours}h`;
-    return label;
   }
 
   loadBonusRates(): void {
@@ -1073,7 +1121,6 @@ export class ShiftsComponent implements OnInit {
 
   @HostListener('document:keydown.escape')
   onEscKey(): void {
-    if (this.ordersFor()) { this.closeOrders(); return; }
     if (this.multiModalOpen()) { this.closeMultiModal(); return; }
     if (this.selectedDate()) this.closeEditor();
   }

@@ -509,11 +509,23 @@ describe('ShiftsComponent', () => {
       },
       orders: [
         { orderId: 412, serviceDate: '2026-10-07T00:00:00', serviceType: 'Residential Cleaning', isNewCustomerOrder: true,
-          paymentMethod: 'Zelle', services: [{ name: 'Bedrooms', quantity: 2, hours: 0, cost: 50 }],
-          extraServices: [{ name: 'Inside Oven', quantity: 1, hours: 2, cost: 40 }],
+          rawServiceTypeName: 'Residential Cleaning', serviceTypeKey: 'residential', isCustomServiceType: false,
+          customServiceDisplayName: null, isDeepCleaning: false,
+          paymentMethod: 'Zelle',
+          services: [
+            { name: 'Bedrooms', key: 'bedrooms', quantity: 2, hours: 0, cost: 50 },
+            { name: 'Bathrooms', key: 'bathrooms', quantity: 1, hours: 0, cost: 35 },
+            { name: 'Square Feet', key: 'sqft', quantity: 1200, hours: 0, cost: 12 }
+          ],
+          extraServices: [
+            { name: 'Inside Oven', quantity: 1, hours: 2, cost: 40 },
+            { name: 'Inside Cabinets', quantity: 3, hours: 0, cost: 45 }
+          ],
           subTotal: 100, discounts: 0, salesTax: 8.88, refundedAmount: 0, orderTotal: 108.88,
           cleanerWages: 50, stripeFee: 0, net: 50 },
-        { orderId: 398, serviceDate: '2026-10-05T00:00:00', serviceType: 'Deep Cleaning', isNewCustomerOrder: false,
+        { orderId: 398, serviceDate: '2026-10-05T00:00:00', serviceType: 'Pre-Arranged Cleaning — Heavy', isNewCustomerOrder: false,
+          rawServiceTypeName: 'Pre-Arranged Cleaning', serviceTypeKey: null, isCustomServiceType: true,
+          customServiceDisplayName: 'Heavy', isDeepCleaning: false,
           paymentMethod: 'Card', services: [], extraServices: [],
           subTotal: 200, discounts: 0, salesTax: 17.75, refundedAmount: 0, orderTotal: 217.75,
           cleanerWages: 100, stripeFee: 7.48, net: 92.52 }
@@ -534,11 +546,14 @@ describe('ShiftsComponent', () => {
     }
 
     const buttons = (f: ComponentFixture<ShiftsComponent>) =>
-      (f.nativeElement as HTMLElement).querySelectorAll('.bonus-orders-btn');
+      (f.nativeElement as HTMLElement).querySelectorAll('.bonus-details-btn');
 
-    it('gives a SuperAdmin an Orders button on every admin', () => {
+    it('gives a SuperAdmin a Details button on every admin, beside "Add percentage bonus"', () => {
       const f = bootAs(true, 99, [row(), manager()]);
       expect(buttons(f).length).toBe(2);
+      const foot = buttons(f)[0].closest('.bonus-block-foot')!;
+      expect(foot.textContent).toContain('Add percentage bonus');
+      expect(buttons(f)[0].textContent!.trim()).toBe('Details');
     });
 
     it("gives an admin the button on their own card only", () => {
@@ -547,6 +562,24 @@ describe('ShiftsComponent', () => {
       expect(found.length).toBe(1);
       expect(found[0].closest('.bonus-card')!.textContent).toContain('Nika');
     });
+
+    /** One total card's "New" / "Returning" / … line, as the person reads it. */
+    const splitValue = (scope: Element, cardLabel: string, line: string): string => {
+      const card = Array.from(scope.querySelectorAll('.orders-stat'))
+        .find(c => c.querySelector('.orders-stat-label')!.textContent!.trim() === cardLabel)!;
+      const row = Array.from(card.querySelectorAll('.orders-stat-split > div'))
+        .find(d => d.querySelector('dt')!.textContent!.trim() === line)!;
+      return row.querySelector('dd')!.textContent!.trim();
+    };
+
+    /** Opens the list from the card's own button, the way a person does. */
+    function openFromCard(): HTMLElement {
+      component.bonuses.set([row()]);
+      fixture.detectChanges();
+      (buttons(fixture)[0] as HTMLButtonElement).click();
+      fixture.detectChanges();
+      return (fixture.nativeElement as HTMLElement).querySelector('.bonus-card')!;
+    }
 
     it('asks for the visible month and lists each order by its id, without any customer details', () => {
       bonusService.getAdminOrders.mockReturnValue(of(view()));
@@ -558,55 +591,95 @@ describe('ShiftsComponent', () => {
       fixture.detectChanges();
 
       expect(bonusService.getAdminOrders).toHaveBeenCalledWith(1, '2026-10-01', '2026-10-31');
-      const panel = (fixture.nativeElement as HTMLElement).querySelector('.orders-panel')!;
+      // Expanded INSIDE the person's card, not in a modal.
+      const panel = (fixture.nativeElement as HTMLElement).querySelector('.bonus-card .bonus-orders')!;
+      expect(panel).toBeTruthy();
+      expect((fixture.nativeElement as HTMLElement).querySelector('.modal-overlay')).toBeNull();
+      // Six columns: the job and what it came to — no subtotal, tax, wages, fee or net per row.
+      const heads = Array.from(panel.querySelectorAll('thead th')).map(th => th.textContent!.trim());
+      expect(heads).toEqual(['ID', 'Date', 'Service type', 'Services', 'Extras', 'Total']);
+
       const rows = panel.querySelectorAll('tbody tr');
       expect(rows.length).toBe(2);
-      expect(rows[0].textContent).toContain('#412');
-      expect(rows[0].textContent).toContain('New customer');
-      expect(rows[0].textContent).toContain('Bedrooms × 2');
-      expect(rows[0].textContent).toContain('Inside Oven · 2h');
-      expect(rows[1].textContent).toContain('#398');
-      expect(rows[1].textContent).toContain('Returning');
-      expect(rows[1].textContent).toContain('$7.48');
-      expect(rows[1].textContent).toContain('$92.52');
+      const cells = (r: Element) => Array.from(r.querySelectorAll('td')).map(td => td.textContent!.replace(/\s+/g, ' ').trim());
+      const [id, date, type, services, extras, total] = cells(rows[0]);
+      expect(id).toBe('412');
+      expect(date).toBe('10/7');   // the SERVICE date, no year, no payment method
+      expect(type).toBe('Regular New');
+      expect(services).toBe('Bedx2 Bathx1 sfx1200');
+      expect(extras).toBe('Inside Oven 2hInside Cabinets x3');
+      expect(Array.from(rows[0].querySelectorAll('.extra-tag')).map(e => e.textContent!.trim()))
+        .toEqual(['Inside Oven 2h', 'Inside Cabinets x3']);
+      expect(total).toBe('$108.88');
+      expect(rows[0].textContent).not.toContain('Zelle');
+      expect(rows[0].textContent).not.toContain('$50.00');   // no per-line amounts
 
-      const summary = panel.querySelector('.orders-summary')!.textContent!;
-      expect(summary).toContain('$326.63');
-      expect(summary).toContain('New $108.88');
-      expect(summary).toContain('Returning $217.75');
-      expect(summary).toContain('$142.52');
+      // A Pre-arranged order is named by its own label, never "Arranged".
+      const second = cells(rows[1]);
+      expect(second[2]).toBe('Heavy Returning');
+      expect(second[3]).toBe('—');
+      expect(second[5]).toBe('$217.75');
+
+      const summary = panel.querySelector('.orders-summary')!;
+      expect(summary.textContent).toContain('$326.63');
+      expect(splitValue(summary, 'Total', 'New')).toBe('$108.88');
+      expect(splitValue(summary, 'Total', 'Returning')).toBe('$217.75');
+      expect(summary.textContent).toContain('$142.52');
+      expect(splitValue(summary, 'Taken off for net', 'Stripe fees')).toBe('$7.48');
+    });
+
+    it('names a deep order "Deep" once — the deep-cleaning extra is not listed again under Extras', () => {
+      const v = view();
+      v.orders = [{ ...v.orders[0], isDeepCleaning: true, extraServices: [
+        { name: 'Deep Cleaning', key: 'deep-cleaning', quantity: 1, hours: 0, cost: 90 },
+        { name: 'Inside Fridge', quantity: 1, hours: 0, cost: 35 }
+      ] }];
+      bonusService.getAdminOrders.mockReturnValue(of(v));
+      const row = openFromCard().querySelector('tbody tr')!;
+      expect(row.querySelector('.order-type')!.textContent).toContain('Deep');
+      expect(Array.from(row.querySelectorAll('.extra-tag')).map(e => e.textContent!.trim())).toEqual(['Inside Fridge']);
     });
 
     it('shows a dash for an average with nothing to average', () => {
       const v = view();
       v.summary = { ...v.summary, newCustomerOrders: 0, averagePriceNew: null, averageNetNew: null };
       bonusService.getAdminOrders.mockReturnValue(of(v));
-      component.openOrders(row());
-      fixture.detectChanges();
+      const card = openFromCard();
 
-      const summary = (fixture.nativeElement as HTMLElement).querySelector('.orders-summary')!.textContent!;
-      expect(summary).toContain('New —');
+      expect(splitValue(card.querySelector('.orders-summary')!, 'Average price', 'New')).toBe('—');
     });
 
     it('says so when the month has no completed orders', () => {
       bonusService.getAdminOrders.mockReturnValue(of(view({ orders: [] })));
-      component.openOrders(row());
-      fixture.detectChanges();
-
-      const panel = (fixture.nativeElement as HTMLElement).querySelector('.orders-panel')!;
+      const panel = openFromCard().querySelector('.bonus-orders')!;
       expect(panel.querySelector('table')).toBeNull();
       expect(panel.textContent).toContain('No completed orders');
     });
 
-    it("shows the server's refusal and closes on Escape", () => {
+    it("shows the server's refusal, and the same button folds the list away", () => {
       bonusService.getAdminOrders.mockReturnValue(throwError(() => ({ status: 403, error: { message: 'Not yours.' } })));
-      component.openOrders(row());
-      fixture.detectChanges();
-      expect((fixture.nativeElement as HTMLElement).querySelector('.orders-panel')!.textContent).toContain('Not yours.');
+      const card = openFromCard();
+      expect(card.querySelector('.bonus-orders')!.textContent).toContain('Not yours.');
+      const btn = buttons(fixture)[0] as HTMLButtonElement;
+      expect(btn.getAttribute('aria-expanded')).toBe('true');
+      expect(btn.textContent).toContain('Hide details');
 
-      component.onEscKey();
+      btn.click();
       fixture.detectChanges();
-      expect((fixture.nativeElement as HTMLElement).querySelector('.orders-panel')).toBeNull();
+      expect(card.querySelector('.bonus-orders')).toBeNull();
+      expect(btn.getAttribute('aria-expanded')).toBe('false');
+    });
+
+    it('follows the month: moving the calendar reloads the open list for the new month', () => {
+      bonusService.getAdminOrders.mockReturnValue(of(view()));
+      component.currentMonth.set(new Date(2026, 9, 15));
+      bonusService.getBonuses.mockReturnValue(of([row()]));
+      openFromCard();
+
+      component.currentMonth.set(new Date(2026, 10, 15));
+      component.loadBonuses();
+
+      expect(bonusService.getAdminOrders).toHaveBeenLastCalledWith(1, '2026-11-01', '2026-11-30');
     });
 
     it('drops a late answer for a list that was already closed', () => {

@@ -305,12 +305,6 @@
             }
           </div>
 
-          @if (canSeeOrders(b)) {
-          <button type="button" class="bonus-orders-btn" (click)="openOrders(b)"
-                  [attr.aria-label]="'Orders of ' + b.firstName + ' ' + b.lastName + ', ' + getBonusMonthLabel()">
-            <i class="fas fa-list-ul" aria-hidden="true"></i> Orders
-          </button>
-          }
         </div>
 
         <!-- Every block is a header (what it is + its figure) over bordered rows, with its actions
@@ -377,8 +371,10 @@
               </div>
               }
             </dl>
-            @if (isSuperAdmin()) {
+            <!-- An admin sees this footer on their own card for Details alone. -->
+            @if (isSuperAdmin() || canSeeOrders(b)) {
             <footer class="bonus-block-foot">
+              @if (isSuperAdmin()) {
               <button type="button" class="bonus-link-btn" (click)="startEditingOverride(b)">
                 <i class="fas fa-pen"></i> Change rate
               </button>
@@ -387,7 +383,17 @@
                 <i class="fas fa-percent"></i> Add percentage bonus
               </button>
               }
-              @if (!showsPercentBlock(b) && (b.percentRules?.length ?? 0) > 0) {
+              }
+              @if (canSeeOrders(b)) {
+              <button type="button" class="bonus-link-btn bonus-details-btn" (click)="toggleOrders(b)"
+                      [attr.aria-expanded]="ordersFor()?.adminId === b.adminId"
+                      [attr.aria-controls]="'bonus-orders-' + b.adminId">
+                <i class="fas" [class.fa-chevron-down]="ordersFor()?.adminId !== b.adminId"
+                   [class.fa-chevron-up]="ordersFor()?.adminId === b.adminId" aria-hidden="true"></i>
+                {{ ordersFor()?.adminId === b.adminId ? 'Hide details' : 'Details' }}
+              </button>
+              }
+              @if (isSuperAdmin() && !showsPercentBlock(b) && (b.percentRules?.length ?? 0) > 0) {
               <button type="button" class="bonus-link-btn subtle" (click)="togglePercentHistory(b)">
                 Percentage history ({{ b.percentRules.length }})
               </button>
@@ -569,147 +575,134 @@
           </section>
           }
         </div>
+
+        <!-- This person's completed orders for the month, expanded under the card (2026-10).
+             The job and its money only: the server sends nothing about the customer. -->
+        @if (ordersFor()?.adminId === b.adminId) {
+        <section class="bonus-orders" [attr.id]="'bonus-orders-' + b.adminId"
+                 [attr.aria-label]="'Orders of ' + b.firstName + ' ' + b.lastName">
+          <header class="bonus-orders-head">
+            <span class="bonus-orders-title">Orders · {{ getBonusMonthLabel() }}</span>
+            <span class="bonus-orders-sub">Completed (done &amp; paid) orders they booked</span>
+          </header>
+
+          @if (isLoadingOrders()) {
+          <div class="bonus-orders-message"><i class="fas fa-spinner fa-spin"></i> Loading orders…</div>
+          }
+          @if (ordersError()) {
+          <div class="bonus-orders-message error" role="alert">{{ ordersError() }}</div>
+          }
+
+          @if (ordersView(); as v) {
+          @if (v.orders.length === 0) {
+          <div class="bonus-orders-message">No completed orders in {{ getBonusMonthLabel() }}.</div>
+          } @else {
+          <!-- Totals: every figure split new / returning customers, which re-add to the total. -->
+          <div class="orders-summary">
+            <div class="orders-stat">
+              <span class="orders-stat-label">Orders</span>
+              <span class="orders-stat-value">{{ v.summary.orders }}</span>
+              <dl class="orders-stat-split">
+                <div><dt><i class="dot is-new"></i>New</dt><dd>{{ v.summary.newCustomerOrders }}</dd></div>
+                <div><dt><i class="dot"></i>Returning</dt><dd>{{ v.summary.returningCustomerOrders }}</dd></div>
+              </dl>
+            </div>
+            <div class="orders-stat">
+              <span class="orders-stat-label">Total</span>
+              <span class="orders-stat-value">{{ v.summary.ordersTotal | currency:'USD' }}</span>
+              <dl class="orders-stat-split">
+                <div><dt><i class="dot is-new"></i>New</dt><dd>{{ v.summary.ordersTotalNew | currency:'USD' }}</dd></div>
+                <div><dt><i class="dot"></i>Returning</dt><dd>{{ v.summary.ordersTotalReturning | currency:'USD' }}</dd></div>
+              </dl>
+            </div>
+            <div class="orders-stat is-net">
+              <span class="orders-stat-label">Net income</span>
+              <span class="orders-stat-value" [class.negative]="v.summary.netIncome < 0">{{ v.summary.netIncome | currency:'USD' }}</span>
+              <dl class="orders-stat-split">
+                <div><dt><i class="dot is-new"></i>New</dt><dd>{{ v.summary.netIncomeNew | currency:'USD' }}</dd></div>
+                <div><dt><i class="dot"></i>Returning</dt><dd>{{ v.summary.netIncomeReturning | currency:'USD' }}</dd></div>
+              </dl>
+            </div>
+            <div class="orders-stat">
+              <span class="orders-stat-label">Average price</span>
+              <span class="orders-stat-value">{{ v.summary.averagePrice | currency:'USD' }}</span>
+              <dl class="orders-stat-split">
+                <div><dt><i class="dot is-new"></i>New</dt><dd>{{ v.summary.averagePriceNew !== null ? (v.summary.averagePriceNew | currency:'USD') : '—' }}</dd></div>
+                <div><dt><i class="dot"></i>Returning</dt><dd>{{ v.summary.averagePriceReturning !== null ? (v.summary.averagePriceReturning | currency:'USD') : '—' }}</dd></div>
+              </dl>
+            </div>
+            <div class="orders-stat">
+              <span class="orders-stat-label">Average net</span>
+              <span class="orders-stat-value">{{ v.summary.averageNet | currency:'USD' }}</span>
+              <dl class="orders-stat-split">
+                <div><dt><i class="dot is-new"></i>New</dt><dd>{{ v.summary.averageNetNew !== null ? (v.summary.averageNetNew | currency:'USD') : '—' }}</dd></div>
+                <div><dt><i class="dot"></i>Returning</dt><dd>{{ v.summary.averageNetReturning !== null ? (v.summary.averageNetReturning | currency:'USD') : '—' }}</dd></div>
+              </dl>
+            </div>
+            <div class="orders-stat">
+              <span class="orders-stat-label">Taken off for net</span>
+              <span class="orders-stat-value">{{ v.summary.salesTax + v.summary.cleanerWages + v.summary.stripeFees | currency:'USD' }}</span>
+              <dl class="orders-stat-split">
+                <div><dt>Sales tax</dt><dd>{{ v.summary.salesTax | currency:'USD' }}</dd></div>
+                <div><dt>Cleaners</dt><dd>{{ v.summary.cleanerWages | currency:'USD' }}</dd></div>
+                <div><dt>Stripe fees</dt><dd>{{ v.summary.stripeFees | currency:'USD' }}</dd></div>
+              </dl>
+            </div>
+          </div>
+
+          <!-- Same look as the admin Orders / Users tables; scrolls sideways inside its own box. -->
+          <div class="orders-table-wrap">
+            <table class="orders-table">
+              <thead>
+                <tr>
+                  <th scope="col">ID</th>
+                  <th scope="col">Date</th>
+                  <th scope="col">Service type</th>
+                  <th scope="col">Services</th>
+                  <th scope="col">Extras</th>
+                  <th scope="col">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (r of orderRows(); track r.order.orderId) {
+                <tr>
+                  <td class="order-id">{{ r.order.orderId }}</td>
+                  <td class="order-date">{{ r.order.serviceDate | date:'M/d' }}</td>
+                  <td class="order-type">
+                    {{ r.typeLabel }}
+                    <span class="customer-chip" [class.is-new]="r.order.isNewCustomerOrder">
+                      {{ r.order.isNewCustomerOrder ? 'New' : 'Returning' }}
+                    </span>
+                  </td>
+                  <td class="order-services">{{ r.servicesLine || '—' }}</td>
+                  <td class="order-extras">
+                    @for (e of r.extras; track $index) {
+                    <span class="extra-tag">{{ e }}</span>
+                    } @empty { <span class="muted">—</span> }
+                  </td>
+                  <td class="num amount">
+                    {{ r.order.orderTotal | currency:'USD' }}
+                    @if (r.order.refundedAmount > 0) {
+                    <span class="order-sub">after {{ r.order.refundedAmount | currency:'USD' }} refund</span>
+                    }
+                  </td>
+                </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+          <p class="orders-footnote">
+            Total is without tips. Net = total − sales tax − cleaners' wages − Stripe fees (card payments only);
+            admin bonuses are not taken off.
+          </p>
+          }
+          }
+        </section>
+        }
       </div>
       }
     </div>
     }
-  </div>
-  }
-
-  <!-- ═══════════════════════════════════════ -->
-  <!--  One admin's orders                     -->
-  <!-- ═══════════════════════════════════════ -->
-  <!-- The job and its money only: the server sends nothing about the customer. -->
-  @if (ordersFor(); as who) {
-  <div class="modal-overlay" (click)="onOrdersOverlayClick($event)">
-    <div class="modal-panel orders-panel" role="dialog" aria-modal="true" aria-labelledby="adminOrdersTitle">
-      <div class="editor-header">
-        <div>
-          <h2 id="adminOrdersTitle">{{ who.firstName }} {{ who.lastName }} — orders</h2>
-          <span class="orders-sub">{{ getBonusMonthLabel() }} · completed (done &amp; paid) orders they booked</span>
-        </div>
-        <button class="close-btn" (click)="closeOrders()" title="Close" aria-label="Close">
-          <i class="fas fa-times"></i>
-        </button>
-      </div>
-
-      @if (isLoadingOrders()) {
-      <div class="bonus-loading orders-message"><i class="fas fa-spinner fa-spin"></i> Loading orders…</div>
-      }
-      @if (ordersError()) {
-      <div class="message error-message" role="alert"><i class="fas fa-exclamation-circle"></i> {{ ordersError() }}</div>
-      }
-
-      @if (ordersView(); as v) {
-      @if (v.orders.length === 0) {
-      <div class="orders-message">No completed orders in {{ getBonusMonthLabel() }}.</div>
-      } @else {
-      <!-- Totals: every figure split new / returning customers, which re-add to the total. -->
-      <div class="orders-summary">
-        <div class="orders-stat">
-          <span class="orders-stat-label">Orders</span>
-          <span class="orders-stat-value">{{ v.summary.orders }}</span>
-          <span class="orders-stat-split">New {{ v.summary.newCustomerOrders }} · Returning {{ v.summary.returningCustomerOrders }}</span>
-        </div>
-        <div class="orders-stat">
-          <span class="orders-stat-label">Total price (no tips)</span>
-          <span class="orders-stat-value">{{ v.summary.ordersTotal | currency:'USD' }}</span>
-          <span class="orders-stat-split">New {{ v.summary.ordersTotalNew | currency:'USD' }} · Returning {{ v.summary.ordersTotalReturning | currency:'USD' }}</span>
-        </div>
-        <div class="orders-stat">
-          <span class="orders-stat-label">Net income</span>
-          <span class="orders-stat-value" [class.negative]="v.summary.netIncome < 0">{{ v.summary.netIncome | currency:'USD' }}</span>
-          <span class="orders-stat-split">New {{ v.summary.netIncomeNew | currency:'USD' }} · Returning {{ v.summary.netIncomeReturning | currency:'USD' }}</span>
-        </div>
-        <div class="orders-stat">
-          <span class="orders-stat-label">Average price</span>
-          <span class="orders-stat-value">{{ v.summary.averagePrice | currency:'USD' }}</span>
-          <span class="orders-stat-split">
-            New {{ v.summary.averagePriceNew !== null ? (v.summary.averagePriceNew | currency:'USD') : '—' }}
-            · Returning {{ v.summary.averagePriceReturning !== null ? (v.summary.averagePriceReturning | currency:'USD') : '—' }}
-          </span>
-        </div>
-        <div class="orders-stat">
-          <span class="orders-stat-label">Average net</span>
-          <span class="orders-stat-value">{{ v.summary.averageNet | currency:'USD' }}</span>
-          <span class="orders-stat-split">
-            New {{ v.summary.averageNetNew !== null ? (v.summary.averageNetNew | currency:'USD') : '—' }}
-            · Returning {{ v.summary.averageNetReturning !== null ? (v.summary.averageNetReturning | currency:'USD') : '—' }}
-          </span>
-        </div>
-        <div class="orders-stat">
-          <span class="orders-stat-label">Taken off for net</span>
-          <span class="orders-stat-split">Sales tax {{ v.summary.salesTax | currency:'USD' }}</span>
-          <span class="orders-stat-split">Cleaners {{ v.summary.cleanerWages | currency:'USD' }}</span>
-          <span class="orders-stat-split">Stripe fees {{ v.summary.stripeFees | currency:'USD' }}</span>
-        </div>
-      </div>
-
-      <div class="orders-table-wrap">
-        <table class="orders-table">
-          <thead>
-            <tr>
-              <th scope="col">Order</th>
-              <th scope="col">Service</th>
-              <th scope="col">Services</th>
-              <th scope="col">Extras</th>
-              <th scope="col" class="num">Subtotal</th>
-              <th scope="col" class="num">Discounts</th>
-              <th scope="col" class="num">Tax</th>
-              <th scope="col" class="num">Total (no tips)</th>
-              <th scope="col" class="num">Cleaners</th>
-              <th scope="col" class="num">Stripe fee</th>
-              <th scope="col" class="num">Net</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (o of v.orders; track o.orderId) {
-            <tr>
-              <td>
-                <span class="order-id">#{{ o.orderId }}</span>
-                <span class="order-sub">{{ o.serviceDate | date:'MMM d, y' }}</span>
-                <span class="order-sub">{{ o.paymentMethod }}</span>
-              </td>
-              <td>
-                {{ o.serviceType }}
-                <span class="customer-chip" [class.is-new]="o.isNewCustomerOrder">
-                  {{ o.isNewCustomerOrder ? 'New customer' : 'Returning' }}
-                </span>
-              </td>
-              <td>
-                @for (s of o.services; track $index) {
-                <span class="order-item">{{ orderItemLabel(s) }} <b>{{ s.cost | currency:'USD' }}</b></span>
-                } @empty { <span class="order-sub">—</span> }
-              </td>
-              <td>
-                @for (e of o.extraServices; track $index) {
-                <span class="order-item">{{ orderItemLabel(e) }} <b>{{ e.cost | currency:'USD' }}</b></span>
-                } @empty { <span class="order-sub">—</span> }
-              </td>
-              <td class="num">{{ o.subTotal | currency:'USD' }}</td>
-              <td class="num">{{ o.discounts > 0 ? '−' : '' }}{{ o.discounts | currency:'USD' }}</td>
-              <td class="num">{{ o.salesTax | currency:'USD' }}</td>
-              <td class="num strong">
-                {{ o.orderTotal | currency:'USD' }}
-                @if (o.refundedAmount > 0) {
-                <span class="order-sub">after {{ o.refundedAmount | currency:'USD' }} refund</span>
-                }
-              </td>
-              <td class="num">{{ o.cleanerWages | currency:'USD' }}</td>
-              <td class="num">{{ o.stripeFee | currency:'USD' }}</td>
-              <td class="num strong" [class.negative]="o.net < 0">{{ o.net | currency:'USD' }}</td>
-            </tr>
-            }
-          </tbody>
-        </table>
-      </div>
-      <p class="orders-footnote">
-        Net = total without tips − sales tax − cleaners' wages − Stripe fees (card payments only).
-        Admin bonuses are not taken off.
-      </p>
-      }
-      }
-    </div>
   </div>
   }
 
