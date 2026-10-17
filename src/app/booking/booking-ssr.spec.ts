@@ -101,12 +101,27 @@ describe('BookingComponent server render and hydration', () => {
     writeBookingChoiceCookie(document, null);
   });
 
+  /**
+   * "Tomorrow" depends on the clock, and its first slot on the weekday (customers start at 9:30 on
+   * Saturday/Sunday). Each instant is 16:00 UTC: 12:00 in New York and 20:00 in Tbilisi, so it is
+   * the same calendar day in either zone and the machine's own time zone cannot move "tomorrow".
+   */
+  const WEDNESDAY_NOON_NY = new Date('2026-10-14T16:00:00Z'); // tomorrow = Thu 2026-10-15
+  const SATURDAY_NOON_NY = new Date('2026-10-17T16:00:00Z');  // tomorrow = Sun 2026-10-18
+  const freezeClock = (at: Date) => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(at);
+  };
+
   describe('on the server', () => {
+    afterEach(() => vi.useRealTimers());
+
     it('draws a first-time visitor\'s step 1 whole: default type, prices, tomorrow in New York, no placeholder', () => {
+      freezeClock(WEDNESDAY_NOON_NY);
       const { fixture, page, state } = serverRender(null);
 
       expect(page.selectedServiceType()?.serviceKey).toBe('residential');
-      expect(page.serviceDate.value).toBe(addDaysToIsoDate(newYorkToday(), 1));
+      expect(page.serviceDate.value).toBe('2026-10-15');
       expect(page.serviceTime.value).toBe('08:00');
       expect(page.selectedSubscription()?.subscriptionDays).toBe(0);
       expect(page.calculation().total).toBeGreaterThan(0);
@@ -116,6 +131,14 @@ describe('BookingComponent server render and hydration', () => {
       expect(el.querySelector('.services-shimmer-single')).toBeNull();
       expect(state.choice).toBeNull();
       expect(stored()).toBeNull();
+    });
+
+    it('defaults a Sunday tomorrow to the weekend 9:30 start', () => {
+      freezeClock(SATURDAY_NOON_NY);
+      const { page } = serverRender(null);
+
+      expect(page.serviceDate.value).toBe('2026-10-18');
+      expect(page.serviceTime.value).toBe('09:30');
     });
 
     it('draws a returning visitor\'s choice from the cookie, by key: type, quantities, extras, plan, date, time, tips', () => {
