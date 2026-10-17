@@ -970,3 +970,216 @@ h3 {
     color: var(--text-muted) !important;
   }
 }
+// ── Change history (2026-10): source badge, batch link, revert markers, Revert dialog ──
+// Theme-aware tokens only, so day/night needs no override block of its own.
+
+.source-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 10px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  background: var(--soft-blue);
+  color: var(--primary-color);
+
+  &[data-source="mcp"] { background: var(--mint-fresh); color: var(--mint-fresh-text); }
+  &[data-source="system"] { background: var(--soft-yellow); color: var(--soft-yellow-text); }
+  &[data-source="unknown"] { background: var(--page-bg); color: var(--text-muted); }
+}
+
+.history-tag {
+  display: inline-block;
+  margin: 2px 0 0 6px;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+
+  &.legacy { color: var(--soft-yellow-text); font-weight: 600; }
+  &.reverted { color: var(--soft-red-text); }
+}
+
+.link-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--primary-color);
+  text-decoration: underline;
+  cursor: pointer;
+  font-size: 0.75rem;
+}
+
+.batch-link { display: block; margin-top: 2px; }
+
+.batch-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 14px;
+  background: var(--soft-blue);
+  color: var(--primary-color);
+  font-size: 0.8rem;
+
+  .chip-clear {
+    background: none;
+    border: none;
+    color: inherit;
+    cursor: pointer;
+    font-size: 1rem;
+    line-height: 1;
+  }
+}
+
+.history-note {
+  margin-bottom: 10px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--soft-blue);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+
+  &.legacy { background: var(--soft-yellow); color: var(--soft-yellow-text); }
+}
+
+// Above the sticky header (1000) and the chat widget, like the other admin dialogs.
+.revert-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(15, 23, 42, 0.4);
+}
+
+.revert-dialog {
+  width: min(760px, 100%);
+  max-height: calc(100vh - 32px);
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  box-shadow: 0 12px 40px rgba(15, 23, 42, 0.25);
+
+  .revert-header,
+  .revert-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border-color);
+
+    h3 { margin: 0; font-size: 1.05rem; color: var(--text-primary); }
+  }
+
+  .revert-footer {
+    justify-content: flex-end;
+    border-bottom: none;
+    border-top: 1px solid var(--border-color);
+  }
+
+  .close-btn {
+    background: none;
+    border: none;
+    font-size: 1.4rem;
+    color: var(--text-muted);
+    cursor: pointer;
+  }
+
+  .revert-body {
+    overflow-y: auto;
+    padding: 14px 18px;
+  }
+
+  .revert-summary { margin: 0 0 10px; font-weight: 600; }
+  .revert-muted { color: var(--text-muted); font-size: 0.85rem; }
+
+  .revert-alert {
+    margin-bottom: 12px;
+    padding: 10px 12px;
+    border-radius: 6px;
+    font-size: 0.875rem;
+
+    &.warning { background: var(--soft-yellow); color: var(--soft-yellow-text); }
+    &.error { background: var(--soft-red); color: var(--soft-red-text); }
+  }
+
+  .revert-section {
+    margin-bottom: 14px;
+
+    h4 { margin: 0 0 8px; font-size: 0.9rem; color: var(--text-secondary); }
+  }
+
+  .revert-record {
+    padding: 8px 10px;
+    margin-bottom: 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    font-size: 0.875rem;
+
+    &.conflict { border-color: var(--soft-yellow-text); }
+    &.blocked { border-color: var(--soft-red-text); color: var(--soft-red-text); }
+
+    .record-title { font-weight: 600; margin-bottom: 4px; }
+    .record-reason { font-weight: 400; color: var(--text-muted); margin-left: 6px; }
+  }
+
+  .field-changes { display: flex; flex-direction: column; gap: 3px; }
+
+  .field-change {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 5px;
+
+    .field-name { font-weight: 600; min-width: 120px; color: var(--text-primary); }
+    .arrow { color: var(--text-muted); font-size: 0.75rem; }
+  }
+
+  .old-value { color: var(--soft-red-text); text-decoration: line-through; }
+  .new-value { color: var(--mint-fresh-text); font-weight: 600; }
+  .now-value { color: var(--soft-yellow-text); font-weight: 600; }
+
+  .revert-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.82rem;
+
+    th, td { padding: 4px 6px; text-align: left; border-bottom: 1px solid var(--border-color); }
+    th { color: var(--text-secondary); font-weight: 600; }
+  }
+
+  .revert-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 6px 0 12px;
+    font-size: 0.875rem;
+    cursor: pointer;
+  }
+
+  .revert-note {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+
+    input {
+      padding: 6px 8px;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      background: var(--surface);
+      color: var(--text-primary);
+    }
+  }
+}
+
+@media (max-width: 600px) {
+  .revert-dialog .field-change .field-name { min-width: 0; }
+  .revert-dialog .revert-table { display: block; overflow-x: auto; }
+}

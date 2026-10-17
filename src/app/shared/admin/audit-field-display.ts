@@ -648,6 +648,8 @@ export function getAuditActionLabel(action: string): string {
     case 'Create': return 'Created';
     case 'Update': return 'Updated';
     case 'Delete': return 'Deleted';
+    // A change-history row written by Revert (2026-10); it points back at what it reverted.
+    case 'Revert': return 'Reverted';
     case 'RecurringSeriesCreated': return 'Recurring schedule created';
     case 'RecurringSeriesUpdated': return 'Recurring schedule updated';
     case 'RecurringSeriespause': case 'RecurringSeriesPaused': return 'Recurring schedule paused';
@@ -672,6 +674,7 @@ export function getAuditActionClass(action: string): string {
     case 'create': return 'action-create';
     case 'update': return 'action-update';
     case 'delete': return 'action-delete';
+    case 'revert': return 'action-update';
     case 'assigned': return 'action-assigned';
     case 'removed': return 'action-removed';
     case 'pointsadded': return 'action-points-added';

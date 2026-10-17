@@ -305,6 +305,71 @@ export interface AuditLog {
    * rows the API was always going to refuse.
    */
   undoBlockedReason?: string | null;
+
+  // ── Change history (2026-10) ──
+  /** Services catalogue / plans / expenses: reverted with Revert (preview + confirm), never Undo. */
+  captured?: boolean;
+  /** mcp (Claude), admin (panel), system (background job); null = written before this was recorded. */
+  source?: string | null;
+  batchId?: string | null;
+  /** How many history rows share this row's batch (one admin action, one confirmed change). */
+  batchSize?: number;
+  /** On a Revert row: the entry it reverted. */
+  revertOfId?: number | null;
+  /** History rows that reverted this one. */
+  revertedBy?: number[] | null;
+  note?: string | null;
+}
+
+/** One record in a revert preview. */
+export interface RevertPreviewItem {
+  entityType: string;
+  entityId: number;
+  name?: string | null;
+  /** restore | delete | update | deactivate */
+  action: string;
+  /** ok | conflict | blocked */
+  status: string;
+  reason?: string | null;
+  conflicts?: { field: string; expected: unknown; current: unknown; restore: unknown }[] | null;
+  alternative?: string | null;
+  entryIds: number[];
+}
+
+/** What the server says a revert would do. Nothing has changed until it is applied with the token. */
+export interface ChangeSetPreview {
+  kind: string;
+  canApply: boolean;
+  token?: string | null;
+  expiresAt?: string | null;
+  batchId: string;
+  blockedReason?: string | null;
+  summary: string;
+  changes: {
+    entityType: string;
+    entityId?: number | null;
+    action: string;
+    name?: string | null;
+    fields?: { field: string; old: unknown; new: unknown }[] | null;
+    values?: { [field: string]: unknown } | null;
+  }[];
+  warnings: string[];
+  report?: { items?: RevertPreviewItem[]; override_conflicts?: boolean; use_deactivate_alternative?: boolean } | null;
+}
+
+export interface ChangeSetApplyResult {
+  applied: boolean;
+  batchId: string;
+  changesWritten: number;
+  historyIds: number[];
+  message: string;
+}
+
+export interface RevertPreviewRequest {
+  entryId?: number;
+  batchId?: string;
+  overrideConflicts?: boolean;
+  useDeactivateAlternative?: boolean;
 }
 
 /** One page of the Audits tab feed. Paging, filtering and search are all server-side. */
@@ -323,6 +388,10 @@ export interface AuditMetadata {
   admins: { id: number; name: string; email: string }[];
   undoBlockedEntityTypes: string[];
   undoBlockedReasons: { [entityType: string]: string };
+  /** Entity types whose rows are reverted with Revert (2026-10). */
+  capturedEntityTypes?: string[];
+  /** Source filter values: admin, mcp, system, unknown. */
+  sources?: string[];
 }
 
 /** Server-side query for the Audits tab. Every field is optional. */
@@ -336,6 +405,8 @@ export interface AuditLogQuery {
   search?: string;
   page?: number;
   pageSize?: number;
+  source?: string;
+  batchId?: string;
 }
 
 export interface UserPermissions {
@@ -2103,6 +2174,16 @@ export class AdminService {
 
   redoAuditLog(id: number): Observable<{ message: string }> {
     return this.http.post<{ message: string }>(`${this.apiUrl}/audit-logs/${id}/redo`, {});
+  }
+
+  /** SuperAdmin: what reverting an entry (or a whole batch) would do. Writes nothing. */
+  previewRevert(request: RevertPreviewRequest): Observable<ChangeSetPreview> {
+    return this.http.post<ChangeSetPreview>(`${this.apiUrl}/audit-logs/revert/preview`, request);
+  }
+
+  /** SuperAdmin: apply a previewed revert. The token is single-use and expires after 15 minutes. */
+  applyRevert(token: string, note?: string): Observable<ChangeSetApplyResult> {
+    return this.http.post<ChangeSetApplyResult>(`${this.apiUrl}/audit-logs/revert/apply`, { token, note: note || null });
   }
   
   // Get user's complete update history

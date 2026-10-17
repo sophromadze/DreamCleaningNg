@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { HttpTestingController } from '@angular/common/http/testing';
 
 import { AuditHistoryComponent } from './audit-history.component';
 
@@ -105,6 +106,122 @@ describe('AuditHistoryComponent', () => {
       expect(component.hasAnyRenderableDetail({
         entityType: 'Order', action: 'Update', changedFields: [], oldValues: null, newValues: null
       } as any)).toBe(false);
+    });
+  });
+
+  /**
+   * Revert (2026-10). The Services catalogue, plans and expenses are reverted through a server
+   * PREVIEW and a single-use token, never by the old Undo; a legacy row undone before then keeps
+   * its Redo and is marked as such.
+   */
+  describe('revert', () => {
+    let http: HttpTestingController;
+
+    const priceRow = (over: any = {}) => ({
+      id: 501, entityType: 'ExtraService', entityId: 7, action: 'Update', captured: true,
+      source: 'mcp', batchId: 'b-1', batchSize: 3, changedFields: ['Price'],
+      oldValues: { Price: 40 }, newValues: { Price: 45 }, undoneAt: null, ...over
+    }) as any;
+
+    const preview = (over: any = {}) => ({
+      kind: 'revert', canApply: true, token: 'chg_abc', batchId: 'new-batch', summary: '1 change(s) to 1 record(s): 1 revert.',
+      changes: [{ entityType: 'ExtraService', entityId: 7, action: 'Revert', fields: [{ field: 'Price', old: 45, new: 40 }] }],
+      warnings: [], report: { items: [{ entityType: 'ExtraService', entityId: 7, action: 'update', status: 'ok', entryIds: [501] }] },
+      ...over
+    });
+
+    beforeEach(() => {
+      http = TestBed.inject(HttpTestingController);
+      http.match(() => true); // the page's own start-up requests
+      component.userRole.set('SuperAdmin');
+    });
+
+    afterEach(() => http.match(() => true));
+
+    it('offers Revert instead of Undo on a change-history row, and Redo only on a legacy undone one', () => {
+      expect(component.usesRevert(priceRow())).toBe(true);
+      expect(component.isLegacyUndone(priceRow())).toBe(false);
+
+      const legacy = priceRow({ undoneAt: new Date('2026-09-01') });
+      expect(component.usesRevert(legacy)).toBe(false);
+      expect(component.isLegacyUndone(legacy)).toBe(true);
+
+      expect(component.usesRevert({ ...priceRow(), captured: false, entityType: 'Order' })).toBe(false);
+    });
+
+    it('previews first and applies only the previewed token, with the note', () => {
+      component.openRevert(priceRow(), false);
+      const req = http.expectOne(r => r.url.endsWith('/audit-logs/revert/preview'));
+      expect(req.request.body).toEqual({ entryId: 501, batchId: undefined, overrideConflicts: false, useDeactivateAlternative: false });
+      req.flush(preview());
+      expect(component.revertPreview()?.canApply).toBe(true);
+
+      component.revertNote.set('wrong price');
+      component.confirmRevert();
+      const apply = http.expectOne(r => r.url.endsWith('/audit-logs/revert/apply'));
+      expect(apply.request.body).toEqual({ token: 'chg_abc', note: 'wrong price' });
+      apply.flush({ applied: true, batchId: 'new-batch', changesWritten: 1, historyIds: [900], message: 'Applied 1 change(s) as previewed.' });
+
+      expect(component.revertTarget()).toBeNull();
+      expect(component.successMessage()).toContain('Applied');
+    });
+
+    it('reverts a whole change by its batch id', () => {
+      component.openRevert(priceRow(), true);
+      const req = http.expectOne(r => r.url.endsWith('/audit-logs/revert/preview'));
+      expect(req.request.body.batchId).toBe('b-1');
+      expect(req.request.body.entryId).toBeUndefined();
+    });
+
+    it('shows conflicts, cannot confirm them, and previews again when the admin chooses to overwrite', () => {
+      component.openRevert(priceRow(), false);
+      http.expectOne(r => r.url.endsWith('/audit-logs/revert/preview')).flush(preview({
+        canApply: false, token: null, blockedReason: '1 record(s) changed after this entry',
+        changes: [],
+        report: { items: [{ entityType: 'ExtraService', entityId: 7, action: 'update', status: 'conflict', reason: 'changed after this entry',
+          conflicts: [{ field: 'Price', expected: 45, current: 55, restore: 40 }], entryIds: [501] }] }
+      }));
+      expect(component.revertConflicts().length).toBe(1);
+      component.confirmRevert();
+      http.expectNone(r => r.url.endsWith('/audit-logs/revert/apply'));
+
+      component.setRevertOverride(true);
+      const again = http.expectOne(r => r.url.endsWith('/audit-logs/revert/preview'));
+      expect(again.request.body.overrideConflicts).toBe(true);
+    });
+
+    it('offers deactivating a record orders still use, as a new preview', () => {
+      component.openRevert(priceRow({ action: 'Create', oldValues: null }), false);
+      http.expectOne(r => r.url.endsWith('/audit-logs/revert/preview')).flush(preview({
+        canApply: false, token: null, blockedReason: 'in use',
+        report: { items: [{ entityType: 'ExtraService', entityId: 7, action: 'delete', status: 'blocked', reason: '2 order(s) use this extra service', alternative: 'deactivate', entryIds: [501] }] }
+      }));
+      expect(component.revertOffersDeactivate()).toBe(true);
+
+      component.setRevertDeactivate(true);
+      const again = http.expectOne(r => r.url.endsWith('/audit-logs/revert/preview'));
+      expect(again.request.body.useDeactivateAlternative).toBe(true);
+    });
+
+    it('keeps the dialog open with the reason when the apply is refused, and drops the used token', () => {
+      component.openRevert(priceRow(), false);
+      http.expectOne(r => r.url.endsWith('/audit-logs/revert/preview')).flush(preview());
+      component.confirmRevert();
+      http.expectOne(r => r.url.endsWith('/audit-logs/revert/apply'))
+        .flush({ message: 'Not applied: ExtraService #7 changed after the preview. This token is now used up — run the preview again.' },
+          { status: 400, statusText: 'Bad Request' });
+
+      expect(component.revertTarget()).not.toBeNull();
+      expect(component.revertPreview()).toBeNull();
+      expect(component.revertError()).toContain('used up');
+    });
+
+    it('filters to one change from its batch link', () => {
+      component.showBatch(priceRow());
+      const req = http.match(r => r.url.endsWith('/audit-logs'));
+      expect(req.length).toBeGreaterThan(0);
+      expect(req[req.length - 1].request.params.get('batchId')).toBe('b-1');
+      expect(component.hasActiveFilters()).toBe(true);
     });
   });
 });

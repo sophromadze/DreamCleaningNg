@@ -46,6 +46,13 @@
         }
       </select>
 
+      <select aria-label="Source" [(ngModel)]="selectedSource" class="filter-select" (change)="onFilterChange()"
+              title="Where the change came from">
+        @for (s of sourceOptions; track s.value) {
+        <option [value]="s.value">{{ s.label }}</option>
+        }
+      </select>
+
       <select aria-label="Period" [(ngModel)]="selectedDays"
               class="filter-select"
               [disabled]="hasExplicitDateRange()"
@@ -73,6 +80,12 @@
       @if (hasExplicitDateRange()) {
       <button type="button" class="action-btn secondary"
               (click)="clearDateRange()">Clear dates</button>
+      }
+      @if (selectedBatchId()) {
+      <span class="batch-filter-chip">
+        Showing one change ({{ selectedBatchId().slice(0, 8) }})
+        <button type="button" class="chip-clear" (click)="clearBatch()" aria-label="Show all changes">×</button>
+      </span>
       }
       @if (hasActiveFilters()) {
       <button type="button" class="action-btn secondary"
@@ -108,7 +121,7 @@
               <th>Entity ID</th>
               <th>Changed By</th>
               <th>Date</th>
-              <th>Undo / Redo</th>
+              <th>Undo / Revert</th>
             </tr>
           </thead>
           <tbody>
@@ -118,17 +131,52 @@
               <td>
                 <span class="action-badge" [ngClass]="getActionClass(log.action)">
                   {{ getActionDisplayLabel(log.action) }}
-                  @if (isLogUndone(log)) {
+                  @if (isLogUndone(log) && !isLegacyUndone(log)) {
                   <span class="undone-tag" title="This change has been reverted">· undone</span>
                   }
                 </span>
+                @if (isLegacyUndone(log)) {
+                <span class="history-tag legacy" title="Reverted with the old Undo, before Revert existed. Redo re-applies it.">Undone (old Undo)</span>
+                }
+                @if (log.revertOfId) {
+                <span class="history-tag revert-of">reverts #{{ log.revertOfId }}</span>
+                }
+                @if (log.revertedBy?.length) {
+                <span class="history-tag reverted">reverted by #{{ log.revertedBy!.join(', #') }}</span>
+                }
               </td>
               <td>{{ getEntityTypeDisplayName(log.entityType) }}</td>
               <td>E{{ log.entityId }}</td>
-              <td>{{ log.changedByEmail || log.changedBy || 'System' }}</td>
+              <td>
+                {{ log.changedBy || log.changedByEmail || 'System' }}
+                @if (log.captured || log.source) {
+                <span class="source-badge" [attr.data-source]="log.source || 'unknown'">{{ sourceLabel(log.source) }}</span>
+                }
+                @if ((log.batchSize ?? 1) > 1 && !selectedBatchId()) {
+                <button type="button" class="link-btn batch-link" (click)="showBatch(log, $event)"
+                        title="Show every entry this action wrote">+{{ (log.batchSize ?? 1) - 1 }} in this change</button>
+                }
+              </td>
               <td>{{ formatDate(log.createdAt) }}</td>
               <td>
-                @if (canUndoRedo(log)) {
+                @if (usesRevert(log)) {
+                  @if (isSuperAdmin()) {
+                  <button type="button" class="action-btn secondary"
+                          (click)="openRevert(log, false, $event)"
+                          title="Preview reverting this entry; nothing changes until you confirm">
+                    Revert
+                  </button>
+                  @if ((log.batchSize ?? 1) > 1) {
+                  <button type="button" class="action-btn secondary"
+                          (click)="openRevert(log, true, $event)"
+                          title="Preview reverting every entry this change wrote">
+                    Revert all {{ log.batchSize }}
+                  </button>
+                  }
+                  } @else {
+                  <span class="history-tag" title="Only a SuperAdmin can revert">SuperAdmin only</span>
+                  }
+                } @else if (canUndoRedo(log)) {
                   @if (!isLogUndone(log)) {
                   <button type="button" class="action-btn secondary"
                           (click)="undoLog(log, $event)"
@@ -162,6 +210,12 @@
             <tr class="details-row">
               <td colspan="7">
                 <div class="log-details">
+                  @if (log.note) {
+                  <div class="history-note"><strong>Note:</strong> {{ log.note }}</div>
+                  }
+                  @if (isLegacyUndone(log)) {
+                  <div class="history-note legacy">This change was reverted with the old Undo on {{ formatDate(log.undoneAt!) }}. The values below are what it recorded; Redo re-applies them.</div>
+                  }
                   @if (collectionChanges(log); as changes) {
                     @if (changes.added.length || changes.removed.length) {
                     <div class="field-changes">
@@ -754,6 +808,141 @@
   @if (isLoading()) {
   <div class="loading">
     <p>Loading audit logs...</p>
+  </div>
+  }
+
+  <!-- Revert: a PREVIEW of exactly what would be written, conflicts with later changes, and a
+       confirm that applies that preview or nothing. -->
+  @if (revertTarget(); as target) {
+  <div class="revert-overlay" (click)="closeRevert()">
+    <div class="revert-dialog" role="dialog" aria-modal="true" aria-labelledby="revert-title" (click)="$event.stopPropagation()">
+      <div class="revert-header">
+        <h3 id="revert-title">Revert {{ target.label }}</h3>
+        <button type="button" class="close-btn" (click)="closeRevert()" aria-label="Close">×</button>
+      </div>
+
+      <div class="revert-body">
+        @if (revertLoading()) {
+        <p class="revert-muted">Working out what reverting would change…</p>
+        }
+        @if (revertError()) {
+        <div class="revert-alert error">{{ revertError() }}
+          <button type="button" class="link-btn" (click)="loadRevertPreview()">Preview again</button>
+        </div>
+        }
+
+        @if (revertPreview(); as preview) {
+        <p class="revert-summary">{{ preview.summary }}</p>
+
+        @if (preview.blockedReason) {
+        <div class="revert-alert warning">{{ preview.blockedReason }}</div>
+        }
+
+        @if (revertConflicts().length) {
+        <div class="revert-section">
+          <h4>Changed since this entry</h4>
+          @for (item of revertConflicts(); track item.entityType + item.entityId) {
+          <div class="revert-record conflict">
+            <div class="record-title">{{ getEntityTypeDisplayName(item.entityType) }} #{{ item.entityId }}@if (item.name) { — {{ item.name }} } <span class="record-reason">{{ item.reason }}</span></div>
+            @if (item.conflicts?.length) {
+            <table class="revert-table">
+              <thead><tr><th>Field</th><th>Entry left</th><th>Now</th><th>Revert writes</th></tr></thead>
+              <tbody>
+                @for (c of item.conflicts!; track c.field) {
+                <tr>
+                  <td>{{ getFieldDisplayName(c.field) }}</td>
+                  <td>{{ previewValue(c.expected, c.field) }}</td>
+                  <td class="now-value">{{ previewValue(c.current, c.field) }}</td>
+                  <td class="new-value">{{ previewValue(c.restore, c.field) }}</td>
+                </tr>
+                }
+              </tbody>
+            </table>
+            }
+          </div>
+          }
+          <label class="revert-option">
+            <input type="checkbox" [checked]="revertOverride()" (change)="setRevertOverride($any($event.target).checked)" [disabled]="revertLoading()">
+            Overwrite those later changes anyway (recorded on the revert)
+          </label>
+        </div>
+        }
+
+        @if (revertBlocked().length) {
+        <div class="revert-section">
+          <h4>Can't be reverted</h4>
+          @for (item of revertBlocked(); track item.entityType + item.entityId) {
+          <div class="revert-record blocked">
+            {{ getEntityTypeDisplayName(item.entityType) }} #{{ item.entityId }}@if (item.name) { — {{ item.name }} }: {{ item.reason }}
+          </div>
+          }
+        </div>
+        }
+
+        @if (revertOffersDeactivate()) {
+        <label class="revert-option">
+          <input type="checkbox" [checked]="revertDeactivate()" (change)="setRevertDeactivate($any($event.target).checked)" [disabled]="revertLoading()">
+          Deactivate records that orders still use, instead of deleting them
+        </label>
+        }
+
+        @if (preview.changes.length) {
+        <div class="revert-section">
+          <h4>What will be written</h4>
+          @for (change of preview.changes; track $index) {
+          <div class="revert-record">
+            <div class="record-title">
+              <span class="action-badge" [ngClass]="getActionClass(change.action)">{{ getActionDisplayLabel(change.action) }}</span>
+              {{ getEntityTypeDisplayName(change.entityType) }}@if (change.entityId) { #{{ change.entityId }} }@if (change.name) { — {{ change.name }} }
+            </div>
+            @if (change.fields?.length) {
+            <div class="field-changes">
+              @for (f of change.fields!; track f.field) {
+              <div class="field-change">
+                <span class="field-name">{{ getFieldDisplayName(f.field) }}:</span>
+                <span class="old-value">{{ previewValue(f.old, f.field) }}</span>
+                <span class="arrow">→</span>
+                <span class="new-value">{{ previewValue(f.new, f.field) }}</span>
+              </div>
+              }
+            </div>
+            } @else if (change.values) {
+            <div class="field-changes">
+              @for (key of previewValueFields(change.values); track key) {
+              <div class="field-change">
+                <span class="field-name">{{ getFieldDisplayName(key) }}:</span>
+                <span [class.new-value]="change.action !== 'Delete'" [class.old-value]="change.action === 'Delete'">{{ previewValue(change.values![key], key) }}</span>
+              </div>
+              }
+            </div>
+            }
+          </div>
+          }
+        </div>
+        }
+
+        @for (w of preview.warnings; track w) {
+        <p class="revert-muted">{{ w }}</p>
+        }
+
+        @if (preview.canApply) {
+        <label class="revert-note">
+          Note (optional, kept with the history)
+          <input type="text" maxlength="500" [value]="revertNote()" (input)="revertNote.set($any($event.target).value)">
+        </label>
+        }
+        }
+      </div>
+
+      <div class="revert-footer">
+        <button type="button" class="action-btn secondary" (click)="closeRevert()">Cancel</button>
+        <button type="button" class="action-btn primary"
+                [disabled]="!revertPreview()?.canApply || revertApplying() || revertLoading()"
+                (click)="confirmRevert()">
+          {{ revertApplying() ? 'Reverting…' : 'Confirm revert' }}
+        </button>
+      </div>
+    </div>
   </div>
   }
 </div>

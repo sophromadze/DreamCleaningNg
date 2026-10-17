@@ -1,7 +1,7 @@
 import { Component, OnInit, AfterViewInit, OnDestroy, ElementRef, HostListener, ChangeDetectionStrategy, inject, viewChild, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { AdminService, AuditLog, AuditMetadata, UserPermissions } from '../../../services/admin.service';
+import { AdminService, AuditLog, AuditMetadata, ChangeSetPreview, UserPermissions } from '../../../services/admin.service';
 import { formatNyDateTime } from '../../../shared/ny-time.util';
 import {
   formatAuditValue,
@@ -57,6 +57,10 @@ export class AuditHistoryComponent implements OnInit, AfterViewInit, OnDestroy {
   /** Explicit date range (yyyy-MM-dd). When either is set it OVERRIDES the days dropdown. */
   readonly fromDate = signal('');
   readonly toDate = signal('');
+  /** admin / mcp / system / unknown (rows written before the source was recorded). */
+  readonly selectedSource = signal('all');
+  /** Set by "Show whole change": every row one action or one confirmed change wrote. */
+  readonly selectedBatchId = signal('');
 
   /** Debounce handle for the search box — one request per pause, not one per keystroke. */
   private searchDebounce?: ReturnType<typeof setTimeout>;
@@ -106,6 +110,27 @@ export class AuditHistoryComponent implements OnInit, AfterViewInit, OnDestroy {
       { value: 'all', label: 'All Changes' },
       ...this.metadata().entityTypes.map(t => ({ value: t, label: getAuditEntityLabel(t) })),
     ];
+  }
+
+  get sourceOptions(): { value: string; label: string }[] {
+    return [
+      { value: 'all', label: 'Any source' },
+      ...(this.metadata().sources ?? []).map(s => ({ value: s, label: AuditHistoryComponent.sourceLabel(s) })),
+    ];
+  }
+
+  /** How the Source badge and filter name where a change came from. */
+  static sourceLabel(source: string | null | undefined): string {
+    switch (source) {
+      case 'admin': return 'Admin panel';
+      case 'mcp': return 'Claude';
+      case 'system': return 'System';
+      default: return 'Not recorded';
+    }
+  }
+
+  sourceLabel(source: string | null | undefined): string {
+    return AuditHistoryComponent.sourceLabel(source);
   }
 
   get actionOptions(): { value: string; label: string }[] {
@@ -166,6 +191,11 @@ export class AuditHistoryComponent implements OnInit, AfterViewInit, OnDestroy {
     }
     this.stickyHeaderInitialized = false;
     this.initializationRetries = 0;
+  }
+
+  @HostListener('document:keydown.escape')
+  onEscape() {
+    if (this.revertTarget() && !this.revertApplying()) this.closeRevert();
   }
 
   @HostListener('window:resize')
@@ -421,6 +451,8 @@ export class AuditHistoryComponent implements OnInit, AfterViewInit, OnDestroy {
       action: this.selectedAction() === 'all' ? undefined : this.selectedAction(),
       changedByUserId: this.selectedAdminId() === 'all' ? undefined : Number(this.selectedAdminId()),
       search: this.searchTerm().trim() || undefined,
+      source: this.selectedSource() === 'all' ? undefined : this.selectedSource(),
+      batchId: this.selectedBatchId() || undefined,
       page: this.currentPage(),
       pageSize: this.itemsPerPage,
     }).subscribe({
@@ -493,14 +525,34 @@ export class AuditHistoryComponent implements OnInit, AfterViewInit, OnDestroy {
     this.searchTerm.set('');
     this.fromDate.set('');
     this.toDate.set('');
+    this.selectedSource.set('all');
+    this.selectedBatchId.set('');
     this.onFilterChange();
   }
 
   readonly hasActiveFilters = computed<boolean>(() => this.selectedEntityType() !== 'all'
         || this.selectedAction() !== 'all'
         || this.selectedAdminId() !== 'all'
+        || this.selectedSource() !== 'all'
+        || !!this.selectedBatchId()
         || !!this.searchTerm().trim()
         || this.hasExplicitDateRange());
+
+  /** Lists every row of one batch — and widens the period, since a batch is one moment. */
+  showBatch(log: AuditLog, event?: Event) {
+    event?.stopPropagation();
+    if (!log.batchId) return;
+    this.selectedBatchId.set(log.batchId);
+    this.selectedDays.set(180);
+    this.fromDate.set('');
+    this.toDate.set('');
+    this.onFilterChange();
+  }
+
+  clearBatch() {
+    this.selectedBatchId.set('');
+    this.onFilterChange();
+  }
 
   /**
    * Readable name for a changed field.
@@ -1115,6 +1167,125 @@ export class AuditHistoryComponent implements OnInit, AfterViewInit, OnDestroy {
 
   isLogUndone(log: AuditLog): boolean {
     return !!log.undoneAt;
+  }
+
+  // ── Revert (2026-10) ──────────────────────────────────────────────────────────────────────
+  // The Services catalogue, plans and expenses are reverted with a PREVIEW first: the server runs
+  // the revert in a rolled-back transaction and lists every record it would write, plus anything
+  // that changed since (a conflict). Confirming sends the preview's single-use token, and the
+  // server applies exactly that or refuses. The old row is never edited; the revert is logged as
+  // new "Revert" rows.
+
+  /** Revert replaces Undo for these rows. A legacy row undone before 2026-10 keeps its Redo. */
+  usesRevert(log: AuditLog): boolean {
+    return !!log.captured && !log.undoneAt;
+  }
+
+  isLegacyUndone(log: AuditLog): boolean {
+    return !!log.captured && !!log.undoneAt;
+  }
+
+  readonly isSuperAdmin = computed(() => this.userRole() === 'SuperAdmin');
+
+  /** What the open dialog is reverting. */
+  readonly revertTarget = signal<{ entryId?: number; batchId?: string; label: string } | null>(null);
+  readonly revertPreview = signal<ChangeSetPreview | null>(null);
+  readonly revertLoading = signal(false);
+  readonly revertApplying = signal(false);
+  readonly revertError = signal('');
+  readonly revertOverride = signal(false);
+  readonly revertDeactivate = signal(false);
+  readonly revertNote = signal('');
+
+  readonly revertConflicts = computed(() =>
+    (this.revertPreview()?.report?.items ?? []).filter(i => i.status === 'conflict'));
+  readonly revertBlocked = computed(() =>
+    (this.revertPreview()?.report?.items ?? []).filter(i => i.status === 'blocked'));
+  readonly revertOffersDeactivate = computed(() =>
+    this.revertBlocked().some(i => i.alternative === 'deactivate') || this.revertDeactivate());
+
+  openRevert(log: AuditLog, wholeBatch: boolean, event?: Event) {
+    event?.stopPropagation();
+    this.revertTarget.set(wholeBatch && log.batchId
+      ? { batchId: log.batchId, label: `the whole change (${log.batchSize ?? 1} entries) that #${log.id} belongs to` }
+      : { entryId: log.id, label: `entry #${log.id}` });
+    this.revertOverride.set(false);
+    this.revertDeactivate.set(false);
+    this.revertNote.set('');
+    this.loadRevertPreview();
+  }
+
+  /** Each toggle is a NEW preview: an override or the deactivate alternative is itself previewed. */
+  setRevertOverride(value: boolean) {
+    this.revertOverride.set(value);
+    this.loadRevertPreview();
+  }
+
+  setRevertDeactivate(value: boolean) {
+    this.revertDeactivate.set(value);
+    this.loadRevertPreview();
+  }
+
+  loadRevertPreview() {
+    const target = this.revertTarget();
+    if (!target) return;
+    this.revertLoading.set(true);
+    this.revertError.set('');
+    this.revertPreview.set(null);
+    this.adminService.previewRevert({
+      entryId: target.entryId,
+      batchId: target.batchId,
+      overrideConflicts: this.revertOverride(),
+      useDeactivateAlternative: this.revertDeactivate(),
+    }).subscribe({
+      next: (preview) => {
+        this.revertPreview.set(preview);
+        this.revertLoading.set(false);
+      },
+      error: (err) => {
+        this.revertError.set(err.error?.message || 'Could not preview this revert.');
+        this.revertLoading.set(false);
+      }
+    });
+  }
+
+  confirmRevert() {
+    const token = this.revertPreview()?.token;
+    if (!token || this.revertApplying()) return;
+    this.revertApplying.set(true);
+    this.revertError.set('');
+    this.adminService.applyRevert(token, this.revertNote().trim() || undefined).subscribe({
+      next: (result) => {
+        this.revertApplying.set(false);
+        this.closeRevert();
+        this.successMessage.set(result.message || 'Reverted.');
+        setTimeout(() => { this.successMessage.set(''); }, 5000);
+        this.loadRecentLogs();
+      },
+      error: (err) => {
+        // The token is used up whatever went wrong; the dialog stays open so the admin can
+        // preview again and see what moved.
+        this.revertApplying.set(false);
+        this.revertPreview.set(null);
+        this.revertError.set(err.error?.message || 'The revert was not applied.');
+      }
+    });
+  }
+
+  closeRevert() {
+    this.revertTarget.set(null);
+    this.revertPreview.set(null);
+    this.revertError.set('');
+  }
+
+  /** A preview value as text (null, booleans, numbers, strings). */
+  previewValue(value: unknown, field?: string): string {
+    if (value === null || value === undefined || value === '') return '—';
+    return field ? this.getFieldDisplayValue(value, field) : String(value);
+  }
+
+  previewValueFields(values: { [field: string]: unknown } | null | undefined): string[] {
+    return values ? Object.keys(values).filter(k => k !== 'Id') : [];
   }
 
   // Pending state per row keeps two undo buttons in different rows independent.
